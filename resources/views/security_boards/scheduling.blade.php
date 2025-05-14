@@ -1002,9 +1002,9 @@
 
                                                     <div class="col-md-4">
                                                         <div class="mb-3">
-                                                            <label class="form-label">Office rate <span
+                                                            <label class="form-label">Site rate <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" name="office-rate_shift"
+                                                            <input type="text" name="site_rate"
                                                                 placeholder="$" class="form-control">
                                                         </div>
                                                     </div>
