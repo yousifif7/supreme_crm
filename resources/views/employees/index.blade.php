@@ -7,7 +7,7 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Employees</h2>
+                    <h2 class="mb-1">Security Staff</h2>
                 </div>
 
             </div>
@@ -20,6 +20,7 @@
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
+                        <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -27,21 +28,22 @@
                         </a>
                         <ul class="dropdown-menu  dropdown-menu-start p-3">
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('employees.export.pdf') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('employees.export.excel') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>
                     </div>
                 </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_employee"
                         class=" add_btn btn btn-white d-inline-flex align-items-center" id="openAddModal">
-                        <i class="ti ti-plus me-2"></i>Employee
+                        <i class="ti ti-plus me-2"></i>Staff
                     </a>
 
 
@@ -59,7 +61,7 @@
                     </div>
                     <div class="sort-box">
                         <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort Employees</option>
+                            <option value="" hidden>Sort Staff</option>
                             <option value="">All</option>
                             <option value="">Coordinators</option>
                             <option value="">Archieved</option>
@@ -80,6 +82,7 @@
                         <table class="table table-striped table-hover">
                             <thead class="thead-light">
                                 <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
                                     <th>#</th>
                                     <th>Name</th>
                                     <th>SIA</th>
@@ -94,7 +97,8 @@
                             <tbody>
                                 @forelse ($employees as $employee)
                                     <tr id="employee_row_{{ $employee->id }}">
-                                        <td>{{ $employee->id }}</td>
+                                        <td><input type="checkbox" class="employee-checkbox" value="{{ $employee->id }}">
+                                        <td>{{ $loop->iteration }}</td>
                                         <td>
                                             <div class="d-flex align-items-center file-name-icon">
                                                 <div class="ms-2">
@@ -153,7 +157,7 @@
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Add New Employee</h4>
+                        <h4 class="modal-title">Add New Security Staff</h4>
                         <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
                             aria-label="Close">
                             <i class="ti ti-x"></i>
@@ -173,16 +177,18 @@
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label">Username</label>
-                                                <input type="text" name="username" class="form-control"
-                                                    placeholder="Enter Username" required>
+                                                <label class="form-label">Username <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="email" name="username" class="form-control"
+                                                    placeholder="Enter Username">
                                                 <span class="text-danger form-error" id="error_username"></span>
 
                                             </div>
                                             <div class="mb-3">
-                                                <label class="form-label">Password</label>
+                                                <label class="form-label">Password <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="password" name="password" class="form-control"
-                                                    placeholder="Enter Password" required>
+                                                    placeholder="Enter Password">
                                                 <span class="text-danger form-error" id="error_password"></span>
                                             </div>
                                             <div class="mb-3">
@@ -199,19 +205,19 @@
 
                                     <div class="row part-2">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Forename</label>
+                                            <label class="form-label">Forename <span class="text-danger">*</span></label>
                                             <input type="text" name="fore_name" class="form-control bg-yellow"
-                                                placeholder="Enter Forename" required>
-                                            <span class="text-danger form-error" id="error_forename"></span>
+                                                placeholder="Enter Forename">
+                                            <span class="text-danger form-error" id="error_fore_name"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Surname</label>
+                                            <label class="form-label">Surname <span class="text-danger">*</span></label>
                                             <input type="text" name="sur_name" class="form-control bg-yellow"
-                                                placeholder="Enter Surname" required>
-                                            <span class="text-danger form-error" id="error_surname"></span>
+                                                placeholder="Enter Surname">
+                                            <span class="text-danger form-error" id="error_sur_name"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Gender</label>
+                                            <label class="form-label">Gender <span class="text-danger">*</span></label>
                                             <select class="form-select bg-yellow" name="gender">
                                                 <option value="Male" selected>Male</option>
                                                 <option value="Female">Female</option>
@@ -219,13 +225,14 @@
                                             <span class="text-danger form-error" id="error_gender"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label ">Email</label>
+                                            <label class="form-label ">Email <span class="text-danger">*</span></label>
                                             <input type="email" name="email" class="form-control bg-yellow"
                                                 placeholder="Enter Email">
                                             <span class="text-danger form-error" id="error_email"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">N.I. Number</label>
+                                            <label class="form-label">N.I. Number <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="ni_number" class="form-control bg-yellow"
                                                 placeholder="Enter N.I. Number">
                                             <span class="text-danger form-error" id="error_ni_number"></span>
@@ -239,13 +246,15 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Licence</label>
+                                            <label class="form-label">SIA Licence <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="sia_licence" class="form-control bg-yellow"
                                                 placeholder="Enter SIA Licence"> <span class="text-danger form-error"
                                                 id="error_sia_licence"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Expiry</label>
+                                            <label class="form-label">SIA Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="sia_expiry" class="form-control bg-yellow"
                                                 placeholder="Enter SIA Expiry">
                                         </div>
@@ -261,9 +270,10 @@
                                                 placeholder="Enter Date of Entry / Re-entry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">D.O.B</label>
+                                            <label class="form-label">D.O.B <span class="text-danger">*</span></label>
                                             <input type="date" name="dob" class="form-control"
                                                 placeholder="D.O.B">
+                                            <span class="text-danger form-error" id="error_dob"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Service Type</label>
@@ -276,7 +286,7 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Visa Type</label>
+                                            <label class="form-label">Visa Type <span class="text-danger">*</span></label>
                                             <select class="form-select" name="visa_type">
                                                 <option value="">-- choose --</option>
                                                 @foreach ($visa_types as $visa)
@@ -284,31 +294,41 @@
                                                     </option>
                                                 @endforeach
                                             </select>
+                                            <span class="text-danger form-error" id="error_visa_type"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Visa Expiry</label>
+                                            <label class="form-label">Visa Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="visa_expiry" class="form-control"
                                                 placeholder="Enter Visa Expiry">
+                                            <span class="text-danger form-error" id="error_visa_expiry"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Place of Work</label>
+                                            <label class="form-label">Place of Work <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="place_work" class="form-control"
                                                 placeholder="Place of Work">
+                                            <span class="text-danger form-error" id="error_place_work"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">No of hours per week</label>
                                             <input type="text" name="hour_per_week" class="form-control"
-                                                placeholder="Enter Hours">
+                                                placeholder="Enter Hours"><span class="text-danger form-error"
+                                                id="error_hour_per_week"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Passport no.</label>
+                                            <label class="form-label">Passport no. <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="passport_no" class="form-control"
                                                 placeholder="Enter Passport no.">
+                                            <span class="text-danger form-error" id="error_passport_no"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Passport expiry</label>
+                                            <label class="form-label">Passport expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="passport_expiry" class="form-control"
                                                 placeholder="Enter Passport expiry">
+                                            <span class="text-danger form-error" id="error_passport_expiry"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Address group</label>
@@ -317,9 +337,11 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Contact No:</label>
+                                            <label class="form-label">Contact No: <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="contact" class="form-control"
                                                 placeholder="Enter Contact No">
+                                            <span class="text-danger form-error" id="error_contact_no"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Emergency contact</label>
@@ -332,34 +354,41 @@
                                                 placeholder="Enter Job Title">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Nationality</label>
+                                            <label class="form-label">Nationality <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="nationality" class="form-control"
                                                 placeholder="Enter nationality">
+                                            <span class="text-danger form-error" id="error_nationality"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">P.I.N</label>
+                                            <label class="form-label">P.I.N <span class="text-danger">*</span></label>
                                             <input type="text" name="pin" class="form-control"
                                                 placeholder="Enter PIN">
+                                            <span class="text-danger form-error" id="error_pin"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Reference</label>
                                             <input type="text" name="reference_to_emp" class="form-control"
                                                 placeholder="Enter Reference">
+                                            <span class="text-danger form-error" id="error_reference"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Next of Kin</label>
-                                            <input type="text" name="kin_id" class="form-control"
+                                            <input type="text" name="next_kin" class="form-control"
                                                 placeholder="Enter next of kin">
+                                            <span class="text-danger form-error" id="error_next_kin"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Relationship</label>
                                             <input type="text" name="relation_with_kin" class="form-control"
                                                 placeholder="Enter Relationship">
+                                            <span class="text-danger form-error" id="error_relation_with_kin"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Kin address</label>
                                             <input type="text" name="kin_address" class="form-control"
                                                 placeholder="Enter kin address">
+                                            <span class="text-danger form-error" id="error_kin_address"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Next of Kin Contact No.</label>
@@ -370,14 +399,17 @@
                                             <label class="form-label">Kin Work tel</label>
                                             <input type="text" name="kin_work_tel" class="form-control"
                                                 placeholder="Enter Work Tel">
+                                            <span class="text-danger form-error" id="error_kin_work_tel"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Kin Mobile</label>
                                             <input type="text" name="kin_mobile" class="form-control"
                                                 placeholder="Enter Kin Mobile">
+                                            <span class="text-danger form-error" id="error_kin_mobile"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Share code</label>
+                                            <label class="form-label">Share code <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="share_code" class="form-control"
                                                 placeholder="Enter share code">
                                         </div>
@@ -385,12 +417,16 @@
                                             <label class="form-label">Biometric residence permit</label>
                                             <input type="text" name="biometric_residence_permit" class="form-control"
                                                 placeholder="Enter biometric residence permit">
+                                            <span class="text-danger form-error"
+                                                id="error_biometric_residence_permit"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Biometric residence permit expiry</label>
                                             <input type="date" name="biometric_residence_permit_expiry"
                                                 class="form-control"
                                                 placeholder="Enter biometric residence permit expiry">
+                                            <span class="text-danger form-error"
+                                                id="error_biometric_residence_permit_expiry"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">BRP status</label>
@@ -402,15 +438,18 @@
                                                 <option value="Skilled Worker Visa">Skilled Worker Visa</option>
                                                 <option value="Other Visa">Other Visa</option>
                                             </select>
+                                            <span class="text-danger form-error" id="error_brp_status"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Settlement</label>
                                             <input type="text" name="settlement" class="form-control"
                                                 placeholder="Settlement">
+                                            <span class="text-danger form-error" id="error_settlement"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Tags</label>
                                             <textarea name="tags" id="" cols="30" rows="4" class="form-control">QA54ER</textarea>
+                                            <span class="text-danger form-error" id="error_tags"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Department</label>
@@ -421,9 +460,11 @@
                                                     </option>
                                                 @endforeach
                                             </select>
+                                            <span class="text-danger form-error" id="error_department_id"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Subcontractor</label>
+                                            <label class="form-label">Subcontractor <span
+                                                    class="text-danger">*</span></label>
                                             <select class="form-select" name="subcontractor">
                                                 <option value="AWS SERVICES LTD">AWS SERVICES LTD</option>
                                                 <option value="GOOD HANDS LTD">GOOD HANDS LTD</option>
@@ -432,6 +473,7 @@
                                                 <option value="MASSEC PROTECT LTD">MASSEC PROTECT LTD</option>
                                                 <option value="XL STRATEGY SERVICES LTD">XL STRATEGY SERVICES LTD</option>
                                             </select>
+                                            <span class="text-danger form-error" id="error_subcontractor"></span>
                                         </div>
                                         <div class="col-md-12 mb-3 d-flex align-items-end">
                                             <div class="form-check">
@@ -440,23 +482,25 @@
                                                 </label>
                                             </div>
                                         </div>
-                                        <div id="additional-license-section" class="row">
+                                        <div id="additional-license-section" style="display: none;" class="row">
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">S.I.A License</label>
                                                 <input type="text" name="additional_sia_number" class="form-control"
                                                     placeholder="Enter S.I.A License">
-
+                                                <span class="text-danger form-error"
+                                                    id="error_additional_sia_number"></span>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">License Type</label>
                                                 <select class="form-select" name="license_type">
                                                     <option value="">--choose--</option>
                                                 </select>
+                                                <span class="text-danger form-error" id="error_license_type"></span>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">License Expiry</label>
                                                 <input type="date" name="license_expiry" class="form-control">
-
+                                                <span class="text-danger form-error" id="error_license_expiry"></span>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">DBS confirmed</label>
@@ -469,19 +513,24 @@
                                                 <select class="form-select" name="address_group_additional">
                                                     <option value="">--choose--</option>
                                                 </select>
-
+                                                <span class="text-danger form-error"
+                                                    id="error_address_group_additional"></span>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">Profile Picture</label>
                                                 <input type="file" name="profile_picture" class="form-control">
-
+                                                <span class="text-danger form-error" id="error_profile_picture"></span>
 
                                             </div>
                                             <div class="col-md-4 mb-3">
-                                                <label class="form-label">Employee Type</label>
+                                                <label class="form-label">Staff Type</label>
                                                 <select class="form-select" name="employee_type">
                                                     <option value="">--choose--</option>
+                                                    @foreach ($employee_types as $type)
+                                                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                                    @endforeach
                                                 </select>
+                                                <span class="text-danger form-error" id="error_employee_type"></span>
 
 
                                             </div>
@@ -621,33 +670,16 @@
                                             <label class="form-label">Other Information</label>
                                             <textarea name="other_info" id="" cols="30" rows="4" class="form-control"></textarea>
                                         </div>
-                                        <h3 class="mt-2 mb-4">Holidays</h3>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">Holidays Entitement</label>
-                                            <input type="text" name="holidays_entitement" value="28"
-                                                class="form-control">
+
+                                        <div class="holidays-section">
+                                            <h5>Employee Holidays</h5>
+                                            <div id="holiday-rows">
+                                                <!-- Dynamic rows will be added here -->
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-primary" id="addHolidayRow">+
+                                                Add Holiday</button>
                                         </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">From Date</label>
-                                            <input type="date" name="holiday_from" class="form-control">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">To Date</label>
-                                            <input type="date" name="holiday_to" class="form-control">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">Holidays Entitement</label>
-                                            <input type="text" name="holidays_entitment_additional" value="28"
-                                                class="form-control">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">From Date</label>
-                                            <input type="date" name="holiday_from_additional" class="form-control">
-                                        </div>
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label">To Date</label>
-                                            <input type="date" name="holiday_to_additional" class="form-control">
-                                        </div>
+
                                     </div>
                                 </div>
                                 <div class="modal-footer">
@@ -690,46 +722,25 @@
                                         </div>
                                         <input type="hidden" name="employee_id" id="employee_id">
                                         <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Username</label>
-                                                <input type="text" name="username" id="username"
-                                                    class="form-control" placeholder="Enter Username" required>
-                                                <span class="text-danger form-error" id="error_username"></span>
 
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Password</label>
-                                                <input type="password" name="password" id="password"
-                                                    class="form-control" placeholder="Enter Password">
-                                                <span class="text-danger form-error" id="error_password"></span>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Status</label>
-                                                <select class="form-select" name="status" id="status">
-                                                    <option value="Active" selected>Active</option>
-                                                    <option value="Terminated">Terminated</option>
-                                                    <option value="Need Approval">Need Approval</option>
-                                                </select>
-                                                <span class="text-danger form-error" id="error_status"></span>
-                                            </div>
                                         </div>
                                     </div>
 
                                     <div class="row part-2">
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Forename</label>
+                                            <label class="form-label">Forename <span class="text-danger">*</span></label>
                                             <input type="text" name="fore_name" id="fore_name"
                                                 class="form-control bg-yellow" placeholder="Enter Forename" required>
                                             <span class="text-danger form-error" id="error_forename"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Surname</label>
+                                            <label class="form-label">Surname <span class="text-danger">*</span></label>
                                             <input type="text" name="sur_name" id="sur_name"
                                                 class="form-control bg-yellow" placeholder="Enter Surname" required>
                                             <span class="text-danger form-error" id="error_surname"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Gender</label>
+                                            <label class="form-label">Gender <span class="text-danger">*</span></label>
                                             <select class="form-select bg-yellow" name="gender" id="gender">
                                                 <option value="Male" selected>Male</option>
                                                 <option value="Female">Female</option>
@@ -737,13 +748,14 @@
                                             <span class="text-danger form-error" id="error_gender"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label ">Email</label>
+                                            <label class="form-label ">Email <span class="text-danger">*</span></label>
                                             <input type="email" name="email" id="email"
                                                 class="form-control bg-yellow" placeholder="Enter Email">
                                             <span class="text-danger form-error" id="error_email"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">N.I. Number</label>
+                                            <label class="form-label">N.I. Number <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="ni_number" id="ni_number"
                                                 class="form-control bg-yellow" placeholder="Enter N.I. Number">
                                             <span class="text-danger form-error" id="error_ni_number"></span>
@@ -757,18 +769,20 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Licence</label>
+                                            <label class="form-label">SIA Licence <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="sia_licence" id="sia_licence"
                                                 class="form-control bg-yellow" placeholder="Enter SIA Licence"> <span
                                                 class="text-danger form-error" id="error_sia_licence"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Expiry</label>
+                                            <label class="form-label">SIA Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="sia_expiry" id="sia_expiry"
                                                 class="form-control bg-yellow" placeholder="Enter SIA Expiry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Licence Type</label>
+                                            <label class="form-label">Licence Type </label>
                                             <select class="form-select bg-yellow" name="licence_type" id="licence_type">
                                                 <option selected>Choose</option>
                                             </select>
@@ -866,8 +880,8 @@
                                                 class="form-control" placeholder="Enter Reference">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="kin_id">Next of Kin</label>
-                                            <input type="text" name="kin_id" id="kin_id" class="form-control"
+                                            <label class="form-label" for="next_kin">Next of Kin</label>
+                                            <input type="text" name="next_kin" id="next_kin" class="form-control"
                                                 placeholder="Enter next of kin">
                                         </div>
                                         <div class="col-md-4 mb-3">
@@ -955,7 +969,8 @@
                                             <select class="form-select" name="subcontractor" id="subcontractor">
                                                 <option value="AWS SERVICES LTD">AWS SERVICES LTD</option>
                                                 <option value="GOOD HANDS LTD">GOOD HANDS LTD</option>
-                                                <option value="TOTAL PROTECTION SERVICES LTD">TOTAL PROTECTION SERVICES LTD
+                                                <option value="TOTAL PROTECTION SERVICES LTD">TOTAL PROTECTION SERVICES
+                                                    LTD
                                                 </option>
                                                 <option value="MASSEC PROTECT LTD">MASSEC PROTECT LTD</option>
                                                 <option value="XL STRATEGY SERVICES LTD">XL STRATEGY SERVICES LTD</option>
@@ -1017,6 +1032,10 @@
                                                 <label class="form-label" for="employee_type">Employee Type</label>
                                                 <select class="form-select" name="employee_type" id="employee_type">
                                                     <option value="">--choose--</option>
+
+                                                    @foreach ($employee_types as $type)
+                                                        <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                                    @endforeach
                                                 </select>
                                             </div>
 
@@ -1188,45 +1207,11 @@
                                         </div>
 
                                         <h3 class="mt-2 mb-4">Holidays</h3>
-
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="holidays_entitement">Holidays
-                                                Entitement</label>
-                                            <input type="text" id="holidays_entitement" name="holidays_entitement"
-                                                value="28" class="form-control">
+                                        <div id="editholiday-rows">
+                                            <!-- Holidays load here -->
                                         </div>
-
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="holiday_from">From Date</label>
-                                            <input type="date" id="holiday_from" name="holiday_from"
-                                                class="form-control">
-                                        </div>
-
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="holiday_to">To Date</label>
-                                            <input type="date" id="holiday_to" name="holiday_to"
-                                                class="form-control">
-                                        </div>
-
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="holidays_entitment_2">Holidays
-                                                Entitement</label>
-                                            <input type="text" id="holidays_entitment_additional"
-                                                name="holidays_entitment_additional" value="28"
-                                                class="form-control">
-                                        </div>
-
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="holiday_from_additional">From Date</label>
-                                            <input type="date" id="holiday_from_additional"
-                                                name="holiday_from_additional" class="form-control">
-                                        </div>
-
-                                        <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="holiday_to_additional">To Date</label>
-                                            <input type="date" id="holiday_to_additional"
-                                                name="holiday_to_additional" class="form-control">
-                                        </div>
+                                        <button type="button" id="editHolidayRow" class="btn btn-primary">+ Add
+                                            Holiday</button>
 
                                     </div>
                                 </div>
@@ -1291,6 +1276,44 @@
             </div>
         </div>
         <!-- /Delete Modal -->
+        <!-- Import modal -->
+        <div class="modal fade" id="import_modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Import Excel</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                    <form action="{{ route('employees.import') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="tab-content" id="myTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0 ">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="d-flex gap-2">
+                                                <input type="file" name="import_file" class="form-control"
+                                                    required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-light border me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+
+                                    <button class="btn btn-primary" type="submit">Import</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 @endsection
 @section('scripts')
@@ -1303,10 +1326,29 @@
         });
     </script>
     <script>
+        // Client search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.employee-checkbox').prop('checked', $(this).prop('checked'));
+        });
         $(document).ready(function() {
             $('#add_worker-form1').on('submit', function(e) {
                 e.preventDefault();
 
+                $("[id^='error_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#saveemployee'); // Add an ID to your submit button
@@ -1348,6 +1390,7 @@
             $('#edit_employee_form').on('submit', function(e) {
                 e.preventDefault();
 
+                $("[id^='editerror_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#editemployee'); // Your submit button should have this ID
@@ -1378,7 +1421,7 @@
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                                $('#editerror_' + key).text(value[0]);
                             });
                         } else {
                             alert('An error occurred. Please try again.');
@@ -1392,6 +1435,7 @@
             });
 
         });
+        var editholiday = 0;
 
         function editEmployee(record_id) {
             $.get('/editemployee/' + record_id, function(data) {
@@ -1423,7 +1467,7 @@
                     $('#nationality').val(data.employee.nationality);
                     $('#pin').val(data.employee.pin);
                     $('#reference_to_emp').val(data.employee.reference_to_emp);
-                    $('#kin_id').val(data.employee.kin_id);
+                    $('#next_kin').val(data.employee.next_kin);
                     $('#relation_with_kin').val(data.employee.relation_with_kin);
                     $('#kin_address').val(data.employee.kin_address);
                     $('#kin_number').val(data.employee.kin_number);
@@ -1465,11 +1509,37 @@
                     $('#bank_name').val(data.employee.bank_name);
                     $('#bank_branch').val(data.employee.bank_branch);
                     $('#other_info').val(data.employee.other_info);
-                    $('#holiday_from').val(data.employee.holiday_from);
-                    $('#holiday_to').val(data.employee.holiday_to);
-                    $('#holiday_from_additional').val(data.employee.holiday_from_additional);
-                    $('#holiday_to_additional').val(data.employee.holiday_to_additional);
                     $('#current_endorsement').val(data.employee.current_endorsement);
+
+                    // Clear previous holidays
+                    $('#editholiday-rows').empty();
+
+                    if (data.holidays && data.holidays.length > 0) {
+                        data.holidays.forEach((holiday, index) => {
+                            editholiday++;
+                            const holidayRow = `
+            <div class="row holiday-row mb-3" data-index="${editholiday}">
+                <div class="col-md-3">
+                    <label>Holiday Entitlement</label>
+                    <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control" value="${holiday.holidays_entitement}">
+                </div>
+                <div class="col-md-3">
+                    <label>From Date</label>
+                    <input type="date" name="holidays[${editholiday}][from]" class="form-control" value="${holiday.from_date}">
+                </div>
+                <div class="col-md-3">
+                    <label>To Date</label>
+                    <input type="date" name="holidays[${editholiday}][to]" class="form-control" value="${holiday.to_date}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+                </div>
+            </div>
+        `;
+                            $('#editholiday-rows').append(holidayRow);
+                        });
+                    }
+
 
                     $('#edit_employee').modal('show');
                 }
@@ -1504,5 +1574,108 @@
                 });
             }
         });
+
+        // Bulk delete button
+        $('#bulkDeleteBtn').on('click', function() {
+            const selected = $('.employee-checkbox:checked').map(function() {
+                return this.value;
+            }).get();
+
+            if (selected.length === 0) {
+                alert('Please select at least one client to delete.');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete the selected employee?')) return;
+
+            $.ajax({
+                url: '{{ route('employee.bulkDelete') }}',
+                type: 'POST',
+                data: {
+                    ids: selected,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#success_message').text('Selected employees deleted successfully!');
+                    $('#success_modal').modal('show');
+                },
+                error: function() {
+                    alert('Something went wrong during bulk delete.');
+                }
+            });
+        });
     </script>
+    <script>
+        let holidayIndex = 0;
+        let holidayIndex1 = 0;
+
+        function addHolidayRow() {
+            holidayIndex++;
+
+            const holidayRow = `
+            <div class="row holiday-row mb-3" data-index="${holidayIndex}">
+                <div class="col-md-3">
+                    <label>Holiday Entitlement</label>
+                    <input type="text" name="holidays[${holidayIndex}][entitlement]" class="form-control" placeholder="Entitlement">
+                </div>
+                <div class="col-md-3">
+                    <label>From Date</label>
+                    <input type="date" name="holidays[${holidayIndex}][from]" class="form-control" placeholder="From Date">
+                </div>
+                <div class="col-md-3">
+                    <label>To Date</label>
+                    <input type="date" name="holidays[${holidayIndex}][to]" class="form-control" placeholder="To Date">
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+                </div>
+            </div>
+        `;
+
+            $('#holiday-rows').append(holidayRow);
+        }
+
+        // For Edit Employee
+        function addEditHolidayRow() {
+            editholiday++;
+            const editholidayRow = `
+        <div class="row holiday-row mb-3" data-index="${editholiday}">
+            <div class="col-md-3"><label>Entitlement</label>
+                <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control">
+            </div>
+            <div class="col-md-3"><label>From Date</label>
+                <input type="date" name="holidays[${editholiday}][from]" class="form-control">
+            </div>
+            <div class="col-md-3"><label>To Date</label>
+                <input type="date" name="holidays[${editholiday}][to]" class="form-control">
+            </div>
+            <div class="col-md-3 d-flex align-items-end">
+                <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+            </div>
+        </div>`;
+            $('#editholiday-rows').append(editholidayRow);
+        }
+
+        $(document).on('click', '#addHolidayRow', function() {
+            addHolidayRow();
+        });
+        $(document).on('click', '#editHolidayRow', function() {
+            addEditHolidayRow();
+        });
+
+        $(document).on('click', '.removeHolidayRow', function() {
+            $(this).closest('.holiday-row').remove();
+        });
+
+        $(document).ready(function() {
+            $('#isaCheck1').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#additional-license-section').slideDown();
+                } else {
+                    $('#additional-license-section').slideUp();
+                }
+            });
+        });
+    </script>
+
 @endsection

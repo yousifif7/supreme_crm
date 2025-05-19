@@ -44,11 +44,14 @@
     <link rel="stylesheet" href="assets/css/bootstrap-datetimepicker.min.css">
     <link rel="stylesheet" href="assets/plugins/flatpickr/flatpickr.min.css">
     <link rel="stylesheet" href="assets/plugins/@simonwep/pickr/themes/nano.min.css">
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Flatpickr JS -->
 
     <!-- Defer Theme Script -->
     <script src="assets/js/theme-script.js" defer></script>
 
-
+    @yield('styles')
 </head>
 
 <body>
@@ -243,7 +246,8 @@
                                                         alt="img">
                                                 </span>
                                                 <div>
-                                                    <h5 class="mb-0">Voags.</h5>
+                                                    <h5 class="mb-0">Voags.
+                                                    </h5>
 
                                                 </div>
                                             </div>
@@ -399,22 +403,27 @@
                                                     class="ti ti-calendar-time"></i>Site Calendar</a></li>
                                         <li><a href="{{ url('today_rota') }}"><i
                                                     class="ti ti-calendar-time"></i>Today's Rota</a></li>
+                                        <li><a href="{{ url('shifts') }}"><i class="ti ti-calendar-time"></i>Manage
+                                                Shift</a></li>
 
 
                                     </ul>
                                 </li>
                                 <li class="submenu">
                                     <a href="javascript:void(0);">
-                                        <i class="ti ti-users"></i><span>Workers</span>
+                                        <i class="ti ti-users"></i><span>User Management</span>
                                         <span class="menu-arrow"></span>
                                     </a>
                                     <ul>
-                                        <li><a href="Workers-all-workers.html"><i class="ti ti-users"></i>All
-                                                Workers</a></li>
+                                        <li><a href="{{ route('users.index') }}"><i class="ti ti-users"></i>All
+                                                Users</a></li>
+                                        <li><a href="{{ route('roles.index') }}"><i class="ti ti-accessible"></i>All
+                                                Roles</a></li>
+                                        <!--
                                         <li><a href="total_hours.html"><i class="ti ti-clock-24"></i>Total Hours</a>
                                         </li>
                                         <li><a href="holidays.html"><i class="ti ti-helicopter-landing"></i>Holidays
-                                            </a></li>
+                                            </a></li>-->
 
 
                                     </ul>
@@ -437,7 +446,7 @@
 
                                 <li class="{{ request()->is('employees*') ? 'active' : '' }}">
                                     <a href="{{ url('employees') }}">
-                                        <i class="ti ti-users-group"></i><span>Employees</span>
+                                        <i class="ti ti-users-group"></i><span>Security Staff</span>
                                     </a>
                                 </li>
                                 <li>

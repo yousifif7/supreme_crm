@@ -1,5 +1,20 @@
 @extends('layouts.app')
 @section('title', 'CRM - Site Calendar')
+@section('styles')
+    <style>
+        .datepic .fc-prev-button,
+        .datepic .fc-next-button {
+            font-size: 12px !important;
+            /* Reduce arrow icon size */
+            padding: 2px 4px !important;
+            /* Reduce button padding */
+            height: 24px !important;
+            /* Reduce button height */
+            width: 30px !important;
+            /* Optional: make buttons smaller square */
+        }
+    </style>
+@endsection
 @section('contents')<!-- Page Wrapper -->
     <div id="scheduling" class="page-wrapper site_calendar">
         <div class="content">
@@ -27,14 +42,10 @@
 
                     <div class="right">
                         <div class="status-summary">
-                            <div onclick="window.location='Clients-sites.html'" class="active-sites">&#9679; Active Sites
-                                (36)</div>
-                            <div onclick="window.location='Workers-all-workers.html'" class="active-workers">&#9679; Active
-                                Workers (176)</div>
-                            <div onclick="window.location='total_hours.html'" class="total-hours">&#9679; Total Hours
-                                (88177.70)</div>
-                            <div onclick="window.location='holidays.html'" class="holiday-hours">&#9679; Holidays (10)</div>
-
+                            <div onclick="window.location='{{ url('clients') }}'" class="active-sites">&#9679; Active Sites
+                                ({{ $sites->count() }})</div>
+                            <div onclick="window.location='{{ url('employees') }}'" class="active-workers">&#9679; Active
+                                Workers ({{ $staffs->count() }})</div>
                         </div>
 
                     </div>
@@ -99,7 +110,7 @@
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
                 <!-- Calendar Sidebar -->
-                <div class="col-xxl-3 col-xl-4" style="padding-right: 0px !important; padding-left: 0px !important;">
+                <div class="col-xxl-2 col-xl-3" style="padding-right: 0px !important; padding-left: 0px !important;">
                     <div class="card">
                         <div class="card-body p-3">
                             <div class="border-bottom pb-2 mb-4">
@@ -165,7 +176,7 @@
                 </div>
                 <!-- /Calendar Sidebar -->
 
-                <div class="col-xxl-9 col-xl-8 theiaStickySidebar">
+                <div class="col-xxl-10 col-xl-9 theiaStickySidebar">
                     <div class="card border-0">
                         <div class="card-body">
                             <div id="calendar"></div>
@@ -906,6 +917,7 @@
                     </div>
                 </div>
             </div>
+            <!-- Add shift -->
             <div class="modal fade" id="add_shift">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content">
@@ -916,270 +928,507 @@
                                 <i class="ti ti-x"></i>
                             </button>
                         </div>
-                        <form action="security_board-scheduling.html" id="add_shift-form">
+                        <form method="POST" id="add_shift-form" action="{{ route('shifts.store') }}">
+                            @csrf
                             <div class="tab-content" id="myTabContent">
                                 <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
                                     aria-labelledby="info-tab" tabindex="0">
                                     <div class="modal-body pb-0">
                                         <div class="shift-wrapper">
-                                            <div class="shift-group row">
-                                                <!-- Your full input group goes here -->
+                                            <div class="shift-group border rounded p-3 mb-3">
+                                                <div class="row">
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Client <span
-                                                                class="text-danger">*</span></label>
-                                                        <select name="client_shift" class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Client <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select name="client_id[]" class="form-select select2"
+                                                                required>
+                                                                <option value="">--choose--</option>
+                                                                @foreach ($clients as $client)
+                                                                    <option value="{{ $client->id }}">
+                                                                        {{ $client->client_name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_client_id"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Site <span
-                                                                class="text-danger">*</span></label>
-                                                        <select name="site_shift" class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Parent company <span
-                                                                class="text-danger">*</span></label>
-                                                        <select name="parent-company_shift" class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Site <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select name="site_id[]" class="form-select">
+                                                                <option value="">--choose--</option>
+                                                                @foreach ($sites as $site)
+                                                                    <option value="{{ $site->id }}">
+                                                                        {{ $site->site_name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_site_id"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Start <span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="time" name="start_shift" class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">End <span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="time" name="end_shift" class="form-control">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Parent company <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select name="company_id[]" class="form-select">
+                                                                <option value="">--choose--</option>
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_company_id"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Break (mins) <span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="time" name="break-mins_shift"
-                                                            class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Staff <span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" name="number_shift" placeholder="number"
-                                                            class="form-control">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Start <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="time" name="start_shift[]"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_start_shift"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Office rate <span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" name="office-rate_shift" placeholder="$"
-                                                            class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Select Service Type <span
-                                                                class="text-danger">*</span></label>
-                                                        <select class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">End <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="time" name="end_shift[]"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_end_shift"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">From<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="date" name="from_shift" class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">To<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="date" name="to_shift" class="form-control">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Break (mins) <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="time" name="break-mins_shift[]"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_break-mins_shift"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Comment<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" placeholder="Comment" class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-12">
-                                                    <div class="day-selector">
-                                                        <div class="day-box">Mon <span class="checkmark">✔</span></div>
-                                                        <div class="day-box">Tue <span class="checkmark">✔</span></div>
-                                                        <div class="day-box">Wed <span class="checkmark">✔</span></div>
-                                                        <div class="day-box">Thu <span class="checkmark">✔</span></div>
-                                                        <div class="day-box">Fri <span class="checkmark">✔</span></div>
-                                                        <div class="day-box">Sat <span class="checkmark">✔</span></div>
-                                                        <div class="day-box">Sun <span class="checkmark">✔</span></div>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Staff <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="number_shift[]"
+                                                                placeholder="number" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_number_shift"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Select Staff<span
-                                                                class="text-danger">*</span></label>
-                                                        <select class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Site rate <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="site_rate[]" placeholder="$"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_site_rate"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Guard Rate<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" placeholder="$" class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Select Service Type<span
-                                                                class="text-danger">*</span></label>
-                                                        <select class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Select Service Type <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select class="form-select" name="service_type_1[]">
+                                                                <option value="">--choose--</option>
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_service_type_1"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Start<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="time" class="form-control">
-                                                    </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Subcontractor<span
-                                                                class="text-danger">*</span></label>
-                                                        <select class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">From <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="date" name="from_shift[]"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_from_shift"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">End<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="time" class="form-control">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">To <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="date" name="to_shift[]" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_to_shift"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">PO Number<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" placeholder="PO Number"
-                                                            class="form-control">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Comment <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="comments[]" placeholder="Comment"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_comments"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Lost Time<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" placeholder="Lost Time"
-                                                            class="form-control">
+                                                    <div class="col-md-12">
+                                                        <label class="form-label">Select Days</label>
+                                                        <div class="day-selector d-flex gap-2 flex-wrap">
+                                                            @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $day)
+                                                                <div class="day-box" data-day="{{ $day }}">
+                                                                    {{ $day }} <span class="checkmark">✔</span>
+                                                                </div>
+                                                            @endforeach
+                                                        </div>
+                                                        <input type="hidden" name="days[]" id="selectedDays">
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">PO Rate<span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" placeholder="PO Rate" class="form-control">
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Select Staff <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select class="form-select" name="staff_id[]">
+                                                                <option value="">--choose--</option>
+                                                                @foreach ($staffs as $staff)
+                                                                    <option value="{{ $staff->id }}">
+                                                                        {{ $staff->fore_name }}
+                                                                        {{ $staff->sur_name }}</option>
+                                                                @endforeach
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_staff_id"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Manager (1)<span
-                                                                class="text-danger">*</span></label>
-                                                        <select class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Employee Rate <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="employee_rate[]" placeholder="$"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_employee_rate"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Manager (2)<span
-                                                                class="text-danger">*</span></label>
-                                                        <select class="form-select">
-                                                            <option value="">--choose--</option>
-                                                        </select>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Select Service Type <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select class="form-select" name="service_type_2[]">
+                                                                <option value="">--choose--</option>
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_select_type_2"></span>
+                                                        </div>
                                                     </div>
-                                                </div>
 
-                                                <div
-                                                    class="col-md-6 d-flex justify-content-normal align-items-center gap-4">
-                                                    <div class="mb-3 d-flex gap-2">
-                                                        <input type="checkbox" class="form-check">
-                                                        <label class="checkbox-label form-label mb-0">Restrict shift start
-                                                            time<span class="text-danger">*</span></label>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Start <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="time" name="start[]" class="form-control">
+                                                            <span class="text-danger form-error" id="error_start"></span>
+                                                        </div>
                                                     </div>
-                                                    <div class="mb-3 d-flex gap-2">
-                                                        <input type="checkbox" class="form-check">
-                                                        <label class="form-label checkbox-label mb-0">Enforce picture
-                                                            check<span class="text-danger">*</span></label>
-                                                    </div>
-                                                    <div class="mb-3 d-flex gap-2">
-                                                        <input type="checkbox" class="form-check">
-                                                        <label class=" checkbox-label form-label mb-0">Restrict start shift
-                                                            location check<span class="text-danger">*</span></label>
-                                                    </div>
-                                                </div>
-                                            </div> <!-- end .shift-group -->
-                                        </div>
 
-                                        <div class="col-md-6 mb-3">
-                                            <div class="col-md-3">
-                                                <a href="#" class="add-multiple-shifts_btn"><i
-                                                        class="ti ti-plus"></i> More Shifts</a>
-                                            </div>
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Subcontractor <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select class="form-select" name="subcontractor_id[]">
+                                                                <option value="">--choose--</option>
+
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_subcontractor_id"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">End <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="time" name="end[]" class="form-control">
+                                                            <span class="text-danger form-error" id="error_end"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">PO Number <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="po_number[]"
+                                                                placeholder="PO Number" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_po_number"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Lost Time <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="lost_time[]"
+                                                                placeholder="Lost Time" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_lost_time"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">PO Rate <span
+                                                                    class="text-danger">*</span></label>
+                                                            <input type="text" name="po_rate[]" placeholder="PO Rate"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_po_rate"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Manager (1) <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select class="form-select" name="manager_1_id[]">
+                                                                <option value="">--choose--</option>
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_manager_1_id"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4">
+                                                        <div class="mb-3">
+                                                            <label class="form-label">Manager (2) <span
+                                                                    class="text-danger">*</span></label>
+                                                            <select class="form-select" name="manager_2_id[]">
+                                                                <option value="">--choose--</option>
+                                                            </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_manager_2_id"></span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-12">
+                                                        <div class="row">
+                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
+                                                                <input type="checkbox" class="form-check"
+                                                                    name="restrict_start_time[]" value="1">
+                                                                <label class="form-label mb-0">Restrict shift start time
+                                                                    <span class="text-danger">*</span></label>
+                                                            </div>
+                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
+                                                                <input type="checkbox" class="form-check"
+                                                                    name="enforce_picture_check[]" value="1">
+                                                                <label class="form-label mb-0">Enforce picture check <span
+                                                                        class="text-danger">*</span></label>
+                                                            </div>
+                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
+                                                                <input type="checkbox" class="form-check"
+                                                                    name="restrict_location_check[]" value="1">
+                                                                <label class="form-label mb-0">Restrict start shift
+                                                                    location check <span
+                                                                        class="text-danger">*</span></label>
+                                                            </div>
+                                                            <div class="col-md-12 text-end">
+                                                                <button type="button"
+                                                                    class="btn btn-danger btn-sm remove-shift">Remove</button>
+
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="col-md-4 mb-3">
+                                                        <button type="button"
+                                                            class="btn btn-success btn-sm addShiftGroup">+
+                                                            Add More Shifts</button>
+
+                                                    </div>
+
+                                                </div> <!-- .row -->
+                                            </div> <!-- .shift-group -->
                                         </div>
                                     </div>
-                                </div>
 
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-light me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" class="btn btn-primary">Save</button>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-light me-2"
+                                            data-bs-dismiss="modal">Cancel</button>
+                                        <button type="submit" form="add_shift-form" id="saveshift"
+                                            class="btn btn-primary">Save </button>
+                                    </div>
                                 </div>
                             </div>
                         </form>
-
-
-
                     </div>
                 </div>
             </div>
-
-
-
-
-
             <!-- /Breadcrumb -->
 
 
         </div>
 
+        <!-- Add Shift Success -->
+        <div class="modal fade" id="success_modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="text-center p-3">
+                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                    class="ti ti-check fs-24"></i></span>
+                            <h5 class="mb-2" id="success_message"></h5>
 
+                            </p>
+                            <div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <a href="{{ url('site_calendar') }}" class="btn btn-dark w-100">Back to List</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
+
     <!-- /Page Wrapper -->
 @endsection
 
 @section('scripts')
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function initDaySelector(shiftGroup) {
+                const dayBoxes = shiftGroup.querySelectorAll('.day-box');
+                const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
+
+                dayBoxes.forEach(box => {
+                    box.addEventListener('click', () => {
+                        box.classList.toggle('selected');
+                        const selected = Array.from(shiftGroup.querySelectorAll(
+                                '.day-box.selected'))
+                            .map(el => el.getAttribute('data-day'));
+
+                        hiddenInput.value = selected.join(',');
+                    });
+                });
+            }
+
+            function bindEvents() {
+                // Add Shift Button
+                document.querySelectorAll('.addShiftGroup').forEach(btn => {
+                    btn.onclick = function() {
+                        const wrapper = document.querySelector('.shift-wrapper');
+                        const lastGroup = wrapper.querySelector('.shift-group:last-of-type');
+                        const clone = lastGroup.cloneNode(true);
+
+                        // Reset values in clone
+                        clone.querySelectorAll('input, select').forEach(el => {
+                            if (el.type === 'checkbox') {
+                                el.checked = false;
+                            } else {
+                                el.value = '';
+                            }
+                        });
+
+                        // Reset day selection
+                        clone.querySelectorAll('.day-box').forEach(box => box.classList.remove(
+                            'selected'));
+                        clone.querySelector('input[name="days[]"]').value = '';
+
+                        wrapper.appendChild(clone);
+
+                        // Re-init new shift group logic
+                        initDaySelector(clone);
+                        bindEvents();
+                    };
+                });
+
+                // Remove Shift Button
+                document.querySelectorAll('.remove-shift').forEach(btn => {
+                    btn.onclick = function() {
+                        const shiftGroups = document.querySelectorAll('.shift-wrapper .shift-group');
+                        if (shiftGroups.length > 1) {
+                            btn.closest('.shift-group').remove();
+                        } else {
+                            alert('You must have at least one shift.');
+                        }
+                    };
+                });
+            }
+
+            // Initialize for first shift-group
+            document.querySelectorAll('.shift-group').forEach(group => initDaySelector(group));
+
+            // Initial binding
+            bindEvents();
+        });
+    </script>
+    <script>
+        $(document).ready(function() {
+            $('#add_shift-form').on('submit', function(e) {
+                e.preventDefault();
+
+                let form = $(this)[0];
+                let formData = new FormData(form);
+                let submitButton = $('#saveshift'); // Add an ID to your submit button
+
+                // Disable button and show loading
+                submitButton.prop('disabled', true).html('Saving...');
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        $('#add_shift').modal('hide');
+                        $('#success_message').html('Shift Added Successfully')
+                        $('#success_modal').modal('show');
+                    },
+                    error: function(xhr) {
+                        console.log("Status:", xhr.status);
+                        console.log("Response:", xhr.responseText); // Helpful for debugging
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, value) {
+                                $('#error_' + key).text(value[0]);
+                            });
+                        } else if (xhr.responseJSON?.error) {
+                            alert(xhr.responseJSON.error); //
+                        } else {
+                            alert('An unexpected error occurred. Please try again.');
+                        }
+                    },
+                    complete: function() {
+                        // Re-enable button after response
+                        submitButton.prop('disabled', false).html('Save');
+                    }
+                });
+            });
+        });
+    </script>
     <!-- Inline Scripts after libraries load -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -1208,40 +1457,109 @@
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
 
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth', // 👈 Normal calendar with date numbers
-                initialDate: new Date().toISOString().split('T')[0],
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,dayGridWeek,dayGridDay'
-                },
-                events: [], // 👈 No events
-            });
+            const colorMap = {
+                'bg-dark-blue': '#5489C4',
+                'bg-lighter': '#D6D4CE',
+                'bg-dark-green': '#69CF83',
+                'bg-light-yellow': '#FAD66B',
+                'bg-light-blue': '#80BFFF',
+                'bg-purple': '#9F87F5',
+                'bg-red': '#F55B7C',
+                'bg-primary11': '#FFFF5E',
+                'bg-orange': '#F5B25F',
+                'bg-secondary': '#6c757d'
+            };
 
-            calendar.render();
+            fetch('/api/shifts-by-site')
+                .then(response => response.json())
+                .then(data => {
+                    const highlightDates = data.highlightDates;
 
-            // ✅ Sidebar Mini Calendar (datepicker)
-            const sidebarEl = document.querySelector('.datepic');
-            const sidebarCal = document.createElement('div');
-            sidebarEl.appendChild(sidebarCal);
+                    const calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: 'dayGridMonth',
+                        initialDate: new Date().toISOString().split('T')[0],
+                        timeZone: 'local',
+                        eventDisplay: 'block',
+                        displayEventEnd: true,
 
-            new FullCalendar.Calendar(sidebarCal, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev',
-                    center: 'title',
-                    right: 'next'
-                },
-                selectable: true,
-                dateClick: function(info) {
-                    calendar.gotoDate(info.dateStr); // Click date in sidebar to jump main calendar
-                },
-                height: 'auto',
-                initialDate: new Date().toISOString().split('T')[0],
-            }).render();
+                        headerToolbar: {
+                            left: 'prev,next today',
+                            center: 'title',
+                            right: 'dayGridMonth,dayGridWeek,dayGridDay'
+                        },
+
+                        events: data.events,
+
+                        dayCellClassNames: function(arg) {
+                            const dateStr = arg.date.toLocaleDateString('en-CA');
+                            return highlightDates.includes(dateStr) ? ['highlight-day'] : [];
+                        },
+
+                        eventContent: function(info) {
+                            const event = info.event;
+                            const startTime = event.start?.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }) || '';
+                            const endTime = event.end?.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            }) || '';
+
+                            // ✅ Get bgColor from event.classNames[0]
+                            const bgClass = event.classNames?.[0] || 'bg-secondary';
+                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+
+                            const container = document.createElement('div');
+                            container.style.backgroundColor = bgColor;
+                            container.style.padding = '5px';
+                            container.style.borderRadius = '6px';
+                            container.style.fontSize = '12px';
+                            container.style.color = (bgColor === '#F8F9FA') ? '#000' : '#000';
+
+                            container.innerHTML = `
+                        <b>${event.title}</b><br>
+                        ${startTime} - ${endTime}
+                    `;
+
+                            return {
+                                domNodes: [container]
+                            };
+                        },
+
+                        eventDidMount: function(info) {
+                            info.el.style.overflow = 'visible';
+                        }
+                    });
+
+                    calendar.render();
+
+                    // Sidebar Mini Calendar
+                    const sidebarEl = document.querySelector('.datepic');
+                    if (sidebarEl) {
+                        const sidebarCal = document.createElement('div');
+                        sidebarEl.appendChild(sidebarCal);
+
+                        new FullCalendar.Calendar(sidebarCal, {
+                            initialView: 'dayGridMonth',
+                            headerToolbar: {
+                                left: 'prev',
+                                center: 'title',
+                                right: 'next'
+                            },
+                            selectable: true,
+                            dateClick: function(info) {
+                                calendar.gotoDate(info.dateStr);
+                            },
+                            height: 'auto',
+                            initialDate: new Date().toISOString().split('T')[0],
+                            timeZone: 'local'
+                        }).render();
+                    }
+                });
         });
     </script>
+
     <script>
         // Sidebar Menu
         $('.submenu > a').click(function(e) {

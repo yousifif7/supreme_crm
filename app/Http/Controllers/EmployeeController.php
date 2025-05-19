@@ -4,9 +4,14 @@ namespace App\Http\Controllers;
 
 use App\Models\Department;
 use App\Models\Employee;
+use App\Models\EmployeeType;
+use App\Models\Holiday;
+use App\Models\User;
 use App\Models\VisaType;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
@@ -15,54 +20,52 @@ class EmployeeController extends Controller
         $employees = Employee::orderBy('id', 'desc')->paginate(15);
         $departments = Department::all();
         $visa_types = VisaType::all();
-        return view('employees.index', compact('employees', 'departments', 'visa_types'));
+        $employee_types = EmployeeType::all();
+        return view('employees.index', compact('employees', 'departments', 'visa_types', 'employee_types'));
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'username' => 'required|string|max:255',
-            'password' => 'required|string',
             'status' => 'required|string',
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'nullable|email',
-            'gender' => 'nullable|string',
-            'ni_number' => 'nullable|string',
-            'sia_licence' => 'nullable|string',
-            'sia_expiry' => 'nullable',
-            'licence_type' => 'nullable|string',
-            'entry_date' => 'nullable',
-            'dob' => 'nullable',
+            'email' => 'required|email',
+            'gender' => 'required|string',
+            'ni_number' => 'required|string',
+            'sia_licence' => 'required|string',
+            'sia_expiry' => 'required',
+            'licence_type' => 'required|string',
+            'entry_date' => 'required',
+            'dob' => 'required',
             'service_type' => 'nullable',
-            'visa_type' => 'nullable',
-            'visa_expiry' => 'nullable',
-            'place_work' => 'nullable',
-            'hour_per_week' => 'nullable',
-            'passport_no' => 'nullable',
-            'passport_expiry' => 'nullable',
+            'visa_type' => 'required',
+            'visa_expiry' => 'required',
+            'place_work' => 'required',
+            'hour_per_week' => 'required',
+            'passport_no' => 'required',
+            'passport_expiry' => 'required',
             'address_group' => 'nullable',
             'address_group_additional' => 'nullable',
             'contact' => 'nullable',
             'emergency_contact' => 'nullable',
             'job_title' => 'nullable',
-            'nationality' => 'nullable|integer',
-            'pin' => 'nullable',
+            'nationality' => 'nullable',
+            'pin' => 'required',
             'reference_to_emp' => 'nullable',
-            'kin_id' => 'nullable',
             'relation_with_kin' => 'nullable',
             'kin_address' => 'nullable',
             'kin_number' => 'nullable',
             'kin_work_tel' => 'nullable',
             'kin_mobile' => 'nullable',
-            'share_code' => 'nullable',
+            'share_code' => 'required',
             'settlement' => 'nullable',
             'biometric_residence_permit' => 'nullable',
             'biometric_residence_permit_expiry' => 'nullable',
             'brp_status' => 'nullable',
             'gourd_rate' => 'nullable|numeric',
             'department_id' => 'nullable',
-            'subcontractor' => 'nullable',
+            'subcontractor' => 'required',
             'tags' => 'nullable',
             'additional_sia_number' => 'nullable',
             'license_expiry' => 'nullable',
@@ -85,16 +88,16 @@ class EmployeeController extends Controller
             'bank_name' => 'nullable',
             'bank_branch' => 'nullable',
             'other_info' => 'nullable',
-            'holidays_entitlement' => 'nullable|integer',
-            'holiday_from' => 'nullable',
-            'holiday_to' => 'nullable',
-            'holidays_entitlement_additional' => 'nullable|integer',
-            'holiday_from_additional' => 'nullable',
-            'holiday_to_additional' => 'nullable',
             'driving_license' => 'nullable',
             'visa_to_work' => 'nullable',
             'vehicle_in_use' => 'nullable',
             'current_endorsement' => 'nullable',
+            'holidays' => 'nullable|array',
+            'holidays.*.from' => 'nullable|date',
+            'holidays.*.to' => 'nullable|date',
+            'holidays.*.entitlement' => 'nullable',
+            'username'        => 'required|email',          // Assuming username is email for user
+            'password'        => 'required|string|min:6',   // Add password validation
         ]);
 
         if ($validator->fails()) {
@@ -106,7 +109,6 @@ class EmployeeController extends Controller
         }
 
         $data = $validator->validated();
-        $data['password'] = bcrypt($data['password']);
         // ✅ Handle the checkbox manually
         // Handle files...
         if ($request->hasFile('profile_picture')) {
@@ -122,8 +124,38 @@ class EmployeeController extends Controller
             $file->move(public_path('uploads/signatures'), $fileName);
             $data['signature'] = $fileName;
         }
+
+        // Create user with hashed password
+        $user = User::create([
+            'name' => $data['fore_name'],
+            'username' => $data['sur_name'],
+            'email' => $data['username'],
+            'password' => Hash::make($data['password']),
+        ]);
+
+        // Check if 'client' role exists, if not create it
+        $role = Role::firstOrCreate(['name' => 'security_staff']);
+
+        // Assign role to user
+        $user->assignRole($role);
+        $data['user_id'] = $user->id;
+
+        // Prepare employee data by excluding user-related fields
+        $employeeData = $data;
+        unset($employeeData['username'], $employeeData['password']);
+
         // Save employee
-        Employee::create($data);
+        $employee = Employee::create($employeeData);
+        if ($request->has('holidays')) {
+            foreach ($request->holidays as $holiday) {
+                Holiday::create([
+                    'employee_id' => $employee->id,
+                    'from_date' => $holiday['from'],
+                    'to_date' => $holiday['to'],
+                    'holidays_entitement' => $holiday['entitlement'],
+                ]);
+            }
+        }
 
         return response()->json(['message' => 'Employee created successfully']);
     }
@@ -132,54 +164,50 @@ class EmployeeController extends Controller
         $employee = Employee::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            'username' => 'required|string|max:255',
-            'password' => 'nullable|string', // Password should be optional for updates
-            'status' => 'required|string',
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'nullable|email',
-            'gender' => 'nullable|string',
-            'ni_number' => 'nullable|string',
-            'sia_licence' => 'nullable|string',
-            'sia_expiry' => 'nullable',
-            'licence_type' => 'nullable|string',
-            'entry_date' => 'nullable',
-            'dob' => 'nullable',
+            'email' => 'required|email',
+            'gender' => 'required|string',
+            'ni_number' => 'required|string',
+            'sia_licence' => 'required|string',
+            'sia_expiry' => 'required',
+            'licence_type' => 'required|string',
+            'entry_date' => 'required',
+            'dob' => 'required',
             'service_type' => 'nullable',
-            'visa_type' => 'nullable',
-            'visa_expiry' => 'nullable',
-            'place_work' => 'nullable',
-            'hour_per_week' => 'nullable',
-            'passport_no' => 'nullable',
-            'passport_expiry' => 'nullable',
+            'visa_type' => 'required',
+            'visa_expiry' => 'required',
+            'place_work' => 'required',
+            'hour_per_week' => 'required',
+            'passport_no' => 'required',
+            'passport_expiry' => 'required',
             'address_group' => 'nullable',
             'address_group_additional' => 'nullable',
             'contact' => 'nullable',
             'emergency_contact' => 'nullable',
             'job_title' => 'nullable',
-            'nationality' => 'nullable|integer',
-            'pin' => 'nullable',
+            'nationality' => 'nullable',
+            'pin' => 'required',
             'reference_to_emp' => 'nullable',
-            'kin_id' => 'nullable',
             'relation_with_kin' => 'nullable',
             'kin_address' => 'nullable',
             'kin_number' => 'nullable',
             'kin_work_tel' => 'nullable',
             'kin_mobile' => 'nullable',
-            'share_code' => 'nullable',
+            'share_code' => 'required',
             'settlement' => 'nullable',
             'biometric_residence_permit' => 'nullable',
             'biometric_residence_permit_expiry' => 'nullable',
             'brp_status' => 'nullable',
             'gourd_rate' => 'nullable|numeric',
             'department_id' => 'nullable',
-            'subcontractor' => 'nullable',
+            'subcontractor' => 'required',
             'tags' => 'nullable',
             'additional_sia_number' => 'nullable',
             'license_expiry' => 'nullable',
             'license_number' => 'nullable',
             'dbs_confirmed' => 'nullable',
-            'profile_picture' => 'nullable|image',
+            'prfoile_picture' => 'nullable|image',
             'employee_type' => 'nullable',
             'collar' => 'nullable',
             'waist' => 'nullable',
@@ -196,16 +224,14 @@ class EmployeeController extends Controller
             'bank_name' => 'nullable',
             'bank_branch' => 'nullable',
             'other_info' => 'nullable',
-            'holidays_entitlement' => 'nullable|integer',
-            'holiday_from' => 'nullable',
-            'holiday_to' => 'nullable',
-            'holidays_entitlement_additional' => 'nullable|integer',
-            'holiday_from_additional' => 'nullable',
-            'holiday_to_additional' => 'nullable',
             'driving_license' => 'nullable',
             'visa_to_work' => 'nullable',
             'vehicle_in_use' => 'nullable',
             'current_endorsement' => 'nullable',
+            'holidays' => 'nullable|array',
+            'holidays.*.from' => 'nullable|date',
+            'holidays.*.to' => 'nullable|date',
+            'holidays.*.entitlement' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -217,14 +243,6 @@ class EmployeeController extends Controller
         }
 
         $data = $validator->validated();
-
-        // Only hash and update the password if a new one is provided
-        if (!empty($data['password'])) {
-            $data['password'] = bcrypt($data['password']);
-        } else {
-            unset($data['password']);
-        }
-
         // Handle profile picture update
         if ($request->hasFile('profile_picture')) {
             $image = $request->file('profile_picture');
@@ -243,14 +261,34 @@ class EmployeeController extends Controller
 
         // Update the employee record
         $employee->update($data);
+        // Update employee holidays
+        if ($request->has('holidays')) {
+            // Delete existing holidays for clean sync
+            $employee->holidays()->delete();
+
+            // Re-create holidays from request
+            foreach ($request->holidays as $holiday) {
+                if (!empty($holiday['from']) && !empty($holiday['to'])) {
+                    $employee->holidays()->create([
+                        'from_date' => $holiday['from'],
+                        'to_date' => $holiday['to'],
+                        'holidays_entitement' => $holiday['entitlement'] ?? 0,
+                    ]);
+                }
+            }
+        }
 
         return response()->json(['message' => 'Employee updated successfully']);
     }
 
     public function edit($id)
     {
-        $employee = Employee::find($id);
-        return response()->json(['employee' => $employee]);
+        $employee = Employee::with('holidays')->find($id);
+
+        return response()->json([
+            'employee' => $employee,
+            'holidays' => $employee->holidays
+        ]);
     }
     public function delete($id)
     {
@@ -258,5 +296,16 @@ class EmployeeController extends Controller
         $employee->delete();
 
         return response()->json(['success' => true]);
+    }
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:employees,id',
+        ]);
+
+        Employee::whereIn('id', $request->ids)->delete();
+
+        return response()->json(['message' => 'Selected employees deleted.']);
     }
 }

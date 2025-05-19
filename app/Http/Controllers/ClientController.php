@@ -3,36 +3,43 @@
 namespace App\Http\Controllers;
 
 use App\Models\Client;
+use App\Models\Company;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 
 class ClientController extends Controller
 {
     public function index()
     {
         $clients = Client::orderBy('id', 'desc')->paginate(15);
-        return view('clients.index', compact('clients'));
+        $companys = Company::all();
+        return view('clients.index', compact('clients', 'companys'));
     }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'client_name'     => 'required|string|max:255',
-            'address'         => 'nullable|string|max:255',
-            'contact_number'  => 'nullable|string|max:50',
-            'fax'             => 'nullable|string|max:50',
-            'email'           => 'nullable|email|max:255',
-            'invoice_terms'   => 'nullable|string|max:255',
-            'payment_terms'   => 'nullable|string|max:255',
+            'address'         => 'required|string|max:255',
+            'contact_number'  => 'required|string|max:50',
+            'fax'             => 'required|string|max:50',
+            'email'           => 'required|email|max:255',
+            'invoice_terms'   => 'required|string|max:255',
+            'payment_terms'   => 'required|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_2'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_3'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'contract_start'   => 'nullable|date',
             'contract_end'     => 'nullable|date|after_or_equal:contact_start',
             'company_id'      => 'nullable|integer',
-            'guard_rate'      => 'nullable|numeric',
-            'office_rate'     => 'nullable|numeric',
+            'guard_rate'      => 'required|numeric',
+            'office_rate'     => 'required|numeric',
             'vat'  => 'nullable',
+            'username'        => 'required|email',          // Assuming username is email for user
+            'password'        => 'required|string|min:6',   // Add password validation
         ]);
 
         if ($validator->fails()) {
@@ -57,8 +64,27 @@ class ClientController extends Controller
                 $data[$docField] = $fileName;
             }
         }
-        // Save client
-        Client::create($data);
+        // Create user with hashed password
+        $user = User::create([
+            'name' => $data['client_name'],
+            'username' => $data['client_name'],
+            'email' => $data['username'],
+            'password' => Hash::make($data['password']),
+        ]);
+
+        // Check if 'client' role exists, if not create it
+        $role = Role::firstOrCreate(['name' => 'client']);
+
+        // Assign role to user
+        $user->assignRole($role);
+        $data['user_id'] = $user->id;
+        // Save client data (assuming Client model and $data matches columns)
+        // Prepare client data by excluding user-related fields
+        $clientData = $data;
+        unset($clientData['username'], $clientData['password']);
+
+        // Now create client with cleaned data
+        Client::create($clientData);
 
         return response()->json(['message' => 'Client created successfully']);
     }
@@ -67,20 +93,20 @@ class ClientController extends Controller
         $client = Client::findOrFail($id);
         $validator = Validator::make($request->all(), [
             'client_name'     => 'required|string|max:255',
-            'address'         => 'nullable|string|max:255',
-            'contact_number'  => 'nullable|string|max:50',
-            'fax'             => 'nullable|string|max:50',
-            'email'           => 'nullable|email|max:255',
-            'invoice_terms'   => 'nullable|string|max:255',
-            'payment_terms'   => 'nullable|string|max:255',
+            'address'         => 'required|string|max:255',
+            'contact_number'  => 'required|string|max:50',
+            'fax'             => 'required|string|max:50',
+            'email'           => 'required|email|max:255',
+            'invoice_terms'   => 'required|string|max:255',
+            'payment_terms'   => 'required|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_2'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_3'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'contract_start'   => 'nullable|date',
             'contract_end'     => 'nullable|date|after_or_equal:contact_start',
             'company_id'      => 'nullable|integer',
-            'guard_rate'      => 'nullable|numeric',
-            'office_rate'     => 'nullable|numeric',
+            'guard_rate'      => 'required|numeric',
+            'office_rate'     => 'required|numeric',
             'vat'  => 'nullable',
         ]);
 
@@ -122,5 +148,16 @@ class ClientController extends Controller
         $client->delete();
 
         return response()->json(['success' => true]);
+    }
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:clients,id',
+        ]);
+
+        Client::whereIn('id', $request->ids)->delete();
+
+        return response()->json(['message' => 'Selected clients deleted.']);
     }
 }

@@ -9,6 +9,11 @@
             <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
                 <div class="my-auto mb-2">
                     <h2 class="mb-1">Clients</h2>
+                    @if (session('success'))
+                        <div class="alert alert-success mt-3">
+                            {{ session('success') }}
+                        </div>
+                    @endif
 
                 </div>
 
@@ -16,6 +21,7 @@
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
+                        <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -23,16 +29,20 @@
                         </a>
                         <ul class="dropdown-menu  dropdown-menu-start p-3">
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('clients.export.pdf') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('clients.export.excel') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>
+
+
                     </div>
                 </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
+
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_client"
@@ -77,6 +87,7 @@
                             <thead class="thead-light">
                                 <tr>
 
+                                    <th><input type="checkbox" id="selectAll"></th>
                                     <th>#</th>
                                     <th>Name</th>
                                     <th>Address</th>
@@ -92,6 +103,8 @@
                                 @foreach ($clients as $client)
                                     <tr>
 
+                                        <td><input type="checkbox" class="client-checkbox" value="{{ $client->id }}">
+                                        </td>
                                         <td>{{ $i++ }}</td>
                                         <td>
                                             <div class="d-flex align-items-center file-name-icon">
@@ -124,8 +137,10 @@
 
 
                                                 <a href="#" class="me-2"
-                                                    onclick="editClient({{ $client->id }})"><i class="ti ti-edit"></i></a>
-                                                <a href="javascript:void(0);" onclick="deleteClient({{ $client->id }})"><i
+                                                    onclick="editClient({{ $client->id }})"><i
+                                                        class="ti ti-edit"></i></a>
+                                                <a href="javascript:void(0);"
+                                                    onclick="deleteClient({{ $client->id }})"><i
                                                         class="ti ti-trash"></i></a>
                                             </div>
                                         </td>
@@ -165,20 +180,24 @@
 
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
-                                                        <label class="form-label">Client Name</label>
+                                                        <label class="form-label">Client Name <span
+                                                                class="text-danger">*</span></label>
                                                         <input type="text" name="client_name" class="form-control"
                                                             placeholder="Enter Client Name">
-                                                        <span class="text-danger form-error" id="error_client_name"></span>
+                                                        <span class="text-danger form-error"
+                                                            id="error_client_name"></span>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Address</label>
+                                                        <label class="form-label">Address <span
+                                                                class="text-danger">*</span></label>
                                                         <textarea class="form-control" name="address" rows="2"></textarea>
                                                         <span class="text-danger form-error" id="error_address"></span>
                                                     </div>
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number</label>
+                                                                <label class="form-label">Contact Number <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="contact_number"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -188,7 +207,8 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Fax</label>
+                                                                <label class="form-label">Contact Fax <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="fax" class="form-control"
                                                                     placeholder="Enter Contact Fax"><span
                                                                     class="text-danger form-error" id="error_fax"></span>
@@ -196,7 +216,8 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Email</label>
+                                                                <label class="form-label">Contact Email <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="email" name="email" class="form-control"
                                                                     placeholder="Enter Contact Email">
                                                                 <span class="text-danger form-error"
@@ -237,6 +258,10 @@
                                                         <label class="form-label">Company</label>
                                                         <select class="form-select" name="company_id">
                                                             <option value="">-- choose --</option>
+                                                            @foreach ($companys as $company)
+                                                                <option value="{{ $company->id }}">
+                                                                    {{ $company->company_name }}</option>
+                                                            @endforeach
                                                         </select>
                                                         <span class="text-danger form-error" id="error_company_id"></span>
                                                     </div>
@@ -246,14 +271,22 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <input type="text" class="form-control"
-                                                                    placeholder="example">
+                                                                <div class="form-label">Username <span
+                                                                        class="text-danger">*</span></div>
+                                                                <input type="email" name="username"
+                                                                    class="form-control" placeholder="example">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_username"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <input type="password" class="form-control"
-                                                                    placeholder="••••••">
+                                                                <div class="form-label">Password <span
+                                                                        class="text-danger">*</span></div>
+                                                                <input type="password" name="password"
+                                                                    class="form-control" placeholder="••••••">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_password"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
@@ -265,16 +298,19 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Invoice Terms</label>
+                                                        <label class="form-label">Invoice Terms <span
+                                                                class="text-danger">*</span></label>
                                                         <select class="form-select" name="invoice_terms">
-                                                            <option value="">Fortnightly Invoice</option>
+                                                            <option value="sample">Fortnightly Invoice
+                                                            </option>
                                                         </select>
                                                         <span class="text-danger form-error"
                                                             id="error_invoice_terms"></span>
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Payment Terms</label>
+                                                        <label class="form-label">Payment Terms <span
+                                                                class="text-danger">*</span></label>
                                                         <textarea class="form-control" name="payment_terms" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="error_payment_terms"></span>
@@ -304,7 +340,8 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Guard rate:</label>
+                                                                <label class="form-label">Guard rate: <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="guard_rate"
                                                                     class="form-control" placeholder="Enter Guard rate">
                                                                 <span class="text-danger form-error"
@@ -313,7 +350,8 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Office rate:</label>
+                                                                <label class="form-label">Office rate: <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="office_rate"
                                                                     class="form-control" placeholder="Enter Office rate">
                                                                 <span class="text-danger form-error"
@@ -329,11 +367,10 @@
                                                                     class="form-check-input" id="vatCheck">
                                                                 <label class="form-check-label" for="vatCheck">VAT
                                                                     Registered?</label>
-
                                                             </div>
                                                         </div>
                                                         <div class="col-md-9">
-                                                            <div class="mb-3">
+                                                            <div class="mb-3" id="vatInput" style="display: none;">
                                                                 <input type="text" name="vat" class="form-control"
                                                                     placeholder="Enter VAT Registration Number">
                                                                 <span class="text-danger form-error"
@@ -387,45 +424,52 @@
                                             <div class="row">
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
-                                                        <label class="form-label">Client Name</label>
+                                                        <label class="form-label">Client Name <span
+                                                                class="text-danger">*</span></label>
                                                         <input type="text" name="client_name" id="client_name"
                                                             class="form-control" placeholder="Enter Client Name">
                                                         <span class="text-danger form-error"
-                                                            id="error_client_name"></span>
+                                                            id="editerror_client_name"></span>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Address</label>
+                                                        <label class="form-label">Address <span
+                                                                class="text-danger">*</span></label>
                                                         <textarea class="form-control" name="address" id="address" rows="2"></textarea>
-                                                        <span class="text-danger form-error" id="error_address"></span>
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_address"></span>
                                                     </div>
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number</label>
+                                                                <label class="form-label">Contact Number <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="contact_number"
                                                                     id="contact_number" class="form-control"
                                                                     placeholder="Enter Contact Number">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_contact_number"></span>
+                                                                    id="editerror_contact_number"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Fax</label>
+                                                                <label class="form-label">Contact Fax <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="fax" id="fax"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Fax"><span
-                                                                    class="text-danger form-error" id="error_fax"></span>
+                                                                    class="text-danger form-error"
+                                                                    id="editerror_fax"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Email</label>
+                                                                <label class="form-label">Contact Email <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="email" name="email" id="email"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Email">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_email"></span>
+                                                                    id="editerror_email"></span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -438,7 +482,7 @@
                                                                 <input type="file" name="doc_1" id="doc_1"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_doc_1"></span>
+                                                                    id="editerror_doc_1"></span>
                                                                 <div id="doc_1_preview"></div> <!-- Document Preview -->
                                                             </div>
                                                         </div>
@@ -448,7 +492,7 @@
                                                                 <input type="file" name="doc_2" id="doc_2"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_doc_2"></span>
+                                                                    id="editerror_doc_2"></span>
                                                                 <div id="doc_2_preview"></div> <!-- Document Preview -->
                                                             </div>
                                                         </div>
@@ -458,7 +502,7 @@
                                                                 <input type="file" name="doc_3" id="doc_3"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_doc_3"></span>
+                                                                    id="editerror_doc_3"></span>
                                                                 <div id="doc_3_preview"></div> <!-- Document Preview -->
                                                             </div>
                                                         </div>
@@ -469,27 +513,34 @@
                                                         <label class="form-label">Company</label>
                                                         <select class="form-select" name="company_id" id="company_id">
                                                             <option value="">-- choose --</option>
+                                                            @foreach ($companys as $company)
+                                                                <option value="{{ $company->id }}">
+                                                                    {{ $company->company_name }}</option>
+                                                            @endforeach
                                                         </select>
-                                                        <span class="text-danger form-error" id="error_company_id"></span>
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_company_id"></span>
                                                     </div>
                                                 </div>
 
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
-                                                        <label class="form-label">Invoice Terms</label>
+                                                        <label class="form-label">Invoice Terms <span
+                                                                class="text-danger">*</span></label>
                                                         <select class="form-select" name="invoice_terms"
                                                             id="invoice_terms">
-                                                            <option value="">Fortnightly Invoice</option>
+                                                            <option value="sample">Fortnightly Invoice</option>
                                                         </select>
                                                         <span class="text-danger form-error"
-                                                            id="error_invoice_terms"></span>
+                                                            id="editerror_invoice_terms"></span>
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Payment Terms</label>
+                                                        <label class="form-label">Payment Terms <span
+                                                                class="text-danger">*</span></label>
                                                         <textarea class="form-control" name="payment_terms" id="payment_terms" rows="2"></textarea>
                                                         <span class="text-danger form-error"
-                                                            id="error_payment_terms"></span>
+                                                            id="editerror_payment_terms"></span>
                                                     </div>
 
                                                     <div class="row">
@@ -499,7 +550,7 @@
                                                                 <input type="date" name="contract_start"
                                                                     id="contract_start" class="form-control">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_contract_start"></span>
+                                                                    id="editerror_contract_start"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-6">
@@ -508,7 +559,7 @@
                                                                 <input type="date" name="contract_end"
                                                                     id="contract_end" class="form-control">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_contract_end"></span>
+                                                                    id="editerror_contract_end"></span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -516,20 +567,22 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Guard rate:</label>
+                                                                <label class="form-label">Guard rate: <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="guard_rate" id="guard_rate"
                                                                     class="form-control" placeholder="Enter Guard rate">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_guard_rate"></span>
+                                                                    id="editerror_guard_rate"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Office rate:</label>
+                                                                <label class="form-label">Office rate: <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="text" name="office_rate" id="office_rate"
                                                                     class="form-control" placeholder="Enter Office rate">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_office_rate"></span>
+                                                                    id="editerror_office_rate"></span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -549,7 +602,7 @@
                                                                     class="form-control"
                                                                     placeholder="Enter VAT Registration Number">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_vat"></span>
+                                                                    id="editerror_vat"></span>
                                                             </div>
                                                         </div>
                                                     </div>
@@ -618,7 +671,43 @@
             </div>
         </div>
         <!-- /Delete Modal -->
+        <!-- Import modal -->
+        <div class="modal fade" id="import_modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Import Excel</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                    <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="tab-content" id="myTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0 ">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="d-flex gap-2">
+                                                <input type="file" name="import_file" class="form-control" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-light border me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
 
+                                    <button class="btn btn-primary" type="submit">Import</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
     <!-- /Page Wrapper -->
 @endsection
@@ -626,10 +715,32 @@
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
+        // Client search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.client-checkbox').prop('checked', $(this).prop('checked'));
+        });
+        document.getElementById('vatCheck').addEventListener('change', function() {
+            const vatInput = document.getElementById('vatInput');
+            vatInput.style.display = this.checked ? 'block' : 'none';
+        });
         $(document).ready(function() {
             $('#add_client-form').on('submit', function(e) {
                 e.preventDefault();
-
+                $("[id^='error_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#saveclient'); // Add an ID to your submit button
@@ -671,6 +782,7 @@
             $('#edit_client-form').on('submit', function(e) {
                 e.preventDefault();
 
+                $("[id^='editerror_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#editclient'); // Your submit button should have this ID
@@ -700,7 +812,7 @@
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                                $('#editerror_' + key).text(value[0]);
                             });
                         } else {
                             alert('An error occurred. Please try again.');
@@ -720,6 +832,8 @@
                 if (data.client) {
                     $('#client_id').val(data.client.id);
                     $('#client_name').val(data.client.client_name);
+                    $('#username').val(data.client.username);
+                    $('#password').val(data.client.password);
                     $('#address').val(data.client.address);
                     $('#contact_number').val(data.client.contact_number);
                     $('#fax').val(data.client.fax);
@@ -778,6 +892,36 @@
                     }
                 });
             }
+        });
+
+        // Bulk delete button
+        $('#bulkDeleteBtn').on('click', function() {
+            const selected = $('.client-checkbox:checked').map(function() {
+                return this.value;
+            }).get();
+
+            if (selected.length === 0) {
+                alert('Please select at least one client to delete.');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete the selected clients?')) return;
+
+            $.ajax({
+                url: '{{ route('clients.bulkDelete') }}',
+                type: 'POST',
+                data: {
+                    ids: selected,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#success_message').text('Selected clients deleted successfully!');
+                    $('#success_modal').modal('show');
+                },
+                error: function() {
+                    alert('Something went wrong during bulk delete.');
+                }
+            });
         });
     </script>
     <script>

@@ -53,15 +53,17 @@
                                             class="ti ti-users text-white fs-16"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1">Total Wokers</p>
-                                    <h5>2400</h5>
+                                    <p class="fw-medium text-truncate mb-1">Total Security Staff</p>
+                                    <h5>{{ $staffs->count() }}</h5>
                                 </div>
                             </div>
                             <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-primary" role="progressbar" style="width: 40%"></div>
+                                <div class="progress-bar bg-primary" role="progressbar"
+                                    style="width: {{ $clientgrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-danger fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>-4.01% </span> from last week</p>
+                                        class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
+                                from last week</p>
                             <span class="position-absolute top-0 end-0"><img
                                     src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
                                     alt="Img"></span>
@@ -78,14 +80,16 @@
                                 </div>
                                 <div class="ms-3">
                                     <p class="fw-medium text-truncate mb-1">Total Clients</p>
-                                    <h5>15000</h5>
+                                    <h5>{{ $clients->count() }}</h5>
                                 </div>
                             </div>
                             <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-secondary" role="progressbar" style="width: 40%"></div>
+                                <div class="progress-bar bg-secondary" role="progressbar"
+                                    style="width: {{ $clientgrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>+20.01% </span> from last week</p>
+                                        class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
+                                from last week</p>
                             <span class="position-absolute top-0 end-0"><img
                                     src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
                                     alt="Img"></span>
@@ -102,14 +106,16 @@
                                 </div>
                                 <div class="ms-3">
                                     <p class="fw-medium text-truncate mb-1">No of Invoice Sent</p>
-                                    <h5>30</h5>
+                                    <h5>{{ $invoices->count() }}</h5>
                                 </div>
                             </div>
                             <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-pink" role="progressbar" style="width: 40%"></div>
+                                <div class="progress-bar bg-pink" role="progressbar"
+                                    style="width: {{ $invoicerowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>+55% </span> from last week</p>
+                                        class="ti ti-arrow-wave-right-up me-1"></i>+{{ $invoicerowthPercentage }}% </span>
+                                from last week</p>
                             <span class="position-absolute top-0 end-0"><img
                                     src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
                                     alt="Img"></span>
@@ -125,15 +131,17 @@
                                             class="ti ti-users-group text-white fs-16"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1">Pending Interviews</p>
-                                    <h5>10</h5>
+                                    <p class="fw-medium text-truncate mb-1">Pending Review</p>
+                                    <h5>{{ $review }}</h5>
                                 </div>
                             </div>
                             <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-purple" role="progressbar" style="width: 40%"></div>
+                                <div class="progress-bar bg-purple" role="progressbar"
+                                    style="width: {{ $reviewrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>+55% </span> from last week</p>
+                                        class="ti ti-arrow-wave-right-up me-1"></i>+{{ $reviewrowthPercentage }}% </span>
+                                from last week</p>
                             <span class="position-absolute top-0 end-0"><img
                                     src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
                                     alt="Img"></span>
@@ -148,7 +156,7 @@
                             <div class="card-title">Live Tracking</div>
                         </div>
                         <div class="card-body">
-                            <div id="map"></div>
+                            <div id="map" style="height: 500px;"></div>
                         </div>
                     </div>
                 </div>
@@ -174,111 +182,22 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        <tr>
-                                            <td>9:00 AM</td>
-                                            <td>John Doe</td>
-                                            <td>✔</td>
-                                            <td>12:00 PM</td>
-                                            <td>5:00 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>9:30 AM</td>
-                                            <td>Jane Smith</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>5:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:00 AM</td>
-                                            <td>Mike Johnson</td>
-                                            <td>✔</td>
-                                            <td>12:30 PM</td>
-                                            <td>6:00 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>8:45 AM</td>
-                                            <td>Sara Lee</td>
-                                            <td>✔</td>
-                                            <td>12:15 PM</td>
-                                            <td>4:45 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>9:15 AM</td>
-                                            <td>Chris Brown</td>
-                                            <td>✔</td>
-                                            <td>1:30 PM</td>
-                                            <td>5:15 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
-                                        <tr>
-                                            <td>10:30 AM</td>
-                                            <td>Emma Wilson</td>
-                                            <td>✔</td>
-                                            <td>1:00 PM</td>
-                                            <td>6:30 PM</td>
-                                        </tr>
+                                        @foreach ($shifts as $shift)
+                                            <tr>
+                                                <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
+                                                </td>
+                                                <td>{{ $shift->shift->staff->fore_name }}
+                                                    {{ $shift->shift->staff->sur_name }}</td>
+                                                <td>X</td>
+                                                <td>{{ \Carbon\Carbon::parse($shift->break_time)->format('h:i A') }}
+                                                </td>
+                                                <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+
+
+
                                     </tbody>
                                 </table>
 
@@ -286,108 +205,110 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Action Required</h5>
+                <!--
+                                            <div class="col-xxl-6 col-12 col-xl-6 d-flex">
+                                                <div class="card flex-fill">
+                                                    <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                                                        <h5 class="mb-2">Action Required</h5>
 
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-nowrap mb-0 action_require-table">
+                                                    </div>
+                                                    <div class="card-body p-0">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-nowrap mb-0 action_require-table">
 
-                                    <tbody>
-                                        <tr class="required">
-                                            <td>0</td>
-                                            <td>Need Approval</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>22</td>
-                                            <td>Check points</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>6</td>
-                                            <td>Awaiting acceptance</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>20</td>
-                                            <td>Awaiting Start</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>1</td>
-                                            <td>Pending Dispatch</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>12</td>
-                                            <td>Shift Started</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr class="required">
-                                            <td>0</td>
-                                            <td>Shift Ended</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr class="required">
-                                            <td>0</td>
-                                            <td>Shift Rejected</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>4</td>
-                                            <td>Visa Expiry</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>1000</td>
-                                            <td>S.I.A Expiry</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr class="required">
-                                            <td>4</td>
-                                            <td>S.I.A last checked today</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>51</td>
-                                            <td>S.I.A not found</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>2</td>
-                                            <td>S.I.A revoked</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                        <tr>
-                                            <td>9</td>
-                                            <td>Passport expiry</td>
-                                            <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
-                                                        class="ti ti-arrow-right fs-16"></i></a></td>
-                                        </tr>
-                                    </tbody>
-                                </table>
+                                                                <tbody>
+                                                                    <tr class="required">
+                                                                        <td>0</td>
+                                                                        <td>Need Approval</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>22</td>
+                                                                        <td>Check points</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>6</td>
+                                                                        <td>Awaiting acceptance</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>20</td>
+                                                                        <td>Awaiting Start</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>1</td>
+                                                                        <td>Pending Dispatch</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>12</td>
+                                                                        <td>Shift Started</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr class="required">
+                                                                        <td>0</td>
+                                                                        <td>Shift Ended</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr class="required">
+                                                                        <td>0</td>
+                                                                        <td>Shift Rejected</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>4</td>
+                                                                        <td>Visa Expiry</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>1000</td>
+                                                                        <td>S.I.A Expiry</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr class="required">
+                                                                        <td>4</td>
+                                                                        <td>S.I.A last checked today</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>51</td>
+                                                                        <td>S.I.A not found</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>2</td>
+                                                                        <td>S.I.A revoked</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>9</td>
+                                                                        <td>Passport expiry</td>
+                                                                        <td><a href="Clients-sites.html" class="btn btn-light btn-icon btn-sm"><i
+                                                                                    class="ti ti-arrow-right fs-16"></i></a></td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
 
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            -->
             </div>
             <div class="row">
                 <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
@@ -400,93 +321,95 @@
                         </div>
                         <div class="card-body pb-0">
 
-                            <div id="revenue-income"></div>
+                            <div id="revenue-income1"></div>
                         </div>
                     </div>
                 </div>
-                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Latest Actions</h5>
+                <!--
+                                            <div class="col-xxl-6 col-12 col-xl-6 d-flex">
+                                                <div class="card flex-fill">
+                                                    <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                                                        <h5 class="mb-2">Latest Actions</h5>
 
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-nowrap mb-0 lastest_action-table">
+                                                    </div>
+                                                    <div class="card-body p-0">
+                                                        <div class="table-responsive">
+                                                            <table class="table table-nowrap mb-0 lastest_action-table">
 
-                                    <tbody>
-                                        <tr>
-                                            <td>
-                                                <div>
-                                                    <p>43 minutes ago</p>
-                                                    <span class="text-info">MUHAMMAD NASIR (SPL)</span>
+                                                                <tbody>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div>
+                                                                                <p>43 minutes ago</p>
+                                                                                <span class="text-info">MUHAMMAD NASIR (SPL)</span>
+                                                                            </div>
+
+                                                                        </td>
+                                                                        <td>
+                                                                            <p><b>Job Accepted</b></p>
+                                                                            <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div>
+                                                                                <p>3 hours ago</p>
+                                                                                <span class="text-info">HEENARANA</span>
+                                                                            </div>
+
+                                                                        </td>
+                                                                        <td>
+                                                                            <p><b>Job Created Successfully - Via Job Duplicate</b></p>
+                                                                            <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div>
+                                                                                <p>3 hours ago</p>
+                                                                                <span class="text-info">HEENARANA</span>
+                                                                            </div>
+
+                                                                        </td>
+                                                                        <td>
+                                                                            <p><b>Job Created Successfully - Via Job Duplicate</b></p>
+                                                                            <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div>
+                                                                                <p>3 hours ago</p>
+                                                                                <span class="text-info">HEENARANA</span>
+                                                                            </div>
+
+                                                                        </td>
+                                                                        <td>
+                                                                            <p><b>Job Created Successfully - Via Job Duplicate</b></p>
+                                                                            <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                    <tr>
+                                                                        <td>
+                                                                            <div>
+                                                                                <p>3 hours ago</p>
+                                                                                <span class="text-info">HEENARANA</span>
+                                                                            </div>
+
+                                                                        </td>
+                                                                        <td>
+                                                                            <p><b>Job Created Successfully - Via Job Duplicate</b></p>
+                                                                            <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
+                                                                        </td>
+                                                                    </tr>
+                                                                </tbody>
+                                                            </table>
+
+                                                        </div>
+                                                    </div>
                                                 </div>
-
-                                            </td>
-                                            <td>
-                                                <p><b>Job Accepted</b></p>
-                                                <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div>
-                                                    <p>3 hours ago</p>
-                                                    <span class="text-info">HEENARANA</span>
-                                                </div>
-
-                                            </td>
-                                            <td>
-                                                <p><b>Job Created Successfully - Via Job Duplicate</b></p>
-                                                <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div>
-                                                    <p>3 hours ago</p>
-                                                    <span class="text-info">HEENARANA</span>
-                                                </div>
-
-                                            </td>
-                                            <td>
-                                                <p><b>Job Created Successfully - Via Job Duplicate</b></p>
-                                                <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div>
-                                                    <p>3 hours ago</p>
-                                                    <span class="text-info">HEENARANA</span>
-                                                </div>
-
-                                            </td>
-                                            <td>
-                                                <p><b>Job Created Successfully - Via Job Duplicate</b></p>
-                                                <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
-                                            </td>
-                                        </tr>
-                                        <tr>
-                                            <td>
-                                                <div>
-                                                    <p>3 hours ago</p>
-                                                    <span class="text-info">HEENARANA</span>
-                                                </div>
-
-                                            </td>
-                                            <td>
-                                                <p><b>Job Created Successfully - Via Job Duplicate</b></p>
-                                                <span>{Start time:09/05/2025 00:00 End time:09/05/2025 00:00}</span>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
+                                            </div>
+                                            -->
             </div>
 
         </div>
@@ -495,4 +418,102 @@
 
     </div>
     <!-- /Page Wrapper -->
+@endsection
+
+@section('scripts')
+    <script>
+        $.ajax({
+            url: '/shifts/stats',
+            method: 'GET',
+            success: function(res) {
+                var sColStacked = {
+                    chart: {
+                        height: 230,
+                        type: 'bar',
+                        stacked: true,
+                        toolbar: {
+                            show: false
+                        }
+                    },
+                    colors: ['#FF6F28', '#F8F9FA'],
+                    responsive: [{
+                        breakpoint: 480,
+                        options: {
+                            legend: {
+                                position: 'bottom',
+                                offsetX: -10,
+                                offsetY: 0
+                            }
+                        }
+                    }],
+                    plotOptions: {
+                        bar: {
+                            borderRadius: 5,
+                            borderRadiusWhenStacked: 'all',
+                            horizontal: false,
+                            endingShape: 'rounded'
+                        },
+                    },
+                    series: [{
+                        name: 'Income',
+                        data: res.shift
+                    }, {
+                        name: 'Shift',
+                        data: res.shift
+                    }],
+                    xaxis: {
+                        categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep',
+                            'Oct', 'Nov', 'Dec'
+                        ],
+                        labels: {
+                            style: {
+                                colors: '#6B7280',
+                                fontSize: '13px',
+                            }
+                        }
+                    },
+                    yaxis: {
+                        min: 0,
+                        max: 100,
+                        labels: {
+                            offsetX: -15,
+                            style: {
+                                colors: '#6B7280',
+                                fontSize: '13px',
+                            },
+                            formatter: function(value) {
+                                return value + "";
+                            }
+                        }
+                    },
+                    grid: {
+                        borderColor: 'transparent',
+                        strokeDashArray: 5,
+                        padding: {
+                            left: -8
+                        },
+                    },
+                    legend: {
+                        show: false
+                    },
+                    dataLabels: {
+                        enabled: false
+                    },
+                    tooltip: {
+                        y: {
+                            formatter: function(val) {
+                                return val + ""
+                            }
+                        }
+                    },
+                    fill: {
+                        opacity: 1
+                    }
+                };
+
+                var chart = new ApexCharts(document.querySelector("#revenue-income1"), sColStacked);
+                chart.render();
+            }
+        });
+    </script>
 @endsection

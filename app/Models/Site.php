@@ -13,4 +13,8 @@ class Site extends Model
     {
         return $this->belongsTo(Client::class);
     }
+    public function employeeTypes()
+    {
+        return $this->belongsToMany(EmployeeType::class)->withPivot('guard_rate', 'office_rate');
+    }
 }

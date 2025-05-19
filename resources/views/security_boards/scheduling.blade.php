@@ -1,5 +1,20 @@
 @extends('layouts.app')
 @section('title', 'CRM - Scheduling')
+@section('styles')
+    <style>
+        .datepic .fc-prev-button,
+        .datepic .fc-next-button {
+            font-size: 12px !important;
+            /* Reduce arrow icon size */
+            padding: 2px 4px !important;
+            /* Reduce button padding */
+            height: 24px !important;
+            /* Reduce button height */
+            width: 30px !important;
+            /* Optional: make buttons smaller square */
+        }
+    </style>
+@endsection
 @section('contents')
     <!-- Page Wrapper -->
     <div id="scheduling" class="page-wrapper security_board">
@@ -24,17 +39,20 @@
                         <button onclick="window.location='{{ url('worker_calendar') }}'">Worker Calendar</button>
                         <button onclick="window.location='{{ url('site_calendar') }}'">Site Calendar</button>
                         <button onclick="window.location='{{ url('today_rota') }}'">Today's Rota</button>
+
                     </div>
 
                     <div class="right">
                         <div class="status-summary">
-                            <div onclick="window.location='Clients-sites.html'" class="active-sites">&#9679; Active Sites
-                                (36)</div>
-                            <div onclick="window.location='Workers-all-workers.html'" class="active-workers">&#9679; Active
-                                Workers (176)</div>
-                            <div onclick="window.location='total_hours.html'" class="total-hours">&#9679; Total Hours
-                                (88177.70)</div>
-                            <div onclick="window.location='holidays.html'" class="holiday-hours">&#9679; Holidays (10)</div>
+                            <div onclick="window.location='{{ url('clients') }}'" class="active-sites">&#9679; Active Sites
+                                ({{ $sites->count() }})</div>
+                            <div onclick="window.location='{{ url('employees') }}'" class="active-workers">&#9679; Active
+                                Workers ({{ $staffs->count() }})</div>
+                            <!--
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <div onclick="window.location='total_hours.html'" class="total-hours">&#9679; Total Hours
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    (88177.70)</div>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <div onclick="window.location='holidays.html'" class="holiday-hours">&#9679; Holidays (10)</div>
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -->
 
                         </div>
 
@@ -100,7 +118,7 @@
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
                 <!-- Calendar Sidebar -->
-                <div class="col-xxl-3 col-xl-4" style="padding-right: 0px !important; padding-left: 0px !important;">
+                <div class="col-xxl-2 col-xl-2" style="padding-right: 0px !important; padding-left: 0px !important;">
                     <div class="card">
                         <div class="card-body p-3">
                             <div class="border-bottom pb-2 mb-4">
@@ -165,7 +183,7 @@
                 </div>
                 <!-- /Calendar Sidebar -->
 
-                <div class="col-xxl-9 col-xl-8 theiaStickySidebar">
+                <div class="col-xxl-10 col-xl-10 theiaStickySidebar">
                     <div class="card border-0">
                         <div class="card-body">
                             <div id="calendar"></div>
@@ -199,9 +217,11 @@
                                     <button class="nav-link" id="address-tab2" data-bs-toggle="tab"
                                         data-bs-target="#address2" type="button" role="tab"
                                         aria-controls="address2" aria-selected="false">Office Validation</button>
-                                    <button class="nav-link" id="progress-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#progress2" type="button" role="tab"
-                                        aria-controls="progress2" aria-selected="false">Job Progress</button>
+                                    <!--
+                                                                                                                                                                                                                                                                    <button class="nav-link" id="progress-tab2" data-bs-toggle="tab"
+                                                                                                                                                                                                                                                                        data-bs-target="#progress2" type="button" role="tab"
+                                                                                                                                                                                                                                                                        aria-controls="progress2" aria-selected="false">Job Progress</button>
+                                                                                                                                                                                                                                                                        -->
                                     <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2"
                                         type="button" role="tab" aria-controls="logs2"
                                         aria-selected="false">Logs</button>
@@ -211,7 +231,8 @@
                                     <div class="form-check form-check-lg form-switch">
                                         <input class="form-check-input" type="checkbox" role="switch" id="switch-lg">
                                         <label class="form-check-label" for="switch-lg">
-                                            Stand-downSIA Number : 1087662819100 &nbsp;&nbsp;Expiry: 05 June 2025
+                                            Stand-downSIA Number : <span id="sia_number"></span> &nbsp;&nbsp;Expiry: <span
+                                                id="sia_expiry"></span>
                                         </label>
                                     </div>
                                 </div>
@@ -227,47 +248,47 @@
                                                 <div class="upper-stats-box">
                                                     <div class="profile-detail">
                                                         <div class="avater">
-                                                            <img src="https://th.bing.com/th/id/OIP.W6PBNPGnclmjSHcE-VbNRQHaHa?rs=1&pid=ImgDetMain"
-                                                                class="profile-avater">
+                                                            <img src="" class="profile-avater profile_picture"
+                                                                id="profile_picture">
                                                         </div>
                                                         <div class="profile-details">
-                                                            <h6>Edison Viegas</h6>
+                                                            <h6 id="name"></h6>
                                                             <div class="mb-1">
                                                                 <i class="ti ti-phone"></i>
-                                                                <span>+1 234567890</span>
+                                                                <span id="phone_number"></span>
                                                             </div>
                                                             <div>
                                                                 <i class="ti ti-mail"></i>
-                                                                <span>edison@example.com</span>
+                                                                <span id="email"></span>
                                                             </div>
                                                         </div>
                                                     </div>
                                                     <div class="partner-details">
                                                         <h6>Partner</h6>
-                                                        <span>Supreme Partner...</span>
+                                                        <span id="subcontractor"></span>
                                                     </div>
                                                 </div>
                                                 <div class="bottom-stats-box">
                                                     <div class="other-detail_boxes">
                                                         <div class="box">
                                                             <h6>Site Address</h6>
-                                                            <span>Wembley HA9,UK</span>
+                                                            <span id="site_address">Wembley HA9,UK</span>
                                                         </div>
                                                         <div class="box">
                                                             <h6>Date</h6>
-                                                            <span>2024-11-10</span>
+                                                            <span id="date">2024-11-10</span>
                                                         </div>
                                                         <div class="box">
                                                             <h6>Shift Time</h6>
-                                                            <span>06:20 8:30 (hrs:12)</span>
+                                                            <span id="shift_time">06:20 8:30</span>
                                                         </div>
                                                         <div class="box">
                                                             <h6>Customer</h6>
-                                                            <span>Quintain</span>
+                                                            <spanm id="client_name">Quintain</span>
                                                         </div>
                                                         <div class="box">
                                                             <h6>Site Name</h6>
-                                                            <span>Wembley Park</span>
+                                                            <span id="site_name">Wembley Park</span>
                                                         </div>
                                                     </div>
                                                 </div>
@@ -275,64 +296,71 @@
                                             <div class="col-md-6 col-12">
                                                 <div id="map-first"></div>
                                             </div>
-                                            <div class="col-md-6 col-12">
+                                            <!--
+                                                                                                    <div class="col-md-6 col-12">
 
 
-                                                <div id="s-col" class="chart-set"></div>
+                                                                                                        <div id="s-col" class="chart-set"></div>
 
 
-                                            </div>
-                                            <div class="col-md-6 col-12">
-                                                <div id="map-second"></div>
-                                            </div>
+                                                                                                    </div>--
+                                                                                                <div class="col-md-6 col-12">
+                                                                                                    <div id="map-second"></div>
+                                                                                                </div>-->
                                             <div class="col-md-6 col-12">
                                                 <div class="book-on_box">
                                                     <div class="profile-detail">
                                                         <div class="avater">
-                                                            <img src="https://th.bing.com/th/id/OIP.W6PBNPGnclmjSHcE-VbNRQHaHa?rs=1&pid=ImgDetMain"
-                                                                class="profile-avater">
+                                                            <img src="" class="profile-avater profile_picture">
                                                         </div>
                                                         <div class="profile-details">
-                                                            <h6>Book on (App Version 24.10.2.1)</h6>
+                                                            <h6>Book on</h6>
                                                             <div class="mb-1">
                                                                 <i class="ti ti-calendar"></i>
-                                                                <span>November 10 2024 , at 06:52</span>
+                                                                <span id="book_on">November 10 2024 , at 06:52</span>
                                                             </div>
                                                             <div>
                                                                 <i class="ti ti-map-pin"></i>
-                                                                <span>Wembley Park , London , Wembley HA0 , UK</span>
+                                                                <span id="site_address1">Wembley Park , London , Wembley
+                                                                    HA0 , UK</span>
                                                             </div>
                                                         </div>
+
                                                     </div>
-                                                    <div class="map-image">
-                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
-                                                            alt="">
-                                                    </div>
+                                                    <button class="btn btn-primary">set book on time</button>
+                                                    <!--
+                                                                                                    <div class="map-image">
+                                                                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
+                                                                                                            alt="">
+                                                                                                    </div>-->
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
                                                 <div class="book-off_box">
                                                     <div class="profile-detail">
                                                         <div class="avater">
-                                                            <img src="https://th.bing.com/th/id/OIP.W6PBNPGnclmjSHcE-VbNRQHaHa?rs=1&pid=ImgDetMain"
-                                                                class="profile-avater">
+                                                            <img src="" class="profile-avater profile_picture">
                                                         </div>
                                                         <div class="profile-details">
                                                             <h6>Book Off </h6>
                                                             <div class="mb-1">
                                                                 <i class="ti ti-calendar"></i>
-                                                                <span>November 10 2024 , at 06:52</span>
+                                                                <span id="book_off"> November 10 2024 , at 06:52</span>
                                                             </div>
                                                             <div>
                                                                 <i class="ti ti-map-pin"></i>
-                                                                <span>Wembley Park , London , Wembley HA0 , UK</span>
+                                                                <span id="site_address2">Wembley Park , London , Wembley
+                                                                    HA0 , UK</span>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div class="map-image">
-                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
-                                                            alt="">
-                                                    </div>
+                                                    <button class="btn btn-primary">set book off time</button>
+                                                    <!---
+                                                                                                    <div class="map-image">
+                                                                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
+                                                                                                            alt="">
+                                                                                                    </div>
+                                                                                                    -->
                                                 </div>
                                             </div>
                                         </div>
@@ -344,8 +372,7 @@
                                         <div class="parent_image-wrapper">
                                             <div class="image-wrapper">
                                                 <div class="badge">Profile</div>
-                                                <img src="https://th.bing.com/th/id/OIP.q5YMW7MeZkVYotwhAnFYTAAAAA?rs=1&pid=ImgDetMain"
-                                                    alt="Selfie 1" />
+                                                <img src="" class="profile_picture" alt="Selfie 1" />
                                             </div>
                                             <div class=" id_card_wrapper">
                                                 <div class="badge">SIA CARD</div>
@@ -906,7 +933,7 @@
                     </div>
                 </div>
             </div>
-
+            <!-- Add shift -->
             <div class="modal fade" id="add_shift">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
                     <div class="modal-content">
@@ -917,27 +944,30 @@
                                 <i class="ti ti-x"></i>
                             </button>
                         </div>
-                        <form method="POST" id="add_shift-form">
+                        <form method="POST" id="add_shift-form" action="{{ route('shifts.store') }}">
                             @csrf
                             <div class="tab-content" id="myTabContent">
                                 <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
                                     aria-labelledby="info-tab" tabindex="0">
                                     <div class="modal-body pb-0">
                                         <div class="shift-wrapper">
-                                            <div class="shift-group">
+                                            <div class="shift-group border rounded p-3 mb-3">
                                                 <div class="row">
 
                                                     <div class="col-md-4">
                                                         <div class="mb-3">
                                                             <label class="form-label">Client <span
                                                                     class="text-danger">*</span></label>
-                                                            <select name="client_id" class="form-select select2">
+                                                            <select name="client_id[]" class="form-select select2"
+                                                                required>
                                                                 <option value="">--choose--</option>
                                                                 @foreach ($clients as $client)
                                                                     <option value="{{ $client->id }}">
                                                                         {{ $client->client_name }}</option>
                                                                 @endforeach
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_client_id"></span>
                                                         </div>
                                                     </div>
 
@@ -945,13 +975,15 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Site <span
                                                                     class="text-danger">*</span></label>
-                                                            <select name="site_id" class="form-select">
+                                                            <select name="site_id[]" class="form-select">
                                                                 <option value="">--choose--</option>
                                                                 @foreach ($sites as $site)
                                                                     <option value="{{ $site->id }}">
                                                                         {{ $site->site_name }}</option>
                                                                 @endforeach
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_site_id"></span>
                                                         </div>
                                                     </div>
 
@@ -959,9 +991,11 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Parent company <span
                                                                     class="text-danger">*</span></label>
-                                                            <select name="parent-company_shift" class="form-select">
+                                                            <select name="company_id[]" class="form-select">
                                                                 <option value="">--choose--</option>
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_company_id"></span>
                                                         </div>
                                                     </div>
 
@@ -969,8 +1003,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Start <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="time" name="start_shift"
+                                                            <input type="time" name="start_shift[]"
                                                                 class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_start_shift"></span>
                                                         </div>
                                                     </div>
 
@@ -978,7 +1014,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">End <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="time" name="end_shift" class="form-control">
+                                                            <input type="time" name="end_shift[]"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_end_shift"></span>
                                                         </div>
                                                     </div>
 
@@ -986,8 +1025,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Break (mins) <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="time" name="break-mins_shift"
+                                                            <input type="time" name="break-mins_shift[]"
                                                                 class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_break-mins_shift"></span>
                                                         </div>
                                                     </div>
 
@@ -995,8 +1036,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Staff <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" name="number_shift"
+                                                            <input type="text" name="number_shift[]"
                                                                 placeholder="number" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_number_shift"></span>
                                                         </div>
                                                     </div>
 
@@ -1004,8 +1047,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Site rate <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" name="site_rate"
-                                                                placeholder="$" class="form-control">
+                                                            <input type="text" name="site_rate[]" placeholder="$"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_site_rate"></span>
                                                         </div>
                                                     </div>
 
@@ -1013,9 +1058,11 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Select Service Type <span
                                                                     class="text-danger">*</span></label>
-                                                            <select class="form-select">
+                                                            <select class="form-select" name="service_type_1[]">
                                                                 <option value="">--choose--</option>
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_service_type_1"></span>
                                                         </div>
                                                     </div>
 
@@ -1023,7 +1070,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">From <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="date" name="from_shift" class="form-control">
+                                                            <input type="date" name="from_shift[]"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_from_shift"></span>
                                                         </div>
                                                     </div>
 
@@ -1031,7 +1081,9 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">To <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="date" name="to_shift" class="form-control">
+                                                            <input type="date" name="to_shift[]" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_to_shift"></span>
                                                         </div>
                                                     </div>
 
@@ -1039,45 +1091,50 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Comment <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" placeholder="Comment"
+                                                            <input type="text" name="comments[]" placeholder="Comment"
                                                                 class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_comments"></span>
                                                         </div>
                                                     </div>
 
                                                     <div class="col-md-12">
+                                                        <label class="form-label">Select Days</label>
                                                         <div class="day-selector d-flex gap-2 flex-wrap">
-                                                            <div class="day-box">Mon <span class="checkmark">✔</span>
-                                                            </div>
-                                                            <div class="day-box">Tue <span class="checkmark">✔</span>
-                                                            </div>
-                                                            <div class="day-box">Wed <span class="checkmark">✔</span>
-                                                            </div>
-                                                            <div class="day-box">Thu <span class="checkmark">✔</span>
-                                                            </div>
-                                                            <div class="day-box">Fri <span class="checkmark">✔</span>
-                                                            </div>
-                                                            <div class="day-box">Sat <span class="checkmark">✔</span>
-                                                            </div>
-                                                            <div class="day-box">Sun <span class="checkmark">✔</span>
-                                                            </div>
+                                                            @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $day)
+                                                                <div class="day-box" data-day="{{ $day }}">
+                                                                    {{ $day }} <span class="checkmark">✔</span>
+                                                                </div>
+                                                            @endforeach
                                                         </div>
+                                                        <input type="hidden" name="days[]" id="selectedDays">
                                                     </div>
 
                                                     <div class="col-md-4">
                                                         <div class="mb-3">
                                                             <label class="form-label">Select Staff <span
                                                                     class="text-danger">*</span></label>
-                                                            <select class="form-select">
+                                                            <select class="form-select" name="staff_id[]">
                                                                 <option value="">--choose--</option>
+                                                                @foreach ($staffs as $staff)
+                                                                    <option value="{{ $staff->id }}">
+                                                                        {{ $staff->fore_name }}
+                                                                        {{ $staff->sur_name }}</option>
+                                                                @endforeach
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_staff_id"></span>
                                                         </div>
                                                     </div>
 
                                                     <div class="col-md-4">
                                                         <div class="mb-3">
-                                                            <label class="form-label">Guard Rate <span
+                                                            <label class="form-label">Employee Rate <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" placeholder="$" class="form-control">
+                                                            <input type="text" name="employee_rate[]" placeholder="$"
+                                                                class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_employee_rate"></span>
                                                         </div>
                                                     </div>
 
@@ -1085,9 +1142,11 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Select Service Type <span
                                                                     class="text-danger">*</span></label>
-                                                            <select class="form-select">
+                                                            <select class="form-select" name="service_type_2[]">
                                                                 <option value="">--choose--</option>
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_select_type_2"></span>
                                                         </div>
                                                     </div>
 
@@ -1095,7 +1154,8 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Start <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="time" class="form-control">
+                                                            <input type="time" name="start[]" class="form-control">
+                                                            <span class="text-danger form-error" id="error_start"></span>
                                                         </div>
                                                     </div>
 
@@ -1103,9 +1163,12 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Subcontractor <span
                                                                     class="text-danger">*</span></label>
-                                                            <select class="form-select">
+                                                            <select class="form-select" name="subcontractor_id[]">
                                                                 <option value="">--choose--</option>
+
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_subcontractor_id"></span>
                                                         </div>
                                                     </div>
 
@@ -1113,7 +1176,8 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">End <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="time" class="form-control">
+                                                            <input type="time" name="end[]" class="form-control">
+                                                            <span class="text-danger form-error" id="error_end"></span>
                                                         </div>
                                                     </div>
 
@@ -1121,8 +1185,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">PO Number <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" placeholder="PO Number"
-                                                                class="form-control">
+                                                            <input type="text" name="po_number[]"
+                                                                placeholder="PO Number" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_po_number"></span>
                                                         </div>
                                                     </div>
 
@@ -1130,8 +1196,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Lost Time <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" placeholder="Lost Time"
-                                                                class="form-control">
+                                                            <input type="text" name="lost_time[]"
+                                                                placeholder="Lost Time" class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_lost_time"></span>
                                                         </div>
                                                     </div>
 
@@ -1139,8 +1207,10 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">PO Rate <span
                                                                     class="text-danger">*</span></label>
-                                                            <input type="text" placeholder="PO Rate"
+                                                            <input type="text" name="po_rate[]" placeholder="PO Rate"
                                                                 class="form-control">
+                                                            <span class="text-danger form-error"
+                                                                id="error_po_rate"></span>
                                                         </div>
                                                     </div>
 
@@ -1148,9 +1218,11 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Manager (1) <span
                                                                     class="text-danger">*</span></label>
-                                                            <select class="form-select">
+                                                            <select class="form-select" name="manager_1_id[]">
                                                                 <option value="">--choose--</option>
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_manager_1_id"></span>
                                                         </div>
                                                     </div>
 
@@ -1158,36 +1230,48 @@
                                                         <div class="mb-3">
                                                             <label class="form-label">Manager (2) <span
                                                                     class="text-danger">*</span></label>
-                                                            <select class="form-select">
+                                                            <select class="form-select" name="manager_2_id[]">
                                                                 <option value="">--choose--</option>
                                                             </select>
+                                                            <span class="text-danger form-error"
+                                                                id="error_manager_2_id"></span>
                                                         </div>
                                                     </div>
 
                                                     <div class="col-md-12">
                                                         <div class="row">
                                                             <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check">
+                                                                <input type="checkbox" class="form-check"
+                                                                    name="restrict_start_time[]" value="1">
                                                                 <label class="form-label mb-0">Restrict shift start time
                                                                     <span class="text-danger">*</span></label>
                                                             </div>
                                                             <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check">
+                                                                <input type="checkbox" class="form-check"
+                                                                    name="enforce_picture_check[]" value="1">
                                                                 <label class="form-label mb-0">Enforce picture check <span
                                                                         class="text-danger">*</span></label>
                                                             </div>
                                                             <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check">
+                                                                <input type="checkbox" class="form-check"
+                                                                    name="restrict_location_check[]" value="1">
                                                                 <label class="form-label mb-0">Restrict start shift
                                                                     location check <span
                                                                         class="text-danger">*</span></label>
+                                                            </div>
+                                                            <div class="col-md-12 text-end">
+                                                                <button type="button"
+                                                                    class="btn btn-danger btn-sm remove-shift">Remove</button>
+
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div class="col-md-4 mb-3">
-                                                        <a href="#" class="add-multiple-shifts_btn"><i
-                                                                class="ti ti-plus"></i> More Shifts</a>
+                                                        <button type="button"
+                                                            class="btn btn-success btn-sm addShiftGroup">+
+                                                            Add More Shifts</button>
+
                                                     </div>
 
                                                 </div> <!-- .row -->
@@ -1198,41 +1282,178 @@
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-light me-2"
                                             data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary">Save</button>
+                                        <button type="submit" form="add_shift-form" id="saveshift"
+                                            class="btn btn-primary">Save </button>
                                     </div>
                                 </div>
                             </div>
                         </form>
-
-
-
-
                     </div>
                 </div>
             </div>
-
-
-
-
-
             <!-- /Breadcrumb -->
-
-
         </div>
 
+        <!-- Add Shift Success -->
+        <div class="modal fade" id="success_modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="text-center p-3">
+                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                    class="ti ti-check fs-24"></i></span>
+                            <h5 class="mb-2" id="success_message"></h5>
 
+                            </p>
+                            <div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
     </div>
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
+    <!-- Flatpickr CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <!-- Flatpickr JS -->
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
     <script>
-        document.querySelector('.add-multiple-shifts_btn').addEventListener('click', function(e) {
-            e.preventDefault();
-            const wrapper = document.querySelector('.shift-wrapper');
-            const group = wrapper.querySelector('.shift-group');
-            const clone = group.cloneNode(true);
-            wrapper.appendChild(clone);
+        document.addEventListener("DOMContentLoaded", function() {
+            flatpickr(".timepicker", {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: "H:i", // Format as 24-hour time
+                time_24hr: true
+            });
+        });
+    </script>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function initDaySelector(shiftGroup) {
+                const dayBoxes = shiftGroup.querySelectorAll('.day-box');
+                const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
+
+                dayBoxes.forEach(box => {
+                    box.addEventListener('click', () => {
+                        box.classList.toggle('selected');
+                        const selected = Array.from(shiftGroup.querySelectorAll(
+                                '.day-box.selected'))
+                            .map(el => el.getAttribute('data-day'));
+
+                        hiddenInput.value = selected.join(',');
+                    });
+                });
+            }
+
+            function bindEvents() {
+                // Add Shift Button
+                document.querySelectorAll('.addShiftGroup').forEach(btn => {
+                    btn.onclick = function() {
+                        const wrapper = document.querySelector('.shift-wrapper');
+                        const lastGroup = wrapper.querySelector('.shift-group:last-of-type');
+                        const clone = lastGroup.cloneNode(true);
+
+                        // Reset values in clone
+                        clone.querySelectorAll('input, select').forEach(el => {
+                            if (el.type === 'checkbox') {
+                                el.checked = false;
+                            } else {
+                                el.value = '';
+                            }
+                        });
+
+                        // Reset day selection
+                        clone.querySelectorAll('.day-box').forEach(box => box.classList.remove(
+                            'selected'));
+                        clone.querySelector('input[name="days[]"]').value = '';
+
+                        wrapper.appendChild(clone);
+
+                        // Re-init new shift group logic
+                        initDaySelector(clone);
+                        bindEvents();
+                    };
+                });
+
+                // Remove Shift Button
+                document.querySelectorAll('.remove-shift').forEach(btn => {
+                    btn.onclick = function() {
+                        const shiftGroups = document.querySelectorAll('.shift-wrapper .shift-group');
+                        if (shiftGroups.length > 1) {
+                            btn.closest('.shift-group').remove();
+                        } else {
+                            alert('You must have at least one shift.');
+                        }
+                    };
+                });
+            }
+
+            // Initialize for first shift-group
+            document.querySelectorAll('.shift-group').forEach(group => initDaySelector(group));
+
+            // Initial binding
+            bindEvents();
+        });
+    </script>
+    <script>
+        $(document).ready(function() {
+            $('#add_shift-form').on('submit', function(e) {
+                e.preventDefault();
+
+                let form = $(this)[0];
+                let formData = new FormData(form);
+                let submitButton = $('#saveshift'); // Add an ID to your submit button
+
+                // Disable button and show loading
+                submitButton.prop('disabled', true).html('Saving...');
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        $('#add_shift').modal('hide');
+                        $('#success_message').html('Shift Added Successfully')
+                        $('#success_modal').modal('show');
+                    },
+                    error: function(xhr) {
+                        console.log("Status:", xhr.status);
+                        console.log("Response:", xhr.responseText); // Helpful for debugging
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, value) {
+                                $('#error_' + key).text(value[0]);
+                            });
+                        } else if (xhr.responseJSON?.error) {
+                            alert(xhr.responseJSON.error); //
+                        } else {
+                            alert('An unexpected error occurred. Please try again.');
+                        }
+                    },
+                    complete: function() {
+                        // Re-enable button after response
+                        submitButton.prop('disabled', false).html('Save');
+                    }
+                });
+            });
         });
     </script>
     <!-- Inline Scripts after libraries load -->
@@ -1261,40 +1482,7 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const today = new Date();
             const calendarEl = document.getElementById('calendar');
-            const startOfWeek = new Date(today);
-            startOfWeek.setDate(today.getDate() - today.getDay());
-
-            const formatDateTime = (date, hour, minute) => {
-                const d = new Date(date);
-                d.setHours(hour);
-                d.setMinutes(minute);
-                return d.toISOString().slice(0, 16);
-            };
-
-            const getRandomUrgency = () => Math.random() < 0.5;
-
-            const events = [...Array.from({
-                    length: 7
-                }, (_, day) =>
-                Array.from({
-                    length: 8
-                }, (_, i) => ({
-                    title: `Event ${i + 1}`,
-                    start: formatDateTime(new Date(startOfWeek).setDate(startOfWeek.getDate() +
-                        day), 9 + i, 0),
-                    end: formatDateTime(new Date(startOfWeek).setDate(startOfWeek.getDate() + day),
-                        10 + i, 0),
-                    first: 'assets/img/icons/crown.svg',
-                    second: 'assets/img/icons/users_red.svg',
-                    third: 'assets/img/users/user-01.jpg',
-                    location: ['Room A', 'Room B', 'Main Hall', 'Strategy Room', 'Client Office'][
-                        i % 5
-                    ],
-                    urgent: getRandomUrgency()
-                }))
-            ).flat()];
 
             const headerToolbarOptions = window.innerWidth < 900 ? {
                 left: 'prev today next',
@@ -1306,46 +1494,94 @@
                 right: 'dayGridMonth,dayGridWeek,dayGridDay'
             };
 
+            const colorMap = {
+                'bg-dark-blue': '#5489C4',
+                'bg-lighter': '#D6D4CE',
+                'bg-dark-green': '#69CF83',
+                'bg-light-yellow': '#FAD66B',
+                'bg-light-blue': '#80BFFF',
+                'bg-purple1': '#9F87F5',
+                'bg-red': '#F55B7C',
+                'bg-primary11': '#FFFF5E',
+                'bg-orange': '#F5B25F',
+                'bg-secondary': '#6c757d'
+            };
+
             const calendar = new FullCalendar.Calendar(calendarEl, {
                 initialView: window.innerWidth < 900 ? 'dayGridDay' : 'dayGridWeek',
                 initialDate: new Date().toISOString().split('T')[0],
                 headerToolbar: headerToolbarOptions,
-                events: events,
+
+                // ✅ Load events from Laravel API
+                events: '/api/shifts',
+
                 eventContent: function(info) {
                     const event = info.event;
                     const props = event.extendedProps;
 
                     const container = document.createElement('div');
-                    container.className = '_schedule-box-container';
+
+                    // ✅ Fix: use event.classNames[0] instead of props.className
+                    const bgClass = event.classNames?.[0] || 'bg-secondary';
+
+                    container.className = `_schedule-box-container ${bgClass}`;
                     container.style.marginBottom = '5px';
+
+                    // ✅ Use color map for background
+                    if (colorMap[bgClass]) {
+                        container.style.backgroundColor = colorMap[bgClass];
+                    } else {
+                        container.style.backgroundColor = colorMap['bg-secondary'];
+                    }
+
                     if (props.urgent) container.classList.add('urgent-event');
 
                     container.innerHTML = `
         <div class="_schedule-box-row">
-          <div class="_schedule-box-text _schedule-box-time">
-            ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
-            ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-          </div>
-          <img src="${props.first}" class="_schedule-box-icon" alt="icon">
+            <div class="_schedule-box-text _schedule-box-time">
+                ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+            </div>
         </div>
         <div class="_schedule-box-row">
-          <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
-          <img src="${props.third}" class="_schedule-box-avatar" alt="avatar">
+            <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
         </div>
         <div class="_schedule-box-row">
-          <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
-          <div class="_schedule-box-alert"><img src="${props.second}" alt="alert"></div>
+            <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
         </div>
-      `;
+    `;
 
                     return {
                         domNodes: [container]
                     };
                 },
+
                 eventClick: function(info) {
+                    const event = info.event;
+                    const props = event.extendedProps;
+                    $('#name').text(props.name || 'N/A');
+                    $('#site_name').text(props.site_name || 'N/A');
+                    $('#site_address').text(props.site_address || 'N/A');
+                    $('#site_address1').text(props.site_address || 'N/A');
+                    $('#site_address2').text(props.site_address || 'N/A');
+                    $('#shift_time').text(props.shift_time || 'N/A');
+                    $('#book_on').text(props.book_on || 'N/A');
+                    $('#book_off').text(props.book_off || 'N/A');
+                    $('#phone_number').text(props.phone_number || 'N/A');
+                    $('#email').text(props.email || 'N/A');
+                    $('#phone_number').text(props.phone_number || 'N/A');
+                    $('#sia_number').text(props.sia_number || 'N/A');
+                    $('#sia_expiry').text(props.sia_expiry || 'N/A');
+                    $('#date').text(event.start.toLocaleDateString());
+                    $('.profile_picture').attr('src', props.profile_picture ?
+                        '/uploads/profile_pics/' + props.profile_picture :
+                        'uploads/no.png'
+                    );
+                    $('#subcontractor').text(props.subcontractor || 'Supreme Partner...');
+                    $('#client_name').text(props.client_name || 'N/A');
                     const modal = new bootstrap.Modal(document.getElementById('eventModal'));
                     modal.show();
-                },
+                }
             });
 
             function updateCalendarView() {
@@ -1360,27 +1596,31 @@
             calendar.render();
             updateCalendarView();
 
-            // ✅ Sidebar Mini Calendar (datepicker) with FullCalendar
+            // Sidebar calendar
             const sidebarEl = document.querySelector('.datepic');
-            const sidebarCal = document.createElement('div');
-            sidebarEl.appendChild(sidebarCal);
+            if (sidebarEl) {
+                const sidebarCal = document.createElement('div');
+                sidebarEl.appendChild(sidebarCal);
 
-            new FullCalendar.Calendar(sidebarCal, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev',
-                    center: 'title',
-                    right: 'next'
-                },
-                selectable: true,
-                dateClick: function(info) {
-                    calendar.gotoDate(info.dateStr);
-                },
-                height: 'auto',
-                initialDate: new Date().toISOString().split('T')[0],
-            }).render();
+                new FullCalendar.Calendar(sidebarCal, {
+                    initialView: 'dayGridMonth',
+                    headerToolbar: {
+                        left: 'prev',
+                        center: 'title',
+                        right: 'next'
+                    },
+                    selectable: true,
+                    dateClick: function(info) {
+                        calendar.gotoDate(info.dateStr);
+                    },
+                    height: 'auto',
+                    initialDate: new Date().toISOString().split('T')[0],
+                }).render();
+            }
         });
     </script>
+
+
     <script>
         // Sidebar Menu
         $('.submenu > a').click(function(e) {

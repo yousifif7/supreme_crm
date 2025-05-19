@@ -16,6 +16,7 @@
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
+                        <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -23,16 +24,17 @@
                         </a>
                         <ul class="dropdown-menu  dropdown-menu-start p-3">
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('sites.export.pdf') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('sites.export.excel') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>
                     </div>
                 </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_site"
@@ -76,7 +78,7 @@
                         <table class="table datatable">
                             <thead class="thead-light">
                                 <tr>
-
+                                    <th><input type="checkbox" id="selectAll"></th>
                                     <th>#</th>
                                     <th>Client Name</th>
                                     <th>Site Group</th>
@@ -91,6 +93,8 @@
                                 @php $i = ($sites->currentPage() - 1) * $sites->perPage() + 1; @endphp
                                 @foreach ($sites as $site)
                                     <tr>
+                                        <td><input type="checkbox" class="site-checkbox" value="{{ $site->id }}">
+                                        </td>
                                         <td>{{ $i++ }}</td>
                                         <td>
                                             <div class="d-flex align-items-center file-name-icon">
@@ -120,7 +124,8 @@
                                                     class="sites_action-btn">Checkpoints</button>
                                                 <a href="#" class="me-2" onclick="editSite({{ $site->id }})"><i
                                                         class="ti ti-edit"></i></a>
-                                                <a onclick="deleteSite({{ $site->id }})"><i class="ti ti-trash"></i></a>
+                                                <a onclick="deleteSite({{ $site->id }})"><i
+                                                        class="ti ti-trash"></i></a>
                                             </div>
                                         </td>
                                     </tr>
@@ -160,7 +165,8 @@
                                     <div class="col-md-6">
                                         <div class="row">
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Client Name</label>
+                                                <label class="form-label">Client Name <span
+                                                        class="text-danger">*</span></label>
                                                 <select class="form-select" name="client_id">
                                                     @foreach ($clients as $client)
                                                         <option value="{{ $client->id }}">{{ $client->client_name }}
@@ -177,18 +183,21 @@
                                                 <span class="text-danger form-error" id="error_site_group"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Name</label>
+                                                <label class="form-label">Site Name <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="site_name" class="form-control"
                                                     placeholder="Enter Site Name">
                                                 <span class="text-danger form-error" id="error_site_name"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Address</label>
+                                                <label class="form-label">Address <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="address" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="error_address"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Post Code</label>
+                                                <label class="form-label">Post Code <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="post_code" class="form-control"
                                                     placeholder="Enter Post Code">
                                                 <span class="text-danger form-error" id="error_post_code"></span>
@@ -196,7 +205,8 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Code</label>
+                                                <label class="form-label">Site Code <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="site_code" class="form-control"
                                                     placeholder="Enter Site Code">
                                                 <span class="text-danger form-error" id="error_site_code"></span>
@@ -204,7 +214,8 @@
 
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Contact Number</label>
+                                                <label class="form-label">Contact Number <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="contact_number" class="form-control"
                                                     placeholder="Enter Contact Number">
                                                 <span class="text-danger form-error" id="error_contact_number"></span>
@@ -212,7 +223,8 @@
 
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Note</label>
+                                                <label class="form-label">Site Note <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="note" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="error_note"></span>
                                             </div>
@@ -251,25 +263,29 @@
                                                 <span class="text-danger form-error" id="error_break_time"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Guard Rate</label>
+                                                <label class="form-label">Guard Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="guard_rate" class="form-control"
                                                     placeholder="Guard Rate">
                                                 <span class="text-danger form-error" id="error_guard_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Office Rate</label>
+                                                <label class="form-label">Site Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="office_rate" class="form-control"
                                                     placeholder="Office Rate">
                                                 <span class="text-danger form-error" id="error_office_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses</label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="billable_rate" class="form-control"
                                                     placeholder="Billable">
                                                 <span class="text-danger form-error" id="error_billable_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses</label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="payable_rate" class="form-control"
                                                     placeholder="Payable">
                                                 <span class="text-danger form-error" id="error_payable_rate"></span>
@@ -277,220 +293,59 @@
                                             <div class="card bg-light-500 shadow-none">
                                                 <div
                                                     class="card-body d-flex align-items-center justify-content-between flex-wrap row-gap-3">
-                                                    <h6>Services types</h6>
+                                                    <h6>Service types</h6>
 
                                                 </div>
                                             </div>
                                             <div class="table-responsive permission-table border rounded">
                                                 <table class="table">
+                                                    <thead>
+                                                        <th></th>
+                                                        <th>Name</th>
+                                                        <th>Guard Rate</th>
+                                                        <th>Office Rate</th>
+                                                    </thead>
                                                     <tbody>
-                                                        <tr class="bg-bluish">
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Name
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Guard Rate
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Office Rate
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Alarm Response
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Event Staff
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Keyholding
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Mobile Petrol
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Static Guards
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-
-
+                                                        @foreach ($employee_types as $type)
+                                                            <tr>
+                                                                <td>
+                                                                    <input type="checkbox" class="form-check-input"
+                                                                        name="employee_types[]"
+                                                                        value="{{ $type->id }}">
+                                                                </td>
+                                                                <td>
+                                                                    <div class="form-check form-check-md form-switch me-2">
+                                                                        <label class="form-check-label mt-0">
+                                                                            {{ $type->name }}
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div
+                                                                        class="form-check form-check-md d-flex align-items-center">
+                                                                        <label class="form-check-label mt-0">
+                                                                            <input type="text" class="form-control"
+                                                                                name="employee_guard_rate[{{ $type->id }}]"
+                                                                                placeholder="Guard rate">
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div
+                                                                        class="form-check form-check-md d-flex align-items-center">
+                                                                        <label class="form-check-label mt-0">
+                                                                            <input type="text" class="form-control"
+                                                                                name="employee_office_rate[{{ $type->id }}]"
+                                                                                placeholder="Office rate">
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
                                                     </tbody>
                                                 </table>
                                             </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -531,69 +386,76 @@
                                     <div class="col-md-6">
                                         <div class="row">
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Client Name</label>
+                                                <label class="form-label">Client Name <span
+                                                        class="text-danger">*</span></label>
                                                 <select class="form-select" name="client_id" id="client_id">
                                                     @foreach ($clients as $client)
                                                         <option value="{{ $client->id }}">{{ $client->client_name }}
                                                         </option>
                                                     @endforeach
                                                 </select>
-                                                <span class="text-danger form-error" id="error_client_id"></span>
+                                                <span class="text-danger form-error" id="editerror_client_id"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">Site Group</label>
                                                 <select class="form-select" name="site_group" id="site_group">
                                                     <option value="">Select group</option>
                                                 </select>
-                                                <span class="text-danger form-error" id="error_site_group"></span>
+                                                <span class="text-danger form-error" id="editerror_site_group"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Name</label>
+                                                <label class="form-label">Site Name <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="site_name" id="site_name"
                                                     class="form-control" placeholder="Enter Site Name">
-                                                <span class="text-danger form-error" id="error_site_name"></span>
+                                                <span class="text-danger form-error" id="editerror_site_name"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Address</label>
+                                                <label class="form-label">Address <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="address" id="address" cols="30" rows="4"></textarea>
-                                                <span class="text-danger form-error" id="error_address"></span>
+                                                <span class="text-danger form-error" id="editerror_address"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Post Code</label>
+                                                <label class="form-label">Post Code <span class="text-danger">
+                                                        *</span></label>
                                                 <input type="text" name="post_code" id="post_code"
                                                     class="form-control" placeholder="Enter Post Code">
-                                                <span class="text-danger form-error" id="error_post_code"></span>
+                                                <span class="text-danger form-error" id="editerror_post_code"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Code</label>
+                                                <label class="form-label">Site Code <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="site_code" id="site_code"
                                                     class="form-control" placeholder="Enter Site Code">
-                                                <span class="text-danger form-error" id="error_site_code"></span>
+                                                <span class="text-danger form-error" id="editerror_site_code"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Contact Number</label>
+                                                <label class="form-label">Contact Number <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="contact_number" id="contact_number"
                                                     class="form-control" placeholder="Enter Contact Number">
-                                                <span class="text-danger form-error" id="error_contact_number"></span>
+                                                <span class="text-danger form-error" id="editerror_contact_number"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Note</label>
+                                                <label class="form-label">Site Note <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="note" id="note" cols="30" rows="4"></textarea>
-                                                <span class="text-danger form-error" id="error_note"></span>
+                                                <span class="text-danger form-error" id="editerror_note"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">Manager</label>
                                                 <select class="form-select" name="manager_1_id" id="manager_1_id">
                                                     <option value="">--choose--</option>
                                                 </select>
-                                                <span class="text-danger form-error" id="error_manager_1_id"></span>
+                                                <span class="text-danger form-error" id="editerror_manager_1_id"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">Manager (2)</label>
                                                 <select class="form-select" name="manager_2_id" id="manager_2_id">
                                                     <option value="">--choose--</option>
                                                 </select>
-                                                <span class="text-danger form-error" id="error_manager_2_id"></span>
+                                                <span class="text-danger form-error" id="editerror_manager_2_id"></span>
                                             </div>
 
                                         </div>
@@ -604,43 +466,47 @@
                                                 <label class="form-label">Start Time</label>
                                                 <input type="time" class="form-control" name="start_time"
                                                     id="start_time">
-                                                <span class="text-danger form-error" id="error_start_time"></span>
+                                                <span class="text-danger form-error" id="editerror_start_time"></span>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">End Time</label>
                                                 <input type="time" name="end_time" id="end_time"
                                                     class="form-control">
-                                                <span class="text-danger form-error" id="error_end_time"></span>
+                                                <span class="text-danger form-error" id="editerror_end_time"></span>
                                             </div>
                                             <div class="col-md-4 mb-3">
                                                 <label class="form-label">Break Time</label>
                                                 <select class="form-select" name="break_time" id="break_time">Select
                                                     Break Time</select>
-                                                <span class="text-danger form-error" id="error_break_time"></span>
+                                                <span class="text-danger form-error" id="editerror_break_time"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Guard Rate</label>
+                                                <label class="form-label">Guard Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="guard_rate" id="guard_rate"
                                                     class="form-control" placeholder="Guard Rate">
-                                                <span class="text-danger form-error" id="error_guard_rate"></span>
+                                                <span class="text-danger form-error" id="editerror_guard_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Office Rate</label>
+                                                <label class="form-label">Office Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="office_rate" id="office_rate"
                                                     class="form-control" placeholder="Office Rate">
-                                                <span class="text-danger form-error" id="error_office_rate"></span>
+                                                <span class="text-danger form-error" id="editerror_office_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses</label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="billable_rate" id="billable_rate"
                                                     class="form-control" placeholder="Billable">
-                                                <span class="text-danger form-error" id="error_billable_rate"></span>
+                                                <span class="text-danger form-error" id="editerror_billable_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses</label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="payable_rate" id="payable_rate"
                                                     class="form-control" placeholder="Payable">
-                                                <span class="text-danger form-error" id="error_payable_rate"></span>
+                                                <span class="text-danger form-error" id="editerror_payable_rate"></span>
                                             </div>
                                             <div class="card bg-light-500 shadow-none">
                                                 <div
@@ -651,214 +517,53 @@
                                             </div>
                                             <div class="table-responsive permission-table border rounded">
                                                 <table class="table">
+                                                    <thead>
+                                                        <th></th>
+                                                        <th>Name</th>
+                                                        <th>Guard Rate</th>
+                                                        <th>Office Rate</th>
+                                                    </thead>
                                                     <tbody>
-                                                        <tr class="bg-bluish">
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Name
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Guard Rate
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Office Rate
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Alarm Response
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Event Staff
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Keyholding
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Mobile Petrol
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-                                                        <tr>
-                                                            <td>
-                                                                <input type="checkbox" class="form-check-input">
-                                                            </td>
-                                                            <td>
-                                                                <div class="form-check form-check-md form-switch me-2">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        Static Guards
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Guard rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-                                                            <td>
-                                                                <div
-                                                                    class="form-check form-check-md d-flex align-items-center">
-                                                                    <label class="form-check-label mt-0">
-
-                                                                        <input type="text" class="form-control"
-                                                                            placeholder="Office rate">
-                                                                    </label>
-                                                                </div>
-                                                            </td>
-
-                                                        </tr>
-
-
+                                                        @foreach ($employee_types as $type)
+                                                            <tr>
+                                                                <td>
+                                                                    <input type="checkbox" class="form-check-input"
+                                                                        name="employee_types[]"
+                                                                        value="{{ $type->id }}">
+                                                                </td>
+                                                                <td>
+                                                                    <div class="form-check form-check-md form-switch me-2">
+                                                                        <label class="form-check-label mt-0">
+                                                                            {{ $type->name }}
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div
+                                                                        class="form-check form-check-md d-flex align-items-center">
+                                                                        <label class="form-check-label mt-0">
+                                                                            <input type="text" class="form-control"
+                                                                                name="employee_guard_rate[{{ $type->id }}]"
+                                                                                placeholder="Guard rate">
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                                <td>
+                                                                    <div
+                                                                        class="form-check form-check-md d-flex align-items-center">
+                                                                        <label class="form-check-label mt-0">
+                                                                            <input type="text" class="form-control"
+                                                                                name="employee_office_rate[{{ $type->id }}]"
+                                                                                placeholder="Office rate">
+                                                                        </label>
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        @endforeach
                                                     </tbody>
                                                 </table>
                                             </div>
+
                                         </div>
                                     </div>
                                 </div>
@@ -924,15 +629,66 @@
         </div>
     </div>
     <!-- /Delete Modal -->
+
+    <!-- Add Client -->
+    <div class="modal fade" id="import_modal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Import Excel</h4>
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                        aria-label="Close">
+                        <i class="ti ti-x"></i>
+                    </button>
+                </div>
+                <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
+                    @csrf
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                            aria-labelledby="info-tab" tabindex="0">
+                            <div class="modal-body pb-0 ">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="d-flex gap-2">
+                                            <input type="file" name="import_file" class="form-control" required>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-outline-light border me-2"
+                                    data-bs-dismiss="modal">Cancel</button>
+
+                                <button class="btn btn-primary" type="submit">Import</button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
 @endsection
 @section('scripts')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
+        // Site search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
         $(document).ready(function() {
             $('#add_site-form').on('submit', function(e) {
                 e.preventDefault();
-
+                $("[id^='error_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#savesite'); // Add an ID to your submit button
@@ -974,6 +730,7 @@
             $('#edit_site-form').on('submit', function(e) {
                 e.preventDefault();
 
+                $("[id^='editerror_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#editsite'); // Your submit button should have this ID
@@ -1003,7 +760,7 @@
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                                $('#editerror_' + key).text(value[0]);
                             });
                         } else {
                             alert('An error occurred. Please try again.');
@@ -1040,22 +797,37 @@
                     $('#billable_rate').val(data.site.billable_rate);
                     $('#payable_rate').val(data.site.payable_rate);
 
-                    $('#edit_site').modal('show');
+                    // ✅ Handle employee types
+                    if (data.employee_types) {
+                        data.employee_types.forEach(type => {
+                            // Assuming checkbox: name="employee_types[]" value="type.id"
+                            $(`input[name="employee_types[]"][value="${type.id}"]`).prop('checked', true);
+
+                            // Guard Rate field: name="employee_guard_rate[type.id]"
+                            $(`input[name="employee_guard_rate[${type.id}]"]`).val(type.guard_rate);
+
+                            // Office Rate field: name="employee_office_rate[type.id]"`
+                        $(`input[name="employee_office_rate[${type.id}]"]`).val(type.office_rate);
+                    });
                 }
-            });
-        }
 
-        let selectedId = null;
+                $('#edit_site').modal('show');
+            }
+        });
+    }
 
-        function deleteSite(record_id) {
-            selectedId = record_id;
-            $('#delete_modal').modal('show');
-        }
 
-        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-            if (selectedId !== null) {
-                $.ajax({
-                    url: `/deletesite/${selectedId}`,
+    let selectedId = null;
+
+    function deleteSite(record_id) {
+        selectedId = record_id;
+        $('#delete_modal').modal('show');
+    }
+
+    document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+        if (selectedId !== null) {
+            $.ajax({
+                url: `/deletesite/${selectedId}`,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -1072,6 +844,40 @@
                     }
                 });
             }
+        });
+
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.client-checkbox').prop('checked', $(this).prop('checked'));
+        });
+        // Bulk delete button
+        $('#bulkDeleteBtn').on('click', function() {
+            const selected = $('.site-checkbox:checked').map(function() {
+                return this.value;
+            }).get();
+
+            if (selected.length === 0) {
+                alert('Please select at least one site to delete.');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete the selected sites?')) return;
+
+            $.ajax({
+                url: '{{ route('sites.bulkDelete') }}',
+                type: 'POST',
+                data: {
+                    ids: selected,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#success_message').text('Selected sites deleted successfully!');
+                    $('#success_modal').modal('show');
+                },
+                error: function() {
+                    alert('Something went wrong during bulk delete.');
+                }
+            });
         });
     </script>
     <script>

@@ -2953,97 +2953,90 @@ chart.render();
 
  // Revenue income
 
- if ($('#revenue-income').length > 0) {
-  var sColStacked = {
-    chart: {
-      height: 230,
-      type: 'bar',
-      stacked: true,
-      toolbar: {
-        show: false,
-      }
-    },
-    colors: ['#FF6F28', '#F8F9FA'],
-    responsive: [{
-      breakpoint: 480,
-      options: {
-        legend: {
-          position: 'bottom',
-          offsetX: -10,
-          offsetY: 0
-        }
-      }
-    }],
-    plotOptions: {
-      bar: {
-        borderRadius: 5, 
-        borderRadiusWhenStacked: 'all',
-        horizontal: false,
-        endingShape: 'rounded'
-      },
-    },
-    series: [{
-      name: 'Income',
-      data: [40, 30, 45, 80, 85, 90, 80, 80, 80, 85, 20, 80]
-    }, {
-      name: 'Expenses',
-      data: [60, 70, 55, 20, 15, 10, 20, 20, 20, 15, 80, 20]
-    }],
-    xaxis: {
-      categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct','Nov', 'Dec'],
-      labels: {
-        style: {
-          colors: '#6B7280', 
-          fontSize: '13px',
-        }
-      }
-    },
-    yaxis: {
-      min: 0,    // Set the minimum value of the Y-axis to 0
-      max: 100,
-      labels: {
-        offsetX: -15,
-        style: {
-          colors: '#6B7280', 
-          fontSize: '13px',
+ if ($('#revenue-income1').length > 0) {
+  $.ajax({
+    url: '/shifts/stats',
+    method: 'GET',
+    success: function (res) {
+      var sColStacked = {
+        chart: {
+          height: 230,
+          type: 'bar',
+          stacked: true,
+          toolbar: { show: false }
         },
-        formatter: function (value) {
-          return value + "K"; // Divide by 1000 and append 'K'
-        }
-      }
-    },
-    grid: {
-      borderColor: 'transparent',
-      strokeDashArray: 5,
-      padding: {
-        left: -8,
-      },
-    },
-    legend: {
-      show: false
-    },
-    dataLabels: {
-      enabled: false 
-    },
-    tooltip: {
-      y: {
-        formatter: function (val) {
-          return  val / 10 + " k"
-        }
-      }
-    },
-    fill: {
-      opacity: 1
-    },
-  }
+        colors: ['#FF6F28', '#F8F9FA'],
+        responsive: [{
+          breakpoint: 480,
+          options: {
+            legend: {
+              position: 'bottom',
+              offsetX: -10,
+              offsetY: 0
+            }
+          }
+        }],
+        plotOptions: {
+          bar: {
+            borderRadius: 5,
+            borderRadiusWhenStacked: 'all',
+            horizontal: false,
+            endingShape: 'rounded'
+          },
+        },
+        series: [{
+          name: 'Income',
+          data: res.income
+        }, {
+          name: 'Expenses',
+          data: res.expenses
+        }],
+        xaxis: {
+          categories: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+          labels: {
+            style: {
+              colors: '#6B7280',
+              fontSize: '13px',
+            }
+          }
+        },
+        yaxis: {
+          min: 0,
+          max: 100,
+          labels: {
+            offsetX: -15,
+            style: {
+              colors: '#6B7280',
+              fontSize: '13px',
+            },
+            formatter: function (value) {
+              return value + "K";
+            }
+          }
+        },
+        grid: {
+          borderColor: 'transparent',
+          strokeDashArray: 5,
+          padding: { left: -8 },
+        },
+        legend: { show: false },
+        dataLabels: { enabled: false },
+        tooltip: {
+          y: {
+            formatter: function (val) {
+              return val / 10 + " k"
+            }
+          }
+        },
+        fill: { opacity: 1 }
+      };
 
-  var chart = new ApexCharts(
-    document.querySelector("#revenue-income"),
-    sColStacked
-  );
-
-  chart.render();
+      var chart = new ApexCharts(document.querySelector("#revenue-income1"), sColStacked);
+      chart.render();
+    }
+  });
 }
+
 
 
  if ($('#heat_chart').length > 0) {
