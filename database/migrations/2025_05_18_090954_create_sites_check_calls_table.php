@@ -16,6 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('site_id');
             $table->time('check_call_time')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

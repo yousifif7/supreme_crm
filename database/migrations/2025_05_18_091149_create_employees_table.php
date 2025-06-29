@@ -120,6 +120,7 @@ return new class extends Migration
             $table->text('holiday_from_additional')->nullable();
             $table->text('holiday_to_additional')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

@@ -21,6 +21,7 @@ return new class extends Migration
             $table->string('email')->nullable();
             $table->boolean('default')->default(1);
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

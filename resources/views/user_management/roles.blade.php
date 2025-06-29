@@ -30,7 +30,7 @@
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="{{ route('roles.export.pdf') }}" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('roles.export.excel') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>
@@ -78,14 +78,13 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
+                        <table class="table datatable" style="width: 100%">
                             <thead class="thead-light">
                                 <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Role Name</th>
-                                    <th>Permissions</th>
-                                    <th>Actions</th>
+                                    <th style="width: 5%;"><input type="checkbox" id="selectAll"></th>
+                                    <th style="width: 5%;">#</th>
+                                    <th style="width: 70%;">Role Name</th>
+                                    <th style="width: 50%;">Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -96,12 +95,8 @@
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $role->name }}</td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-secondary"
-                                                onclick="viewPermissions({{ $role->id }})">
-                                                View
-                                            </button>
-                                        </td>
-                                        <td>
+                                            <button class="sites_action-btn"
+                                                onclick="viewPermissions({{ $role->id }})">permissions</button>
                                             <a onclick="editRole({{ $role->id }})" class="me-2"><i
                                                     class="ti ti-edit"></i></a>
 
@@ -112,11 +107,13 @@
                                 @endforeach
                             </tbody>
                         </table>
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $roles->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+
                     </div>
                 </div>
+
+            </div>
+            <div class="card-footer d-flex justify-content-center">
+                {{ $roles->links('vendor.pagination.bootstrap-5') }}
             </div>
             <!-- Add Role Modal -->
             <div class="modal fade" id="add_role" tabindex="-1" aria-labelledby="addRoleLabel" aria-hidden="true">
@@ -138,7 +135,14 @@
                                 </div>
 
                                 @php
-                                    $modules = ['Users', 'Clients', 'Sites', 'Shifts'];
+                                    $modules = [
+                                        'Security Board',
+                                        'User Management',
+                                        'Clients',
+                                        'Security Staff',
+                                        'Vehicle Management',
+                                        'Invoice Management',
+                                    ];
                                     $actions = ['Read', 'Write', 'Create', 'Delete', 'Import', 'Export'];
                                 @endphp
 
@@ -221,7 +225,14 @@
                                 </div>
 
                                 @php
-                                    $modules = ['Users', 'Clients', 'Sites', 'Shifts'];
+                                    $modules = [
+                                        'Security Board',
+                                        'User Management',
+                                        'Clients',
+                                        'Security Staff',
+                                        'Vehicle Management',
+                                        'Invoice Management',
+                                    ];
                                     $actions = ['Read', 'Write', 'Create', 'Delete', 'Import', 'Export'];
                                 @endphp
 
@@ -439,7 +450,7 @@
 
 
         function editRole(id) {
-            $.get('/roles/' + id + '/edit', function(data) {
+            $.get(`${baseUrl}/roles/` + id + '/edit', function(data) {
                 $('#edit_role_form').attr('action', '/roles/' + id);
                 $('#edit_role_name').val(data.role.name);
 
@@ -496,7 +507,7 @@
 
 
         function viewPermissions(id) {
-            $.get('/roles/' + id + '/edit', function(data) {
+            $.get(`${baseUrl}/roles/` + id + '/edit', function(data) {
                 let container = $('#permissionsList');
                 container.empty();
                 data.rolePermissions.forEach(perm => {
@@ -519,7 +530,7 @@
         document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
             if (selectedId !== null) {
                 $.ajax({
-                    url: `/deleterole/${selectedId}`,
+                    url: `${baseUrl}/deleterole/${selectedId}`,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'

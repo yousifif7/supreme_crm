@@ -33,7 +33,7 @@
                 <th>Name</th>
                 <th>Address</th>
                 <th>Contact Number</th>
-                <th>Fax</th>
+                <th>Contact Person</th>
                 <th>Email</th>
             </tr>
         </thead>
@@ -43,7 +43,7 @@
                     <td>{{ $client->client_name }}</td>
                     <td>{{ $client->address }}</td>
                     <td>{{ $client->contact_number }}</td>
-                    <td>{{ $client->fax }}</td>
+                    <td>{{ $client->contact_person }}</td>
                     <td>{{ $client->email }}</td>
                 </tr>
             @endforeach

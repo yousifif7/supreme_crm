@@ -13,12 +13,19 @@ class permissionSeeder extends Seeder
      */
     public function run(): void
     {
-        Permission::firstOrCreate(['name' => 'Read Users', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Write Users', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Create Users', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Delete Users', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Import Users', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Export Users', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Read Security Board', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Security Board', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Security Board', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Security Board', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Security Board', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Security Board', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Read User Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write User Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create User Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete User Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import User Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export User Management', 'guard_name' => 'web']);
 
         Permission::firstOrCreate(['name' => 'Read Clients', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Write Clients', 'guard_name' => 'web']);
@@ -27,18 +34,25 @@ class permissionSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'Import Clients', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Export Clients', 'guard_name' => 'web']);
 
-        Permission::firstOrCreate(['name' => 'Read Sites', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Write Sites', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Create Sites', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Delete Sites', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Import Sites', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Export Sites', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Read Security Staff', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Security Staff', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Security Staff', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Security Staff', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Security Staff', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Security Staff', 'guard_name' => 'web']);
 
-        Permission::firstOrCreate(['name' => 'Read Shifts', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Write Shifts', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Create Shifts', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Delete Shifts', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Import Shifts', 'guard_name' => 'web']);
-        Permission::firstOrCreate(['name' => 'Export Shifts', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Read Vehicle Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Vehicle Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Vehicle Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Vehicle Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Vehicle Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Vehicle Management', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Read Invoice Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Invoice Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Invoice Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Invoice Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Invoice Management', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Invoice Management', 'guard_name' => 'web']);
     }
 }

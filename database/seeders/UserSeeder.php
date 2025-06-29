@@ -18,15 +18,25 @@ class UserSeeder extends Seeder
         $user = User::firstOrCreate(
             ['email' => 'admin@gmail.com'],
             [
-                'name' => 'Super Admin',
+                'first_name' => 'Super',
+                'last_name' => 'Admin',
                 'username' => 'superadmin',
-                'password' => Hash::make('password123'),
+                'password' => Hash::make('password'),
             ]
         );
-
+        $user1 = User::firstOrCreate(
+            ['email' => 'admin@supremesecurity.co.uk'],
+            [
+                'first_name' => 'Super',
+                'last_name' => 'Admin',
+                'username' => 'admin',
+                'password' => Hash::make('12#Admin'),
+            ]
+        );
         $role = Role::where('name', 'superadmin')->first();
         if ($role) {
             $user->assignRole($role);
+            $user1->assignRole($role);
         }
     }
 }

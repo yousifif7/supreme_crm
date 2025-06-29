@@ -1,18 +1,28 @@
 <?php
 
 use App\Exports\ClientsExport;
+use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\ExportController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RoadworthinessCheckController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\VehicleComplianceController;
+use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleMaintenanceController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PayrollController;
 use App\Imports\ClientsImport;
 use App\Imports\SitesImport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Maatwebsite\Excel\Facades\Excel;
 
@@ -25,6 +35,10 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 Route::middleware('auth')->group(function () {
+    Route::post('/logout', function () {
+        Auth::logout();
+        return redirect('/login');
+    })->name('logout');
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
     Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulkDelete');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
@@ -34,12 +48,26 @@ Route::middleware('auth')->group(function () {
 
     /** Begin Employee Controller */
     Route::get('/employees', [EmployeeController::class, 'index'])->name('employees.index');
-    Route::post('employees', [EmployeeController::class, 'store'])->name('employees.store');
+    Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
     Route::get('/editemployee/{id}', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::delete('/deleteemployee/{id}', [EmployeeController::class, 'delete'])->name('employees.delete');
     Route::post('/updateemployee/{id}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::post('/employees/bulk-delete', [EmployeeController::class, 'bulkDelete'])->name('employee.bulkDelete');
+    Route::get('/employees/{id}/logs/ajax', [EmployeeController::class, 'getLogs'])->name('employees.logs.ajax');
+    Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
+    Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
     /** End Employee Controller */
+
+    /** Begin: Subcontractor Controller */
+    Route::get('/subcontractors', [SubContractorController::class, 'index'])->name('subcontractors.index');
+    Route::post('subcontractors', [SubContractorController::class, 'store'])->name('subcontractors.store');
+    Route::get('/editsubcontractor/{id}', [SubContractorController::class, 'edit'])->name('subcontractors.edit');
+    Route::delete('/deletesubcontractor/{id}', [SubContractorController::class, 'delete'])->name('subcontractors.delete');
+    Route::post('/updatesubcontractor/{id}', [SubContractorController::class, 'update'])->name('subcontractors.update');
+    Route::post('/subcontractors/bulk-delete', [SubContractorController::class, 'bulkDelete'])->name('subcontractors.bulkDelete');
+    Route::get('/subcontractors/{id}/logs/ajax', [SubContractorController::class, 'getLogs'])->name('subcontractors.logs.ajax');
+    Route::get('/subcontractors/{id}/view', [SubContractorController::class, 'view'])->name('subcontractors.view');
+    /** End: Subcontractor COntroller */
 
     /** Begin: Client Controller */
     Route::get('/clients', [ClientController::class, 'index'])->name('clients.index');
@@ -48,7 +76,28 @@ Route::middleware('auth')->group(function () {
     Route::delete('/deleteclient/{id}', [ClientController::class, 'delete'])->name('clients.delete');
     Route::post('/updateclient/{id}', [ClientController::class, 'update'])->name('clients.update');
     Route::post('/clients/bulk-delete', [ClientController::class, 'bulkDelete'])->name('clients.bulkDelete');
+    Route::get('/clients/{id}/logs/ajax', [ClientController::class, 'getLogs'])->name('clients.logs.ajax');
+    Route::get('/clients/{id}/view', [ClientController::class, 'view'])->name('clients.view');
+    Route::post('/clients/{id}/assign-manager', [ClientController::class, 'assignManager'])->name('clients.assignManager');
     /**  End: Client Controller */
+
+    /** Begin: Invoice Controller  */
+    Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
+
+    Route::get('/generateinvoice/{id}', [InvoiceController::class, 'edit'])->name('invoices.edit');
+    Route::post('/generateinvoice/{id}', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::get('/invoices/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
+    Route::delete('/deleteinvoice/{id}', [InvoiceController::class, 'delete'])->name('invoices.delete');
+    Route::post('/invoices/bulk-delete', [InvoiceController::class, 'bulkDelete'])->name('invoices.bulkDelete');
+    /** End: Invoice Controller */
+
+    /** Begin: Payroll Controller  */
+    Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
+    Route::post('/generatepayroll/{id}', [PayrollController::class, 'store'])->name('payroll.store');
+    Route::get('/payrolls/{id}', [PayrollController::class, 'show'])->name('payrolls.show');
+    Route::delete('/deletepayroll/{id}', [PayrollController::class, 'delete'])->name('payrolls.delete');
+    Route::post('/payrolls/bulk-delete', [PayrollController::class, 'bulkDelete'])->name('payrolls.bulkDelete');
+    /** End: Payroll Controller */
 
     /** Begin: Site Controller  */
     Route::get('/sites', [SiteController::class, 'index'])->name('sites.index');
@@ -57,6 +106,9 @@ Route::middleware('auth')->group(function () {
     Route::delete('/deletesite/{id}', [SiteController::class, 'delete'])->name('sites.delete');
     Route::post('/updatesite/{id}', [SiteController::class, 'update'])->name('sites.update');
     Route::post('/sites/bulk-delete', [SiteController::class, 'bulkDelete'])->name('sites.bulkDelete');
+    Route::get('/sites/{id}/logs/ajax', [SiteController::class, 'getLogs'])->name('sites.logs.ajax');
+    Route::get('/sites/{id}/view', [SiteController::class, 'view'])->name('sites.view');
+
     /** End: Site Controller */
 
     /** Begin: Shift Controller */
@@ -72,7 +124,16 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
     Route::get('/api/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);
     Route::get('/api/shifts-today', [ShiftController::class, 'getTodayShifts']);
-    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats');
+
+    Route::post('/shift/bookon/store', [ShiftController::class, 'storeBookon'])->name('shift.bookon.store');
+    Route::post('/shift/bookoff/store', [ShiftController::class, 'storeBookoff'])->name('shift.bookoff.store');
+
+    Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
+    Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
+    
+    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); // web.php or api.php
+    Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
+
 
     /** Begin: User Controller */
     Route::get('/users', [UserController::class, 'index'])->name('users.index');
@@ -80,6 +141,9 @@ Route::middleware('auth')->group(function () {
     Route::put('/users/{id}', [UserController::class, 'update'])->name('users.update');
     Route::get('/edituser/{id}', [UserController::class, 'edit'])->name('users.edit');
     Route::delete('/deleteuser/{id}', [UserController::class, 'destroy'])->name('users.destroy');
+    Route::get('/users/{id}/logs/ajax', [UserController::class, 'getLogs'])->name('users.logs.ajax');
+    Route::get('/users/{id}/view', [UserController::class, 'view'])->name('users.view');
+
     /** End: User Controller */
 
     /** Begin: Role Controller */
@@ -96,10 +160,67 @@ Route::middleware('auth')->group(function () {
     Route::delete('/deletepermission/{id}', [PermissionController::class, 'destroy']);
     Route::post('/permissions/bulk-delete', [PermissionController::class, 'bulkDelete'])->name('permissions.bulkDelete');
     /** End: Permission Controller */
+
+    /** Begin Vehicle controller  */
+    Route::get('/vehicle_details', [VehicleController::class, 'vehicle_details'])->name('vehicle_details');
+    Route::post('vehicles', [VehicleController::class, 'store'])->name('vehicles.store');
+    Route::get('/editvehicle/{id}', [VehicleController::class, 'edit'])->name('vehicles.edit');
+    Route::delete('/deletevehicle/{id}', [VehicleController::class, 'delete'])->name('vehicles.delete');
+    Route::post('/updatevehicle/{id}', [VehicleController::class, 'update'])->name('vehicles.update');
+    Route::post('/vehicles/bulk-delete', [VehicleController::class, 'bulkDelete'])->name('vehicles.bulkDelete');
+    /** End: Vehicle Controller */
+
+    /** Begin: Vehicle compliance controller */
+    Route::get('/vehicle_compliances', [VehicleComplianceController::class, 'index'])->name('complainces');
+    Route::post('compliances', [VehicleComplianceController::class, 'store'])->name('compliances.store');
+    Route::get('/editcompliance/{id}', [VehicleComplianceController::class, 'edit'])->name('compliances.edit');
+    Route::delete('/deletecompliance/{id}', [VehicleComplianceController::class, 'delete'])->name('compliances.delete');
+    Route::post('/updatecompliance/{id}', [VehicleComplianceController::class, 'update'])->name('compliances.update');
+    Route::post('/compliances/bulk-delete', [VehicleComplianceController::class, 'bulkDelete'])->name('compliances.bulkDelete');
+    /** End: Vehicle Maintainace controller */
+
+    /** Begin: Vehicle Maintainance */
+    Route::get('/vehicle_maintenances', [VehicleMaintenanceController::class, 'index'])->name('maintenances');
+    Route::post('maintenances', [VehicleMaintenanceController::class, 'store'])->name('maintenances.store');
+    Route::get('/editmaintenance/{id}', [VehicleMaintenanceController::class, 'edit'])->name('maintenances.edit');
+    Route::delete('/deletemaintenance/{id}', [VehicleMaintenanceController::class, 'delete'])->name('maintenances.delete');
+    Route::post('/updatemaintenance/{id}', [VehicleMaintenanceController::class, 'update'])->name('maintenances.update');
+    Route::post('/maintenances/bulk-delete', [VehicleMaintenanceController::class, 'bulkDelete'])->name('maintenances.bulkDelete');
+    /** End: Vehicle Maintainance */
+
+    /** Begin: roadworthinessCheck controller */
+    Route::get('/roadworthiness_check', [RoadworthinessCheckController::class, 'index'])->name('checks');
+    Route::post('checks', [RoadworthinessCheckController::class, 'store'])->name('checks.store');
+    Route::get('/editcheck/{id}', [RoadworthinessCheckController::class, 'edit'])->name('checks.edit');
+    Route::delete('/deletecheck/{id}', [RoadworthinessCheckController::class, 'delete'])->name('checks.delete');
+    Route::post('/updatecheck/{id}', [RoadworthinessCheckController::class, 'update'])->name('checks.update');
+    Route::post('/checks/bulk-delete', [RoadworthinessCheckController::class, 'bulkDelete'])->name('checks.bulkDelete');
+    //** End: roadworthinessCheck controller */
+
+    /** Begin: documentation upload controller */
+    Route::get('/documentation_uploads', [DocumentationUploadController::class, 'index'])->name('documents');
+    Route::post('documents', [DocumentationUploadController::class, 'store'])->name('documents.store');
+    Route::get('/editdocument/{id}', [DocumentationUploadController::class, 'edit'])->name('documents.edit');
+    Route::delete('/deletedocument/{id}', [DocumentationUploadController::class, 'delete'])->name('documents.delete');
+    Route::post('/updatedocument/{id}', [DocumentationUploadController::class, 'update'])->name('documents.update');
+    Route::post('/documents/bulk-delete', [DocumentationUploadController::class, 'bulkDelete'])->name('documents.bulkDelete');
+    //** End: documentation upload controller */
+
+    /** Begin: alert and remainder controller */
+    Route::get('/alert_reminders', [AlertReminderController::class, 'index'])->name('reminders');
+    Route::post('reminders', [AlertReminderController::class, 'store'])->name('reminders.store');
+    Route::get('/editreminder/{id}', [AlertReminderController::class, 'edit'])->name('reminders.edit');
+    Route::delete('/deletereminder/{id}', [AlertReminderController::class, 'delete'])->name('reminders.delete');
+    Route::post('/updatereminder/{id}', [AlertReminderController::class, 'update'])->name('reminders.update');
+    Route::post('/reminders/bulk-delete', [AlertReminderController::class, 'bulkDelete'])->name('reminders.bulkDelete');
+    //** End: alert and remainder controller */
 });
 Route::get('/clients/export/excel', [ExportController::class, 'exportClientExcel'])->name('clients.export.excel');
-Route::get('/clients/export/pdf', [ExportController::class, 'exportClientExcel'])->name('clients.export.pdf');
+Route::get('/clients/export/pdf', [ExportController::class, 'exportClientPdf'])->name('clients.export.pdf');
 Route::post('/clients/import', [ExportController::class, 'importClientExcel'])->name('clients.import');
+
+Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
+Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
 
 Route::get('/sites/export/excel', [ExportController::class, 'exportSiteExcel'])->name('sites.export.excel');
 Route::get('/sites/export/pdf', [ExportController::class, 'exportSitePdf'])->name('sites.export.pdf');
@@ -116,6 +237,31 @@ Route::post('/users/import', [ExportController::class, 'importUserExcel'])->name
 Route::get('/roles/export/excel', [ExportController::class, 'exportRoleExcel'])->name('roles.export.excel');
 Route::get('/roles/export/pdf', [ExportController::class, 'exportRolePdf'])->name('roles.export.pdf');
 Route::post('/roles/import', [ExportController::class, 'importRoleExcel'])->name('roles.import');
+
+Route::get('/vehicles/export/excel', [ExportController::class, 'exportVehicleExcel'])->name('vehicles.export.excel');
+Route::get('/vehicles/export/pdf', [ExportController::class, 'exportVehiclePdf'])->name('vehicles.export.pdf');
+Route::post('/vehicles/import', [ExportController::class, 'importVehicleExcel'])->name('vehicles.import');
+
+Route::get('/compliances/export/excel', [ExportController::class, 'exportComplianceExcel'])->name('compliances.export.excel');
+Route::post('/compliances/import', [ExportController::class, 'importComplianceExcel'])->name('compliances.import');
+Route::get('/compliances/export/pdf', [ExportController::class, 'exportCompliancePdf'])->name('compliances.export.pdf');
+
+Route::get('/maintenances/export/excel', [ExportController::class, 'exportMaintenanceExcel'])->name('maintenances.export.excel');
+Route::post('/maintenances/import', [ExportController::class, 'importMaintenanceExcel'])->name('maintenances.import');
+Route::get('/maintenances/export/pdf', [ExportController::class, 'exportMaintenancePdf'])->name('maintenances.export.pdf');
+
+Route::get('/checks/export/excel', [ExportController::class, 'exportCheckExcel'])->name('checks.export.excel');
+Route::post('/checks/import', [ExportController::class, 'importCheckExcel'])->name('checks.import');
+Route::get('/checks/export/pdf', [ExportController::class, 'exportCheckPdf'])->name('checks.export.pdf');
+
+Route::get('/reminders/export/excel', [ExportController::class, 'exportReminderExcel'])->name('reminders.export.excel');
+Route::get('/reminders/export/pdf', [ExportController::class, 'exportReminderPdf'])->name('reminders.export.pdf');
+Route::post('/reminders/import', [ExportController::class, 'importReminderExcel'])->name('reminders.import');
+
+
+Route::get('/shifts/export/excel', [ExportController::class, 'exportShiftExcel'])->name('shifts.export.excel');
+Route::get('/shifts/export/pdf', [ExportController::class, 'exportShiftPdf'])->name('shifts.export.pdf');
+Route::post('/shifts/import', [ExportController::class, 'importShiftExcel'])->name('shifts.import');
 Route::group(['middleware' => ['role:superadmin|user']], function () {});
 
 require __DIR__ . '/auth.php';

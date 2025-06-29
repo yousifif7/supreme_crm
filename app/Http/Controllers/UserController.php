@@ -94,7 +94,7 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'username' => 'required|string|unique:users,username',
-            'email' => 'required|email|unique:users,email',
+            'email' => 'required|email:dns|unique:users,email',
             'password' => 'required|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
@@ -154,7 +154,7 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             'username' => 'required|string|unique:users,username,' . $id,
-            'email' => 'required|email|unique:users,email,' . $id,
+            'email' => 'required|email:dns|unique:users,email,' . $id,
             'password' => 'nullable|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
@@ -217,5 +217,36 @@ class UserController extends Controller
         User::whereIn('id', $request->ids)->delete();
 
         return response()->json(['message' => 'Selected users deleted.']);
+    }
+    public function getLogs($id)
+    {
+        $user = User::with('logs')->findOrFail($id);
+
+        return response()->json([
+            'logs' => $user->logs->map(function ($log) {
+                return [
+                    'user_name' => $log->user_name,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'time' => $log->created_at->diffForHumans(),
+                    'success' => 'success',
+                ];
+            })
+        ]);
+    }
+    public function view($id)
+    {
+        $user = User::findOrFail($id);
+
+        return response()->json([
+            'name' => $user->name,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'email' => $user->email,
+            'username' => $user->username,
+            'phone_number' => $user->phone_number,
+            'status' => ucfirst($user->status),
+            'profile_picture' => $user->profile_picture ? asset('uploads/profile_picture/' . $user->profile_picture) : null,
+        ]);
     }
 }

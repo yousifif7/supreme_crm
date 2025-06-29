@@ -129,7 +129,7 @@
                                         </td>
                                         <td>
                                             <div class="action-icon d-inline-flex">
-                                                <button onclick="window.location='logs.html'"
+                                                <button onclick="window.location='#'"
                                                     class="sites_action-btn">Logs</button>
                                                 <a href="#" class="me-2"
                                                     onclick="editShift({{ $shift->id }})"><i class="ti ti-edit"></i></a>
@@ -1147,7 +1147,7 @@
                 submitButton.prop('disabled', true).html('Updating...');
 
                 $.ajax({
-                    url: `/updateshift/${shiftId}`, // OR use Laravel Blade: `{{ url('sites') }}/` + siteId
+                    url: `${baseUrl}/updateshift/${shiftId}`, // OR use Laravel Blade: `{{ url('sites') }}/` + siteId
                     method: 'POST',
                     data: formData,
                     processData: false,
@@ -1276,6 +1276,17 @@
                     $submenu.find('ul').slideDown(0).css('display', 'block');
                 }
             }
+        });
+        document.querySelectorAll('.numeric-input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9.]/g, '');
+
+                // Optional: Only allow one decimal point
+                const parts = this.value.split('.');
+                if (parts.length > 2) {
+                    this.value = parts[0] + '.' + parts[1];
+                }
+            });
         });
     </script>
 @endsection

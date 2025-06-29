@@ -1,0 +1,980 @@
+@extends('layouts.app')
+@section('title', 'CRM - Subcontractors')
+@section('contents')
+    <!-- Page Wrapper -->
+    <div class="page-wrapper">
+        <div class="content">
+            <div class="alert-box-container"></div>
+            <!-- Breadcrumb -->
+            <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
+                <div class="my-auto mb-2">
+                    <h2 class="mb-1">Sub Contractors</h2>
+                    @if (session('success'))
+                        <div class="alert alert-success mt-3">
+                            {{ session('success') }}
+                        </div>
+                    @endif
+
+                </div>
+
+            </div>
+            <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
+                <div class="me-2">
+                    <div class="dropdown">
+                        <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
+                        <a href="javascript:void(0);"
+                            class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
+                            data-bs-toggle="dropdown">
+                            <i class="ti ti-file-export me-1"></i>Export
+                        </a>
+                        <ul class="dropdown-menu  dropdown-menu-start p-3">
+                            <li>
+                                <a href="{{ route('clients.export.pdf') }}" class="dropdown-item rounded-1"><i
+                                        class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
+                            </li>
+                            <li>
+                                <a href="{{ route('clients.export.excel') }}" class="dropdown-item rounded-1"><i
+                                        class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
+                            </li>
+                        </ul>
+
+
+                    </div>
+                </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
+
+                <div class="me-2 mb-2 filter_area">
+
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#add_subcontractor"
+                        class=" add_btn btn btn-white d-inline-flex align-items-center"">
+                        <i class="ti ti-plus me-2"></i>Subcontractor
+                    </a>
+
+
+                    <!-- Search -->
+                    <div class="input-group input-group-flat d-inline-flex me-1">
+                        <span class="input-icon-addon">
+                            <i class="ti ti-search"></i>
+                        </span>
+                        <input type="text" class="form-control search_box" placeholder="Search...">
+
+
+                        <!-- /Search -->
+
+
+                    </div>
+                </div>
+
+
+            </div>
+            <!-- /Breadcrumb -->
+
+            <div class="card">
+                <div class="card-body p-0">
+                    <div class="custom-datatable-filter table-responsive">
+                        <table class="table datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>Address</th>
+                                    <th>Contact Person</th>
+                                    <th>Contact Number</th>
+                                    <th>Contact Email</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $i = ($subcontractors->currentPage() - 1) * $subcontractors->perPage() + 1; @endphp
+                                @foreach ($subcontractors as $subcontractor)
+                                    <tr>
+                                        <td><input type="checkbox" class="subcontractor-checkbox"
+                                                value="{{ $subcontractor->id }}"></td>
+                                        <td>{{ $i++ }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center file-name-icon">
+                                                <div class="ms-2">
+                                                    <h6 class="fw-medium">
+                                                        <a onclick="viewSubcontractorDetail({{ $subcontractor->id }})">
+                                                            {{ $subcontractor->company_name }}
+                                                        </a>
+                                                    </h6>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: left">{{ $subcontractor->company_address }}</td>
+                                        <td style="text-align: left">{{ $subcontractor->contact_person }}</td>
+                                        <td style="text-align: left">{{ $subcontractor->contact_number }}</td>
+                                        <td style="text-align: left">{{ $subcontractor->email }}</td>
+                                        <td>
+                                            <div class="action-icon d-inline-flex">
+                                                <button class="sites_action-btn"
+                                                    onclick="viewLogs({{ $subcontractor->id }})">Logs</button>
+                                                <a href="#" class="me-2"
+                                                    onclick="viewSubcontractorDetail({{ $subcontractor->id }})"><i
+                                                        class="ti ti-eye"></i></a>
+                                                <a href="#" class="me-2"
+                                                    onclick="editSubcontractor({{ $subcontractor->id }})"><i
+                                                        class="ti ti-edit"></i></a>
+                                                <a href="javascript:void(0);"
+                                                    onclick="deleteSubcontractor({{ $subcontractor->id }})"><i
+                                                        class="ti ti-trash"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+
+            </div>
+            <div class="card-footer d-flex justify-content-center">
+                {{ $subcontractors->links('vendor.pagination.bootstrap-5') }}
+            </div>
+        </div>
+
+        <!-- Add Subcontractor -->
+        <div class="modal fade" id="add_subcontractor">
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Add New Subcontractor</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+
+                    <form method="POST" id="add_subcontractor-form" enctype="multipart/form-data">
+                        @csrf
+                        <div class="tab-content" id="subTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel" tabindex="0">
+                                <div class="modal-body pb-0">
+                                    <div class="shift-wrapper">
+                                        <div class="shift-group">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Company Name <span
+                                                                class="text-danger">*</span></label>
+                                                        <input type="text" name="company_name" class="form-control"
+                                                            placeholder="Enter Company Name">
+                                                        <span class="text-danger form-error"
+                                                            id="error_company_name"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Company Address <span
+                                                                class="text-danger">*</span></label>
+                                                        <textarea class="form-control" name="company_address" rows="2"></textarea>
+                                                        <span class="text-danger form-error"
+                                                            id="error_company_address"></span>
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Contact Number <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" name="contact_number"
+                                                                    class="form-control"
+                                                                    placeholder="Enter Contact Number">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_contact_number"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Contact Person <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" name="contact_person"
+                                                                    class="form-control"
+                                                                    placeholder="Enter Contact Person">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_contact_person"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Email <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="email" name="email" class="form-control"
+                                                                    placeholder="Enter Email">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_email"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Department <span
+                                                                class="text-danger">*</span></label>
+                                                        <input type="text" name="department" class="form-control"
+                                                            placeholder="Enter Department">
+                                                        <span class="text-danger form-error" id="error_department"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Invoice Terms</label>
+                                                        <input type="text" name="invoice_terms" class="form-control"
+                                                            placeholder="e.g. Weekly / Monthly">
+                                                        <span class="text-danger form-error"
+                                                            id="error_invoice_terms"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Payment Terms</label>
+                                                        <textarea name="payment_terms" class="form-control" rows="2" placeholder="Enter payment terms"></textarea>
+                                                        <span class="text-danger form-error"
+                                                            id="error_payment_terms"></span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Username <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" name="username"
+                                                                    class="form-control" placeholder="Username">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_username"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Password <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="password" name="password"
+                                                                    class="form-control" placeholder="••••••">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_password"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Pay Rate</label>
+                                                        <input type="text" name="pay_rate"
+                                                            class="form-control numeric-input"
+                                                            placeholder="Enter Pay Rate">
+                                                        <span class="text-danger form-error" id="error_pay_rate"></span>
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <div class="form-check mb-3">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                    name="pmva_trained_officer" id="pmvaCheck"
+                                                                    value="1">
+                                                                <label class="form-check-label" for="pmvaCheck">PMVA
+                                                                    Trained Officer</label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-4">
+                                                            <div class="form-check mb-3">
+                                                                <input type="checkbox" name="vat_registered"
+                                                                    class="form-check-input" id="vatCheckSub"
+                                                                    value="1">
+                                                                <label class="form-check-label" for="vatCheckSub">VAT
+                                                                    Registered?</label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-8">
+                                                            <div class="mb-3" id="vatInputSub" style="display: none;">
+                                                                <input type="text" name="vat_number"
+                                                                    class="form-control" placeholder="Enter VAT Number">
+                                                                <span class="text-danger form-error"
+                                                                    id="error_vat_number"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary" id="saveSubcontractor">Save</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+        <!-- /Add Subcontractor -->
+
+
+        <!-- Edit Subcontractor -->
+        <div class="modal fade" id="edit_subcontractor">
+            <div class="modal-dialog modal-dialog-centered modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Edit Subcontractor</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+
+                    <form method="POST" id="edit_subcontractor-form">
+                        @csrf
+                        <input type="hidden" name="subcontractor_id" id="subcontractor_id">
+
+                        <div class="tab-content" id="subTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel">
+                                <div class="modal-body pb-0">
+                                    <div class="shift-wrapper">
+                                        <div class="shift-group">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Company Name <span
+                                                                class="text-danger">*</span></label>
+                                                        <input type="text" name="company_name" id="company_name"
+                                                            class="form-control" placeholder="Enter Company Name">
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_company_name"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Company Address <span
+                                                                class="text-danger">*</span></label>
+                                                        <textarea class="form-control" name="company_address" id="company_address" rows="2"></textarea>
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_company_address"></span>
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-md-4">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Contact Number <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" name="contact_number"
+                                                                    id="contact_number" class="form-control"
+                                                                    placeholder="Enter Contact Number">
+                                                                <span class="text-danger form-error"
+                                                                    id="editerror_contact_number"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Contact Person <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="text" name="contact_person"
+                                                                    id="contact_person" class="form-control"
+                                                                    placeholder="Enter Contact Person">
+                                                                <span class="text-danger form-error"
+                                                                    id="editerror_contact_person"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-4">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Email <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="email" name="email" id="email"
+                                                                    class="form-control" placeholder="Enter Email">
+                                                                <span class="text-danger form-error"
+                                                                    id="editerror_email"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Department <span
+                                                                class="text-danger">*</span></label>
+                                                        <input type="text" name="department" id="department"
+                                                            class="form-control" placeholder="Enter Department">
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_department"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Invoice Terms</label>
+                                                        <input type="text" name="invoice_terms" id="invoice_terms"
+                                                            class="form-control" placeholder="e.g. Weekly / Monthly">
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_invoice_terms"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Payment Terms</label>
+                                                        <textarea name="payment_terms" id="payment_terms" class="form-control" rows="2"
+                                                            placeholder="Enter payment terms"></textarea>
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_payment_terms"></span>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-6">
+                                                    <div class="row">
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Pay Rate</label>
+                                                        <input type="text" name="pay_rate" id="pay_rate"
+                                                            class="form-control numeric-input"
+                                                            placeholder="Enter Pay Rate">
+                                                        <span class="text-danger form-error"
+                                                            id="editerror_pay_rate"></span>
+                                                    </div>
+
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <div class="form-check mb-3">
+                                                                <input class="form-check-input" type="checkbox"
+                                                                    name="pmva_trained_officer" id="pmvaCheckEdit"
+                                                                    value="1">
+                                                                <label class="form-check-label" for="pmvaCheckEdit">PMVA
+                                                                    Trained Officer</label>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="row align-items-center">
+                                                        <div class="col-md-4">
+                                                            <div class="form-check mb-3">
+                                                                <input type="checkbox" name="vat_registered"
+                                                                    class="form-check-input" id="vatCheckEdit"
+                                                                    value="1">
+                                                                <label class="form-check-label" for="vatCheckEdit">VAT
+                                                                    Registered?</label>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-8">
+                                                            <div class="mb-3">
+                                                                <input type="text" name="vat_number" id="vat_number"
+                                                                    class="form-control" placeholder="Enter VAT Number">
+                                                                <span class="text-danger form-error"
+                                                                    id="editerror_vat_number"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div> <!-- col-md-6 -->
+                                            </div> <!-- row -->
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-primary"
+                                        id="updateSubcontractor">Update</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+        <!-- /Edit Subcontractor -->
+        <!-- View Subcontractor Detail Modal -->
+        <div class="modal fade" id="viewSubcontractorDetailModal" tabindex="-1"
+            aria-labelledby="subcontractorDetailLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content shadow rounded-3">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title" id="subcontractorDetailLabel">
+                            Subcontractor <span id="subcontractor_name_heading" class="fw-bold"></span> Details
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body p-4">
+                        <table class="table table-bordered table-striped">
+                            <tbody>
+                                <tr>
+                                    <th>Contact Person</th>
+                                    <td id="contact_person_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Company Name</th>
+                                    <td id="company_name_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Address</th>
+                                    <td id="company_address_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Contact Number</th>
+                                    <td id="contact_number_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Email</th>
+                                    <td id="email_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Username</th>
+                                    <td id="username_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Invoice Terms</th>
+                                    <td id="invoice_terms_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Payment Terms</th>
+                                    <td id="payment_terms_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Department</th>
+                                    <td id="department_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Pay Rate</th>
+                                    <td id="pay_rate_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>PMVA Trained Officer</th>
+                                    <td id="pmva_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>VAT Registered?</th>
+                                    <td id="vat_registered_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>VAT Number</th>
+                                    <td id="vat_number_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Status</th>
+                                    <td id="status_detail"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Add Subcontractor Success -->
+        <div class="modal fade" id="success_modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="text-center p-3">
+                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                    class="ti ti-check fs-24"></i></span>
+                            <h5 class="mb-2" id="success_message"></h5>
+
+                            </p>
+                            <div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <a href="{{ url('subcontractors') }}" class="btn btn-dark w-100">Back to List</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Add Subcontractor Success -->
+
+        <!-- Delete Modal -->
+        <div class="modal fade" id="delete_modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-body text-center">
+                        <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                            <i class="ti ti-trash-x fs-36"></i>
+                        </span>
+                        <h4 class="mb-1">Confirm Delete</h4>
+                        <p class="mb-3">You want to delete all the marked items, this cant be undone once you delete.</p>
+                        <div class="d-flex justify-content-center">
+                            <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Delete Modal -->
+        <!-- Import modal -->
+        <div class="modal fade" id="import_modal">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Import Excel</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                    <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="tab-content" id="myTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0 ">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="d-flex gap-2">
+                                                <input type="file" name="import_file" class="form-control" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-light border me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+
+                                    <button class="btn btn-primary" type="submit">Import</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Logs Modal -->
+    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Client Logs Detail
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Page Wrapper -->
+@endsection
+@section('scripts')
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+    <script>
+        // search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.subcontractor-checkbox').prop('checked', $(this).prop('checked'));
+        });
+        $(document).ready(function() {
+            // Add Subcontractor
+            $('#add_subcontractor-form').on('submit', function(e) {
+                e.preventDefault();
+                $("[id^='error_']").text('');
+                let form = $(this)[0];
+                let formData = new FormData(form);
+                let submitButton = $('#saveSubcontractor');
+
+                submitButton.prop('disabled', true).html('Saving...');
+
+                $.ajax({
+                    url: $(this).attr('action'), // e.g., /subcontractors/store
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        $('#add_subcontractor').modal('hide');
+                        $('#success_message').html('Subcontractor Added Successfully');
+                        $('#success_modal').modal('show');
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, value) {
+                                $('#error_' + key).text(value[0]);
+                            });
+                        } else {
+                            alert('An error occurred. Please try again.');
+                        }
+                    },
+                    complete: function() {
+                        submitButton.prop('disabled', false).html('Save');
+                    }
+                });
+            });
+
+            // Edit Subcontractor
+            $('#edit_subcontractor-form').on('submit', function(e) {
+                e.preventDefault();
+                $("[id^='editerror_']").text('');
+                let form = $(this)[0];
+                let formData = new FormData(form);
+                let submitButton = $('#updateSubcontractor');
+                let subcontractorId = $('#subcontractor_id').val();
+
+                submitButton.prop('disabled', true).html('Updating...');
+
+                $.ajax({
+                    url: `${baseUrl}/updatesubcontractor/${subcontractorId}`, // adjust route if needed
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        $('#edit_subcontractor').modal('hide');
+                        $('#success_message').html('Subcontractor Updated Successfully!');
+                        $('#success_modal').modal('show');
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, value) {
+                                $('#editerror_' + key).text(value[0]);
+                            });
+                        } else {
+                            alert('An error occurred. Please try again.');
+                        }
+                    },
+                    complete: function() {
+                        submitButton.prop('disabled', false).html('Update');
+                    }
+                });
+            });
+        });
+
+        function editSubcontractor(record_id) {
+            $.get(`${baseUrl}/editsubcontractor/${record_id}`, function(data) {
+                if (data.subcontractor) {
+                    $('#subcontractor_id').val(data.subcontractor.id);
+                    $('#company_name').val(data.subcontractor.company_name);
+                    $('#username').val(data.subcontractor.username);
+                    $('#password').val(data.subcontractor.password);
+                    $('#company_address').val(data.subcontractor.company_address);
+                    $('#contact_number').val(data.subcontractor.contact_number);
+                    $('#contact_person').val(data.subcontractor.contact_person);
+                    $('#email').val(data.subcontractor.email);
+                    $('#invoice_terms').val(data.subcontractor.invoice_terms);
+                    $('#payment_terms').val(data.subcontractor.payment_terms);
+                    $('#department').val(data.subcontractor.department);
+                    $('#pay_rate').val(data.subcontractor.pay_rate);
+                    $('#vat_number').val(data.subcontractor.vat_number);
+
+                    // Checkbox toggles
+                    $('#pmvaCheckEdit').prop('checked', data.subcontractor.pmva_trained_officer == 1);
+                    $('#vatCheckEdit').prop('checked', data.subcontractor.vat_registered == 1);
+
+                    $('#edit_subcontractor').modal('show');
+                }
+            }).fail(function() {
+                alert('Failed to load subcontractor data.');
+            });
+        }
+
+        let selectedId = null;
+
+        function deleteSubcontractor(record_id) {
+            selectedId = record_id;
+            $('#delete_modal').modal('show');
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (selectedId !== null) {
+                $.ajax({
+                    url: `${baseUrl}/deletesubcontractor/${selectedId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        $('#delete_modal').modal('hide');
+
+                        $('#success_message').html('Subcontractor Deleted Successfully!')
+                        $('#success_modal').modal('show');
+                    },
+                    error: function(xhr) {
+                        $('#delete_modal').modal('hide');
+                        alert('Something went wrong. Please try again.');
+                    }
+                });
+            }
+        });
+
+        // Bulk delete button
+        $('#bulkDeleteBtn').on('click', function() {
+            const selected = $('.subcontractor-checkbox:checked').map(function() {
+                return this.value;
+            }).get();
+
+            if (selected.length === 0) {
+                alert('Please select at least one subcontractor to delete.');
+                return;
+            }
+
+            if (!confirm('Are you sure you want to delete the selected subcontractors?')) return;
+
+            $.ajax({
+                url: '{{ route('subcontractors.bulkDelete') }}',
+                type: 'POST',
+                data: {
+                    ids: selected,
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#success_message').text('Selected subcontractors deleted successfully!');
+                    $('#success_modal').modal('show');
+                },
+                error: function() {
+                    alert('Something went wrong during bulk delete.');
+                }
+            });
+        });
+
+
+
+        function viewSubcontractorDetail(id) {
+            $.get(`${baseUrl}/subcontractors/${id}/view`, function(data) {
+                $('#subcontractor_name_heading').text(data.company_name);
+                $('#company_name_detail').text(data.company_name);
+                $('#company_address_detail').text(data.company_address);
+                $('#contact_person_detail').text(data.contact_person);
+                $('#contact_number_detail').text(data.contact_number);
+                $('#email_detail').text(data.email);
+                $('#username_detail').text(data.username);
+                $('#invoice_terms_detail').text(data.invoice_terms);
+                $('#payment_terms_detail').text(data.payment_terms);
+                $('#department_detail').text(data.department);
+                $('#pay_rate_detail').text(`$${data.pay_rate}`);
+                $('#pmva_detail').text(data.pmva_trained_officer ? 'Yes' : 'No');
+                $('#vat_registered_detail').text(data.vat_registered ? 'Yes' : 'No');
+                $('#vat_number_detail').text(data.vat_number ?? '-');
+                $('#status_detail').text(data.is_active ? 'Active' : 'Inactive');
+
+                new bootstrap.Modal(document.getElementById('viewSubcontractorDetailModal')).show();
+            });
+        }
+
+
+        function viewLogs(subcontractorId) {
+            // Clear existing content
+            const modalBody = document.querySelector('#logModal .modal-body');
+            modalBody.innerHTML = '<p class="text-muted">Loading logs...</p>';
+
+            fetch(`/subcontractors/${subcontractorId}/logs/ajax`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs.length === 0) {
+                        modalBody.innerHTML = '<p class="text-muted">No logs found for this subcontractor.</p>';
+                    } else {
+                        let html = '<table class="table table-bordered table-striped">';
+                        html +=
+                            '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
+                        data.logs.forEach(log => {
+                            html += `<tr>
+                                    <td>${log.user_name}</td>
+                                    <td>${log.action}</td>
+                                    <td>${log.description}</td>
+                                    <td>${log.time}</td>
+                                </tr>`;
+                        });
+                        html += '</tbody></table>';
+                        modalBody.innerHTML = html;
+                    }
+
+                    // Show the modal
+                    $('#logModal').modal('show');
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
+                });
+        }
+    </script>
+    <script>
+        $(document).ready(function() {
+
+            $('.submenu > a').click(function(e) {
+                e.preventDefault();
+
+                var $this = $(this);
+                var $submenu = $this.next('ul');
+
+                if (!$this.hasClass('subdrop')) {
+                    $('.submenu > a').removeClass('subdrop');
+                    $('.submenu ul').slideUp(200);
+
+                    $this.addClass('subdrop');
+                    $submenu.slideDown(200);
+                } else {
+                    $this.removeClass('subdrop');
+                    $submenu.slideUp(200);
+                }
+            });
+
+
+            var currentPage = window.location.pathname.split("/").pop();
+
+            $('#sidebar-menu a').each(function() {
+                var linkPage = $(this).attr('href');
+                if (linkPage === currentPage) {
+                    $(this).addClass('active');
+
+                    var $submenu = $(this).closest('.submenu');
+                    if ($submenu.length) {
+                        $submenu.find('> a').addClass('subdrop');
+                        $submenu.find('ul').slideDown(0).css('display', 'block');
+                    }
+                }
+            });
+        });
+
+        document.querySelectorAll('.numeric-input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9.]/g, '');
+
+                // Optional: Only allow one decimal point
+                const parts = this.value.split('.');
+                if (parts.length > 2) {
+                    this.value = parts[0] + '.' + parts[1];
+                }
+            });
+        });
+        $('#vatCheckSub').on('change', function() {
+            $('#vatInputSub').toggle(this.checked);
+        });
+    </script>
+@endsection

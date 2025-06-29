@@ -34,7 +34,6 @@
             <tr>
                 <th>Client</th>
                 <th>Name</th>
-                <th>Group</th>
                 <th>Code</th>
                 <th>Post Code</th>
                 <th>Contact</th>
@@ -48,7 +47,6 @@
                 <tr>
                     <td>{{ $site->client_id }}</td>
                     <td>{{ $site->site_name }}</td>
-                    <td>{{ $site->site_group }}</td>
                     <td>{{ $site->site_code }}</td>
                     <td>{{ $site->post_code }}</td>
                     <td>{{ $site->contact_number }}</td>

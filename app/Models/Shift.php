@@ -12,7 +12,6 @@ class Shift extends Model
     {
         return $this->belongsTo(Client::class);
     }
-
     public function site()
     {
         return $this->belongsTo(Site::class);
@@ -20,6 +19,10 @@ class Shift extends Model
     public function staff()
     {
         return $this->belongsTo(Employee::class); // or Employee::class based on your DB
+    }
+    public function subcontractor()
+    {
+        return $this->belongsTo(Subcontractor::class, 'subcontractor_id'); // or Employee::class based on your DB
     }
     public function shiftDates()
     {

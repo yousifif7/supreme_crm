@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('banned_date')->nullable();
             $table->integer('event_id')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

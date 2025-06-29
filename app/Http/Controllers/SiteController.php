@@ -22,7 +22,7 @@ class SiteController extends Controller
         $validator = Validator::make($request->all(), [
             'client_id'      => 'required|integer',
             'site_name'      => 'required|string|max:255',
-            'site_group'     => 'nullable|string|max:255',
+            'guard_names'        => 'required|string|max:255',
             'address'        => 'required|string|max:255',
             'post_code'      => 'required|string|max:50',
             'site_code'      => 'required|string|max:50',
@@ -30,9 +30,9 @@ class SiteController extends Controller
             'note'           => 'required|string|max:1000',
             'manager_1_id'   => 'nullable|integer',
             'manager_2_id'   => 'nullable|integer',
-            'start_time'     => 'nullable|string',
-            'end_time'       => 'nullable|string',
-            'break_time'     => 'nullable|string',
+            'start_time'     => 'nullable',
+            'end_time'       => 'nullable',
+            'break_time'     => 'nullable',
             'guard_rate'     => 'required|numeric',
             'office_rate'    => 'required|numeric',
             'billable_rate'  => 'required|numeric',
@@ -75,7 +75,7 @@ class SiteController extends Controller
         $validator = Validator::make($request->all(), [
             'client_id'      => 'required|integer',
             'site_name'      => 'required|string|max:255',
-            'site_group'     => 'nullable|string|max:255',
+            'guard_names'        => 'required|string|max:255',
             'address'        => 'required|string|max:255',
             'post_code'      => 'required|string|max:50',
             'site_code'      => 'required|string|max:50',
@@ -161,5 +161,45 @@ class SiteController extends Controller
         Site::whereIn('id', $request->ids)->delete();
 
         return response()->json(['message' => 'Selected sites deleted.']);
+    }
+    public function getLogs($id)
+    {
+        $site = Site::with('logs')->findOrFail($id);
+
+        return response()->json([
+            'logs' => $site->logs->map(function ($log) {
+                return [
+                    'user_name' => $log->user_name,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'time' => $log->created_at->diffForHumans(),
+                    'success' => 'success',
+                ];
+            })
+        ]);
+    }
+    public function view($id)
+    {
+        $site = Site::with(['client'])->findOrFail($id);
+
+        return response()->json([
+            'site_name'        => $site->site_name,
+            'guard_names'      => $site->guard_names,
+            'address'          => $site->address,
+            'post_code'        => $site->post_code,
+            'site_code'        => $site->site_code,
+            'contact_number'   => $site->contact_number,
+            'contact_person'   => $site->contact_person,
+            'note'             => $site->note,
+            'start_time'       => $site->start_time,
+            'end_time'         => $site->end_time,
+            'break_time'       => $site->break_time,
+            'guard_rate'       => $site->guard_rate,
+            'office_rate'      => $site->office_rate,
+            'billable_rate'    => $site->billable_rate,
+            'payable_rate'     => $site->payable_rate,
+            'manager_1_name'   => $site->manager_1_id ?? '',
+            'manager_2_name'   => $site->manager_2_id ?? '',
+        ]);
     }
 }

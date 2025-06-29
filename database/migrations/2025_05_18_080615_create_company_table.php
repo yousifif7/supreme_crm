@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('address');
             $table->string('status')->default('Active');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

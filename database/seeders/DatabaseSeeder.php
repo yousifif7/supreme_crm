@@ -2,6 +2,7 @@
 
 namespace Database\Seeders;
 
+use App\Models\VisaType;
 use Illuminate\Database\Seeder;
 
 class DatabaseSeeder extends Seeder
@@ -9,4 +10,15 @@ class DatabaseSeeder extends Seeder
     /**
      * Seed the application's database.
      */
+    public function run(): void
+    {
+        $this->call([
+            employeeTypeSeeder::class,
+            permissionSeeder::class,
+            RoleSeeder::class,
+            UserSeeder::class,
+            visaTypeSeeder::class,
+            licenseSeeder::class,
+        ]);
+    }
 }

@@ -1,6 +1,7 @@
 @extends('layouts.app')
 @section('title', 'CRM - Scheduling')
 @section('styles')
+    <!-- Flatpickr CSS -->
     <style>
         .datepic .fc-prev-button,
         .datepic .fc-next-button {
@@ -12,6 +13,35 @@
             /* Reduce button height */
             width: 30px !important;
             /* Optional: make buttons smaller square */
+        }
+
+        /* Horizontal lines */
+        .fc .fc-scrollgrid td,
+        .fc .fc-scrollgrid th {
+            border-bottom: 1px solid #ccc !important;
+        }
+
+        /* Vertical lines */
+        .fc .fc-scrollgrid td,
+        .fc .fc-scrollgrid th {
+            border-right: 1px solid #ccc !important;
+        }
+
+        /* Remove duplicate right borders from last column */
+        .fc .fc-scrollgrid td:last-child,
+        .fc .fc-scrollgrid th:last-child {
+            border-right: none !important;
+        }
+
+        /* Optional: Stronger border for week rows */
+        .fc .fc-daygrid-week-number {
+            border-right: 1px solid #aaa !important;
+        }
+
+        /* Optional: Make sure table has borders */
+        .fc .fc-scrollgrid {
+            border-left: 1px solid #ccc !important;
+            border-top: 1px solid #ccc !important;
         }
     </style>
 @endsection
@@ -30,90 +60,7 @@
             </div>
 
 
-            <!-- Filter Header -->
-            <div class="filters">
-                <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
-                    <div class="left">
-                        <button onclick="window.location='{{ url('scheduling') }}'" class="active">Complete
-                            Rota</button>
-                        <button onclick="window.location='{{ url('worker_calendar') }}'">Worker Calendar</button>
-                        <button onclick="window.location='{{ url('site_calendar') }}'">Site Calendar</button>
-                        <button onclick="window.location='{{ url('today_rota') }}'">Today's Rota</button>
-
-                    </div>
-
-                    <div class="right">
-                        <div class="status-summary">
-                            <div onclick="window.location='{{ url('clients') }}'" class="active-sites">&#9679; Active Sites
-                                ({{ $sites->count() }})</div>
-                            <div onclick="window.location='{{ url('employees') }}'" class="active-workers">&#9679; Active
-                                Workers ({{ $staffs->count() }})</div>
-                            <!--
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <div onclick="window.location='total_hours.html'" class="total-hours">&#9679; Total Hours
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    (88177.70)</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                <div onclick="window.location='holidays.html'" class="holiday-hours">&#9679; Holidays (10)</div>
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                -->
-
-                        </div>
-
-                    </div>
-
-
-
-
-                </div>
-                <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
-
-                    <div class="left mt-4">
-                        <button class="refresh_btn" onclick="window.location.reload()">
-                            <i class="ti ti-reload"></i>Refresh
-                        </button>
-                    </div>
-
-                    <div class="right  mt-4">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift"
-                            class=" add_btn btn btn-white"">
-                            <i class="ti ti-plus me-0"></i> Add Shift
-                        </a>
-                        <div class="input-group input-group-flat d-inline-flex me-1">
-                            <span class="input-icon-addon">
-                                <i class="ti ti-search"></i>
-                            </span>
-                            <input type="text" class=" search_box" placeholder="Search...">
-
-
-                            <!-- /Search -->
-
-
-                        </div>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_rota" class=" add_btn btn btn-white"">
-                            <i class="ti ti-plus me-0"></i> Rota (0)
-                        </a>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_client"
-                            class=" day-off_btn btn btn-white"">
-                            <i class="ti ti-plus me-0"></i> Day off (0)
-                        </a>
-                        <div class="dropdown">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                <i class="ti ti-file-export me-1"></i>Export
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-start p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
+            @include('security_boards.shiftfilter')
 
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
@@ -208,20 +155,16 @@
                             </button>
 
                         </div>
-                        <form action="clients.html">
+                        {{--<form action="#">--}}
                             <div class="tabs-parent_main">
                                 <div class="tabs-parent nav nav-tabs" role="tablist">
                                     <button class="nav-link active" id="info-tab2" data-bs-toggle="tab"
                                         data-bs-target="#basic-info2" type="button" role="tab"
                                         aria-controls="basic-info2" aria-selected="true">Rota Detail</button>
                                     <button class="nav-link" id="address-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#address2" type="button" role="tab"
-                                        aria-controls="address2" aria-selected="false">Office Validation</button>
-                                    <!--
-                                                                                                                                                                                                                                                                    <button class="nav-link" id="progress-tab2" data-bs-toggle="tab"
-                                                                                                                                                                                                                                                                        data-bs-target="#progress2" type="button" role="tab"
-                                                                                                                                                                                                                                                                        aria-controls="progress2" aria-selected="false">Job Progress</button>
-                                                                                                                                                                                                                                                                        -->
+                                        data-bs-target="#address2" type="button" role="tab" aria-controls="address2"
+                                        aria-selected="false">Office Validation</button>
+
                                     <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2"
                                         type="button" role="tab" aria-controls="logs2"
                                         aria-selected="false">Logs</button>
@@ -251,6 +194,8 @@
                                                             <img src="" class="profile-avater profile_picture"
                                                                 id="profile_picture">
                                                         </div>
+
+
                                                         <div class="profile-details">
                                                             <h6 id="name"></h6>
                                                             <div class="mb-1">
@@ -261,6 +206,11 @@
                                                                 <i class="ti ti-mail"></i>
                                                                 <span id="email"></span>
                                                             </div>
+                                                            <button id="assignShiftBtn" type="button"
+                                                                class="btn btn-danger mt-2" style="display: none;">
+                                                                Assign Shift
+                                                            </button>
+
                                                         </div>
                                                     </div>
                                                     <div class="partner-details">
@@ -296,17 +246,6 @@
                                             <div class="col-md-6 col-12">
                                                 <div id="map-first"></div>
                                             </div>
-                                            <!--
-                                                                                                    <div class="col-md-6 col-12">
-
-
-                                                                                                        <div id="s-col" class="chart-set"></div>
-
-
-                                                                                                    </div>--
-                                                                                                <div class="col-md-6 col-12">
-                                                                                                    <div id="map-second"></div>
-                                                                                                </div>-->
                                             <div class="col-md-6 col-12">
                                                 <div class="book-on_box">
                                                     <div class="profile-detail">
@@ -327,12 +266,12 @@
                                                         </div>
 
                                                     </div>
-                                                    <button class="btn btn-primary">set book on time</button>
-                                                    <!--
-                                                                                                    <div class="map-image">
-                                                                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
-                                                                                                            alt="">
-                                                                                                    </div>-->
+                                                    <form id="bookonForm" action="{{ route('shift.bookon.store') }}">
+                                                        @csrf
+                                                        <input type="hidden" id="book_on_id" name="book_on_id" value="">
+                                                        <input type="time" id="absentee_start_time" name="absentee_start_time" value="{{ date('h:i') }}" class="form-control mb-2">
+                                                        <button type="submit" class="btn btn-primary">set book on time</button>
+                                                    </form>
                                                 </div>
                                             </div>
                                             <div class="col-md-6">
@@ -354,13 +293,12 @@
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <button class="btn btn-primary">set book off time</button>
-                                                    <!---
-                                                                                                    <div class="map-image">
-                                                                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
-                                                                                                            alt="">
-                                                                                                    </div>
-                                                                                                    -->
+                                                    <form id="bookoffForm" action="{{ route('shift.bookoff.store') }}">
+                                                        @csrf
+                                                        <input type="hidden" id="book_off_id" name="book_off_id" value="">
+                                                        <input type="time" id="absentee_end_time" name="absentee_end_time" value="{{ date('h:i') }}" class="form-control mb-2">
+                                                        <button type="submit" class="btn btn-primary">set book off time</button>
+                                                    </form>
                                                 </div>
                                             </div>
                                         </div>
@@ -402,7 +340,7 @@
                                     <div class="modal-body">Logs content goes here.</div>
                                 </div>
                             </div>
-                        </form>
+                        {{--</form>--}}
                     </div>
                 </div>
             </div>
@@ -419,7 +357,7 @@
                                 <i class="ti ti-x"></i>
                             </button>
                         </div>
-                        <form action="https://smarthr.co.in/demo/html/template/companies-grid.html">
+                        <form action="#">
                             <div class="contact-grids-tab">
                                 <ul class="nav nav-underline" id="myTab" role="tablist">
                                     <li class="nav-item" role="presentation">
@@ -934,363 +872,7 @@
                 </div>
             </div>
             <!-- Add shift -->
-            <div class="modal fade" id="add_shift">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4 class="modal-title">Add New Shift</h4>
-                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                                aria-label="Close">
-                                <i class="ti ti-x"></i>
-                            </button>
-                        </div>
-                        <form method="POST" id="add_shift-form" action="{{ route('shifts.store') }}">
-                            @csrf
-                            <div class="tab-content" id="myTabContent">
-                                <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                    aria-labelledby="info-tab" tabindex="0">
-                                    <div class="modal-body pb-0">
-                                        <div class="shift-wrapper">
-                                            <div class="shift-group border rounded p-3 mb-3">
-                                                <div class="row">
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Client <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="client_id[]" class="form-select select2"
-                                                                required>
-                                                                <option value="">--choose--</option>
-                                                                @foreach ($clients as $client)
-                                                                    <option value="{{ $client->id }}">
-                                                                        {{ $client->client_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_client_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Site <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="site_id[]" class="form-select">
-                                                                <option value="">--choose--</option>
-                                                                @foreach ($sites as $site)
-                                                                    <option value="{{ $site->id }}">
-                                                                        {{ $site->site_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_site_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Parent company <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="company_id[]" class="form-select">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_company_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Start <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="start_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_start_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">End <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="end_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_end_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Break (mins) <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="break-mins_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_break-mins_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Staff <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="number_shift[]"
-                                                                placeholder="number" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_number_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Site rate <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="site_rate[]" placeholder="$"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_site_rate"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Select Service Type <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="service_type_1[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_service_type_1"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">From <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="date" name="from_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_from_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">To <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="date" name="to_shift[]" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_to_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Comment <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="comments[]" placeholder="Comment"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_comments"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-12">
-                                                        <label class="form-label">Select Days</label>
-                                                        <div class="day-selector d-flex gap-2 flex-wrap">
-                                                            @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $day)
-                                                                <div class="day-box" data-day="{{ $day }}">
-                                                                    {{ $day }} <span class="checkmark">✔</span>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                        <input type="hidden" name="days[]" id="selectedDays">
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Select Staff <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="staff_id[]">
-                                                                <option value="">--choose--</option>
-                                                                @foreach ($staffs as $staff)
-                                                                    <option value="{{ $staff->id }}">
-                                                                        {{ $staff->fore_name }}
-                                                                        {{ $staff->sur_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_staff_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Employee Rate <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="employee_rate[]" placeholder="$"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_employee_rate"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Select Service Type <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="service_type_2[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_select_type_2"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Start <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="start[]" class="form-control">
-                                                            <span class="text-danger form-error" id="error_start"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Subcontractor <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="subcontractor_id[]">
-                                                                <option value="">--choose--</option>
-
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_subcontractor_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">End <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="end[]" class="form-control">
-                                                            <span class="text-danger form-error" id="error_end"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">PO Number <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="po_number[]"
-                                                                placeholder="PO Number" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_po_number"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Lost Time <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="lost_time[]"
-                                                                placeholder="Lost Time" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_lost_time"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">PO Rate <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="po_rate[]" placeholder="PO Rate"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_po_rate"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Manager (1) <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="manager_1_id[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_manager_1_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Manager (2) <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="manager_2_id[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_manager_2_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-12">
-                                                        <div class="row">
-                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check"
-                                                                    name="restrict_start_time[]" value="1">
-                                                                <label class="form-label mb-0">Restrict shift start time
-                                                                    <span class="text-danger">*</span></label>
-                                                            </div>
-                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check"
-                                                                    name="enforce_picture_check[]" value="1">
-                                                                <label class="form-label mb-0">Enforce picture check <span
-                                                                        class="text-danger">*</span></label>
-                                                            </div>
-                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check"
-                                                                    name="restrict_location_check[]" value="1">
-                                                                <label class="form-label mb-0">Restrict start shift
-                                                                    location check <span
-                                                                        class="text-danger">*</span></label>
-                                                            </div>
-                                                            <div class="col-md-12 text-end">
-                                                                <button type="button"
-                                                                    class="btn btn-danger btn-sm remove-shift">Remove</button>
-
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4 mb-3">
-                                                        <button type="button"
-                                                            class="btn btn-success btn-sm addShiftGroup">+
-                                                            Add More Shifts</button>
-
-                                                    </div>
-
-                                                </div> <!-- .row -->
-                                            </div> <!-- .shift-group -->
-                                        </div>
-                                    </div>
-
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" form="add_shift-form" id="saveshift"
-                                            class="btn btn-primary">Save </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            @include('security_boards.shiftmodal');
             <!-- /Breadcrumb -->
         </div>
 
@@ -1318,27 +900,44 @@
                 </div>
             </div>
         </div>
-
+        <!-- Assign Shift Modal -->
+        <div class="modal fade" id="assignShiftModal" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow rounded-3">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Assign Shift</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <form id="assignShiftForm">
+                        @csrf
+                        <div class="modal-body">
+                            <input type="hidden" id="shift_id" name="shift_id">
+                            <div class="mb-3">
+                                <label for="staff_id" class="form-label">Select Staff</label>
+                                <select name="staff_id" id="staff_id" class="form-select" required>
+                                    <option value="">-- Choose Staff --</option>
+                                    @foreach ($staffs as $staff)
+                                        <option value="{{ $staff->id }}">{{ $staff->fore_name }}
+                                            {{ $staff->sur_name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                            <button type="submit" class="btn btn-primary">Assign</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
+
+
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
-    <!-- Flatpickr CSS -->
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
-    <!-- Flatpickr JS -->
-    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
-
-    <script>
-        document.addEventListener("DOMContentLoaded", function() {
-            flatpickr(".timepicker", {
-                enableTime: true,
-                noCalendar: true,
-                dateFormat: "H:i", // Format as 24-hour time
-                time_24hr: true
-            });
-        });
-    </script>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             function initDaySelector(shiftGroup) {
@@ -1379,6 +978,24 @@
                             'selected'));
                         clone.querySelector('input[name="days[]"]').value = '';
 
+                        // Update data-shift-group attribute
+                        const allShiftGroups = wrapper.querySelectorAll('.shift-group');
+                        const newShiftGroupIndex = allShiftGroups.length;
+                        const checkpointBtn = clone.querySelector('.addCheckpointRow');
+                        if (checkpointBtn) {
+                            checkpointBtn.setAttribute('data-shift-group', newShiftGroupIndex);
+                        }
+                        const checkpointSection = clone.querySelector('.checkpoint-section');
+                        if (checkpointSection) {
+                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                        }
+
+                        // Clear checkpoint rows
+                        const checkpointRows = clone.querySelector('.checkpoint-rows');
+                        if (checkpointRows) {
+                            checkpointRows.innerHTML = '';
+                        }
+
                         wrapper.appendChild(clone);
 
                         // Re-init new shift group logic
@@ -1406,12 +1023,44 @@
             // Initial binding
             bindEvents();
         });
+
+        let checkIndex = 0;
+        function addCheckpointRow($parentRow, groupIndex = 0) {
+            checkIndex++;
+
+            const checkpointRow = `
+                <div class="row checkpoint-row mb-3 align-items-center" data-index="${checkIndex}">
+                    <div class="col-md-3"><label>Checkpoint Name</label>
+                        <input type="text" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_name]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Time</label>
+                        <input type="time" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_time]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removeCheckpointRow">Remove</button>
+                    </div>
+                </div>
+            `;
+
+            $parentRow.append(checkpointRow);
+            // $('#checkpoint-rows').append(checkpointRow);
+        }
+
+        $(document).on('click', '.addCheckpointRow', function() {
+            var groupIndex = $(this).data('shift-group');
+            var $parentRow = $(this).parents(`#checkpoint-section${groupIndex}`).find('.checkpoint-rows');
+            addCheckpointRow($parentRow, groupIndex);
+        });
+        $(document).on('click', '.removeCheckpointRow', function() {
+            $(this).closest('.checkpoint-row').remove();
+        });
     </script>
     <script>
         $(document).ready(function() {
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
-
+                $("[id^='error_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#saveshift'); // Add an ID to your submit button
@@ -1463,21 +1112,26 @@
             const london = [51.5074, -0.1278];
             const oxford = [51.7520, -1.2577];
 
-            const map1 = L.map('map-first').setView(london, 8);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map1);
-            const route = L.polyline([london, oxford], {
-                color: 'darkblue',
-                weight: 5
-            }).addTo(map1);
-            map1.fitBounds(route.getBounds());
+            const mapDiv = document.getElementById('map-first');
+            if (mapDiv) {
+                const map1 = L.map('map-first').setView(london, 8);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map1);
+                const route = L.polyline([london, oxford], {
+                    color: 'darkblue',
+                    weight: 5
+                }).addTo(map1);
+                map1.fitBounds(route.getBounds());
+            }
 
-            const map2 = L.map('map-second').setView(london, 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map2);
-
+            const map1Div = document.getElementById('map-second');
+            if (map1Div) {
+                const map2 = L.map('map-second').setView(london, 12);
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: '&copy; OpenStreetMap contributors'
+                }).addTo(map2);
+            }
         })
     </script>
     <script>
@@ -1513,7 +1167,7 @@
                 headerToolbar: headerToolbarOptions,
 
                 // ✅ Load events from Laravel API
-                events: '/api/shifts',
+                events: `${baseUrl}/api/shifts`,
 
                 eventContent: function(info) {
                     const event = info.event;
@@ -1537,19 +1191,19 @@
                     if (props.urgent) container.classList.add('urgent-event');
 
                     container.innerHTML = `
-        <div class="_schedule-box-row">
-            <div class="_schedule-box-text _schedule-box-time">
-                ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
-                ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-            </div>
-        </div>
-        <div class="_schedule-box-row">
-            <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
-        </div>
-        <div class="_schedule-box-row">
-            <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
-        </div>
-    `;
+                        <div class="_schedule-box-row">
+                            <div class="_schedule-box-text _schedule-box-time">
+                                ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
+                                ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </div>
+                        </div>
+                        <div class="_schedule-box-row">
+                            <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
+                        </div>
+                        <div class="_schedule-box-row">
+                            <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
+                        </div>
+                    `;
 
                     return {
                         domNodes: [container]
@@ -1559,6 +1213,7 @@
                 eventClick: function(info) {
                     const event = info.event;
                     const props = event.extendedProps;
+
                     $('#name').text(props.name || 'N/A');
                     $('#site_name').text(props.site_name || 'N/A');
                     $('#site_address').text(props.site_address || 'N/A');
@@ -1569,19 +1224,48 @@
                     $('#book_off').text(props.book_off || 'N/A');
                     $('#phone_number').text(props.phone_number || 'N/A');
                     $('#email').text(props.email || 'N/A');
-                    $('#phone_number').text(props.phone_number || 'N/A');
                     $('#sia_number').text(props.sia_number || 'N/A');
                     $('#sia_expiry').text(props.sia_expiry || 'N/A');
                     $('#date').text(event.start.toLocaleDateString());
+                    $('#book_on_id').val(props.sd_id);
+                    $('#book_off_id').val(props.sd_id);
+
+                    if(props.absentee_start_time)
+                    {
+                        $('#absentee_start_time').val(props.absentee_start_time);
+                    }
+
+                    if(props.absentee_end_time)
+                    {
+                        $('#absentee_end_time').val(props.absentee_end_time);
+                    }
                     $('.profile_picture').attr('src', props.profile_picture ?
                         '/uploads/profile_pics/' + props.profile_picture :
                         'uploads/no.png'
                     );
+
                     $('#subcontractor').text(props.subcontractor || 'Supreme Partner...');
                     $('#client_name').text(props.client_name || 'N/A');
+
+                    // ✅ Show or hide the "Assign Shift" button based on assignment
+                    if (!props.is_assigned) {
+                        $('#assignShiftBtn')
+                            .show()
+                            .off('click') // prevent multiple bindings
+                            .on('click', function() {
+                                $('#shift_id').val(props
+                                    .sd_id);
+                                $('#assignShiftModal').modal('show');
+                            });
+                    } else {
+                        $('#assignShiftBtn').hide();
+                    }
+
+
                     const modal = new bootstrap.Modal(document.getElementById('eventModal'));
                     modal.show();
                 }
+
             });
 
             function updateCalendarView() {
@@ -1623,33 +1307,169 @@
 
     <script>
         // Sidebar Menu
-        $('.submenu > a').click(function(e) {
-            e.preventDefault();
-            var $this = $(this);
-            var $submenu = $this.next('ul');
+        // $('.submenu > a').click(function(e) {
+        //     e.preventDefault();
+        //     var $this = $(this);
+        //     var $submenu = $this.next('ul');
 
-            if (!$this.hasClass('subdrop')) {
-                $('.submenu > a').removeClass('subdrop');
-                $('.submenu ul').slideUp(200);
-                $this.addClass('subdrop');
-                $submenu.slideDown(200);
-            } else {
-                $this.removeClass('subdrop');
-                $submenu.slideUp(200);
-            }
+        //     if (!$this.hasClass('subdrop')) {
+        //         $('.submenu > a').removeClass('subdrop');
+        //         $('.submenu ul').slideUp(200);
+        //         $this.addClass('subdrop');
+        //         $submenu.slideDown(200);
+        //     } else {
+        //         $this.removeClass('subdrop');
+        //         $submenu.slideUp(200);
+        //     }
+        // });
+
+        // var currentPage = window.location.pathname.split("/").pop();
+        // $('#sidebar-menu a').each(function() {
+        //     var linkPage = $(this).attr('href');
+        //     if (linkPage === currentPage) {
+        //         $(this).addClass('active');
+        //         var $submenu = $(this).closest('.submenu');
+        //         if ($submenu.length) {
+        //             $submenu.find('> a').addClass('subdrop');
+        //             $submenu.find('ul').slideDown(0).css('display', 'block');
+        //         }
+        //     }
+        // });
+        document.querySelectorAll('.numeric-input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9.]/g, '');
+
+                // Optional: Only allow one decimal point
+                const parts = this.value.split('.');
+                if (parts.length > 2) {
+                    this.value = parts[0] + '.' + parts[1];
+                }
+            });
+        });
+        $('#assignShiftForm').on('submit', function(e) {
+            e.preventDefault();
+
+            $.ajax({
+                url: `${baseUrl}/assign-shift`,
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    $('#success_message').html('Shift assigned successfully!');
+                    $('#assignShiftModal').modal('hide');
+                    $('#success_modal').modal('show');
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON) {
+                        // Show specific validation error
+                        if (xhr.responseJSON.error) {
+                            alert(xhr.responseJSON.error);
+                        } else if (xhr.responseJSON.errors) {
+                            // Multiple field errors
+                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            alert(messages);
+                        }
+                    } else {
+                        alert('An unexpected error occurred while assigning the shift.');
+                    }
+                }
+            });
         });
 
-        var currentPage = window.location.pathname.split("/").pop();
-        $('#sidebar-menu a').each(function() {
-            var linkPage = $(this).attr('href');
-            if (linkPage === currentPage) {
-                $(this).addClass('active');
-                var $submenu = $(this).closest('.submenu');
-                if ($submenu.length) {
-                    $submenu.find('> a').addClass('subdrop');
-                    $submenu.find('ul').slideDown(0).css('display', 'block');
+        $('#bookonForm').on('submit', function(e) {
+            e.preventDefault();
+            var actionUrl = $(this).attr('action');
+            $.ajax({
+                url: `${actionUrl}`,
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    $('#success_message').html('Shift bookon updated successfully!');
+                    $('#eventModal').modal('hide');
+                    $('#success_modal').modal('show');
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON) {
+                        // Show specific validation error
+                        if (xhr.responseJSON.error) {
+                            alert(xhr.responseJSON.error);
+                        } else if (xhr.responseJSON.errors) {
+                            // Multiple field errors
+                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            alert(messages);
+                        }
+                    } else {
+                        alert('An unexpected error occurred while assigning the shift.');
+                    }
                 }
-            }
+            });
+        });
+
+        $('#bookoffForm').on('submit', function(e) {
+            e.preventDefault();
+            var actionUrl = $(this).attr('action');
+            $.ajax({
+                url: `${actionUrl}`,
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    $('#success_message').html('Shift bookoff updated successfully!');
+                    $('#eventModal').modal('hide');
+                    $('#success_modal').modal('show');
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON) {
+                        // Show specific validation error
+                        if (xhr.responseJSON.error) {
+                            alert(xhr.responseJSON.error);
+                        } else if (xhr.responseJSON.errors) {
+                            // Multiple field errors
+                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            alert(messages);
+                        }
+                    } else {
+                        alert('An unexpected error occurred while assigning the shift.');
+                    }
+                }
+            });
+        });
+    </script>
+    <script type="text/javascript">
+        $(document).on("change","#clientSelect",function() {
+            var $this = $(this);
+            const clientId = $(this).val();
+
+            if (!clientId) return;
+
+            $.ajax({
+                url: `${baseUrl}/api/client/${clientId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+                },
+                error: function (xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
+        });
+
+        $(document).on("change","#StaffSelect",function() {
+            var $this = $(this);
+            const staffId = $(this).val();
+
+            if (!staffId) return;
+
+            $.ajax({
+                url: `${baseUrl}/api/staff/${staffId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                },
+                error: function (xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
         });
     </script>
 @endsection

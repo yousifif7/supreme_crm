@@ -11,3 +11,6 @@ use App\Http\Controllers\ShiftController;
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
     Route::get('/api/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);
     Route::get('/api/shifts-today', [ShiftController::class, 'getTodayShifts']);
+
+    Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
+    Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);

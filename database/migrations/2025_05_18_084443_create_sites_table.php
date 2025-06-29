@@ -20,8 +20,8 @@ return new class extends Migration
                 ->on('clients')
                 ->onDelete('cascade');
             $table->string('site_name');
-            $table->string('site_group')->nullable();
-            $table->string('contact_person');
+            $table->string('guard_names')->nullable();
+            $table->string('contact_person')->nullable();
             $table->string('contact_number')->nullable();
             $table->text('address');
             $table->string('post_code');
@@ -39,6 +39,7 @@ return new class extends Migration
             $table->string('payable_rate')->nullable();
             $table->string('site_payable_rate_supervisor')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

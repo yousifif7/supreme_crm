@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\EmployeeType;
 use App\Models\Shift;
 use App\Models\ShiftDate;
 use App\Models\Site;
@@ -25,7 +26,8 @@ class ShiftController extends Controller
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
-        return view('security_boards.shifts', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users'));
+        $services = EmployeeType::all();
+        return view('security_boards.shifts', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
     public function scheduling()
     {
@@ -35,7 +37,8 @@ class ShiftController extends Controller
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
-        return view('security_boards.scheduling', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users'));
+        $services = EmployeeType::all();
+        return view('security_boards.scheduling', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
     public function worker_calendar()
     {
@@ -45,7 +48,8 @@ class ShiftController extends Controller
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
-        return view('security_boards.worker_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users'));
+        $services = EmployeeType::all();
+        return view('security_boards.worker_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
     public function site_calendar()
     {
@@ -55,7 +59,8 @@ class ShiftController extends Controller
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
-        return view('security_boards.site_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users'));
+        $services = EmployeeType::all();
+        return view('security_boards.site_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
     public function today_rota()
     {
@@ -65,12 +70,13 @@ class ShiftController extends Controller
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
-        return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users'));
+        $services = EmployeeType::all();
+        return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
 
     public function store(Request $request)
     {
-        $shiftCount = count($request->client_id); // Assuming client_id[] always present
+        $shiftCount = count($request->client_id);
 
         for ($i = 0; $i < $shiftCount; $i++) {
             $validator = Validator::make([
@@ -85,10 +91,11 @@ class ShiftController extends Controller
                 'site_rate' => $request->site_rate[$i] ?? null,
                 'service_type_1' => $request->service_type_1[$i] ?? null,
                 'service_type_2' => $request->service_type_2[$i] ?? null,
+                'subcontractor_id' => $request->subcontractor_id[$i] ?? null,
                 'from_shift' => $request->from_shift[$i] ?? null,
                 'to_shift' => $request->to_shift[$i] ?? null,
                 'comments' => $request->comments[$i] ?? null,
-                'days' => $request->days[$i] ?? [],
+                'days' => $request->days[$i] ?? null,
                 'employee_rate' => $request->employee_rate[$i] ?? null,
                 'start' => $request->start[$i] ?? null,
                 'end' => $request->end[$i] ?? null,
@@ -100,6 +107,7 @@ class ShiftController extends Controller
                 'restrict_start_time' => $request->restrict_start_time[$i] ?? null,
                 'enforce_picture_check' => $request->enforce_picture_check[$i] ?? null,
                 'restrict_location_check' => $request->restrict_location_check[$i] ?? null,
+                'checkpoints' => $request->checkpoints[$i] ?? null,
             ], [
                 'client_id' => 'required|integer',
                 'site_id' => 'required|integer',
@@ -107,15 +115,16 @@ class ShiftController extends Controller
                 'staff_id' => 'nullable|integer',
                 'start_shift' => 'required|date_format:H:i',
                 'end_shift' => 'required|date_format:H:i',
-                'break_mins_shift' => 'nullable|date_format:H:i',
-                'number_shift' => 'nullable|integer|min:0',
-                'site_rate' => 'nullable|numeric',
-                'service_type_1' => 'nullable|string|max:255',
-                'service_type_2' => 'nullable|string|max:255',
-                'from_shift' => 'nullable|date',
-                'to_shift' => 'nullable|date|after_or_equal:from_shift',
+                'break-mins_shift' => 'nullable',
+                'number_shift' => 'required|integer|min:0',
+                'site_rate' => 'required|numeric',
+                'service_type_1' => 'nullable',
+                'service_type_2' => 'nullable',
+                'subcontractor_id' => 'nullable',
+                'from_shift' => 'required|date|after_or_equal:today',
+                'to_shift' => 'required|date|after_or_equal:from_shift',
                 'comments' => 'nullable|string|max:1000',
-                'days' => 'nullable',
+                'days' => 'required|string',
                 'employee_rate' => 'nullable|numeric',
                 'start' => 'nullable|date_format:H:i',
                 'end' => 'nullable|date_format:H:i',
@@ -127,16 +136,66 @@ class ShiftController extends Controller
                 'restrict_start_time' => 'nullable',
                 'enforce_picture_check' => 'nullable',
                 'restrict_location_check' => 'nullable',
+                'checkpoints' => 'nullable',
             ]);
-            $validator->after(function ($validator) use ($request, $i) {
-                $start = \Carbon\Carbon::createFromFormat('H:i', $request->start_shift[$i]);
-                $end = \Carbon\Carbon::createFromFormat('H:i', $request->end_shift[$i]);
 
-                // Allow overnight shifts (e.g. 22:00 to 06:00 next day)
-                if ($start->eq($end)) {
-                    $validator->errors()->add('end_shift', 'End time must not be the same as start time.');
+            $validator->after(function ($validator) use ($request, $i) {
+                $start = $request->start_shift[$i] ?? null;
+                $end = $request->end_shift[$i] ?? null;
+                $from = $request->from_shift[$i] ?? null;
+                $to = $request->to_shift[$i] ?? null;
+
+                // ✅ Validate time logic only if both times are present and correctly formatted
+                if ($start && $end && preg_match('/^\d{2}:\d{2}$/', $start) && preg_match('/^\d{2}:\d{2}$/', $end)) {
+                    $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
+                    $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
+
+                    if ($startTime->eq($endTime)) {
+                        $validator->errors()->add("end_shift", "End time must not be the same as start time.");
+                    } elseif ($endTime->lt($startTime)) {
+                        $validator->errors()->add("end_shift", "End time cannot be earlier than start time on the same day.");
+                    }
+                }
+
+                // ✅ Check overlapping shift logic only if staff ID and dates exist
+                $staffId = $request->staff_id[$i] ?? null;
+                if ($staffId && $start && $end && $from && $to) {
+                    try {
+                        $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
+                        $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
+                        $fromDate = \Carbon\Carbon::parse($from);
+                        $toDate = \Carbon\Carbon::parse($to);
+
+                        $overlappingShift = \App\Models\Shift::where('staff_id', $staffId)
+                            ->where(function ($query) use ($fromDate, $toDate) {
+                                $query->whereBetween('from_shift', [$fromDate, $toDate])
+                                    ->orWhereBetween('to_shift', [$fromDate, $toDate]);
+                            })
+                            ->where(function ($query) use ($startTime, $endTime) {
+                                $query->where(function ($q) use ($startTime, $endTime) {
+                                    $q->where('start_shift', '<', $endTime)
+                                        ->where('end_shift', '>', $startTime);
+                                });
+                            })
+                            ->exists();
+
+                        if ($overlappingShift) {
+                            $validator->errors()->add("staff_id", "This staff already has a shift during the selected time range.");
+                        }
+                    } catch (\Exception $e) {
+                        // Optionally log or silently ignore if date parsing fails
+                    }
+                }
+
+                // ✅ Check SIA license expiry only if staff exists
+                if ($staffId) {
+                    $staff = \App\Models\Employee::find($staffId);
+                    if ($staff && $staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
+                        $validator->errors()->add("staff_id", "Staff SIA license has expired.");
+                    }
                 }
             });
+
 
             if ($validator->fails()) {
                 return response()->json(['errors' => $validator->errors(), 'index' => $i], 422);
@@ -144,47 +203,57 @@ class ShiftController extends Controller
 
             $data = $validator->validated();
 
-            // Handle checkbox values (default 0)
             $data['restrict_start_time'] = $data['restrict_start_time'] ? 1 : 0;
             $data['enforce_picture_check'] = $data['enforce_picture_check'] ? 1 : 0;
             $data['restrict_location_check'] = $data['restrict_location_check'] ? 1 : 0;
-
             $data['days'] = json_encode([str_replace(['"', '[', ']'], '', $data['days'])]);
-
 
             if (!empty($data['staff_id'])) {
                 $data['is_assign'] = 1;
             }
 
             $shift = Shift::create($data);
+            
+            if(isset($data['checkpoints']) && $data['checkpoints'])
+            {
+                foreach ($data['checkpoints'] as $checkpoint) 
+                {
+                    // foreach ($checkpoints as $checkpoint) 
+                    // {
+                        \App\Models\ShiftCheckpoint::create([
+                            'shift_id' => $shift->id,
+                            'staff_id' => $shift->staff_id ?? null,
+                            'checkpoint_name' => $checkpoint['checkpoint_name'],
+                            'checkpoint_time' => $checkpoint['checkpoint_time'],
+                        ]);
+                    // }
+                }
+            }
 
-            // Directly split the incoming day string (no json_decode needed)
-            $dayString = $request->days[$i]; // e.g. "Mon, Wed, Sun"
-            $selectedDays = array_map('trim', explode(',', $dayString)); // ['Mon', 'Wed', 'Sun']
+            $dayString = $request->days[$i];
+            $selectedDays = array_map('trim', explode(',', $dayString));
 
-            // Create period from from_shift to to_shift
             $fromDate = \Carbon\Carbon::parse($data['from_shift']);
             $toDate = \Carbon\Carbon::parse($data['to_shift']);
             $period = \Carbon\CarbonPeriod::create($fromDate, $toDate);
-            $is_assign = 0;
-            if (!empty($data['staff_id'])) {
-                $is_assign = 1;
-            }
-            // Loop through each day and insert if it matches
+
+            $is_assign = !empty($data['staff_id']) ? 1 : 0;
+
             foreach ($period as $date) {
                 if (in_array($date->format('D'), $selectedDays)) {
                     \App\Models\ShiftDate::create([
                         'shift_id' => $shift->id,
+                        'staff_id' => $shift->staff_id ?? null,
                         'shift_date' => $date->format('Y-m-d'),
                         'start_time' => $data['start_shift'],
                         'end_time' => $data['end_shift'],
                         'is_assign' => $is_assign,
-                        'break_time' => $data['break_mins_shift'] ?? null,
+                        'break_time' => $data['break-mins_shift'] ?? null,
                         'total_hours' => $this->calculateTotalHours(
                             $data['start_shift'],
                             $data['end_shift'],
-                            $data['break_mins_shift'] ?? '00:00'
                         ),
+
                     ]);
                 }
             }
@@ -198,6 +267,7 @@ class ShiftController extends Controller
         $shift = Shift::with('client', 'site', 'staff')->find($id);
         return response()->json(['shift' => $shift]);
     }
+
     public function update(Request $request, $id)
     {
         $shift = Shift::findOrFail($id);
@@ -252,9 +322,43 @@ class ShiftController extends Controller
         return response()->json(['message' => 'Shift updated successfully']);
     }
 
+    public function storeBookon(Request $request)
+    {
+        $request->validate([
+            'book_on_id' => 'required|exists:shift_dates,id',
+            'absentee_start_time' => 'required',
+        ]);
+
+        $shiftDate = \App\Models\ShiftDate::find($request->input('book_on_id'));
+
+        // $shiftDate->absentee_start = $shiftDate->shift_date;
+        $shiftDate->absentee_start_time = $request->input('absentee_start_time');
+
+        $shiftDate->update();
+
+        return response()->json(['message' => 'Shift bookon updated successfully']);
+    }
+
+    public function storeBookoff(Request $request)
+    {
+        $request->validate([
+            'book_off_id' => 'required|exists:shift_dates,id',
+            'absentee_start_time' => 'required',
+        ]);
+
+        $shiftDate = \App\Models\ShiftDate::find($request->input('book_off_id'));
+
+        // $shiftDate->absentee_start = $shiftDate->shift_date;
+        $shiftDate->absentee_end_time = $request->input('absentee_end_time');
+
+        $shiftDate->update();
+
+        return response()->json(['message' => 'Shift bookoff updated successfully']);
+    }
+
     public function getShifts()
     {
-        $shiftDates = \App\Models\ShiftDate::with(['shift.client', 'shift.site', 'shift.staff'])->get();
+        $shiftDates = \App\Models\ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff'])->get();
         $events = [];
 
         // Status color map
@@ -282,31 +386,38 @@ class ShiftController extends Controller
                 ->diffInMinutes(\Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time)->copy()->addDay());
             $diffHours = number_format($diffMinutes / 60, 2);
             $total_hour = number_format($sd->total_hours, 2);
-            $book_on = $sd->shift_date . ", at  " . $sd->absentee_start;
-            $book_off = $sd->shift_date . ", at " . $sd->absentee_end;
+
+            // Split to hours and minutes
+            $hours = floor($sd->total_hours);
+            $minutes = round(($sd->total_hours - $hours) * 60);
+
+            $total_hour = sprintf('%02d hr %02d min', $hours, $minutes);
+            $book_on = $sd->shift_date . ", at  " . $sd->absentee_start_time;
+            $book_off = $sd->shift_date . ", at " . $sd->absentee_end_time;
             $events[] = [
                 'title' => $shift->client->client_name ?? 'Unknown Client',
                 'start' => $sd->shift_date . 'T' . $sd->start_time,
                 'end' => $sd->shift_date . 'T' . $sd->end_time,
                 'location' => $shift->site->site_name ?? 'Unknown Site',
-                'first' => asset('assets/img/icons/crown.svg'),
-                'second' => asset('assets/img/icons/users_red.svg'),
-                'third' => asset('assets/img/users/user-01.jpg'),
                 'urgent' => rand(0, 1) === 1,
                 'className' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
                 'site_name' => $shift->site->site_name ?? '',
                 'site_address' => $shift->site->address ?? '',
-                'shift_time' => "{$startFormatted} - {$endFormatted} ({$total_hour} hrs)",
-                'phone_number' => $shift->staff->contact ?? '',
-                'email' => $shift->staff->email ?? '',
-                'sia_number' => $shift->staff->sia_licence ?? '',
-                'sia_expiry' => $shift->staff->sia_expiry ?? '',
-                'profile_picture' => $shift->staff->profile_picture ?? '',
-                'name' => $shift->staff->fore_name ?? '',
-                'subcontractor' => $shift->staff->subcontractor ?? '',
+                'shift_time' => "{$startFormatted} - {$endFormatted} ({$total_hour})",
+                'phone_number' => $sd->staff->contact ?? '',
+                'email' => $sd->staff->email ?? '',
+                'sia_number' => $sd->staff->sia_licence ?? '',
+                'sia_expiry' => $sd->staff->sia_expiry ?? '',
+                'profile_picture' => $sd->staff->profile_picture ?? '',
+                'name' => $sd->staff->fore_name ?? '',
+                'subcontractor' => $sd->staff->subcontractor ?? '',
                 'client_name' => $shift->client->client_name ?? '',
                 'book_on' => $book_on,
                 'book_off' => $book_off,
+                'absentee_start_time' => $sd->absentee_start_time ?? null,
+                'absentee_end_time' => $sd->absentee_end_time ?? null,
+                'is_assigned' => $sd->is_assign == 0 ? false : true, // 🔸 Add this line
+                'sd_id' => $sd->id,
             ];
         }
 
@@ -500,28 +611,22 @@ class ShiftController extends Controller
 
         return response()->json($events);
     }
-
-    private function calculateTotalHours($startTime, $endTime, $breakTime = '00:00')
+    private function calculateTotalHours($start, $end)
     {
-        $start = \Carbon\Carbon::createFromFormat('H:i', $startTime);
-        $end = \Carbon\Carbon::createFromFormat('H:i', $endTime);
+        $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
+        $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
 
-        // Handle overnight shifts
-        if ($end->lessThan($start)) {
-            $end->addDay();
+        // Handle overnight shifts (e.g. 22:00 to 06:00 next day)
+        if ($endTime->lessThanOrEqualTo($startTime)) {
+            $endTime->addDay();
         }
 
-        $totalMinutes = $start->diffInMinutes($end);
+        $totalHours = $startTime->diffInMinutes($endTime) / 60;
 
-        // Subtract break time
-        if ($breakTime) {
-            $break = \Carbon\Carbon::createFromFormat('H:i', $breakTime);
-            $breakMinutes = ($break->hour * 60) + $break->minute;
-            $totalMinutes -= $breakMinutes;
-        }
-
-        return $totalMinutes / 60; // Return as decimal hours
+        return number_format($totalHours, 2);
     }
+
+
 
     public function getMonthlyShiftsStats()
     {
@@ -539,6 +644,65 @@ class ShiftController extends Controller
 
         return response()->json([
             'shift' => $data,
+        ]);
+    }
+    public function assign(Request $request)
+    {
+        $request->validate([
+            'shift_id' => 'required|exists:shift_dates,id',
+            'staff_id' => 'required|exists:employees,id',
+        ]);
+
+        $shift = ShiftDate::findOrFail($request->shift_id);
+        $staff = \App\Models\Employee::findOrFail($request->staff_id);
+
+        // 1. ✅ Check if staff has an overlapping shift at this time
+        $overlap = \App\Models\ShiftDate::where('staff_id', $staff->id)
+            ->where('shift_date', $shift->shift_date)
+            ->where(function ($query) use ($shift) {
+                $query->where(function ($q) use ($shift) {
+                    $q->where('start_time', '<', $shift->end_time)
+                        ->where('end_time', '>', $shift->start_time);
+                });
+            })
+            ->exists();
+
+        if ($overlap) {
+            return response()->json([
+                'error' => 'This staff already has a shift during this time.'
+            ], 422);
+        }
+
+        // 2. ✅ Check if staff SIA license is expired
+        if ($staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
+            return response()->json([
+                'error' => 'This staff’s SIA license is expired.'
+            ], 422);
+        }
+
+        // 3. ✅ Proceed to assign if checks pass
+        $shift->staff_id = $staff->id;
+        $shift->is_assign = 1;
+        $shift->save();
+
+        return response()->json(['message' => 'Shift assigned successfully']);
+    }
+
+    public function getClient($id)
+    {
+        $client = Client::findOrFail($id);
+
+        return response()->json([
+            'client' => $client,
+        ]);
+    }
+
+    public function getStaff($id)
+    {
+        $employee = Employee::findOrFail($id);
+
+        return response()->json([
+            'employee' => $employee,
         ]);
     }
 }

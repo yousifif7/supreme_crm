@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('type');
             $table->date('license_expiry');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

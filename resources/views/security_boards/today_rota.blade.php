@@ -49,85 +49,7 @@
 
             </div>
 
-
-            <!-- Filter Header -->
-            <div class="filters">
-                <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
-                    <div class="left">
-                        <button onclick="window.location='{{ url('scheduling') }}'">Complete Rota</button>
-                        <button onclick="window.location='{{ url('worker_calendar') }}'">Security Staff Calendar</button>
-                        <button onclick="window.location='{{ url('site_calendar') }}'">Site
-                            Calendar</button>
-                        <button onclick="window.location='{{ url('today_rota') }}'" class="active">Today's Rota</button>
-                    </div>
-
-                    <div class="right">
-                        <div class="status-summary">
-                            <div onclick="window.location='{{ url('clients') }}'" class="active-sites">&#9679; Active Sites
-                                ({{ $sites->count() }})</div>
-                            <div onclick="window.location='{{ url('employees') }}'" class="active-workers">&#9679; Active
-                                Security Staff ({{ $staffs->count() }})</div>
-                        </div>
-
-                    </div>
-
-
-
-
-                </div>
-                <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
-
-                    <div class="left mt-4">
-                        <button class="refresh_btn" onclick="window.location.reload()">
-                            <i class="ti ti-reload"></i>Refresh
-                        </button>
-                    </div>
-
-                    <div class="right  mt-4">
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift"
-                            class=" add_btn btn btn-white"">
-                            <i class="ti ti-plus me-0"></i> Add Shift
-                        </a>
-                        <div class="input-group input-group-flat d-inline-flex me-1">
-                            <span class="input-icon-addon">
-                                <i class="ti ti-search"></i>
-                            </span>
-                            <input type="text" class=" search_box" placeholder="Search...">
-
-
-                            <!-- /Search -->
-
-
-                        </div>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_rota" class=" add_btn btn btn-white"">
-                            <i class="ti ti-plus me-0"></i> Rota (0)
-                        </a>
-                        <a href="#" data-bs-toggle="modal" data-bs-target="#add_client"
-                            class=" day-off_btn btn btn-white"">
-                            <i class="ti ti-plus me-0"></i> Day off (0)
-                        </a>
-                        <div class="dropdown">
-                            <a href="javascript:void(0);"
-                                class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
-                                data-bs-toggle="dropdown">
-                                <i class="ti ti-file-export me-1"></i>Export
-                            </a>
-                            <ul class="dropdown-menu  dropdown-menu-start p-3">
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
-                                </li>
-                                <li>
-                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
-                                            class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </div>
-                </div>
-
-            </div>
-
+            @include('security_boards.shiftfilter')
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
                 <!-- Calendar Sidebar -->
@@ -222,18 +144,18 @@
                             </button>
 
                         </div>
-                        <form action="clients.html">
+                        <form action="#">
                             <div class="tabs-parent_main">
                                 <div class="tabs-parent nav nav-tabs" role="tablist">
                                     <button class="nav-link active" id="info-tab2" data-bs-toggle="tab"
                                         data-bs-target="#basic-info2" type="button" role="tab"
                                         aria-controls="basic-info2" aria-selected="true">Rota Detail</button>
                                     <button class="nav-link" id="address-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#address2" type="button" role="tab"
-                                        aria-controls="address2" aria-selected="false">Office Validation</button>
+                                        data-bs-target="#address2" type="button" role="tab" aria-controls="address2"
+                                        aria-selected="false">Office Validation</button>
                                     <button class="nav-link" id="progress-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#progress2" type="button" role="tab"
-                                        aria-controls="progress2" aria-selected="false">Job Progress</button>
+                                        data-bs-target="#progress2" type="button" role="tab" aria-controls="progress2"
+                                        aria-selected="false">Job Progress</button>
                                     <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2"
                                         type="button" role="tab" aria-controls="logs2"
                                         aria-selected="false">Logs</button>
@@ -424,7 +346,7 @@
                                 <i class="ti ti-x"></i>
                             </button>
                         </div>
-                        <form action="https://smarthr.co.in/demo/html/template/companies-grid.html">
+                        <form action="#">
                             <div class="contact-grids-tab">
                                 <ul class="nav nav-underline" id="myTab" role="tablist">
                                     <li class="nav-item" role="presentation">
@@ -939,363 +861,7 @@
                 </div>
             </div>
             <!-- Add shift -->
-            <div class="modal fade" id="add_shift">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4 class="modal-title">Add New Shift</h4>
-                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                                aria-label="Close">
-                                <i class="ti ti-x"></i>
-                            </button>
-                        </div>
-                        <form method="POST" id="add_shift-form" action="{{ route('shifts.store') }}">
-                            @csrf
-                            <div class="tab-content" id="myTabContent">
-                                <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                    aria-labelledby="info-tab" tabindex="0">
-                                    <div class="modal-body pb-0">
-                                        <div class="shift-wrapper">
-                                            <div class="shift-group border rounded p-3 mb-3">
-                                                <div class="row">
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Client <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="client_id[]" class="form-select select2"
-                                                                required>
-                                                                <option value="">--choose--</option>
-                                                                @foreach ($clients as $client)
-                                                                    <option value="{{ $client->id }}">
-                                                                        {{ $client->client_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_client_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Site <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="site_id[]" class="form-select">
-                                                                <option value="">--choose--</option>
-                                                                @foreach ($sites as $site)
-                                                                    <option value="{{ $site->id }}">
-                                                                        {{ $site->site_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_site_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Parent company <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select name="company_id[]" class="form-select">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_company_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Start <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="start_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_start_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">End <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="end_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_end_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Break (mins) <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="break-mins_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_break-mins_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Staff <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="number_shift[]"
-                                                                placeholder="number" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_number_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Site rate <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="site_rate[]" placeholder="$"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_site_rate"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Select Service Type <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="service_type_1[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_service_type_1"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">From <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="date" name="from_shift[]"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_from_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">To <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="date" name="to_shift[]" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_to_shift"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Comment <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="comments[]" placeholder="Comment"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_comments"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-12">
-                                                        <label class="form-label">Select Days</label>
-                                                        <div class="day-selector d-flex gap-2 flex-wrap">
-                                                            @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $day)
-                                                                <div class="day-box" data-day="{{ $day }}">
-                                                                    {{ $day }} <span class="checkmark">✔</span>
-                                                                </div>
-                                                            @endforeach
-                                                        </div>
-                                                        <input type="hidden" name="days[]" id="selectedDays">
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Select Staff <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="staff_id[]">
-                                                                <option value="">--choose--</option>
-                                                                @foreach ($staffs as $staff)
-                                                                    <option value="{{ $staff->id }}">
-                                                                        {{ $staff->fore_name }}
-                                                                        {{ $staff->sur_name }}</option>
-                                                                @endforeach
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_staff_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Employee Rate <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="employee_rate[]" placeholder="$"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_employee_rate"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Select Service Type <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="service_type_2[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_select_type_2"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Start <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="start[]" class="form-control">
-                                                            <span class="text-danger form-error" id="error_start"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Subcontractor <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="subcontractor_id[]">
-                                                                <option value="">--choose--</option>
-
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_subcontractor_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">End <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="time" name="end[]" class="form-control">
-                                                            <span class="text-danger form-error" id="error_end"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">PO Number <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="po_number[]"
-                                                                placeholder="PO Number" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_po_number"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Lost Time <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="lost_time[]"
-                                                                placeholder="Lost Time" class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_lost_time"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">PO Rate <span
-                                                                    class="text-danger">*</span></label>
-                                                            <input type="text" name="po_rate[]" placeholder="PO Rate"
-                                                                class="form-control">
-                                                            <span class="text-danger form-error"
-                                                                id="error_po_rate"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Manager (1) <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="manager_1_id[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_manager_1_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4">
-                                                        <div class="mb-3">
-                                                            <label class="form-label">Manager (2) <span
-                                                                    class="text-danger">*</span></label>
-                                                            <select class="form-select" name="manager_2_id[]">
-                                                                <option value="">--choose--</option>
-                                                            </select>
-                                                            <span class="text-danger form-error"
-                                                                id="error_manager_2_id"></span>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-12">
-                                                        <div class="row">
-                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check"
-                                                                    name="restrict_start_time[]" value="1">
-                                                                <label class="form-label mb-0">Restrict shift start time
-                                                                    <span class="text-danger">*</span></label>
-                                                            </div>
-                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check"
-                                                                    name="enforce_picture_check[]" value="1">
-                                                                <label class="form-label mb-0">Enforce picture check <span
-                                                                        class="text-danger">*</span></label>
-                                                            </div>
-                                                            <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
-                                                                <input type="checkbox" class="form-check"
-                                                                    name="restrict_location_check[]" value="1">
-                                                                <label class="form-label mb-0">Restrict start shift
-                                                                    location check <span
-                                                                        class="text-danger">*</span></label>
-                                                            </div>
-                                                            <div class="col-md-12 text-end">
-                                                                <button type="button"
-                                                                    class="btn btn-danger btn-sm remove-shift">Remove</button>
-
-                                                            </div>
-                                                        </div>
-                                                    </div>
-
-                                                    <div class="col-md-4 mb-3">
-                                                        <button type="button"
-                                                            class="btn btn-success btn-sm addShiftGroup">+
-                                                            Add More Shifts</button>
-
-                                                    </div>
-
-                                                </div> <!-- .row -->
-                                            </div> <!-- .shift-group -->
-                                        </div>
-                                    </div>
-
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" form="add_shift-form" id="saveshift"
-                                            class="btn btn-primary">Save </button>
-                                    </div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
+            @include('security_boards.shiftmodal');
 
             <!-- /Breadcrumb -->
 
@@ -1490,7 +1056,7 @@
                 'bg-secondary': '#6c757d'
             };
 
-            fetch('/api/shifts-today')
+            fetch(`${baseUrl}/api/shifts-today`)
                 .then(response => response.json())
                 .then(data => {
                     const calendar = new FullCalendar.Calendar(calendarEl, {
@@ -1626,6 +1192,17 @@
                     $submenu.find('ul').slideDown(0).css('display', 'block');
                 }
             }
+        });
+        document.querySelectorAll('.numeric-input').forEach(function(input) {
+            input.addEventListener('input', function() {
+                this.value = this.value.replace(/[^0-9.]/g, '');
+
+                // Optional: Only allow one decimal point
+                const parts = this.value.split('.');
+                if (parts.length > 2) {
+                    this.value = parts[0] + '.' + parts[1];
+                }
+            });
         });
     </script>
 @endsection

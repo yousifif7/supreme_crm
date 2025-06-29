@@ -225,7 +225,7 @@
         });
 
         function editPermission(id) {
-            $.get('/permissions/' + id + '/edit', function(data) {
+            $.get(`${baseUrl}/permissions/` + id + '/edit', function(data) {
                 $('#edit_permission_form').attr('action', '/permissions/' + id);
                 $('#edit_permission_name').val(data.permission.name);
                 $('#edit_permission_modal').modal('show');
@@ -267,7 +267,7 @@
         document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
             if (selectedPermissionId !== null) {
                 $.ajax({
-                    url: `/permissions/${selectedPermissionId}`,
+                    url: `${baseUrl}/permissions/${selectedPermissionId}`,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'

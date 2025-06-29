@@ -27,6 +27,7 @@ return new class extends Migration
                 ->references('id')
                 ->on('guard_groups')
                 ->onDelete('cascade');
+            $table->softDeletes();
         });
     }
 

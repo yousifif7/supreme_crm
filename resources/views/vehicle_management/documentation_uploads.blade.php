@@ -1,0 +1,655 @@
+@extends('layouts.app')
+@section('title', 'CRM - Vehicle Documentation Upload ')
+@section('contents')
+    <!-- Page Wrapper -->
+    <div class="page-wrapper">
+        <div class="content">
+            <div class="alert-box-container"></div>
+            <!-- Breadcrumb -->
+            <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
+                <div class="my-auto mb-2">
+                    <h2 class="mb-1">Documentation Uploads </h2>
+                    @if (session('success'))
+                        <div class="alert alert-success mt-3">
+                            {{ session('success') }}
+                        </div>
+                    @endif
+
+                </div>
+
+            </div>
+            <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
+                <div class="me-2">
+                    <div class="dropdown">
+                        <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
+
+
+
+                    </div>
+                </div>
+
+                <div class="me-2 mb-2 filter_area">
+
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#add_documentation"
+                        class=" add_btn btn btn-white d-inline-flex align-items-center"">
+                        <i class="ti ti-plus me-2"></i>Document
+                    </a>
+
+
+                    <!-- Search -->
+                    <div class="input-group input-group-flat d-inline-flex me-1">
+                        <span class="input-icon-addon">
+                            <i class="ti ti-search"></i>
+                        </span>
+                        <input type="text" class="form-control search_box" placeholder="Search...">
+                        <!-- /Search -->
+                    </div>
+
+
+                </div>
+
+
+            </div>
+            <!-- /Breadcrumb -->
+
+            <div class="card">
+
+                <div class="card-body p-0">
+                    <div class="custom-datatable-filter table-responsive">
+                        <table class="table datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>#</th>
+                                    <th>Vehicle</th>
+                                    <th>MOT Certificate</th>
+                                    <th>Insurance Certificate</th>
+                                    <th>V5C Logbook</th>
+                                    <th>Tax Confirmation</th>
+                                    <th>Tachograph Certificate</th>
+                                    <th>Service Report</th>
+                                    <th>Inspection Report</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($documents as $doc)
+                                    <tr>
+                                        <td><input type="checkbox" class="check-checkbox" value="{{ $doc->id }}"></td>
+                                        <td>{{ $loop->iteration }}</td>
+                                        <td>{{ $doc->vehicle->registration_number ?? 'N/A' }}</td>
+
+                                        <td>
+                                            @if ($doc->mot_certificate_path)
+                                                <a href="{{ asset('storage/' . $doc->mot_certificate_path) }}"
+                                                    target="_blank">View</a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($doc->insurance_certificate_path)
+                                                <a href="{{ asset('' . $doc->insurance_certificate_path) }}"
+                                                    target="_blank">View</a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($doc->v5c_logbook_path)
+                                                <a href="{{ asset('' . $doc->v5c_logbook_path) }}" target="_blank">View</a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($doc->tax_confirmation_path)
+                                                <a href="{{ asset('' . $doc->tax_confirmation_path) }}"
+                                                    target="_blank">View</a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($doc->tachograph_certificate_path)
+                                                <a href="{{ asset('' . $doc->tachograph_certificate_path) }}"
+                                                    target="_blank">View</a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($doc->service_report_path)
+                                                <a href="{{ asset('' . $doc->service_report_path) }}"
+                                                    target="_blank">View</a>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($doc->inspection_report_path)
+                                                <a href="{{ asset('' . $doc->inspection_report_path) }}"
+                                                    target="_blank">View</a>
+                                            @endif
+                                        </td>
+
+                                        <td>
+                                            <div class="action-icon d-inline-flex">
+                                                <a href="#" class="me-2"
+                                                    onclick="editDocumentation({{ $doc->id }})">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                                <a href="javascript:void(0);"
+                                                    onclick="deleteDocumentation({{ $doc->id }})">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+
+                        <div class="card-footer d-flex justify-content-center">
+                            {{ $documents->links('vendor.pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                </div>
+
+
+
+            </div>
+            <!-- Add Documentation Upload Modal -->
+            <div class="modal fade" id="add_documentation">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Upload Vehicle Documentation</h5>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <form method="POST" id="add_documentation_form" action="{{ route('documents.store') }}"
+                            enctype="multipart/form-data">
+                            @csrf
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Vehicle <span class="text-danger">*</span></label>
+                                            <select name="vehicle_id" class="form-control" id="vehicle_id">
+                                                <option value="">Select vehicle</option>
+                                                @foreach ($vehicles as $vehicle)
+                                                    <option value="{{ $vehicle->id }}">
+                                                        {{ $vehicle->registration_number }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-danger form-error" id="error_vehicle_id"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">MOT Certificate (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="mot_certificate" class="form-control">
+                                            <span class="text-danger form-error" id="error_mot_certificate"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Insurance Certificate (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="insurance_certificate" class="form-control">
+                                            <span class="text-danger form-error" id="error_insurance_certificate"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">V5C Logbook (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="v5c_logbook" class="form-control">
+                                            <span class="text-danger form-error" id="error_v5c_logbook"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Tax Confirmation (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="tax_confirmation" class="form-control">
+                                            <span class="text-danger form-error" id="error_tax_confirmation"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tachograph Certificate (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="tachograph_certificate" class="form-control">
+                                            <span class="text-danger form-error" id="error_tachograph_certificate"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Service Report (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="service_report" class="form-control">
+                                            <span class="text-danger form-error" id="error_service_report"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Inspection Report (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="inspection_report" class="form-control">
+                                            <span class="text-danger form-error" id="error_inspection_report"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" form="add_documentation_form" id="savedocumentation"
+                                    class="btn btn-primary">
+                                    Upload Documents
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Documentation Upload Modal -->
+            <div class="modal fade" id="edit_documentation">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Edit Vehicle Documentation</h4>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <form method="POST" id="edit_documentation_form" action="#" enctype="multipart/form-data">
+                            @csrf
+                            <input type="hidden" name="documentation_id" id="documentation_id">
+                            <div class="modal-body pb-0">
+                                <div class="row">
+
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Vehicle <span class="text-danger">*</span></label>
+                                            <select name="vehicle_id" id="edit_vehicle_id" class="form-control">
+                                                <option value="">Select vehicle</option>
+                                                @foreach ($vehicles as $vehicle)
+                                                    <option value="{{ $vehicle->id }}">
+                                                        {{ $vehicle->registration_number }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-danger form-error" id="edit_error_vehicle_id"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">MOT Certificate (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="mot_certificate" class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_mot_certificate"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Insurance Certificate (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="insurance_certificate" class="form-control">
+                                            <span class="text-danger form-error"
+                                                id="edit_error_insurance_certificate"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">V5C Logbook (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="v5c_logbook" class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_v5c_logbook"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Tax Confirmation (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="tax_confirmation" class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_tax_confirmation"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tachograph Certificate (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="tachograph_certificate" class="form-control">
+                                            <span class="text-danger form-error"
+                                                id="edit_error_tachograph_certificate"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Service Report (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="service_report" class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_service_report"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Inspection Report (PDF) <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="file" name="inspection_report" class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_inspection_report"></span>
+                                        </div>
+                                    </div>
+
+                                </div>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" form="edit_documentation_form" class="btn btn-primary"
+                                    id="edit_documentation_btn">
+                                    Update Documents
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- Add Vehicle Compliances Success -->
+            <div class="modal fade" id="success_modal" role="dialog">
+                <div class="modal-dialog modal-dialog-centered modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-body">
+                            <div class="text-center p-3">
+                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                        class="ti ti-check fs-24"></i></span>
+                                <h5 class="mb-2" id="success_message"></h5>
+
+                                </p>
+                                <div>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <a href="{{ url('documentation_uploads') }}" class="btn btn-dark w-100">Back
+                                                to
+                                                List</a>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /Add Vehicle Success -->
+
+            <!-- Delete Modal -->
+            <div class="modal fade" id="delete_modal">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body text-center">
+                            <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                                <i class="ti ti-trash-x fs-36"></i>
+                            </span>
+                            <h4 class="mb-1">Confirm Delete</h4>
+                            <p class="mb-3">You want to delete all the marked items, this cant be undone once you delete.
+                            </p>
+                            <div class="d-flex justify-content-center">
+                                <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /Delete Modal -->
+            <!-- Import modal -->
+            <div class="modal fade" id="import_modal">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Import Excel</h4>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <form action="{{ route('checks.import') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <div class="tab-content" id="myTabContent">
+                                <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                    aria-labelledby="info-tab" tabindex="0">
+                                    <div class="modal-body pb-0 ">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="d-flex gap-2">
+                                                    <input type="file" name="import_file" class="form-control"
+                                                        required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-light border me-2"
+                                            data-bs-dismiss="modal">Cancel</button>
+
+                                        <button class="btn btn-primary" type="submit">Import</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Page Wrapper -->
+    @endsection
+    @section('scripts')
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+        <script>
+            // Client search functionality
+            $('.search_box').on('keyup', function() {
+                let searchText = $(this).val().toLowerCase();
+
+                $('.datatable tbody tr').each(function() {
+                    let rowText = $(this).text().toLowerCase();
+                    if (rowText.indexOf(searchText) > -1) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            });
+
+            // Select All toggle
+            $('#selectAll').on('change', function() {
+                $('.check-checkbox').prop('checked', $(this).prop('checked'));
+            });
+
+            $(document).ready(function() {
+                // Add Documentation
+                $('#add_documentation_form').on('submit', function(e) {
+                    e.preventDefault();
+                    $("[id^='error_']").text('');
+                    let form = $(this)[0];
+                    let formData = new FormData(form);
+                    let submitButton = $('#savedocumentation');
+
+                    submitButton.prop('disabled', true).html('Uploading...');
+
+                    $.ajax({
+                        url: $(this).attr('action'),
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        },
+                        success: function(response) {
+                            $('#add_documentation').modal('hide');
+                            $('#success_message').html('Documents uploaded successfully.');
+                            $('#success_modal').modal('show');
+                            $('#add_documentation_form')[0].reset();
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 422) {
+                                let errors = xhr.responseJSON.errors;
+                                $.each(errors, function(key, value) {
+                                    $('#error_' + key).text(value[0]);
+                                });
+                            } else {
+                                alert('An error occurred. Please try again.');
+                            }
+                        },
+                        complete: function() {
+                            submitButton.prop('disabled', false).html('Upload Documents');
+                        }
+                    });
+                });
+
+                // Edit Documentation
+                $('#edit_documentation_form').on('submit', function(e) {
+                    e.preventDefault();
+                    $("[id^='edit_error_']").text('');
+                    let form = $(this)[0];
+                    let formData = new FormData(form);
+                    let submitButton = $('#edit_documentation_btn');
+                    let docId = $('#documentation_id').val();
+
+                    submitButton.prop('disabled', true).html('Updating...');
+
+                    $.ajax({
+                        url: `${baseUrl}/updatedocument/${docId}`,
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        },
+                        success: function(response) {
+                            $('#edit_documentation').modal('hide');
+                            $('#success_message').html('Documents updated successfully.');
+                            $('#success_modal').modal('show');
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 422) {
+                                let errors = xhr.responseJSON.errors;
+                                $.each(errors, function(key, value) {
+                                    $('#edit_error_' + key).text(value[0]);
+                                });
+                            } else {
+                                alert('An error occurred. Please try again.');
+                            }
+                        },
+                        complete: function() {
+                            submitButton.prop('disabled', false).html('Update Documents');
+                        }
+                    });
+                });
+            });
+
+
+            function editDocumentation(docId) {
+                $.get(`${baseUrl}/editdocument/` + docId, function(data) {
+                    if (data.document) {
+                        $('#documentation_id').val(data.document.id); // Hidden input
+                        $('#edit_vehicle_id').val(data.document.vehicle_id);
+
+                        // Optionally show existing filenames or links (if desired)
+                        // Otherwise, just open the modal — file inputs cannot be pre-filled for security reasons
+
+                        $('#edit_documentation').modal('show');
+                    } else {
+                        alert('No documentation data found for this record.');
+                    }
+                });
+            }
+
+
+            let selectedId = null;
+
+            function deleteDocumentation(record_id) {
+                selectedId = record_id;
+                $('#delete_modal').modal('show');
+            }
+
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+                if (selectedId !== null) {
+                    $.ajax({
+                        url: `${baseUrl}/deletedocument/${selectedId}`,
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            $('#delete_modal').modal('hide');
+                            $('#success_message').html('Documentation Upload Deleted Successfully!');
+                            $('#success_modal').modal('show');
+                        },
+                        error: function(xhr) {
+                            $('#delete_modal').modal('hide');
+                            alert('Something went wrong. Please try again.');
+                        }
+                    });
+                }
+            });
+
+            // Bulk delete button
+            $('#bulkDeleteBtn').on('click', function() {
+                const selected = $('.check-checkbox:checked').map(function() {
+                    return this.value;
+                }).get();
+
+                if (selected.length === 0) {
+                    alert('Please select at least one documentation to delete.');
+                    return;
+                }
+
+                if (!confirm('Are you sure you want to delete the selected documentation?')) return;
+                $.ajax({
+                    url: '{{ route('documents.bulkDelete') }}',
+                    type: 'POST',
+                    data: {
+                        ids: selected,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        $('#success_message').text('Selected documentation deleted successfully!');
+                        $('#success_modal').modal('show');
+                    },
+                    error: function() {
+                        alert('Something went wrong during bulk delete.');
+                    }
+                });
+            });
+        </script>
+        <script>
+            $(document).ready(function() {
+
+                $('.submenu > a').click(function(e) {
+                    e.preventDefault();
+
+                    var $this = $(this);
+                    var $submenu = $this.next('ul');
+
+                    if (!$this.hasClass('subdrop')) {
+                        $('.submenu > a').removeClass('subdrop');
+                        $('.submenu ul').slideUp(200);
+
+                        $this.addClass('subdrop');
+                        $submenu.slideDown(200);
+                    } else {
+                        $this.removeClass('subdrop');
+                        $submenu.slideUp(200);
+                    }
+                });
+
+
+                var currentPage = window.location.pathname.split("/").pop();
+
+                $('#sidebar-menu a').each(function() {
+                    var linkPage = $(this).attr('href');
+                    if (linkPage === currentPage) {
+                        $(this).addClass('active');
+
+                        var $submenu = $(this).closest('.submenu');
+                        if ($submenu.length) {
+                            $submenu.find('> a').addClass('subdrop');
+                            $submenu.find('ul').slideDown(0).css('display', 'block');
+                        }
+                    }
+                });
+            });
+        </script>
+    @endsection

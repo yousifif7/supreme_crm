@@ -13,7 +13,7 @@ class SitesImport implements ToModel, WithHeadingRow
         return new Site([
             'client_id'      => $row['client_id'],
             'site_name'      => $row['site_name'],
-            'site_group'     => $row['site_group'],
+            'guard_names'     => $row['guard_names'],
             'address'        => $row['address'],
             'post_code'      => $row['post_code'],
             'site_code'      => $row['site_code'],

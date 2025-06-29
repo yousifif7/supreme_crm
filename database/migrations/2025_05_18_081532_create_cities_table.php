@@ -20,6 +20,7 @@ return new class extends Migration
                 ->references('id')
                 ->on('countries')
                 ->onDelete('cascade');
+            $table->softDeletes();
         });
     }
 

@@ -14,6 +14,7 @@ return new class extends Migration
         Schema::create('shift_dates', function (Blueprint $table) {
             $table->id();
             $table->unsignedBigInteger('shift_id')->nullable();
+            $table->unsignedBigInteger('staff_id')->nullable();
             $table->date('shift_date')->nullable();
             $table->time('start_time')->nullable();
             $table->time('end_time')->nullable();
@@ -25,6 +26,7 @@ return new class extends Migration
             $table->integer('is_assign')->default('0');
             $table->time('absentee_end_time')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

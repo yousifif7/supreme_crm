@@ -95,17 +95,20 @@
                                         <td>{{ $loop->iteration }}</td>
                                         <td>
                                             <div class="d-flex align-items-center file-name-icon">
-                                                <a href="https://smarthr.co.in/demo/html/template/client-details.html"
-                                                    class="avatar avatar-md border avatar-rounded">
+                                                <a onclick="viewUserDetail({{ $user->id }})"
+                                                    class="avatar avatar-md
+                                                    border avatar-rounded">
                                                     <img src="{{ $user->profile_picture ? asset('uploads/profile_pictures/' . $user->profile_picture) : asset('uploads/no.png') }}"
                                                         class="img-fluid" alt="Profile Picture">
                                                 </a>
                                                 <div class="ms-2">
                                                     <h6 class="fw-medium"><a
-                                                            href="https://smarthr.co.in/demo/html/template/client-details.html">{{ $user->first_name }}
+                                                            onclick="viewUserDetail({{ $user->id }})">{{ $user->first_name }}
                                                             {{ $user->last_name }}</a>
                                                     </h6>
-                                                    <span class="fs-10 fw-normal "><i
+                                                    <span
+                                                        class="fs-10
+                                                            fw-normal "><i
                                                             class="ti ti-phone"></i>&nbsp;{{ $user->phone_number }}&nbsp;<a
                                                             href="#"><i class="ti ti-external-link"></i></a></span>
 
@@ -128,6 +131,11 @@
                                         </td>
                                         <td>
                                             <div class="action-icon d-inline-flex">
+                                                <button class="sites_action-btn"
+                                                    onclick="viewLogs({{ $user->id }})">Logs</button>
+                                                <a href="#" class="me-2"
+                                                    onclick="viewUserDetail({{ $user->id }})"><i
+                                                        class="ti ti-eye"></i></a>
                                                 <a onclick="editUser({{ $user->id }})" class="me-2"><i
                                                         class="ti ti-edit"></i></a>
                                                 <a href="javascript:void(0);" onclick="deleteUser({{ $user->id }})"><i
@@ -138,13 +146,13 @@
                                 @endforeach
                             </tbody>
                         </table>
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $users->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+
                     </div>
                 </div>
             </div>
-
+            <div class="card-footer d-flex justify-content-center">
+                {{ $users->links('vendor.pagination.bootstrap-5') }}
+            </div>
         </div>
 
         <!-- Add Client -->
@@ -291,9 +299,6 @@
                 </div>
             </div>
         </div>
-
-
-
         <!-- /Add Client -->
 
         <!-- Edit Client -->
@@ -530,6 +535,77 @@
             </div>
         </div>
     </div>
+    <!-- Logs Modal -->
+    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Client Logs Detail
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- View User Detail Modal -->
+    <div class="modal fade" id="viewUserDetailModal" tabindex="-1" aria-labelledby="userDetailLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="userDetailLabel">
+                        User <span id="user_name_heading" class="fw-bold"></span> Detail
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <table class="table table-bordered table-striped">
+                        <tbody>
+                            <tr>
+                                <th>Full Name</th>
+                                <td id="user_full_name"></td>
+                            </tr>
+                            <tr>
+                                <th>Username</th>
+                                <td id="user_username"></td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td id="user_email"></td>
+                            </tr>
+                            <tr>
+                                <th>Phone Number</th>
+                                <td id="user_phone"></td>
+                            </tr>
+                            <tr>
+                                <th>Status</th>
+                                <td id="user_status"></td>
+                            </tr>
+                            <tr>
+                                <th>Profile Picture</th>
+                                <td id="user_picture"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
@@ -621,7 +697,7 @@
                 let submitButton = $(this).find('button[type="submit"]');
                 submitButton.prop('disabled', true).html('Updating...');
                 $.ajax({
-                    url: '/users/' + userId,
+                    url: `${baseUrl}/users/` + userId,
                     method: 'POST',
                     data: formData,
                     processData: false,
@@ -655,7 +731,7 @@
         });
 
         function editUser(record_id) {
-            $.get('/edituser/' + record_id, function(data) {
+            $.get(`${baseUrl}/edituser/` + record_id, function(data) {
                 if (data.user) {
                     $('#edit_user_id').val(record_id); // store user ID
                     $('#first_name').val(data.user.first_name);
@@ -680,7 +756,7 @@
         document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
             if (selectedId !== null) {
                 $.ajax({
-                    url: `/deleteuser/${selectedId}`,
+                    url: `${baseUrl}/deleteuser/${selectedId}`,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -760,5 +836,62 @@
                 }
             }
         });
+
+        function viewLogs(userId) {
+            // Clear existing content
+            const modalBody = document.querySelector('#logModal .modal-body');
+            modalBody.innerHTML = '<p class="text-muted">Loading logs...</p>';
+
+            fetch(`${baseUrl}/users/${userId}/logs/ajax`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs.length === 0) {
+                        modalBody.innerHTML = '<p class="text-muted">No logs found for this client.</p>';
+                    } else {
+                        let html = '<table class="table table-bordered table-striped">';
+                        html +=
+                            '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
+                        data.logs.forEach(log => {
+                            html += `<tr>
+                                    <td>${log.user_name}</td>
+                                    <td>${log.action}</td>
+                                    <td>${log.description}</td>
+                                    <td>${log.time}</td>
+                                </tr>`;
+                        });
+                        html += '</tbody></table>';
+                        modalBody.innerHTML = html;
+                    }
+
+                    // Show the modal
+                    $('#logModal').modal('show');
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
+                });
+        }
+
+        function viewUserDetail(id) {
+            $.get(`${baseUrl}/users/${id}/view`, function(data) {
+                $('#user_name_heading').text(data.name);
+                $('#user_full_name').text(data.first_name + ' ' + data.last_name);
+                $('#user_username').text(data.username);
+                $('#user_email').text(data.email);
+                $('#user_phone').text(data.phone_number);
+                $('#user_status').text(data.status);
+
+                if (data.profile_picture) {
+                    $('#user_picture').html(
+                        `<img src="${data.profile_picture}" alt="Profile" width="100" class="rounded">`);
+                } else {
+                    $('#user_picture').text('No profile picture');
+                }
+
+                new bootstrap.Modal(document.getElementById('viewUserDetailModal')).show();
+            }).fail(function() {
+                alert('Failed to fetch user details.');
+            });
+        }
     </script>
 @endsection

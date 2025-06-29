@@ -18,6 +18,7 @@ return new class extends Migration
             $table->string('guard_rate');
             $table->string('office_rate');
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

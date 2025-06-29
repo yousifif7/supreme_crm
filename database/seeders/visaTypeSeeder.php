@@ -13,9 +13,16 @@ class visaTypeSeeder extends Seeder
      */
     public function run(): void
     {
-        VisaType::create(['name' => 'Indefinite leave to remain (ILR)']);
-        VisaType::create(['name' => 'Limited leave to remain']);
-        VisaType::create(['name' => 'Spouse']);
-        VisaType::create(['name' => 'Student']);
+        VisaType::firstOrCreate(['name' => 'Indefinite leave to remain (ILR)']);
+        VisaType::firstOrCreate(['name' => 'Limited leave to remain']);
+        VisaType::firstOrCreate(['name' => 'Spouse']);
+        VisaType::firstOrCreate(['name' => 'Student']);
+        VisaType::firstOrCreate(['name' => 'Other']);
+        VisaType::firstOrCreate(['name' => 'Skill Worker']);
+        VisaType::firstOrCreate(['name' => 'Independant']);
+        VisaType::firstOrCreate(['name' => 'Settlement']);
+        VisaType::firstOrCreate(['name' => 'British']);
+        VisaType::firstOrCreate(['name' => 'Spanish']);
+        VisaType::firstOrCreate(['name' => 'Italin']);
     }
 }

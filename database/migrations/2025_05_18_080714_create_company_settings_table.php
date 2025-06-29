@@ -33,6 +33,7 @@ return new class extends Migration
             $table->string('company_start_holiday')->nullable();
             $table->string('company_notify_sia')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

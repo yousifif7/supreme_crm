@@ -120,13 +120,23 @@
                                         <td>{{ $employee->subcontractor }}</td>
                                         <td>
                                             <div class="action-icon d-inline-flex">
+                                                <button class="sites_action-btn"
+                                                    onclick="viewLogs({{ $employee->id }})">Logs</button>
+                                                <a href="#" class="me-2"
+                                                    onclick="viewEmployeeDetail({{ $employee->id }})"><i
+                                                        class="ti ti-eye"></i></a>
                                                 <a class="me-2" onclick="editEmployee({{ $employee->id }})">
                                                     <i class="ti ti-edit"></i>
                                                 </a>
+
+                                                <a href="#" class="me-2"
+                                                    onclick="generatePayroll({{ $employee->id }})"><i
+                                                        class="ti ti-receipt"></i></a>
+
                                                 <a onclick="deleteEmployee({{ $employee->id }})">
                                                     <i class="ti ti-trash"></i>
                                                 </a>
-                                                <a href="#" onclick="window.print()">
+                                                <a href="{{ route('employees.print', $employee->id) }}" target="_blank">
                                                     <i class="ti ti-printer"></i>
                                                 </a>
                                             </div>
@@ -139,16 +149,16 @@
                                 @endforelse
                             </tbody>
                         </table>
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $employees->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+
                     </div>
 
 
                 </div>
 
             </div>
-
+            <div class="card-footer d-flex justify-content-center">
+                {{ $employees->links('vendor.pagination.bootstrap-5') }}
+            </div>
         </div>
 
         <!-- /Page Wrapper -->
@@ -259,13 +269,18 @@
                                                 placeholder="Enter SIA Expiry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Licence Type</label>
+                                            <label class="form-label">Licence Type <span
+                                                    class="text-danger">*</span></label>
                                             <select class="form-select bg-yellow" name="licence_type">
-                                                <option selected>Choose</option>
+                                                <option value="">--choose--</option>
+                                                @foreach ($licenses as $license)
+                                                    <option value="{{ $license->name }}">{{ $license->name }}</option>
+                                                @endforeach
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Date of Entry / Re-entry</label>
+                                            <label class="form-label">Date of Entry / Re-entry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="entry_date" class="form-control"
                                                 placeholder="Enter Date of Entry / Re-entry">
                                         </div>
@@ -278,16 +293,15 @@
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Service Type</label>
                                             <select class="form-select" name="service_type">
-                                                <option selected value="Alarm Response">Alarm Response</option>
-                                                <option value="Keyholding">Keyholding</option>
-                                                <option value="Event Staff">Event Staff</option>
-                                                <option value="Mobile Patrol">Mobile Patrol</option>
-                                                <option value="Static Guards">Static Guards</option>
+                                                <option value="">--choose--</option>
+                                                @foreach ($employee_types as $type)
+                                                    <option value="{{ $type->id }}">{{ $type->name }}</option>
+                                                @endforeach
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Visa Type <span class="text-danger">*</span></label>
-                                            <select class="form-select" name="visa_type">
+                                            <select class="form-select visa_type" name="visa_type">
                                                 <option value="">-- choose --</option>
                                                 @foreach ($visa_types as $visa)
                                                     <option value="{{ $visa->name }}">{{ $visa->name }}
@@ -310,6 +324,14 @@
                                                 placeholder="Place of Work">
                                             <span class="text-danger form-error" id="error_place_work"></span>
                                         </div>
+                                        <div class="terms-section" style="display: none;">
+                                            <h5>Employee Terms</h5>
+                                            <div id="term-rows">
+                                                <!-- Dynamic rows will be added here -->
+                                            </div>
+                                            <button type="button" class="btn btn-sm btn-primary my-3" id="addTermRow">+ Add Terms</button>
+                                        </div>
+                                        <div class="clear-fix"></div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">No of hours per week</label>
                                             <input type="text" name="hour_per_week" class="form-control"
@@ -333,7 +355,7 @@
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Address group</label>
                                             <select class="form-select" name="address_group">
-                                                <option selected>-- choose --</option>
+                                                <option selected value="">-- choose --</option>
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
@@ -412,6 +434,13 @@
                                                     class="text-danger">*</span></label>
                                             <input type="text" name="share_code" class="form-control"
                                                 placeholder="Enter share code">
+                                                <span class="text-danger form-error" id="error_share_code"></span>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label">Share Code Expiry <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="share_code_expiry" class="form-control">
+                                            <span class="text-danger form-error" id="error_share_code_expiry"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Biometric residence permit</label>
@@ -428,7 +457,7 @@
                                             <span class="text-danger form-error"
                                                 id="error_biometric_residence_permit_expiry"></span>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        {{--<div class="col-md-4 mb-3">
                                             <label class="form-label">BRP status</label>
                                             <select class="form-select" name="brp_status">
                                                 <option value="Student Visa" selected>Student Visa</option>
@@ -439,7 +468,7 @@
                                                 <option value="Other Visa">Other Visa</option>
                                             </select>
                                             <span class="text-danger form-error" id="error_brp_status"></span>
-                                        </div>
+                                        </div>--}}
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Settlement</label>
                                             <input type="text" name="settlement" class="form-control"
@@ -475,7 +504,7 @@
                                             </select>
                                             <span class="text-danger form-error" id="error_subcontractor"></span>
                                         </div>
-                                        <div class="col-md-12 mb-3 d-flex align-items-end">
+                                        <div class="col-md-4 mb-3 d-flex align-items-end">
                                             <div class="form-check">
                                                 <input class="mb-0 form-check-input" type="checkbox" id="isaCheck1">
                                                 <label class="form-check-label " for="isaCheck">Additional License
@@ -494,6 +523,10 @@
                                                 <label class="form-label">License Type</label>
                                                 <select class="form-select" name="license_type">
                                                     <option value="">--choose--</option>
+                                                    @foreach ($licenses as $license)
+                                                        <option value="{{ $license->name }}">{{ $license->name }}
+                                                        </option>
+                                                    @endforeach
                                                 </select>
                                                 <span class="text-danger form-error" id="error_license_type"></span>
                                             </div>
@@ -599,6 +632,45 @@
                                                 <input type="text" name="current_endorsement" class="form-control">
                                             </div>
                                         </div>
+
+                                        <h3 class="mt-2 mb-4">Documents</h3>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="sia_licence">SIA Licence</label>
+                                            <input type="file" name="sia_licence" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="passport">Passport</label>
+                                            <input type="file" name="passport" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="proof_of_address">Proof of address</label>
+                                            <input type="file" name="proof_of_address" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="ni_letter">Ni letter</label>
+                                            <input type="file" name="ni_letter" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="first_aid_certificate">First AID certificate</label>
+                                            <input type="file" name="first_aid_certificate" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="act_certificate">ACT certificate, Blue and Orange</label>
+                                            <input type="file" name="act_certificate" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
                                         <h3 class="mt-2 mb-4">Uniform Size</h3>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Collar</label>
@@ -676,8 +748,7 @@
                                             <div id="holiday-rows">
                                                 <!-- Dynamic rows will be added here -->
                                             </div>
-                                            <button type="button" class="btn btn-sm btn-primary" id="addHolidayRow">+
-                                                Add Holiday</button>
+                                            <button type="button" class="btn btn-sm btn-primary my-3" id="addHolidayRow">+ Add Holiday</button>
                                         </div>
 
                                     </div>
@@ -696,6 +767,101 @@
             </div>
         </div>
         <!-- /Add Employee -->
+
+        <!-- Generate Employee Payroll -->
+        <div class="modal fade" id="generate_payroll">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Generate Employee Payroll</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                    <form method="POST" id="generate_payroll-form">
+                        @csrf
+                        <input type="hidden" name="employee_id" id="payroll_employee_id">
+                        <div class="tab-content" id="myTabContentPayroll">
+                            <div class="tab-pane fade show active" id="payroll-basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0">
+                                    <div class="shift-wrapper">
+                                        <div class="shift-group">
+                                            <div class="row">
+                                                <div class="col-md-6">
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Employee Name <span
+                                                                class="text-danger">*</span></label>
+                                                        <input type="text" name="employee_name" id="payroll_employee_name" readonly style="background: #eee;" 
+                                                            class="form-control" placeholder="Enter Employee Name">
+                                                        <span class="text-danger form-error"
+                                                            id="payrollerror_employee_name"></span>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Employee Site <span
+                                                                class="text-danger">*</span></label>
+                                                        <select class="form-select" name="site_id" id="payroll_site_id">
+                                                            <option value="">-- choose --</option>
+                                                        </select>
+                                                        <span class="text-danger form-error"
+                                                            id="payrollerror_site_id"></span>
+                                                    </div>
+
+                                                </div>
+
+                                                <div class="col-md-6">
+
+                                                    <div class="row">
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Date From: <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="date" name="date_from"
+                                                                    id="payroll_date_from" class="form-control">
+                                                                <span class="text-danger form-error"
+                                                                    id="payrollerror_date_from"></span>
+                                                            </div>
+                                                        </div>
+                                                        <div class="col-md-6">
+                                                            <div class="mb-3">
+                                                                <label class="form-label">Date To: <span
+                                                                        class="text-danger">*</span></label>
+                                                                <input type="date" name="date_to"
+                                                                    id="payroll_date_to" class="form-control">
+                                                                <span class="text-danger form-error"
+                                                                    id="payrollerror_date_to"></span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Notes <span
+                                                                class="text-danger">*</span></label>
+                                                        <textarea class="form-control" name="notes" id="payroll_notes" rows="3"></textarea>
+                                                        <span class="text-danger form-error"
+                                                            id="payrollerror_notes"></span>
+                                                    </div>
+                                                </div>
+
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-light me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" form="generate_payroll-form" id="generatepayroll"
+                                        class="btn btn-primary">Generate </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <!-- /Generate Employee Payroll-->
 
         <!-- Edit Employee -->
         <div class="modal fade" id="edit_employee">
@@ -784,7 +950,10 @@
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Licence Type </label>
                                             <select class="form-select bg-yellow" name="licence_type" id="licence_type">
-                                                <option selected>Choose</option>
+                                                <option value="">--choose--</option>
+                                                @foreach ($licenses as $license)
+                                                    <option value="{{ $license->name }}">{{ $license->name }}</option>
+                                                @endforeach
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
@@ -809,7 +978,7 @@
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label">Visa Type</label>
-                                            <select class="form-select" name="visa_type" id="visa_type">
+                                            <select class="form-select visa_type" name="visa_type" id="visa_type">
                                                 <option value="">-- choose --</option>
                                                 @foreach ($visa_types as $visa)
                                                     <option value="{{ $visa->name }}">{{ $visa->name }}
@@ -828,6 +997,15 @@
                                             <input type="text" name="place_work" id="place_work" class="form-control"
                                                 placeholder="Place of Work">
                                         </div>
+                                        <div class="terms-section-edit" style="display: none;">
+                                            <h5>Employee Terms</h5>
+                                            <div id="editterm-rows">
+                                                <!-- Terms load here -->
+                                            </div>
+                                            <button type="button" id="editTermRow" class="btn btn-sm btn-primary my-3">+ Add Term</button>
+                                        </div>
+                                        <div class="clear-fix"></div>
+
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label" for="hour_per_week">No of hours per week</label>
                                             <input type="text" name="hour_per_week" id="hour_per_week"
@@ -910,9 +1088,16 @@
                                                 placeholder="Enter Kin Mobile">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="share_code">Share code</label>
+                                            <label class="form-label" for="share_code">Share Code <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="share_code" id="share_code" class="form-control"
-                                                placeholder="Enter share code">
+                                                placeholder="Enter Share Code">
+                                        </div>
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="share_code_expiry">Share Code Expiry <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="share_code_expiry" id="share_code_expiry" class="form-control"
+                                                placeholder="Enter Share Code Expiry">
                                         </div>
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label" for="biometric_residence_permit">Biometric residence
@@ -930,7 +1115,7 @@
                                                 placeholder="Enter biometric residence permit expiry">
                                         </div>
 
-                                        <div class="col-md-4 mb-3">
+                                        {{--<div class="col-md-4 mb-3">
                                             <label class="form-label" for="brp_status">BRP status</label>
                                             <select class="form-select" name="brp_status" id="brp_status1">
                                                 <option value="Student Visa" selected>Student Visa</option>
@@ -940,7 +1125,7 @@
                                                 <option value="Skilled Worker Visa">Skilled Worker Visa</option>
                                                 <option value="Other Visa">Other Visa</option>
                                             </select>
-                                        </div>
+                                        </div>--}}
 
                                         <div class="col-md-4 mb-3">
                                             <label class="form-label" for="settlement">Settlement</label>
@@ -977,7 +1162,7 @@
                                             </select>
                                         </div>
 
-                                        <div class="col-md-12 mb-3 d-flex align-items-end">
+                                        <div class="col-md-4 mb-3 d-flex align-items-end">
                                             <div class="form-check">
                                                 <input class="mb-0 form-check-input" type="checkbox" id="isaCheck1">
                                                 <label class="form-check-label" for="isaCheck1">Additional
@@ -998,6 +1183,10 @@
                                                 <label class="form-label" for="license_type">License Type</label>
                                                 <select class="form-select" name="license_type" id="license_type">
                                                     <option value="">--choose--</option>
+                                                    @foreach ($licenses as $license)
+                                                        <option value="{{ $license->name }}">{{ $license->name }}
+                                                        </option>
+                                                    @endforeach
                                                 </select>
                                             </div>
 
@@ -1113,6 +1302,50 @@
                                             </div>
                                         </div>
 
+                                        <h3 class="mt-2 mb-4">Documents</h3>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="sia_licence">SIA Licence</label>
+                                            <input type="file" name="sia_licence" accept=".jpg,.jpeg,.png,.pdf" id="sia_licence"
+                                                class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="passport">Passport</label>
+                                            <input type="file" name="passport" accept=".jpg,.jpeg,.png,.pdf" id="passport"
+                                                class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="proof_of_address">Proof of address</label>
+                                            <input type="file" name="proof_of_address" accept=".jpg,.jpeg,.png,.pdf" id="proof_of_address"
+                                                class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="ni_letter">Ni letter</label>
+                                            <input type="file" name="ni_letter" accept=".jpg,.jpeg,.png,.pdf" id="ni_letter"
+                                                class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="first_aid_certificate">First AID certificate</label>
+                                            <input type="file" name="first_aid_certificate" accept=".jpg,.jpeg,.png,.pdf" id="first_aid_certificate"
+                                                class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
+                                        <div class="col-md-4 mb-3">
+                                            <label class="form-label" for="act_certificate">ACT certificate, Blue and Orange</label>
+                                            <input type="file" name="act_certificate" accept=".jpg,.jpeg,.png,.pdf" id="act_certificate"
+                                                class="form-control">
+                                            <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
+                                        </div>
+
                                         <h3 class="mt-2 mb-4">Uniform Size</h3>
 
                                         <div class="col-md-4 mb-3">
@@ -1206,12 +1439,13 @@
                                             <textarea id="other_info" name="other_info" cols="30" rows="4" class="form-control"></textarea>
                                         </div>
 
-                                        <h3 class="mt-2 mb-4">Holidays</h3>
-                                        <div id="editholiday-rows">
-                                            <!-- Holidays load here -->
+                                        <div class="holidays-section-edit">
+                                            <h5>Employee Holidays</h5>
+                                            <div id="editholiday-rows">
+                                                <!-- Holidays load here -->
+                                            </div>
+                                            <button type="button" id="editHolidayRow" class="btn btn-sm btn-primary my-3">+ Add Holiday</button>
                                         </div>
-                                        <button type="button" id="editHolidayRow" class="btn btn-primary">+ Add
-                                            Holiday</button>
 
                                     </div>
                                 </div>
@@ -1315,13 +1549,158 @@
             </div>
         </div>
     </div>
+    <!-- Logs Modal -->
+    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        Client Logs Detail
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- View Employee Detail Modal -->
+    <div class="modal fade" id="viewEmployeeDetailModal" tabindex="-1" aria-labelledby="employeeDetailLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content shadow rounded-3">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="employeeDetailLabel">
+                        Employee <span id="employee_name_heading" class="fw-bold"></span> Detail
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body p-4">
+                    <table class="table table-bordered table-striped">
+                        <tbody>
+                            <tr>
+                                <th>Full Name</th>
+                                <td id="full_name_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Email</th>
+                                <td id="email_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Gender</th>
+                                <td id="gender_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>NI Number</th>
+                                <td id="ni_number_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>SIA Licence</th>
+                                <td id="sia_licence_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>SIA Expiry</th>
+                                <td id="sia_expiry_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Licence Type</th>
+                                <td id="licence_type_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Entry Date</th>
+                                <td id="entry_date_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Date of Birth</th>
+                                <td id="dob_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Service Type</th>
+                                <td id="service_type_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Visa Type</th>
+                                <td id="visa_type_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Visa Expiry</th>
+                                <td id="visa_expiry_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Place of Work</th>
+                                <td id="place_work_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Contact Number</th>
+                                <td id="contact_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Emergency Contact</th>
+                                <td id="emergency_contact_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Job Title</th>
+                                <td id="job_title_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Nationality</th>
+                                <td id="nationality_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Passport No</th>
+                                <td id="passport_no_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Passport Expiry</th>
+                                <td id="passport_expiry_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Address Group</th>
+                                <td id="address_group_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Manager</th>
+                                <td id="manager_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Guard Rate</th>
+                                <td id="guard_rate_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Bank Info</th>
+                                <td id="bank_info_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Other Info</th>
+                                <td id="other_info_detail"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 @section('scripts')
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
     <script>
         $('#openAddModal').on('click', function() {
-            $('#add_employee-form')[0].reset();
+            $('#add_worker-form1')[0].reset();
+            // $('#add_employee-form')[0].reset();
             $('.form-error').text('');
         });
     </script>
@@ -1340,6 +1719,18 @@
             });
         });
 
+        $('.visa_type').on('change', function () {
+            const form = $(this).closest('form');
+            const showTerms = $(this).val() === 'Student';
+
+            form.find('.terms-section, .terms-section-edit').each(function () {
+                $(this).toggle(showTerms);
+            });
+
+            form.find('#term-rows, #editterm-rows').each(function () {
+                $(this).empty();
+            });
+        });
         // Select All toggle
         $('#selectAll').on('change', function() {
             $('.employee-checkbox').prop('checked', $(this).prop('checked'));
@@ -1403,7 +1794,7 @@
                 submitButton.prop('disabled', true).html('Updating...');
 
                 $.ajax({
-                    url: `/updateemployee/${employeeId}`, // OR use Laravel Blade: `{{ url('employees') }}/` + employeeId
+                    url: `${baseUrl}/updateemployee/${employeeId}`, // OR use Laravel Blade: `{{ url('employees') }}/` + employeeId
                     method: 'POST',
                     data: formData,
                     processData: false,
@@ -1433,12 +1824,76 @@
                     }
                 });
             });
+            $('#generate_payroll-form').on('submit', function(e) {
+                e.preventDefault();
 
+                $("[id^='payrollerror_']").text('');
+                let form = $(this)[0];
+                let formData = new FormData(form);
+                let submitButton = $('#generatepayroll'); // Your submit button should have this ID
+
+                // Get the employee ID from a hidden input field
+                let employeeId = $('#payroll_employee_id').val();
+
+                // Disable button and show loading
+                submitButton.prop('disabled', true).html('Updating...');
+
+                $.ajax({
+                    url: `${baseUrl}/generatepayroll/${employeeId}`,
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        $('#generate_payroll').modal('hide');
+                        $('#success_message').html('Payroll Created Successfully!')
+                        $('#success_modal').modal('show');
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+
+                            $.each(errors, function(key, value) {
+                                $('#payrollerror_' + key).text(value[0]);
+                            });
+                        } else {
+                            alert('An error occurred. Please try again.');
+                        }
+                    },
+                    complete: function() {
+                        // Re-enable button after response
+                        submitButton.prop('disabled', false).html('Generate');
+                    }
+                });
+            });
         });
+
+        function generatePayroll(record_id) {
+            $.get(`${baseUrl}/generatepayroll/` + record_id, function(data) {
+                if (data.employee) {
+                    $('#payroll_employee_id').val(data.employee.id);
+                    $.each(data.sites, function(index, item) {
+                        $('#payroll_site_id').append(
+                            $('<option>', {
+                                value: item.site.id,
+                                text: item.site.site_name
+                            })
+                        );
+                    });
+                    $('#payroll_employee_name').val(`${data.employee.fore_name} ${data.employee.sur_name}`);
+                    $('#generate_payroll').modal('show');
+                }
+            });
+        }
+
         var editholiday = 0;
+        var editterm = 0;
 
         function editEmployee(record_id) {
-            $.get('/editemployee/' + record_id, function(data) {
+            $.get(`${baseUrl}/editemployee/`+record_id, function(data) {
                 if (data.employee) {
                     $('#employee_id').val(data.employee.id);
                     $('#username').val(data.employee.username)
@@ -1474,6 +1929,7 @@
                     $('#kin_work_tel').val(data.employee.kin_work_tel);
                     $('#kin_mobile').val(data.employee.kin_mobile);
                     $('#share_code').val(data.employee.share_code);
+                    $('#share_code_expiry').val(data.employee.share_code_expiry);
                     $('#biometric_residence_permit').val(data.employee.biometric_residence_permit);
                     $('#biometric_residence_permit_expiry').val(data.employee.biometric_residence_permit_expiry);
                     $('#brp_status1').val(data.employee.brp_status);
@@ -1513,33 +1969,63 @@
 
                     // Clear previous holidays
                     $('#editholiday-rows').empty();
+                    $('#editterm-rows').empty();
 
                     if (data.holidays && data.holidays.length > 0) {
                         data.holidays.forEach((holiday, index) => {
                             editholiday++;
                             const holidayRow = `
-            <div class="row holiday-row mb-3" data-index="${editholiday}">
-                <div class="col-md-3">
-                    <label>Holiday Entitlement</label>
-                    <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control" value="${holiday.holidays_entitement}">
-                </div>
-                <div class="col-md-3">
-                    <label>From Date</label>
-                    <input type="date" name="holidays[${editholiday}][from]" class="form-control" value="${holiday.from_date}">
-                </div>
-                <div class="col-md-3">
-                    <label>To Date</label>
-                    <input type="date" name="holidays[${editholiday}][to]" class="form-control" value="${holiday.to_date}">
-                </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
-                </div>
-            </div>
-        `;
+                                <div class="row holiday-row mb-3 align-items-center" data-index="${editholiday}">
+                                    <div class="col-md-3">
+                                        <label>Holiday Entitlement</label>
+                                        <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control" value="${holiday.holidays_entitement}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label>From Date</label>
+                                        <input type="date" name="holidays[${editholiday}][from]" class="form-control" value="${holiday.from_date}">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label>To Date</label>
+                                        <input type="date" name="holidays[${editholiday}][to]" class="form-control" value="${holiday.to_date}">
+                                    </div>
+                                    <div class="col-md-3 d-flex align-items-end">
+                                        <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+                                    </div>
+                                </div>
+                            `;
                             $('#editholiday-rows').append(holidayRow);
                         });
                     }
 
+                    if(data.employee.visa_type == 'Student')
+                    {
+                        $('.terms-section-edit').show();
+                        if (data.terms && data.terms.length > 0) {
+                            data.terms.forEach((term, index) => {
+                                editterm++;
+                                const termRow = `
+                                    <div class="row term-row mb-3 align-items-center" data-index="${editterm}">
+                                        <div class="col-md-3">
+                                            <label>Term Name</label>
+                                            <input type="text" name="terms[${editterm}][term_name]" class="form-control" value="${term.term_name}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label>From Date</label>
+                                            <input type="date" name="terms[${editterm}][from]" class="form-control" value="${term.from_date}">
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label>To Date</label>
+                                            <input type="date" name="terms[${editterm}][to]" class="form-control" value="${term.to_date}">
+                                        </div>
+                                        <div class="col-md-3 d-flex align-items-end">
+                                            <button type="button" class="btn btn-danger btn-sm removeTermRow">Remove</button>
+                                        </div>
+                                    </div>
+                                `;
+                                $('#editterm-rows').append(termRow);
+                            });
+                        }
+                    }
 
                     $('#edit_employee').modal('show');
                 }
@@ -1556,7 +2042,7 @@
         document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
             if (selectedId !== null) {
                 $.ajax({
-                    url: `/deleteemployee/${selectedId}`,
+                    url: `${baseUrl}/deleteemployee/${selectedId}`,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -1607,64 +2093,121 @@
     </script>
     <script>
         let holidayIndex = 0;
+        let termIndex = 0;
         let holidayIndex1 = 0;
 
         function addHolidayRow() {
             holidayIndex++;
 
             const holidayRow = `
-            <div class="row holiday-row mb-3" data-index="${holidayIndex}">
-                <div class="col-md-3">
-                    <label>Holiday Entitlement</label>
-                    <input type="text" name="holidays[${holidayIndex}][entitlement]" class="form-control" placeholder="Entitlement">
+                <div class="row holiday-row mb-3 align-items-center" data-index="${holidayIndex}">
+                    <div class="col-md-3">
+                        <label>Holiday Entitlement</label>
+                        <input type="text" name="holidays[${holidayIndex}][entitlement]" class="form-control" placeholder="Entitlement">
+                    </div>
+                    <div class="col-md-3">
+                        <label>From Date</label>
+                        <input type="date" name="holidays[${holidayIndex}][from]" class="form-control" placeholder="From Date">
+                    </div>
+                    <div class="col-md-3">
+                        <label>To Date</label>
+                        <input type="date" name="holidays[${holidayIndex}][to]" class="form-control" placeholder="To Date">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+                    </div>
                 </div>
-                <div class="col-md-3">
-                    <label>From Date</label>
-                    <input type="date" name="holidays[${holidayIndex}][from]" class="form-control" placeholder="From Date">
-                </div>
-                <div class="col-md-3">
-                    <label>To Date</label>
-                    <input type="date" name="holidays[${holidayIndex}][to]" class="form-control" placeholder="To Date">
-                </div>
-                <div class="col-md-3">
-                    <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
-                </div>
-            </div>
-        `;
+            `;
 
             $('#holiday-rows').append(holidayRow);
+        }
+
+        function addTermRow() {
+            termIndex++;
+
+            const termRow = `
+                <div class="row term-row mb-3 align-items-center" data-index="${termIndex}">
+                    <div class="col-md-3">
+                        <label>Term Name</label>
+                        <input type="text" name="terms[${termIndex}][entitlement]" class="form-control" placeholder="Term Name">
+                    </div>
+                    <div class="col-md-3">
+                        <label>From Date</label>
+                        <input type="date" name="terms[${termIndex}][from]" class="form-control" placeholder="From Date">
+                    </div>
+                    <div class="col-md-3">
+                        <label>To Date</label>
+                        <input type="date" name="terms[${termIndex}][to]" class="form-control" placeholder="To Date">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removeTermRow">Remove</button>
+                    </div>
+                </div>
+            `;
+
+            $('#term-rows').append(termRow);
         }
 
         // For Edit Employee
         function addEditHolidayRow() {
             editholiday++;
             const editholidayRow = `
-        <div class="row holiday-row mb-3" data-index="${editholiday}">
-            <div class="col-md-3"><label>Entitlement</label>
-                <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control">
-            </div>
-            <div class="col-md-3"><label>From Date</label>
-                <input type="date" name="holidays[${editholiday}][from]" class="form-control">
-            </div>
-            <div class="col-md-3"><label>To Date</label>
-                <input type="date" name="holidays[${editholiday}][to]" class="form-control">
-            </div>
-            <div class="col-md-3 d-flex align-items-end">
-                <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
-            </div>
-        </div>`;
+            <div class="row holiday-row mb-3 align-items-center" data-index="${editholiday}">
+                <div class="col-md-3"><label>Entitlement</label>
+                    <input type="text" name="holidays[${editholiday}][term_name]" class="form-control">
+                </div>
+                <div class="col-md-3"><label>From Date</label>
+                    <input type="date" name="holidays[${editholiday}][from]" class="form-control">
+                </div>
+                <div class="col-md-3"><label>To Date</label>
+                    <input type="date" name="holidays[${editholiday}][to]" class="form-control">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+                </div>
+            </div>`;
             $('#editholiday-rows').append(editholidayRow);
+        }
+
+        function addEditTermRow() {
+            editterm++;
+            const edittermRow = `
+            <div class="row term-row mb-3 align-items-center" data-index="${editterm}">
+                <div class="col-md-3"><label>Term Name</label>
+                    <input type="text" name="terms[${editterm}][term_name]" class="form-control">
+                </div>
+                <div class="col-md-3"><label>From Date</label>
+                    <input type="date" name="terms[${editterm}][from]" class="form-control">
+                </div>
+                <div class="col-md-3"><label>To Date</label>
+                    <input type="date" name="terms[${editterm}][to]" class="form-control">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-danger btn-sm removeTermRow">Remove</button>
+                </div>
+            </div>`;
+            $('#editterm-rows').append(edittermRow);
         }
 
         $(document).on('click', '#addHolidayRow', function() {
             addHolidayRow();
         });
+
+        $(document).on('click', '#addTermRow', function() {
+            addTermRow();
+        });
         $(document).on('click', '#editHolidayRow', function() {
             addEditHolidayRow();
+        });
+        $(document).on('click', '#editTermRow', function() {
+            addEditTermRow();
         });
 
         $(document).on('click', '.removeHolidayRow', function() {
             $(this).closest('.holiday-row').remove();
+        });
+        $(document).on('click', '.removeTermRow', function() {
+            $(this).closest('.term-row').remove();
         });
 
         $(document).ready(function() {
@@ -1676,6 +2219,75 @@
                 }
             });
         });
+
+        function viewLogs(employeeId) {
+            // Clear existing content
+            const modalBody = document.querySelector('#logModal .modal-body');
+            modalBody.innerHTML = '<p class="text-muted">Loading logs...</p>';
+
+            fetch(`${baseUrl}/employees/${employeeId}/logs/ajax`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.logs.length === 0) {
+                        modalBody.innerHTML = '<p class="text-muted">No logs found for this client.</p>';
+                    } else {
+                        let html = '<table class="table table-bordered table-striped">';
+                        html +=
+                            '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
+                        data.logs.forEach(log => {
+                            html += `<tr>
+                                    <td>${log.user_name}</td>
+                                    <td>${log.action}</td>
+                                    <td>${log.description}</td>
+                                    <td>${log.time}</td>
+                                </tr>`;
+                        });
+                        html += '</tbody></table>';
+                        modalBody.innerHTML = html;
+                    }
+
+                    // Show the modal
+                    $('#logModal').modal('show');
+                })
+                .catch(error => {
+                    console.error('Error fetching logs:', error);
+                    modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
+                });
+        }
+
+        function viewEmployeeDetail(id) {
+            $.get(`${baseUrl}/employees/${id}/view`, function(data) {
+                $('#employee_name_heading').text(`${data.fore_name} ${data.sur_name}`);
+                $('#full_name_detail').text(`${data.fore_name} ${data.sur_name}`);
+                $('#email_detail').text(data.email);
+                $('#gender_detail').text(data.gender);
+                $('#ni_number_detail').text(data.ni_number);
+                $('#sia_licence_detail').text(data.sia_licence);
+                $('#sia_expiry_detail').text(data.sia_expiry);
+                $('#licence_type_detail').text(data.licence_type);
+                $('#entry_date_detail').text(data.entry_date);
+                $('#dob_detail').text(data.dob);
+                $('#service_type_detail').text(data.service_type);
+                $('#visa_type_detail').text(data.visa_type);
+                $('#visa_expiry_detail').text(data.visa_expiry);
+                $('#place_work_detail').text(data.place_work);
+                $('#contact_detail').text(data.contact);
+                $('#emergency_contact_detail').text(data.emergency_contact);
+                $('#job_title_detail').text(data.job_title);
+                $('#nationality_detail').text(data.nationality);
+                $('#passport_no_detail').text(data.passport_no);
+                $('#passport_expiry_detail').text(data.passport_expiry);
+                $('#address_group_detail').text(data.address_group);
+                $('#guard_rate_detail').text(`$${data.guard_rate}`);
+                $('#bank_info_detail').text(`${data.bank_name} / ${data.account_name} / ${data.account_number}`);
+                $('#other_info_detail').text(data.other_info);
+
+                let modal = new bootstrap.Modal(document.getElementById('viewEmployeeDetailModal'));
+                modal.show();
+            }).fail(function() {
+                alert('Failed to fetch employee detail.');
+            });
+        }
     </script>
 
 @endsection

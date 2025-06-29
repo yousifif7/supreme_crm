@@ -20,6 +20,7 @@ return new class extends Migration
             $table->decimal('site_group_rate_guarding', 8, 2)->nullable();
             $table->decimal('site_group_rate_supervisor', 8, 2)->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

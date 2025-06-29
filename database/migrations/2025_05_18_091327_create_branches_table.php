@@ -20,6 +20,7 @@ return new class extends Migration
             $table->text('address')->nullable();
             $table->string('fax')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

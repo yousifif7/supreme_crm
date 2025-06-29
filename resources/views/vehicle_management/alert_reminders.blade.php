@@ -1,0 +1,612 @@
+@extends('layouts.app')
+@section('title', 'CRM - Alert & Reminders')
+@section('contents')
+    <!-- Page Wrapper -->
+    <div class="page-wrapper">
+        <div class="content">
+            <div class="alert-box-container"></div>
+            <!-- Breadcrumb -->
+            <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
+                <div class="my-auto mb-2">
+                    <h2 class="mb-1">Alert & Reminders</h2>
+                    @if (session('success'))
+                        <div class="alert alert-success mt-3">
+                            {{ session('success') }}
+                        </div>
+                    @endif
+
+                </div>
+
+            </div>
+            <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
+                <div class="me-2">
+                    <div class="dropdown">
+                        <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
+                        <a href="javascript:void(0);"
+                            class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
+                            data-bs-toggle="dropdown">
+                            <i class="ti ti-file-export me-1"></i>Export
+                        </a>
+                        <ul class="dropdown-menu  dropdown-menu-start p-3">
+                            <li>
+                                <a href="{{ route('reminders.export.pdf') }}" class="dropdown-item rounded-1"><i
+                                        class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
+                            </li>
+                            <li>
+                                <a href="{{ route('reminders.export.excel') }}" class="dropdown-item rounded-1"><i
+                                        class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
+                            </li>
+                        </ul>
+
+
+                    </div>
+                </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
+
+                <div class="me-2 mb-2 filter_area">
+
+                    <a href="#" data-bs-toggle="modal" data-bs-target="#add_reminder"
+                        class=" add_btn btn btn-white d-inline-flex align-items-center"">
+                        <i class="ti ti-plus me-2"></i>Reminder
+                    </a>
+
+
+                    <!-- Search -->
+                    <div class="input-group input-group-flat d-inline-flex me-1">
+                        <span class="input-icon-addon">
+                            <i class="ti ti-search"></i>
+                        </span>
+                        <input type="text" class="form-control search_box" placeholder="Search...">
+
+
+                        <!-- /Search -->
+
+
+                    </div>
+
+
+                </div>
+
+
+            </div>
+            <!-- /Breadcrumb -->
+
+            <div class="card">
+
+                <div class="card-body p-0">
+                    <div class="custom-datatable-filter table-responsive">
+                        <table class="table datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>#</th>
+                                    <th>Vehicle</th>
+                                    <th>MOT Due</th>
+                                    <th>Insurance Renewal</th>
+                                    <th>Tax Renewal</th>
+                                    <th>Service Due</th>
+                                    <th>Tachograph Calibration</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($reminders as $reminder)
+                                    <tr>
+                                        <td><input type="checkbox" class="vehicle-checkbox" value="{{ $reminder->id }}">
+                                        </td>
+                                        <td>{{ $loop->iteration }}</td>
+                                        <td>{{ $reminder->vehicle->registration_number ?? 'N/A' }}</td>
+                                        <td>{{ $reminder->mot_due_date ?? '-' }}</td>
+                                        <td>{{ $reminder->insurance_renewal_date ?? '-' }}</td>
+                                        <td>{{ $reminder->tax_renewal_date ?? '-' }}</td>
+                                        <td>{{ $reminder->service_due_date ?? '-' }}</td>
+                                        <td>{{ $reminder->tachograph_calibration_date ?? '-' }}</td>
+                                        <td>
+                                            <div class="action-icon d-inline-flex">
+                                                <a href="#" class="me-2"
+                                                    onclick="editReminder({{ $reminder->id }})">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+                                                <a href="javascript:void(0);"
+                                                    onclick="deleteReminder({{ $reminder->id }})">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+
+                        <div class="card-footer d-flex justify-content-center">
+                            {{ $reminders->links('vendor.pagination.bootstrap-5') }}
+                        </div>
+                    </div>
+                </div>
+
+
+            </div>
+            <!-- Add Alert & Reminder Modal -->
+            <div class="modal fade" id="add_reminder">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Add Alert & Reminder</h5>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <form method="POST" id="add_reminder_form" action="{{ route('reminders.store') }}">
+                            @csrf
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Vehicle <span class="text-danger">*</span></label>
+                                            <select name="vehicle_id" class="form-control" id="vehicle_id">
+                                                <option value="">Select vehicle</option>
+                                                @foreach ($vehicles as $vehicle)
+                                                    <option value="{{ $vehicle->id }}">
+                                                        {{ $vehicle->registration_number }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-danger form-error" id="error_vehicle_id"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">MOT Due Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="mot_due_date" class="form-control"
+                                                id="mot_due_date">
+                                            <span class="text-danger form-error" id="error_mot_due_date"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Insurance Renewal Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="insurance_renewal_date" class="form-control"
+                                                id="insurance_renewal_date">
+                                            <span class="text-danger form-error" id="error_insurance_renewal_date"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tax Renewal Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="tax_renewal_date" class="form-control"
+                                                id="tax_renewal_date">
+                                            <span class="text-danger form-error" id="error_tax_renewal_date"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Service Due Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="service_due_date" class="form-control"
+                                                id="service_due_date">
+                                            <span class="text-danger form-error" id="error_service_due_date"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tachograph Calibration Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="tachograph_calibration_date" class="form-control"
+                                                id="tachograph_calibration_date">
+                                            <span class="text-danger form-error"
+                                                id="error_tachograph_calibration_date"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" id="savereminder" class="btn btn-primary">Save Reminder</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+
+            <!-- Edit Alert & Reminder Modal -->
+            <div class="modal fade" id="edit_reminder">
+                <div class="modal-dialog modal-dialog-centered modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Edit Alert & Reminder</h4>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <form method="POST" id="edit_reminder_form" action="#">
+                            @csrf
+                            <input type="hidden" name="reminder_id" id="reminder_id">
+                            <div class="modal-body pb-0">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Vehicle <span class="text-danger">*</span></label>
+                                            <select name="vehicle_id" id="edit_vehicle_id" class="form-control">
+                                                <option value="">Select vehicle</option>
+                                                @foreach ($vehicles as $vehicle)
+                                                    <option value="{{ $vehicle->id }}">
+                                                        {{ $vehicle->registration_number }}</option>
+                                                @endforeach
+                                            </select>
+                                            <span class="text-danger form-error" id="edit_error_vehicle_id"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">MOT Due Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="mot_due_date" id="edit_mot_due_date"
+                                                class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_mot_due_date"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Insurance Renewal Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="insurance_renewal_date"
+                                                id="edit_insurance_renewal_date" class="form-control">
+                                            <span class="text-danger form-error"
+                                                id="edit_error_insurance_renewal_date"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tax Renewal Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="tax_renewal_date" id="edit_tax_renewal_date"
+                                                class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_tax_renewal_date"></span>
+                                        </div>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <label class="form-label">Service Due Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="service_due_date" id="edit_service_due_date"
+                                                class="form-control">
+                                            <span class="text-danger form-error" id="edit_error_service_due_date"></span>
+                                        </div>
+
+                                        <div class="mb-3">
+                                            <label class="form-label">Tachograph Calibration Date <span
+                                                    class="text-danger">*</span></label>
+                                            <input type="date" name="tachograph_calibration_date"
+                                                id="edit_tachograph_calibration_date" class="form-control">
+                                            <span class="text-danger form-error"
+                                                id="edit_error_tachograph_calibration_date"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" form="edit_reminder_form" class="btn btn-primary"
+                                    id="edit_reminder_btn">
+                                    Update Reminder
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Add Vehicle Compliances Success -->
+            <div class="modal fade" id="success_modal" role="dialog">
+                <div class="modal-dialog modal-dialog-centered modal-sm">
+                    <div class="modal-content">
+                        <div class="modal-body">
+                            <div class="text-center p-3">
+                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                        class="ti ti-check fs-24"></i></span>
+                                <h5 class="mb-2" id="success_message"></h5>
+
+                                </p>
+                                <div>
+                                    <div class="row g-2">
+                                        <div class="col-12">
+                                            <a href="{{ url('alert_reminders') }}" class="btn btn-dark w-100">Back
+                                                to
+                                                List</a>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /Add Vehicle Success -->
+
+            <!-- Delete Modal -->
+            <div class="modal fade" id="delete_modal">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-body text-center">
+                            <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                                <i class="ti ti-trash-x fs-36"></i>
+                            </span>
+                            <h4 class="mb-1">Confirm Delete</h4>
+                            <p class="mb-3">You want to delete all the marked items, this cant be undone once you delete.
+                            </p>
+                            <div class="d-flex justify-content-center">
+                                <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- /Delete Modal -->
+            <!-- Import modal -->
+            <div class="modal fade" id="import_modal">
+                <div class="modal-dialog modal-dialog-centered">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h4 class="modal-title">Import Excel</h4>
+                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                                aria-label="Close">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                        <form action="{{ route('reminders.import') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <div class="tab-content" id="myTabContent">
+                                <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                    aria-labelledby="info-tab" tabindex="0">
+                                    <div class="modal-body pb-0 ">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <div class="d-flex gap-2">
+                                                    <input type="file" name="import_file" class="form-control"
+                                                        required>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-outline-light border me-2"
+                                            data-bs-dismiss="modal">Cancel</button>
+
+                                        <button class="btn btn-primary" type="submit">Import</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Page Wrapper -->
+    @endsection
+    @section('scripts')
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+        <script>
+            // Client search functionality
+            $('.search_box').on('keyup', function() {
+                let searchText = $(this).val().toLowerCase();
+
+                $('.datatable tbody tr').each(function() {
+                    let rowText = $(this).text().toLowerCase();
+                    if (rowText.indexOf(searchText) > -1) {
+                        $(this).show();
+                    } else {
+                        $(this).hide();
+                    }
+                });
+            });
+
+            // Select All toggle
+            $('#selectAll').on('change', function() {
+                $('.vehicle-checkbox').prop('checked', $(this).prop('checked'));
+            });
+
+            $(document).ready(function() {
+                // Add Reminder
+                $('#add_reminder_form').on('submit', function(e) {
+                    e.preventDefault();
+                    $("[id^='error_']").text('');
+                    let form = $(this)[0];
+                    let formData = new FormData(form);
+                    let submitButton = $('#savereminder');
+
+                    submitButton.prop('disabled', true).html('Saving...');
+
+                    $.ajax({
+                        url: $(this).attr('action'),
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        },
+                        success: function(response) {
+                            $('#add_reminder').modal('hide');
+                            $('#success_message').html('Reminder added successfully.');
+                            $('#success_modal').modal('show');
+                            $('#add_reminder_form')[0].reset();
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 422) {
+                                let errors = xhr.responseJSON.errors;
+                                $.each(errors, function(key, value) {
+                                    $('#error_' + key).text(value[0]);
+                                });
+                            } else {
+                                alert('An error occurred. Please try again.');
+                            }
+                        },
+                        complete: function() {
+                            submitButton.prop('disabled', false).html('Save Reminder');
+                        }
+                    });
+                });
+
+                // Edit Reminder
+                $('#edit_reminder_form').on('submit', function(e) {
+                    e.preventDefault();
+                    $("[id^='edit_error_']").text('');
+                    let form = $(this)[0];
+                    let formData = new FormData(form);
+                    let submitButton = $('#edit_reminder_btn');
+                    let reminderId = $('#reminder_id').val();
+
+                    submitButton.prop('disabled', true).html('Updating...');
+
+                    $.ajax({
+                        url: `${baseUrl}/updatereminder/${reminderId}`, // Adjust this route to your backend
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        },
+                        success: function(response) {
+                            $('#edit_reminder').modal('hide');
+                            $('#success_message').html('Reminder updated successfully.');
+                            $('#success_modal').modal('show');
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 422) {
+                                let errors = xhr.responseJSON.errors;
+                                $.each(errors, function(key, value) {
+                                    $('#edit_error_' + key).text(value[0]);
+                                });
+                            } else {
+                                alert('An error occurred. Please try again.');
+                            }
+                        },
+                        complete: function() {
+                            submitButton.prop('disabled', false).html('Update Reminder');
+                        }
+                    });
+                });
+            });
+
+
+            function editReminder(reminder_id) {
+                $.get(`${baseUrl}/editreminder/` + reminder_id, function(data) {
+                    if (data.reminder) {
+                        $('#reminder_id').val(data.reminder.id); // Hidden input
+                        $('#edit_vehicle_id').val(data.reminder.vehicle_id);
+                        $('#edit_mot_due_date').val(data.reminder.mot_due_date);
+                        $('#edit_insurance_renewal_date').val(data.reminder.insurance_renewal_date);
+                        $('#edit_tax_renewal_date').val(data.reminder.tax_renewal_date);
+                        $('#edit_service_due_date').val(data.reminder.service_due_date);
+                        $('#edit_tachograph_calibration_date').val(data.reminder.tachograph_calibration_date);
+
+                        $('#edit_reminder').modal('show');
+                    } else {
+                        alert('No reminder data found for this record.');
+                    }
+                });
+            }
+
+
+            let selectedId = null;
+
+            function deleteReminder(record_id) {
+                selectedId = record_id;
+                $('#delete_modal').modal('show');
+            }
+
+            document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+                if (selectedId !== null) {
+                    $.ajax({
+                        url: `${baseUrl}/deletereminder/${selectedId}`,
+                        type: 'DELETE',
+                        headers: {
+                            'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                        },
+                        success: function(response) {
+                            $('#delete_modal').modal('hide');
+                            $('#success_message').html('Alert Reminder Deleted Successfully!');
+                            $('#success_modal').modal('show');
+                        },
+                        error: function(xhr) {
+                            $('#delete_modal').modal('hide');
+                            alert('Something went wrong. Please try again.');
+                        }
+                    });
+                }
+            });
+
+            // Bulk delete button
+            $('#bulkDeleteBtn').on('click', function() {
+                const selected = $('.vehicle-checkbox:checked').map(function() {
+                    return this.value;
+                }).get();
+
+                if (selected.length === 0) {
+                    alert('Please select at least one vehicle maintenance to delete.');
+                    return;
+                }
+
+                if (!confirm('Are you sure you want to delete the selected vehicle maintenance?')) return;
+                $.ajax({
+                    url: '{{ route('reminders.bulkDelete') }}',
+                    type: 'POST',
+                    data: {
+                        ids: selected,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        $('#success_message').text('Selected alert reminder deleted successfully!');
+                        $('#success_modal').modal('show');
+                    },
+                    error: function() {
+                        alert('Something went wrong during bulk delete.');
+                    }
+                });
+            });
+        </script>
+        <script>
+            $(document).ready(function() {
+
+                $('.submenu > a').click(function(e) {
+                    e.preventDefault();
+
+                    var $this = $(this);
+                    var $submenu = $this.next('ul');
+
+                    if (!$this.hasClass('subdrop')) {
+                        $('.submenu > a').removeClass('subdrop');
+                        $('.submenu ul').slideUp(200);
+
+                        $this.addClass('subdrop');
+                        $submenu.slideDown(200);
+                    } else {
+                        $this.removeClass('subdrop');
+                        $submenu.slideUp(200);
+                    }
+                });
+
+
+                var currentPage = window.location.pathname.split("/").pop();
+
+                $('#sidebar-menu a').each(function() {
+                    var linkPage = $(this).attr('href');
+                    if (linkPage === currentPage) {
+                        $(this).addClass('active');
+
+                        var $submenu = $(this).closest('.submenu');
+                        if ($submenu.length) {
+                            $submenu.find('> a').addClass('subdrop');
+                            $submenu.find('ul').slideDown(0).css('display', 'block');
+                        }
+                    }
+                });
+            });
+        </script>
+    @endsection

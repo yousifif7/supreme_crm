@@ -12,7 +12,7 @@ class SitesExport implements FromCollection
         return Site::select(
             'client_id',
             'site_name',
-            'site_group',
+            'guard_names',
             'address',
             'post_code',
             'site_code',

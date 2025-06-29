@@ -186,8 +186,8 @@
                                             <tr>
                                                 <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
                                                 </td>
-                                                <td>{{ $shift->shift->staff->fore_name }}
-                                                    {{ $shift->shift->staff->sur_name }}</td>
+                                                <td>{{ $shift->shift?->staff?->fore_name }}
+                                                    {{ $shift->shift?->staff?->sur_name }}</td>
                                                 <td>X</td>
                                                 <td>{{ \Carbon\Carbon::parse($shift->break_time)->format('h:i A') }}
                                                 </td>
@@ -423,7 +423,7 @@
 @section('scripts')
     <script>
         $.ajax({
-            url: '/shifts/stats',
+            url: `${baseUrl}/shifts/stats`,
             method: 'GET',
             success: function(res) {
                 var sColStacked = {

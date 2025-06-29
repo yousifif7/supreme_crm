@@ -1,0 +1,84 @@
+<!-- Filter Header -->
+<div class="filters">
+    <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
+        <div class="left">
+            <button onclick="window.location='{{ url('scheduling') }}'"
+                class="{{ request()->is('scheduling*') ? 'active' : '' }}">Complete
+                Rota</button>
+            <button onclick="window.location='{{ url('worker_calendar') }}'"
+                class="{{ request()->is('worker_calendar*') ? 'active' : '' }}">Security Staff Calendar</button>
+            <button onclick="window.location='{{ url('site_calendar') }}'"
+                class="{{ request()->is('site_calendar*') ? 'active' : '' }}">Site Calendar</button>
+            <button onclick="window.location='{{ url('today_rota') }}'"
+                class="{{ request()->is('today_rota*') ? 'active' : '' }}">Today's Rota</button>
+
+        </div>
+
+        <div class="right">
+            <div class="status-summary">
+                <div onclick="window.location='{{ url('sites') }}'" class="active-sites">&#9679; Active Sites
+                    ({{ $sites->count() }})</div>
+                <div onclick="window.location='{{ url('employees') }}'" class="active-workers">&#9679; Active
+                    Security Staff ({{ $staffs->count() }})</div>
+
+
+            </div>
+
+        </div>
+
+
+
+
+    </div>
+    <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
+
+        <div class="left mt-4">
+            <button class="refresh_btn" onclick="window.location.reload()">
+                <i class="ti ti-reload"></i>Refresh
+            </button>
+        </div>
+
+        <div class="right  mt-4">
+            <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift" class=" add_btn btn btn-white"">
+                <i class="ti ti-plus me-0"></i> Add Shift
+            </a>
+            <div class="input-group input-group-flat d-inline-flex me-1">
+                <span class="input-icon-addon">
+                    <i class="ti ti-search"></i>
+                </span>
+                <input type="text" class=" search_box" placeholder="Search...">
+
+
+                <!-- /Search -->
+
+
+            </div>
+            <!--
+         <a href="#" data-bs-toggle="modal" data-bs-target="#add_rota" class=" add_btn btn btn-white"">
+             <i class="ti ti-plus me-0"></i> Rota (0)
+         </a>
+         <a href="#" data-bs-toggle="modal" data-bs-target="#add_client" class=" day-off_btn btn btn-white"">
+             <i class="ti ti-plus me-0"></i> Day off (0)
+         </a>
+        -->
+            <div class="dropdown">
+                <a href="javascript:void(0);"
+                    class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
+                    data-bs-toggle="dropdown">
+                    <i class="ti ti-file-export me-1"></i>Export
+                </a>
+                <ul class="dropdown-menu  dropdown-menu-start p-3">
+                    <li>
+                        <a href="{{ route('shifts.export.pdf') }}" class="dropdown-item rounded-1"><i
+                                class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
+                    </li>
+                    <li>
+                        <a href="{{ route('shifts.export.excel') }}" class="dropdown-item rounded-1"><i
+                                class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+</div>

@@ -60,6 +60,7 @@ return new class extends Migration
             $table->boolean('is_assign')->default(0);
             $table->string('lost_time')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

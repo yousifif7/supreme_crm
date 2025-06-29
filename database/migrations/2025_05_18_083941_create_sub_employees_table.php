@@ -41,6 +41,7 @@ return new class extends Migration
             $table->boolean('pmva_officer')->default(0);
             $table->date('visa_expiry')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 

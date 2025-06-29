@@ -18,6 +18,7 @@ return new class extends Migration
             $table->date('training_date')->nullable();
             $table->string('event_id')->nullable();
             $table->timestamps();
+            $table->softDeletes();
         });
     }
 
