@@ -43,32 +43,15 @@
                         <i class="ti ti-plus me-2"></i>User
                     </a>
 
-
                     <!-- Search -->
                     <div class="input-group input-group-flat d-inline-flex me-1">
                         <span class="input-icon-addon">
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
-
-
                         <!-- /Search -->
-
-
                     </div>
-                    <div class="sort-box">
-                        <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort Users</option>
-                            <option value="">All</option>
-                            <option value="">Coordinators</option>
-                            <option value="">Archieved</option>
-                        </select>
-                        <i class="ti ti-chevron-down"></i>
-                    </div>
-
                 </div>
-
-
             </div>
             <!-- /Breadcrumb -->
 
@@ -91,7 +74,7 @@
                             <tbody>
                                 @foreach ($users as $user)
                                     <tr>
-                                        <td><input type="checkbox" class="user-checkbox" value="{{ $user->id }}">
+                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $user->id }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td>
                                             <div class="d-flex align-items-center file-name-icon">
@@ -611,24 +594,6 @@
 @section('scripts')
     <!-- ✅ Image Preview Script -->
     <script>
-        // Client search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
-
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.site-checkbox').prop('checked', $(this).prop('checked'));
-        });
         document.getElementById('profile_picture_input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             const preview = document.getElementById('profile_preview');
@@ -777,7 +742,7 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.user-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
@@ -807,36 +772,6 @@
     </script>
 
     <script>
-        // Sidebar Menu
-        $('.submenu > a').click(function(e) {
-            e.preventDefault();
-            var $this = $(this);
-            var $submenu = $this.next('ul');
-
-            if (!$this.hasClass('subdrop')) {
-                $('.submenu > a').removeClass('subdrop');
-                $('.submenu ul').slideUp(200);
-                $this.addClass('subdrop');
-                $submenu.slideDown(200);
-            } else {
-                $this.removeClass('subdrop');
-                $submenu.slideUp(200);
-            }
-        });
-
-        var currentPage = window.location.pathname.split("/").pop();
-        $('#sidebar-menu a').each(function() {
-            var linkPage = $(this).attr('href');
-            if (linkPage === currentPage) {
-                $(this).addClass('active');
-                var $submenu = $(this).closest('.submenu');
-                if ($submenu.length) {
-                    $submenu.find('> a').addClass('subdrop');
-                    $submenu.find('ul').slideDown(0).css('display', 'block');
-                }
-            }
-        });
-
         function viewLogs(userId) {
             // Clear existing content
             const modalBody = document.querySelector('#logModal .modal-body');

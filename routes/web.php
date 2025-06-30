@@ -120,6 +120,7 @@ Route::middleware('auth')->group(function () {
     Route::post('shifts', [ShiftController::class, 'store'])->name('shifts.store');
     Route::post('/updateshift/{id}', [ShiftController::class, 'update'])->name('shifts.update');
     Route::get('/editshift/{id}', [ShiftController::class, 'edit'])->name('shifts.edit');
+    Route::get('/shifts/{shiftDate}', [ShiftController::class, 'show'])->name('shifts.show');
     Route::get('/api/shifts', [ShiftController::class, 'getShifts']);
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
     Route::get('/api/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);
@@ -130,7 +131,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
     Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
-    
+
     Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); // web.php or api.php
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
 

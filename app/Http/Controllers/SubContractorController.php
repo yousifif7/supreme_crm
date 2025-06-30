@@ -30,7 +30,7 @@ class SubContractorController extends Controller
             ],
             'contact_person'     => 'required|string|max:255',
             'email'              => 'required|email:dns|max:255',
-            'username'           => 'required|email|max:255',
+            'username'           => 'required|email|max:255|unique:users,email',
             'password'           => [
                 'required',
                 'string',
@@ -44,6 +44,9 @@ class SubContractorController extends Controller
             'vat_number'         => 'nullable|string|max:255',
             'pay_rate'           => 'nullable|numeric',
             'pmva_trained_officer' => 'nullable',
+        ], [
+            'contact_number.regex' => 'The contact number format is invalid. It should be a valid phone number.',
+            'password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
         ]);
 
         if ($validator->fails()) {
@@ -68,7 +71,7 @@ class SubContractorController extends Controller
         $data['user_id'] = $user->id;
         unset($data['username'], $data['password']);
 
-        $subcontractor = Subcontractor::create($data);
+        Subcontractor::create($data);
 
         return response()->json(['message' => 'Subcontractor created successfully']);
     }

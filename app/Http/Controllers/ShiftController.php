@@ -11,9 +11,7 @@ use App\Models\Site;
 use App\Models\Subcontractor;
 use App\Models\User;
 use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
@@ -31,14 +29,14 @@ class ShiftController extends Controller
     }
     public function scheduling()
     {
-        $shifts = Shift::all();
+        // $shifts = Shift::all();
         $clients = Client::all();
         $sites = Site::all();
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
-        $users = User::all();
+        // $users = User::all();
         $services = EmployeeType::all();
-        return view('security_boards.scheduling', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+        return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
     }
     public function worker_calendar()
     {
@@ -72,6 +70,12 @@ class ShiftController extends Controller
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+    }
+
+    public function show(ShiftDate $shiftDate)
+    {
+        $shiftDate->load(['staff', 'shift.client', 'shift.site', 'shift.staff']);
+        return $this->sendRes('success', ['view_data' => view('security_boards.shift-detail-modal', compact('shiftDate'))->render()]);
     }
 
     public function store(Request $request)
@@ -213,12 +217,12 @@ class ShiftController extends Controller
             }
 
             $shift = Shift::create($data);
-            
+
             if(isset($data['checkpoints']) && $data['checkpoints'])
             {
-                foreach ($data['checkpoints'] as $checkpoint) 
+                foreach ($data['checkpoints'] as $checkpoint)
                 {
-                    // foreach ($checkpoints as $checkpoint) 
+                    // foreach ($checkpoints as $checkpoint)
                     // {
                         \App\Models\ShiftCheckpoint::create([
                             'shift_id' => $shift->id,
@@ -473,8 +477,16 @@ class ShiftController extends Controller
                     $startDateTime = date('Y-m-d\TH:i:s', $startTimestamp);
                     $endDateTime = date('Y-m-d\TH:i:s', $endTimestamp);
 
+                    // guess the shiftDate model id from the start and end time
+                    $sd = ShiftDate::where('shift_id', $shift->id)
+                        ->where('start_time', $startTime)
+                        ->where('end_time', $endTime)
+                        ->where('shift_date', $shiftDate)
+                        ->with('staff')
+                        ->first();
+
                     $events[] = [
-                        'title' => $shift->staff->fore_name ?? 'Unknown Staff',
+                        'title' => $sd->staff->fore_name ?? $sd->staff->last_name ?? 'Unknown Staff',
                         'start' => $startDateTime,
                         'end' => $endDateTime,
                         'location' => $shift->site->site_name ?? 'Unknown Site',
@@ -483,6 +495,7 @@ class ShiftController extends Controller
                         'image' => asset('assets/img/users/user-01.jpg'),
                         'urgent' => rand(0, 1) === 1,
                         'className' => $statusColorMap[$shift->is_assign] ?? 'bg-secondary', // fallback
+                        'sd_id' => $sd->id ?? null,
                     ];
 
                     $highlightDates[] = $shiftDate;
@@ -545,14 +558,23 @@ class ShiftController extends Controller
                     $startDateTime = date('Y-m-d\TH:i:s', $startTimestamp);
                     $endDateTime = date('Y-m-d\TH:i:s', $endTimestamp);
 
+                    // guess the shiftDate model id from the start and end time
+                    $sd = ShiftDate::where('shift_id', $shift->id)
+                        ->where('start_time', $startTime)
+                        ->where('end_time', $endTime)
+                        ->where('shift_date', $shiftDate)
+                        ->with('staff')
+                        ->first();
+
                     $events[] = [
-                        'title' => $shift->site->site_name ?? 'Unknown Site',
+                        'title' => $sd->staff->fore_name ?? $sd->staff->last_name ?? 'Unknown Staff',
                         'start' => $startDateTime,
                         'end' => $endDateTime,
                         'allDay' => false,
                         'urgent' => rand(0, 1) === 1,
                         'color' => '#3a87ad',
                         'className' => $statusColorMap[$shift->is_assign] ?? 'bg-secondary', // fallback
+                        'sd_id' => $sd->id ?? null,
                     ];
 
                     $highlightDates[] = $shiftDate;
@@ -596,6 +618,12 @@ class ShiftController extends Controller
             $start = $today . 'T' . date('H:i:s', strtotime($shift->start_shift));
             $end = $today . 'T' . date('H:i:s', strtotime($shift->end_shift));
 
+            $sd = ShiftDate::where('shift_id', $shift->id)
+                        ->where('start_time', date('H:i:s', strtotime($shift->start_shift)))
+                        ->where('end_time', date('H:i:s', strtotime($shift->end_shift)))
+                        ->where('shift_date', $today)
+                        ->first('id');
+
             $events[] = [
                 'title' => $shift->client->client_name ?? 'Unknown Client',
                 'start' => $start,
@@ -606,6 +634,7 @@ class ShiftController extends Controller
                 'color' => '#3a87ad',
                 'urgent' => rand(0, 1) === 1,
                 'className' => $statusColorMap[$shift->is_assign] ?? 'bg-secondary', // fallback
+                'sd_id' => $sd->id ?? null
             ];
         }
 

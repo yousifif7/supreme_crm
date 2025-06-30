@@ -14,6 +14,7 @@ use App\Exports\VehicleComplianceExport;
 use App\Exports\VehicleMaintenanceExport;
 use App\Exports\VehiclesExport;
 use App\Imports\AlertReminderImport;
+use App\Imports\ClientsImport;
 use App\Imports\EmployeesImport;
 use App\Imports\RolesImport;
 use App\Imports\ShiftDateImport;
@@ -50,7 +51,7 @@ class ExportController extends Controller
             'import_file' => 'required|mimes:xlsx,xls,csv'
         ]);
 
-        Excel::import(new Client(), $request->file('import_file'));
+        Excel::import(new ClientsImport(), $request->file('import_file'));
 
         return back()->with('success', 'Clients imported successfully!');
     }

@@ -62,25 +62,9 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
-
-
                         <!-- /Search -->
-
-
                     </div>
-                    <div class="sort-box">
-                        <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort Sites</option>
-                            <option value="">All</option>
-                            <option value="">Coordinators</option>
-                            <option value="">Archieved</option>
-                        </select>
-                        <i class="ti ti-chevron-down"></i>
-                    </div>
-
                 </div>
-
-
             </div>
             <!-- /Breadcrumb -->
 
@@ -105,7 +89,7 @@
                                 @php $i = ($sites->currentPage() - 1) * $sites->perPage() + 1; @endphp
                                 @foreach ($sites as $site)
                                     <tr>
-                                        <td><input type="checkbox" class="site-checkbox" value="{{ $site->id }}">
+                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $site->id }}">
                                         </td>
                                         <td>{{ $i++ }}</td>
                                         <td>
@@ -840,21 +824,8 @@
                 width: '100%',
             });
         });
-        // Site search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
-
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
         $(document).ready(function() {
-            
+
             $(document).on("change","#clientSelect",function() {
                 var $this = $(this);
                 const clientId = $(this).val();
@@ -874,7 +845,7 @@
                     }
                 });
             });
-            
+
             $('#add_site-form').on('submit', function(e) {
                 e.preventDefault();
                 $("[id^='error_']").text('');
@@ -1063,13 +1034,9 @@
         }
     });
 
-    // Select All toggle
-    $('#selectAll').on('change', function() {
-        $('.client-checkbox').prop('checked', $(this).prop('checked'));
-    });
     // Bulk delete button
     $('#bulkDeleteBtn').on('click', function() {
-        const selected = $('.site-checkbox:checked').map(function() {
+        const selected = $('.dT-row-checkbox:checked').map(function() {
             return this.value;
         }).get();
 
@@ -1134,43 +1101,6 @@
         }
     </script>
     <script>
-        $(document).ready(function() {
-
-            $('.submenu > a').click(function(e) {
-                e.preventDefault();
-
-                var $this = $(this);
-                var $submenu = $this.next('ul');
-
-                if (!$this.hasClass('subdrop')) {
-                    $('.submenu > a').removeClass('subdrop');
-                    $('.submenu ul').slideUp(200);
-
-                    $this.addClass('subdrop');
-                    $submenu.slideDown(200);
-                } else {
-                    $this.removeClass('subdrop');
-                    $submenu.slideUp(200);
-                }
-            });
-
-
-            var currentPage = window.location.pathname.split("/").pop();
-
-            $('#sidebar-menu a').each(function() {
-                var linkPage = $(this).attr('href');
-                if (linkPage === currentPage) {
-                    $(this).addClass('active');
-
-                    var $submenu = $(this).closest('.submenu');
-                    if ($submenu.length) {
-                        $submenu.find('> a').addClass('subdrop');
-                        $submenu.find('ul').slideDown(0).css('display', 'block');
-                    }
-                }
-            });
-        });
-
         document.querySelectorAll('.toggle-rate').forEach(function(checkbox) {
             checkbox.addEventListener('change', function() {
                 const id = this.dataset.id;

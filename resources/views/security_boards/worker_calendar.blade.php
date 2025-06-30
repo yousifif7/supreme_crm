@@ -113,209 +113,6 @@
 
             <!-- Calendar View -->
 
-
-            <!-- Modal -->
-            <div class="modal" id="eventModal">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4 class="modal-title">Rota Detail</h4>
-                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                                aria-label="Close">
-                                <i class="ti ti-x"></i>
-                            </button>
-
-                        </div>
-                        <form action="#">
-                            <div class="tabs-parent_main">
-                                <div class="tabs-parent nav nav-tabs" role="tablist">
-                                    <button class="nav-link active" id="info-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#basic-info2" type="button" role="tab"
-                                        aria-controls="basic-info2" aria-selected="true">Rota Detail</button>
-                                    <button class="nav-link" id="address-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#address2" type="button" role="tab" aria-controls="address2"
-                                        aria-selected="false">Office Validation</button>
-                                    <button class="nav-link" id="progress-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#progress2" type="button" role="tab" aria-controls="progress2"
-                                        aria-selected="false">Job Progress</button>
-                                    <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2"
-                                        type="button" role="tab" aria-controls="logs2"
-                                        aria-selected="false">Logs</button>
-                                </div>
-
-                                <div class="expiry_date">
-                                    <div class="form-check form-check-lg form-switch">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="switch-lg">
-                                        <label class="form-check-label" for="switch-lg">
-                                            Stand-downSIA Number : 1087662819100 &nbsp;&nbsp;Expiry: 05 June 2025
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            <div class="tab-content rota-detail_tab-content" id="myTabContent2">
-                                <div class="tab-pane fade show active" id="basic-info2" role="tabpanel"
-                                    aria-labelledby="info-tab2">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="row">
-                                            <div class="col-md-6 col-12">
-                                                <div class="upper-stats-box">
-                                                    <div class="profile-detail">
-                                                        <div class="avater">
-                                                            <img src="https://th.bing.com/th/id/OIP.W6PBNPGnclmjSHcE-VbNRQHaHa?rs=1&pid=ImgDetMain"
-                                                                class="profile-avater">
-                                                        </div>
-                                                        <div class="profile-details">
-                                                            <h6>Edison Viegas</h6>
-                                                            <div class="mb-1">
-                                                                <i class="ti ti-phone"></i>
-                                                                <span>+1 234567890</span>
-                                                            </div>
-                                                            <div>
-                                                                <i class="ti ti-mail"></i>
-                                                                <span>edison@example.com</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="partner-details">
-                                                        <h6>Partner</h6>
-                                                        <span>Supreme Partner...</span>
-                                                    </div>
-                                                </div>
-                                                <div class="bottom-stats-box">
-                                                    <div class="other-detail_boxes">
-                                                        <div class="box">
-                                                            <h6>Site Address</h6>
-                                                            <span>Wembley HA9,UK</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Date</h6>
-                                                            <span>2024-11-10</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Shift Time</h6>
-                                                            <span>06:20 8:30 (hrs:12)</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Customer</h6>
-                                                            <span>Quintain</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Site Name</h6>
-                                                            <span>Wembley Park</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 col-12">
-                                                <div id="map-first"></div>
-                                            </div>
-                                            <div class="col-md-6 col-12">
-
-
-                                                <div id="s-col" class="chart-set"></div>
-
-
-                                            </div>
-                                            <div class="col-md-6 col-12">
-                                                <div id="map-second"></div>
-                                            </div>
-                                            <div class="col-md-6 col-12">
-                                                <div class="book-on_box">
-                                                    <div class="profile-detail">
-                                                        <div class="avater">
-                                                            <img src="https://th.bing.com/th/id/OIP.W6PBNPGnclmjSHcE-VbNRQHaHa?rs=1&pid=ImgDetMain"
-                                                                class="profile-avater">
-                                                        </div>
-                                                        <div class="profile-details">
-                                                            <h6>Book on (App Version 24.10.2.1)</h6>
-                                                            <div class="mb-1">
-                                                                <i class="ti ti-calendar"></i>
-                                                                <span>November 10 2024 , at 06:52</span>
-                                                            </div>
-                                                            <div>
-                                                                <i class="ti ti-map-pin"></i>
-                                                                <span>Wembley Park , London , Wembley HA0 , UK</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="map-image">
-                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
-                                                            alt="">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="book-off_box">
-                                                    <div class="profile-detail">
-                                                        <div class="avater">
-                                                            <img src="https://th.bing.com/th/id/OIP.W6PBNPGnclmjSHcE-VbNRQHaHa?rs=1&pid=ImgDetMain"
-                                                                class="profile-avater">
-                                                        </div>
-                                                        <div class="profile-details">
-                                                            <h6>Book Off </h6>
-                                                            <div class="mb-1">
-                                                                <i class="ti ti-calendar"></i>
-                                                                <span>November 10 2024 , at 06:52</span>
-                                                            </div>
-                                                            <div>
-                                                                <i class="ti ti-map-pin"></i>
-                                                                <span>Wembley Park , London , Wembley HA0 , UK</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div class="map-image">
-                                                        <img src="https://www.ucionica.net/wp-content/uploads/2021/10/kobu-agency-FyvE6XPs5gk-unsplash-scaled.jpg"
-                                                            alt="">
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="address2" role="tabpanel"
-                                    aria-labelledby="address-tab2">
-                                    <div class="images-grid">
-                                        <div class="parent_image-wrapper">
-                                            <div class="image-wrapper">
-                                                <div class="badge">Profile</div>
-                                                <img src="https://th.bing.com/th/id/OIP.q5YMW7MeZkVYotwhAnFYTAAAAA?rs=1&pid=ImgDetMain"
-                                                    alt="Selfie 1" />
-                                            </div>
-                                            <div class=" id_card_wrapper">
-                                                <div class="badge">SIA CARD</div>
-                                                <img src="https://th.bing.com/th/id/OIP.M1CkkE74hioAnV6m5eJNrwHaE7?rs=1&pid=ImgDetMain"
-                                                    alt="SIA Card" />
-                                            </div>
-                                        </div>
-                                        <div class="parent_image-wrapper">
-                                            <div class="image-wrapper">
-                                                <div class="badge">Book On</div>
-                                                <img src="https://th.bing.com/th/id/OIP.Nz-E0d6scG_xdLV4U_0MhgHaLW?rs=1&pid=ImgDetMain"
-                                                    alt="Selfie 2" />
-                                            </div>
-                                            <div class="image-wrapper">
-                                                <div class="badge">Book Off</div>
-                                                <img src="https://th.bing.com/th/id/OIP.Y-VLqHwqQIy2KVTXueJPGQHaHa?w=1200&h=1200&rs=1&pid=ImgDetMain"
-                                                    alt="Selfie 3" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="progress2" role="tabpanel"
-                                    aria-labelledby="progress-tab2">
-                                    <div class="modal-body">Job Progress content goes here.</div>
-                                </div>
-                                <div class="tab-pane fade" id="logs2" role="tabpanel" aria-labelledby="logs-tab2">
-                                    <div class="modal-body">Logs content goes here.</div>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            </div>
-
             <!-- Add Rota -->
 
             <div class="modal fade" id="add_rota">
@@ -1001,29 +798,6 @@
     <!-- Inline Scripts after libraries load -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            // Map Setup
-            const london = [51.5074, -0.1278];
-            const oxford = [51.7520, -1.2577];
-
-            const map1 = L.map('map-first').setView(london, 8);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map1);
-            const route = L.polyline([london, oxford], {
-                color: 'darkblue',
-                weight: 5
-            }).addTo(map1);
-            map1.fitBounds(route.getBounds());
-
-            const map2 = L.map('map-second').setView(london, 12);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                attribution: '&copy; OpenStreetMap contributors'
-            }).addTo(map2);
-
-        })
-    </script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
 
             const colorMap = {
@@ -1108,6 +882,20 @@
                             };
                         },
 
+                        eventClick: function(info) {
+                            console.log('Event clicked:', info.event.extendedProps);
+                            // create a button with data-toggle="ajax-modal" in body and click it
+                            const button = document.createElement('button');
+                            button.setAttribute('data-toggle', 'ajax-modal');
+                            button.setAttribute('data-title', 'Rota Detail');
+                            button.setAttribute('data-size', 'modal-xl');
+                            button.setAttribute('data-width', '80%');
+                            button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
+                            button.style.display = 'none';
+                            document.body.appendChild(button);
+                            button.click();
+                        },
+
                         eventDidMount: function(info) {
                             info.el.style.overflow = 'visible';
                         }
@@ -1144,35 +932,6 @@
 
 
     <script>
-        // Sidebar Menu
-        $('.submenu > a').click(function(e) {
-            e.preventDefault();
-            var $this = $(this);
-            var $submenu = $this.next('ul');
-
-            if (!$this.hasClass('subdrop')) {
-                $('.submenu > a').removeClass('subdrop');
-                $('.submenu ul').slideUp(200);
-                $this.addClass('subdrop');
-                $submenu.slideDown(200);
-            } else {
-                $this.removeClass('subdrop');
-                $submenu.slideUp(200);
-            }
-        });
-
-        var currentPage = window.location.pathname.split("/").pop();
-        $('#sidebar-menu a').each(function() {
-            var linkPage = $(this).attr('href');
-            if (linkPage === currentPage) {
-                $(this).addClass('active');
-                var $submenu = $(this).closest('.submenu');
-                if ($submenu.length) {
-                    $submenu.find('> a').addClass('subdrop');
-                    $submenu.find('ul').slideDown(0).css('display', 'block');
-                }
-            }
-        });
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');

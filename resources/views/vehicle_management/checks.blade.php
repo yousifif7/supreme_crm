@@ -90,7 +90,7 @@
                             <tbody>
                                 @foreach ($checks as $check)
                                     <tr>
-                                        <td><input type="checkbox" class="check-checkbox" value="{{ $check->id }}"></td>
+                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $check->id }}"></td>
                                         <td>{{ $loop->iteration }}</td>
                                         <td>{{ $check->date_completed }}</td>
                                         <td>{{ $check->checked_by }}</td>
@@ -356,27 +356,7 @@
     @endsection
     @section('scripts')
         <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
         <script>
-            // Client search functionality
-            $('.search_box').on('keyup', function() {
-                let searchText = $(this).val().toLowerCase();
-
-                $('.datatable tbody tr').each(function() {
-                    let rowText = $(this).text().toLowerCase();
-                    if (rowText.indexOf(searchText) > -1) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            });
-
-            // Select All toggle
-            $('#selectAll').on('change', function() {
-                $('.check-checkbox').prop('checked', $(this).prop('checked'));
-            });
-
             $(document).ready(function() {
                 // Add Check
                 $('#add_check_form').on('submit', function(e) {
@@ -509,7 +489,7 @@
 
             // Bulk delete button
             $('#bulkDeleteBtn').on('click', function() {
-                const selected = $('.check-checkbox:checked').map(function() {
+                const selected = $('.dT-row-checkbox:checked').map(function() {
                     return this.value;
                 }).get();
 
@@ -532,44 +512,6 @@
                     },
                     error: function() {
                         alert('Something went wrong during bulk delete.');
-                    }
-                });
-            });
-        </script>
-        <script>
-            $(document).ready(function() {
-
-                $('.submenu > a').click(function(e) {
-                    e.preventDefault();
-
-                    var $this = $(this);
-                    var $submenu = $this.next('ul');
-
-                    if (!$this.hasClass('subdrop')) {
-                        $('.submenu > a').removeClass('subdrop');
-                        $('.submenu ul').slideUp(200);
-
-                        $this.addClass('subdrop');
-                        $submenu.slideDown(200);
-                    } else {
-                        $this.removeClass('subdrop');
-                        $submenu.slideUp(200);
-                    }
-                });
-
-
-                var currentPage = window.location.pathname.split("/").pop();
-
-                $('#sidebar-menu a').each(function() {
-                    var linkPage = $(this).attr('href');
-                    if (linkPage === currentPage) {
-                        $(this).addClass('active');
-
-                        var $submenu = $(this).closest('.submenu');
-                        if ($submenu.length) {
-                            $submenu.find('> a').addClass('subdrop');
-                            $submenu.find('ul').slideDown(0).css('display', 'block');
-                        }
                     }
                 });
             });

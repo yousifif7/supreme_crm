@@ -142,209 +142,6 @@
 
             <!-- Calendar View -->
 
-
-            <!-- Modal -->
-            <div class="modal" id="eventModal">
-                <div class="modal-dialog modal-dialog-centered">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4 class="modal-title">Rota Detail</h4>
-                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                                aria-label="Close">
-                                <i class="ti ti-x"></i>
-                            </button>
-
-                        </div>
-                        {{--<form action="#">--}}
-                            <div class="tabs-parent_main">
-                                <div class="tabs-parent nav nav-tabs" role="tablist">
-                                    <button class="nav-link active" id="info-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#basic-info2" type="button" role="tab"
-                                        aria-controls="basic-info2" aria-selected="true">Rota Detail</button>
-                                    <button class="nav-link" id="address-tab2" data-bs-toggle="tab"
-                                        data-bs-target="#address2" type="button" role="tab" aria-controls="address2"
-                                        aria-selected="false">Office Validation</button>
-
-                                    <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2"
-                                        type="button" role="tab" aria-controls="logs2"
-                                        aria-selected="false">Logs</button>
-                                </div>
-
-                                <div class="expiry_date">
-                                    <div class="form-check form-check-lg form-switch">
-                                        <input class="form-check-input" type="checkbox" role="switch" id="switch-lg">
-                                        <label class="form-check-label" for="switch-lg">
-                                            Stand-downSIA Number : <span id="sia_number"></span> &nbsp;&nbsp;Expiry: <span
-                                                id="sia_expiry"></span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
-
-
-                            <div class="tab-content rota-detail_tab-content" id="myTabContent2">
-                                <div class="tab-pane fade show active" id="basic-info2" role="tabpanel"
-                                    aria-labelledby="info-tab2">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="row">
-                                            <div class="col-md-6 col-12">
-                                                <div class="upper-stats-box">
-                                                    <div class="profile-detail">
-                                                        <div class="avater">
-                                                            <img src="" class="profile-avater profile_picture"
-                                                                id="profile_picture">
-                                                        </div>
-
-
-                                                        <div class="profile-details">
-                                                            <h6 id="name"></h6>
-                                                            <div class="mb-1">
-                                                                <i class="ti ti-phone"></i>
-                                                                <span id="phone_number"></span>
-                                                            </div>
-                                                            <div>
-                                                                <i class="ti ti-mail"></i>
-                                                                <span id="email"></span>
-                                                            </div>
-                                                            <button id="assignShiftBtn" type="button"
-                                                                class="btn btn-danger mt-2" style="display: none;">
-                                                                Assign Shift
-                                                            </button>
-
-                                                        </div>
-                                                    </div>
-                                                    <div class="partner-details">
-                                                        <h6>Partner</h6>
-                                                        <span id="subcontractor"></span>
-                                                    </div>
-                                                </div>
-                                                <div class="bottom-stats-box">
-                                                    <div class="other-detail_boxes">
-                                                        <div class="box">
-                                                            <h6>Site Address</h6>
-                                                            <span id="site_address">Wembley HA9,UK</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Date</h6>
-                                                            <span id="date">2024-11-10</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Shift Time</h6>
-                                                            <span id="shift_time">06:20 8:30</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Customer</h6>
-                                                            <spanm id="client_name">Quintain</span>
-                                                        </div>
-                                                        <div class="box">
-                                                            <h6>Site Name</h6>
-                                                            <span id="site_name">Wembley Park</span>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6 col-12">
-                                                <div id="map-first"></div>
-                                            </div>
-                                            <div class="col-md-6 col-12">
-                                                <div class="book-on_box">
-                                                    <div class="profile-detail">
-                                                        <div class="avater">
-                                                            <img src="" class="profile-avater profile_picture">
-                                                        </div>
-                                                        <div class="profile-details">
-                                                            <h6>Book on</h6>
-                                                            <div class="mb-1">
-                                                                <i class="ti ti-calendar"></i>
-                                                                <span id="book_on">November 10 2024 , at 06:52</span>
-                                                            </div>
-                                                            <div>
-                                                                <i class="ti ti-map-pin"></i>
-                                                                <span id="site_address1">Wembley Park , London , Wembley
-                                                                    HA0 , UK</span>
-                                                            </div>
-                                                        </div>
-
-                                                    </div>
-                                                    <form id="bookonForm" action="{{ route('shift.bookon.store') }}">
-                                                        @csrf
-                                                        <input type="hidden" id="book_on_id" name="book_on_id" value="">
-                                                        <input type="time" id="absentee_start_time" name="absentee_start_time" value="{{ date('h:i') }}" class="form-control mb-2">
-                                                        <button type="submit" class="btn btn-primary">set book on time</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="book-off_box">
-                                                    <div class="profile-detail">
-                                                        <div class="avater">
-                                                            <img src="" class="profile-avater profile_picture">
-                                                        </div>
-                                                        <div class="profile-details">
-                                                            <h6>Book Off </h6>
-                                                            <div class="mb-1">
-                                                                <i class="ti ti-calendar"></i>
-                                                                <span id="book_off"> November 10 2024 , at 06:52</span>
-                                                            </div>
-                                                            <div>
-                                                                <i class="ti ti-map-pin"></i>
-                                                                <span id="site_address2">Wembley Park , London , Wembley
-                                                                    HA0 , UK</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <form id="bookoffForm" action="{{ route('shift.bookoff.store') }}">
-                                                        @csrf
-                                                        <input type="hidden" id="book_off_id" name="book_off_id" value="">
-                                                        <input type="time" id="absentee_end_time" name="absentee_end_time" value="{{ date('h:i') }}" class="form-control mb-2">
-                                                        <button type="submit" class="btn btn-primary">set book off time</button>
-                                                    </form>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="address2" role="tabpanel"
-                                    aria-labelledby="address-tab2">
-                                    <div class="images-grid">
-                                        <div class="parent_image-wrapper">
-                                            <div class="image-wrapper">
-                                                <div class="badge">Profile</div>
-                                                <img src="" class="profile_picture" alt="Selfie 1" />
-                                            </div>
-                                            <div class=" id_card_wrapper">
-                                                <div class="badge">SIA CARD</div>
-                                                <img src="https://th.bing.com/th/id/OIP.M1CkkE74hioAnV6m5eJNrwHaE7?rs=1&pid=ImgDetMain"
-                                                    alt="SIA Card" />
-                                            </div>
-                                        </div>
-                                        <div class="parent_image-wrapper">
-                                            <div class="image-wrapper">
-                                                <div class="badge">Book On</div>
-                                                <img src="https://th.bing.com/th/id/OIP.Nz-E0d6scG_xdLV4U_0MhgHaLW?rs=1&pid=ImgDetMain"
-                                                    alt="Selfie 2" />
-                                            </div>
-                                            <div class="image-wrapper">
-                                                <div class="badge">Book Off</div>
-                                                <img src="https://th.bing.com/th/id/OIP.Y-VLqHwqQIy2KVTXueJPGQHaHa?w=1200&h=1200&rs=1&pid=ImgDetMain"
-                                                    alt="Selfie 3" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="progress2" role="tabpanel"
-                                    aria-labelledby="progress-tab2">
-                                    <div class="modal-body">Job Progress content goes here.</div>
-                                </div>
-                                <div class="tab-pane fade" id="logs2" role="tabpanel" aria-labelledby="logs-tab2">
-                                    <div class="modal-body">Logs content goes here.</div>
-                                </div>
-                            </div>
-                        {{--</form>--}}
-                    </div>
-                </div>
-            </div>
-
             <!-- Add Rota -->
 
             <div class="modal fade" id="add_rota">
@@ -1105,35 +902,6 @@
             });
         });
     </script>
-    <!-- Inline Scripts after libraries load -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            // Map Setup
-            const london = [51.5074, -0.1278];
-            const oxford = [51.7520, -1.2577];
-
-            const mapDiv = document.getElementById('map-first');
-            if (mapDiv) {
-                const map1 = L.map('map-first').setView(london, 8);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map1);
-                const route = L.polyline([london, oxford], {
-                    color: 'darkblue',
-                    weight: 5
-                }).addTo(map1);
-                map1.fitBounds(route.getBounds());
-            }
-
-            const map1Div = document.getElementById('map-second');
-            if (map1Div) {
-                const map2 = L.map('map-second').setView(london, 12);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map2);
-            }
-        })
-    </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
@@ -1211,59 +979,16 @@
                 },
 
                 eventClick: function(info) {
-                    const event = info.event;
-                    const props = event.extendedProps;
-
-                    $('#name').text(props.name || 'N/A');
-                    $('#site_name').text(props.site_name || 'N/A');
-                    $('#site_address').text(props.site_address || 'N/A');
-                    $('#site_address1').text(props.site_address || 'N/A');
-                    $('#site_address2').text(props.site_address || 'N/A');
-                    $('#shift_time').text(props.shift_time || 'N/A');
-                    $('#book_on').text(props.book_on || 'N/A');
-                    $('#book_off').text(props.book_off || 'N/A');
-                    $('#phone_number').text(props.phone_number || 'N/A');
-                    $('#email').text(props.email || 'N/A');
-                    $('#sia_number').text(props.sia_number || 'N/A');
-                    $('#sia_expiry').text(props.sia_expiry || 'N/A');
-                    $('#date').text(event.start.toLocaleDateString());
-                    $('#book_on_id').val(props.sd_id);
-                    $('#book_off_id').val(props.sd_id);
-
-                    if(props.absentee_start_time)
-                    {
-                        $('#absentee_start_time').val(props.absentee_start_time);
-                    }
-
-                    if(props.absentee_end_time)
-                    {
-                        $('#absentee_end_time').val(props.absentee_end_time);
-                    }
-                    $('.profile_picture').attr('src', props.profile_picture ?
-                        '/uploads/profile_pics/' + props.profile_picture :
-                        'uploads/no.png'
-                    );
-
-                    $('#subcontractor').text(props.subcontractor || 'Supreme Partner...');
-                    $('#client_name').text(props.client_name || 'N/A');
-
-                    // ✅ Show or hide the "Assign Shift" button based on assignment
-                    if (!props.is_assigned) {
-                        $('#assignShiftBtn')
-                            .show()
-                            .off('click') // prevent multiple bindings
-                            .on('click', function() {
-                                $('#shift_id').val(props
-                                    .sd_id);
-                                $('#assignShiftModal').modal('show');
-                            });
-                    } else {
-                        $('#assignShiftBtn').hide();
-                    }
-
-
-                    const modal = new bootstrap.Modal(document.getElementById('eventModal'));
-                    modal.show();
+                    // create a button with data-toggle="ajax-modal" in body and click it
+                    const button = document.createElement('button');
+                    button.setAttribute('data-toggle', 'ajax-modal');
+                    button.setAttribute('data-title', 'Rota Detail');
+                    button.setAttribute('data-size', 'modal-xl');
+                    button.setAttribute('data-width', '80%');
+                    button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
+                    button.style.display = 'none';
+                    document.body.appendChild(button);
+                    button.click();
                 }
 
             });
@@ -1303,38 +1028,7 @@
             }
         });
     </script>
-
-
     <script>
-        // Sidebar Menu
-        // $('.submenu > a').click(function(e) {
-        //     e.preventDefault();
-        //     var $this = $(this);
-        //     var $submenu = $this.next('ul');
-
-        //     if (!$this.hasClass('subdrop')) {
-        //         $('.submenu > a').removeClass('subdrop');
-        //         $('.submenu ul').slideUp(200);
-        //         $this.addClass('subdrop');
-        //         $submenu.slideDown(200);
-        //     } else {
-        //         $this.removeClass('subdrop');
-        //         $submenu.slideUp(200);
-        //     }
-        // });
-
-        // var currentPage = window.location.pathname.split("/").pop();
-        // $('#sidebar-menu a').each(function() {
-        //     var linkPage = $(this).attr('href');
-        //     if (linkPage === currentPage) {
-        //         $(this).addClass('active');
-        //         var $submenu = $(this).closest('.submenu');
-        //         if ($submenu.length) {
-        //             $submenu.find('> a').addClass('subdrop');
-        //             $submenu.find('ul').slideDown(0).css('display', 'block');
-        //         }
-        //     }
-        // });
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');
@@ -1356,64 +1050,6 @@
                 success: function(response) {
                     $('#success_message').html('Shift assigned successfully!');
                     $('#assignShiftModal').modal('hide');
-                    $('#success_modal').modal('show');
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON) {
-                        // Show specific validation error
-                        if (xhr.responseJSON.error) {
-                            alert(xhr.responseJSON.error);
-                        } else if (xhr.responseJSON.errors) {
-                            // Multiple field errors
-                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            alert(messages);
-                        }
-                    } else {
-                        alert('An unexpected error occurred while assigning the shift.');
-                    }
-                }
-            });
-        });
-
-        $('#bookonForm').on('submit', function(e) {
-            e.preventDefault();
-            var actionUrl = $(this).attr('action');
-            $.ajax({
-                url: `${actionUrl}`,
-                type: 'POST',
-                data: $(this).serialize(),
-                success: function(response) {
-                    $('#success_message').html('Shift bookon updated successfully!');
-                    $('#eventModal').modal('hide');
-                    $('#success_modal').modal('show');
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON) {
-                        // Show specific validation error
-                        if (xhr.responseJSON.error) {
-                            alert(xhr.responseJSON.error);
-                        } else if (xhr.responseJSON.errors) {
-                            // Multiple field errors
-                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            alert(messages);
-                        }
-                    } else {
-                        alert('An unexpected error occurred while assigning the shift.');
-                    }
-                }
-            });
-        });
-
-        $('#bookoffForm').on('submit', function(e) {
-            e.preventDefault();
-            var actionUrl = $(this).attr('action');
-            $.ajax({
-                url: `${actionUrl}`,
-                type: 'POST',
-                data: $(this).serialize(),
-                success: function(response) {
-                    $('#success_message').html('Shift bookoff updated successfully!');
-                    $('#eventModal').modal('hide');
                     $('#success_modal').modal('show');
                 },
                 error: function(xhr) {

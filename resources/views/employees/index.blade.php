@@ -53,32 +53,16 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
-
-
                         <!-- /Search -->
-
-
                     </div>
-                    <div class="sort-box">
-                        <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort Staff</option>
-                            <option value="">All</option>
-                            <option value="">Coordinators</option>
-                            <option value="">Archieved</option>
-                        </select>
-                        <i class="ti ti-chevron-down"></i>
-                    </div>
-
                 </div>
-
-
             </div>
             <!-- /Breadcrumb -->
 
             <div class="card">
 
                 <div class="card-body p-0">
-                    <div class="custom-datatable-filter table-responsive">
+                    <div class="custom-datatable-filter table-responsive datatable">
                         <table class="table table-striped table-hover">
                             <thead class="thead-light">
                                 <tr>
@@ -97,7 +81,7 @@
                             <tbody>
                                 @forelse ($employees as $employee)
                                     <tr id="employee_row_{{ $employee->id }}">
-                                        <td><input type="checkbox" class="employee-checkbox" value="{{ $employee->id }}">
+                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $employee->id }}">
                                         <td>{{ $loop->iteration }}</td>
                                         <td>
                                             <div class="d-flex align-items-center file-name-icon">
@@ -164,7 +148,7 @@
         <!-- /Page Wrapper -->
         <!-- Add Employee -->
         <div class="modal fade" id="add_employee">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-scrollable modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title">Add New Security Staff</h4>
@@ -173,12 +157,9 @@
                             <i class="ti ti-x"></i>
                         </button>
                     </div>
-                    <form method="POST" id="add_worker-form1">
-                        @csrf
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                aria-labelledby="info-tab" tabindex="0">
-                                <div class="modal-body pb-0 ">
+                    <div class="modal-body pb-0 ">
+                        <form method="POST" id="add_worker-form1">
+                            @csrf
                                     <div class="row part-1">
                                         <div class="col-md-6">
                                             <div class="mb-3">
@@ -636,38 +617,38 @@
                                         <h3 class="mt-2 mb-4">Documents</h3>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="sia_licence">SIA Licence</label>
-                                            <input type="file" name="sia_licence" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="sia_licence_file">SIA Licence</label>
+                                            <input type="file" name="sia_licence_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="passport">Passport</label>
-                                            <input type="file" name="passport" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="passport_file">Passport</label>
+                                            <input type="file" name="passport_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="proof_of_address">Proof of address</label>
-                                            <input type="file" name="proof_of_address" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="proof_of_address_file">Proof of address</label>
+                                            <input type="file" name="proof_of_address_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="ni_letter">Ni letter</label>
-                                            <input type="file" name="ni_letter" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="ni_letter_file">Ni letter</label>
+                                            <input type="file" name="ni_letter_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="first_aid_certificate">First AID certificate</label>
-                                            <input type="file" name="first_aid_certificate" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="first_aid_certificate_file">First AID certificate</label>
+                                            <input type="file" name="first_aid_certificate_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="act_certificate">ACT certificate, Blue and Orange</label>
-                                            <input type="file" name="act_certificate" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="act_certificate_file">ACT certificate, Blue and Orange</label>
+                                            <input type="file" name="act_certificate_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
@@ -752,17 +733,14 @@
                                         </div>
 
                                     </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-light border me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" form="add_worker-form1" id="saveemployee"
-                                        class="btn btn-primary">Save </button>
-                                </div>
-                            </div>
-
-                        </div>
-                    </form>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-light border me-2"
+                            data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" form="add_worker-form1" id="saveemployee"
+                            class="btn btn-primary">Save </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -793,7 +771,7 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Employee Name <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="text" name="employee_name" id="payroll_employee_name" readonly style="background: #eee;" 
+                                                        <input type="text" name="employee_name" id="payroll_employee_name" readonly style="background: #eee;"
                                                             class="form-control" placeholder="Enter Employee Name">
                                                         <span class="text-danger form-error"
                                                             id="payrollerror_employee_name"></span>
@@ -865,7 +843,7 @@
 
         <!-- Edit Employee -->
         <div class="modal fade" id="edit_employee">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-scrollable modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title">Edit Employee</h4>
@@ -874,12 +852,9 @@
                             <i class="ti ti-x"></i>
                         </button>
                     </div>
-                    <form method="POST" id="edit_employee_form">
-                        @csrf
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                aria-labelledby="info-tab" tabindex="0">
-                                <div class="modal-body pb-0 ">
+                    <div class="modal-body pb-0 ">
+                            <form method="POST" id="edit_employee_form">
+                                    @csrf
                                     <div class="row part-1">
                                         <div class="col-md-6">
                                             <div class="mb-3">
@@ -1305,43 +1280,43 @@
                                         <h3 class="mt-2 mb-4">Documents</h3>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="sia_licence">SIA Licence</label>
-                                            <input type="file" name="sia_licence" accept=".jpg,.jpeg,.png,.pdf" id="sia_licence"
+                                            <label class="form-label" for="sia_licence_file">SIA Licence</label>
+                                            <input type="file" name="sia_licence_file" accept=".jpg,.jpeg,.png,.pdf" id="sia_licence_file"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="passport">Passport</label>
-                                            <input type="file" name="passport" accept=".jpg,.jpeg,.png,.pdf" id="passport"
+                                            <label class="form-label" for="passport_file">Passport_file</label>
+                                            <input type="file" name="passport_file" accept=".jpg,.jpeg,.png,.pdf" id="passport_file"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="proof_of_address">Proof of address</label>
-                                            <input type="file" name="proof_of_address" accept=".jpg,.jpeg,.png,.pdf" id="proof_of_address"
+                                            <label class="form-label" for="proof_of_address_file">Proof of address</label>
+                                            <input type="file" name="proof_of_address_file" accept=".jpg,.jpeg,.png,.pdf" id="proof_of_address_file"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="ni_letter">Ni letter</label>
-                                            <input type="file" name="ni_letter" accept=".jpg,.jpeg,.png,.pdf" id="ni_letter"
+                                            <label class="form-label" for="ni_letter_file">Ni letter</label>
+                                            <input type="file" name="ni_letter_file" accept=".jpg,.jpeg,.png,.pdf" id="ni_letter_file"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="first_aid_certificate">First AID certificate</label>
-                                            <input type="file" name="first_aid_certificate" accept=".jpg,.jpeg,.png,.pdf" id="first_aid_certificate"
+                                            <label class="form-label" for="first_aid_certificate_file">First AID certificate</label>
+                                            <input type="file" name="first_aid_certificate_file" accept=".jpg,.jpeg,.png,.pdf" id="first_aid_certificate_file"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="act_certificate">ACT certificate, Blue and Orange</label>
-                                            <input type="file" name="act_certificate" accept=".jpg,.jpeg,.png,.pdf" id="act_certificate"
+                                            <label class="form-label" for="act_certificate_file">ACT certificate, Blue and Orange</label>
+                                            <input type="file" name="act_certificate_file" accept=".jpg,.jpeg,.png,.pdf" id="act_certificate_file"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
@@ -1448,17 +1423,14 @@
                                         </div>
 
                                     </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-light border me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" form="edit_employee_form" id="editemployee"
-                                        class="btn btn-primary">Update </button>
-                                </div>
-                            </div>
-
-                        </div>
-                    </form>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-light border me-2"
+                            data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" id="editEmployeeBtn" class="btn btn-primary" form="edit_employee_form">Update
+                            Employee</button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1705,19 +1677,6 @@
         });
     </script>
     <script>
-        // Client search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
-
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
 
         $('.visa_type').on('change', function () {
             const form = $(this).closest('form');
@@ -1731,15 +1690,11 @@
                 $(this).empty();
             });
         });
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.employee-checkbox').prop('checked', $(this).prop('checked'));
-        });
         $(document).ready(function() {
             $('#add_worker-form1').on('submit', function(e) {
                 e.preventDefault();
 
-                $("[id^='error_']").text('');
+                $("[id^='error_']").addClass('d-none').text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#saveemployee'); // Add an ID to your submit button
@@ -1766,8 +1721,13 @@
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                                $('#error_' + key).text(value[0]).removeClass('d-none');
                             });
+
+                            // scroll to the first error visible
+                            $('#add_employee .modal-body').scrollTop(
+                                $('#add_employee .form-error:visible').first().siblings('label').offset().top - $('#add_employee .modal-body').offset().top + $('#add_employee .modal-body').scrollTop()
+                            );
                         } else {
                             alert('An error occurred. Please try again.');
                         }
@@ -1781,7 +1741,7 @@
             $('#edit_employee_form').on('submit', function(e) {
                 e.preventDefault();
 
-                $("[id^='editerror_']").text('');
+                $("[id^='editerror_']").text('').addClass('d-none');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#editemployee'); // Your submit button should have this ID
@@ -1812,8 +1772,13 @@
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#editerror_' + key).text(value[0]);
+                                $('#editerror_' + key).text(value[0]).removeClass('d-none');
                             });
+
+                            // scroll to the first error visible
+                            $('#edit_employee .modal-body').scrollTop(
+                                $('#edit_employee .form-error:visible').first().siblings('label').offset().top - $('#edit_employee .modal-body').offset().top + $('#edit_employee .modal-body').scrollTop()
+                            );
                         } else {
                             alert('An error occurred. Please try again.');
                         }
@@ -2063,7 +2028,7 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.employee-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 

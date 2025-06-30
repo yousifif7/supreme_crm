@@ -92,7 +92,7 @@
                                 @foreach ($clients as $client)
                                     <tr>
 
-                                        <td><input type="checkbox" class="client-checkbox" value="{{ $client->id }}">
+                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $client->id }}">
                                         </td>
                                         <td>{{ $i++ }}</td>
                                         <td>
@@ -436,7 +436,7 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Client Name <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="text" name="client_name" id="invoice_client_name" readonly style="background: #eee;" 
+                                                        <input type="text" name="client_name" id="invoice_client_name" readonly style="background: #eee;"
                                                             class="form-control" placeholder="Enter Client Name">
                                                         <span class="text-danger form-error"
                                                             id="invoiceerror_client_name"></span>
@@ -455,7 +455,7 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Due Date <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="date" name="due_date" id="invoice_due_date"  
+                                                        <input type="date" name="due_date" id="invoice_due_date"
                                                             class="form-control" placeholder="">
                                                         <span class="text-danger form-error"
                                                             id="invoiceerror_due_date"></span>
@@ -969,24 +969,7 @@
                 dropdownParent: $('#assignManagerModal')
             });
         });
-        // Client search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
 
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.client-checkbox').prop('checked', $(this).prop('checked'));
-        });
         document.getElementById('vatCheck').addEventListener('change', function() {
             const vatInput = document.getElementById('vatInput');
             vatInput.style.display = this.checked ? 'block' : 'none';
@@ -1213,7 +1196,7 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.client-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
@@ -1311,43 +1294,6 @@
         $('#client_filter').val({{ $filter }});
     </script>
     <script>
-        $(document).ready(function() {
-
-            $('.submenu > a').click(function(e) {
-                e.preventDefault();
-
-                var $this = $(this);
-                var $submenu = $this.next('ul');
-
-                if (!$this.hasClass('subdrop')) {
-                    $('.submenu > a').removeClass('subdrop');
-                    $('.submenu ul').slideUp(200);
-
-                    $this.addClass('subdrop');
-                    $submenu.slideDown(200);
-                } else {
-                    $this.removeClass('subdrop');
-                    $submenu.slideUp(200);
-                }
-            });
-
-
-            var currentPage = window.location.pathname.split("/").pop();
-
-            $('#sidebar-menu a').each(function() {
-                var linkPage = $(this).attr('href');
-                if (linkPage === currentPage) {
-                    $(this).addClass('active');
-
-                    var $submenu = $(this).closest('.submenu');
-                    if ($submenu.length) {
-                        $submenu.find('> a').addClass('subdrop');
-                        $submenu.find('ul').slideDown(0).css('display', 'block');
-                    }
-                }
-            });
-        });
-
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');

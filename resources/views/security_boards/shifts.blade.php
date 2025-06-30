@@ -47,25 +47,9 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
-
-
                         <!-- /Search -->
-
-
                     </div>
-                    <div class="sort-box">
-                        <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort Shift</option>
-                            <option value="">All</option>
-                            <option value="">Coordinators</option>
-                            <option value="">Archieved</option>
-                        </select>
-                        <i class="ti ti-chevron-down"></i>
-                    </div>
-
                 </div>
-
-
             </div>
             <!-- /Breadcrumb -->
 
@@ -1248,35 +1232,6 @@
     </script>
 
     <script>
-        // Sidebar Menu
-        $('.submenu > a').click(function(e) {
-            e.preventDefault();
-            var $this = $(this);
-            var $submenu = $this.next('ul');
-
-            if (!$this.hasClass('subdrop')) {
-                $('.submenu > a').removeClass('subdrop');
-                $('.submenu ul').slideUp(200);
-                $this.addClass('subdrop');
-                $submenu.slideDown(200);
-            } else {
-                $this.removeClass('subdrop');
-                $submenu.slideUp(200);
-            }
-        });
-
-        var currentPage = window.location.pathname.split("/").pop();
-        $('#sidebar-menu a').each(function() {
-            var linkPage = $(this).attr('href');
-            if (linkPage === currentPage) {
-                $(this).addClass('active');
-                var $submenu = $(this).closest('.submenu');
-                if ($submenu.length) {
-                    $submenu.find('> a').addClass('subdrop');
-                    $submenu.find('ul').slideDown(0).css('display', 'block');
-                }
-            }
-        });
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');
