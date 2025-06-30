@@ -44,9 +44,15 @@ use Spatie\Permission\Models\Role;
 
 class ExportController extends Controller
 {
-    public function exportClientExcel()
+    public function exportClientExcel(Request $request)
     {
-        return Excel::download(new ClientsExport, 'clients.xlsx');
+        $isTemplate = $request->has('template') && $request->get('template') == 1;
+
+        if ($isTemplate) {
+            return Excel::download(new ClientsExport(true), 'clients_template.xlsx');
+        }
+
+        return Excel::download(new ClientsExport(false), 'clients.xlsx');
     }
     public function importClientExcel(Request $request)
     {

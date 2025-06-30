@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Log;
+use App\Models\User;
 
 use App\Traits\LogsChanges;
 
@@ -22,6 +23,10 @@ class Client extends Model
     public function company()
     {
         return $this->belongsTo(Company::class);
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
     public function manager()
     {

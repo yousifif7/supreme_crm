@@ -83,6 +83,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/clients/{id}/logs/ajax', [ClientController::class, 'getLogs'])->name('clients.logs.ajax');
     Route::get('/clients/{id}/view', [ClientController::class, 'view'])->name('clients.view');
     Route::post('/clients/{id}/assign-manager', [ClientController::class, 'assignManager'])->name('clients.assignManager');
+
+    Route::get('/clients/export/excel', [ExportController::class, 'exportClientExcel'])->name('clients.export.excel');
+    Route::get('/clients/export/pdf', [ExportController::class, 'exportClientPdf'])->name('clients.export.pdf');
+    Route::post('/clients/import', [ExportController::class, 'importClientExcel'])->name('clients.import');
     /**  End: Client Controller */
 
     /** Begin: Invoice Controller  */
@@ -220,9 +224,6 @@ Route::middleware('auth')->group(function () {
     Route::post('/reminders/bulk-delete', [AlertReminderController::class, 'bulkDelete'])->name('reminders.bulkDelete');
     //** End: alert and remainder controller */
 });
-Route::get('/clients/export/excel', [ExportController::class, 'exportClientExcel'])->name('clients.export.excel');
-Route::get('/clients/export/pdf', [ExportController::class, 'exportClientPdf'])->name('clients.export.pdf');
-Route::post('/clients/import', [ExportController::class, 'importClientExcel'])->name('clients.import');
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');

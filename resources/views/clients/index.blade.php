@@ -15,6 +15,17 @@
                         </div>
                     @endif
 
+                    {{-- show validation errors --}}
+                    @if ($errors->any())
+                        <div class="alert alert-danger mt-3">
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                 </div>
 
             </div>
@@ -867,43 +878,7 @@
             </div>
         </div>
         <!-- /Delete Modal -->
-        <!-- Import modal -->
-        <div class="modal fade" id="import_modal">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">Import Excel</h4>
-                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                            aria-label="Close">
-                            <i class="ti ti-x"></i>
-                        </button>
-                    </div>
-                    <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                aria-labelledby="info-tab" tabindex="0">
-                                <div class="modal-body pb-0 ">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="d-flex gap-2">
-                                                <input type="file" name="import_file" class="form-control" required>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-light border me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-
-                                    <button class="btn btn-primary" type="submit">Import</button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+        @include('clients.import_modal')
     </div>
     <!-- Logs Modal -->
     <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
