@@ -96,6 +96,20 @@ class Employee extends Model
         'act_certificate_file'
     ];
 
+    protected $casts = [
+        'entry_date' => 'date',
+        'sia_expiry' => 'date',
+        'dob' => 'date',
+        'visa_expiry' => 'date',
+        'passport_expiry' => 'date',
+        'biometric_residence_permit_expiry' => 'date',
+        'license_expiry' => 'date',
+        'holiday_from' => 'date',
+        'holiday_to' => 'date',
+        'holiday_from_additional' => 'date',
+        'holiday_to_additional' => 'date',
+    ];
+
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

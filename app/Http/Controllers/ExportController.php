@@ -142,9 +142,15 @@ class ExportController extends Controller
 
         return back()->with('success', 'Sites imported successfully!');
     }
-    public function exportEmployeeExcel()
+    public function exportEmployeeExcel(Request $request)
     {
-        return Excel::download(new EmployeesExport, 'employees.xlsx');
+        $isTemplate = $request->has('template') && $request->get('template') == 1;
+
+        if ($isTemplate) {
+            return Excel::download(new EmployeesExport(true), 'employees_template.xlsx');
+        }
+
+        return Excel::download(new EmployeesExport(false), 'employees.xlsx');
     }
 
     public function exportEmployeePdf()

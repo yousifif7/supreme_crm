@@ -17,6 +17,17 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
+
+            {{-- show validation errors --}}
+            @if ($errors->any())
+                <div class="alert alert-danger mt-3">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
@@ -1484,10 +1495,10 @@
         <!-- /Delete Modal -->
         <!-- Import modal -->
         <div class="modal fade" id="import_modal">
-            <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Import Excel</h4>
+                        <h4 class="modal-title">Import Employees</h4>
                         <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
                             aria-label="Close">
                             <i class="ti ti-x"></i>
@@ -1500,11 +1511,31 @@
                                 aria-labelledby="info-tab" tabindex="0">
                                 <div class="modal-body pb-0 ">
                                     <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="d-flex gap-2">
-                                                <input type="file" name="import_file" class="form-control"
-                                                    required>
+                                        <div class="col-md-12 mb-3">
+                                            <div class="alert alert-info">
+                                                <h6 class="mb-2"><i class="ti ti-info-circle"></i> Import Guidelines:</h6>
+                                                <ul class="mb-0 small">
+                                                    <li>Headers should be in Row 1 starting from Column A</li>
+                                                    <li>Data should start from Row 2, Column A onwards</li>
+                                                    <li><strong>Required:</strong> Full Name</li>
+                                                    <li><strong>Optional:</strong> Date of Registration, Subcontractor, Pay Rate, Contact, SIA Number, Service Type, SIA Expiry, DOB, Email, Username, Address with Post Code, Address Group, Account Name, Sort Code, Account Number, NI Number, Visa Status, Visa Expiry Date</li>
+                                                    <li>Full Name will be split into First and Last name automatically</li>
+                                                    <li>If Subcontractor name is provided but doesn't exist, a new subcontractor will be created</li>
+                                                    <li><strong>User Account Creation:</strong> If Username is provided, a user account will be created with default password "password123". Username must be a valid email address.</li>
+                                                    <li>Date formats supported: "02-Aug-24", "02-Aug-2024", standard date formats</li>
+                                                    <li>Remaining SIA/VISA days are calculated automatically if expiry dates are provided</li>
+                                                </ul>
                                             </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="d-flex gap-2">
+                                                <input type="file" name="import_file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <a href="{{ route('employees.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
+                                                <i class="ti ti-download"></i> Download Template
+                                            </a>
                                         </div>
                                     </div>
                                 </div>

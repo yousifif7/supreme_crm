@@ -1,6 +1,5 @@
 <?php
 
-use App\Exports\ClientsExport;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\DocumentationUploadController;
@@ -19,12 +18,8 @@ use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PayrollController;
-use App\Imports\ClientsImport;
-use App\Imports\SitesImport;
-use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
-use Maatwebsite\Excel\Facades\Excel;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -56,6 +51,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/employees/{id}/logs/ajax', [EmployeeController::class, 'getLogs'])->name('employees.logs.ajax');
     Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
     Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
+
+    Route::get('/employees/export/excel', [ExportController::class, 'exportEmployeeExcel'])->name('employees.export.excel');
+    Route::get('/employees/export/pdf', [ExportController::class, 'exportEmployeePdf'])->name('employees.export.pdf');
+    Route::post('/employees/import', [ExportController::class, 'importEmployeeExcel'])->name('employees.import');
     /** End Employee Controller */
 
     /** Begin: Subcontractor Controller */
@@ -230,10 +229,6 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
-
-Route::get('/employees/export/excel', [ExportController::class, 'exportEmployeeExcel'])->name('employees.export.excel');
-Route::get('/employees/export/pdf', [ExportController::class, 'exportEmployeePdf'])->name('employees.export.pdf');
-Route::post('/employees/import', [ExportController::class, 'importEmployeeExcel'])->name('employees.import');
 
 Route::get('/users/export/excel', [ExportController::class, 'exportUserExcel'])->name('users.export.excel');
 Route::get('/users/export/pdf', [ExportController::class, 'exportUserPdf'])->name('users.export.pdf');
