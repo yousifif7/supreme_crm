@@ -67,6 +67,10 @@ Route::middleware('auth')->group(function () {
     Route::post('/subcontractors/bulk-delete', [SubContractorController::class, 'bulkDelete'])->name('subcontractors.bulkDelete');
     Route::get('/subcontractors/{id}/logs/ajax', [SubContractorController::class, 'getLogs'])->name('subcontractors.logs.ajax');
     Route::get('/subcontractors/{id}/view', [SubContractorController::class, 'view'])->name('subcontractors.view');
+
+    Route::get('/subcontractors/export/excel', [ExportController::class, 'exportSubcontractorExcel'])->name('subcontractors.export.excel');
+    Route::get('/subcontractors/export/pdf', [ExportController::class, 'exportSubcontractorPdf'])->name('subcontractors.export.pdf');
+    Route::post('/subcontractors/import', [ExportController::class, 'importSubcontractorExcel'])->name('subcontractors.import');
     /** End: Subcontractor COntroller */
 
     /** Begin: Client Controller */

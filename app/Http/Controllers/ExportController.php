@@ -9,6 +9,7 @@ use App\Exports\RolesExport;
 use App\Exports\ShiftDateExport;
 use App\Exports\InvoiceExport;
 use App\Exports\SitesExport;
+use App\Exports\SubcontractorsExport;
 use App\Exports\UsersExport;
 use App\Exports\VehicleComplianceExport;
 use App\Exports\VehicleMaintenanceExport;
@@ -19,6 +20,7 @@ use App\Imports\EmployeesImport;
 use App\Imports\RolesImport;
 use App\Imports\ShiftDateImport;
 use App\Imports\SitesImport;
+use App\Imports\SubcontractorsImport;
 use App\Imports\UsersImport;
 use App\Imports\VehicleComplianceImport;
 use App\Imports\VehicleMaintenanceImport;
@@ -30,6 +32,7 @@ use App\Models\RoadworthinessCheck;
 use App\Models\ShiftDate;
 use App\Models\Invoice;
 use App\Models\Site;
+use App\Models\Subcontractor;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleCompliance;
@@ -55,6 +58,42 @@ class ExportController extends Controller
 
         return back()->with('success', 'Clients imported successfully!');
     }
+
+    /**
+     * Start Subcontractor Export/Import
+     */
+    public function exportSubcontractorExcel(Request $request)
+    {
+        $isTemplate = $request->has('template') && $request->get('template') == 1;
+
+        if ($isTemplate) {
+            return Excel::download(new SubcontractorsExport(true), 'subcontractors_template.xlsx');
+        }
+
+        return Excel::download(new SubcontractorsExport(false), 'subcontractors.xlsx');
+    }
+
+    public function exportSubcontractorPdf()
+    {
+        $subcontractors = Subcontractor::all();
+        $pdf = Pdf::loadView('exports.subcontractors_pdf', compact('subcontractors'));
+        return $pdf->download('subcontractors.pdf');
+    }
+
+    public function importSubcontractorExcel(Request $request)
+    {
+        $request->validate([
+            'import_file' => 'required|mimes:xlsx,xls' // further validations are handled in the import class
+        ]);
+
+        Excel::import(new SubcontractorsImport(), $request->file('import_file'));
+
+        return back()->with('success', 'Subcontractors imported successfully!');
+    }
+    /**
+     * End Subcontractor Export/Import
+     */
+
     public function exportSiteExcel()
     {
         return Excel::download(new SitesExport, 'sites.xlsx');
