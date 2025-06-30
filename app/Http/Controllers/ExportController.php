@@ -100,9 +100,15 @@ class ExportController extends Controller
      * End Subcontractor Export/Import
      */
 
-    public function exportSiteExcel()
+    public function exportSiteExcel(Request $request)
     {
-        return Excel::download(new SitesExport, 'sites.xlsx');
+        $isTemplate = $request->has('template') && $request->get('template') == 1;
+
+        if ($isTemplate) {
+            return Excel::download(new SitesExport(true), 'sites_template.xlsx');
+        }
+
+        return Excel::download(new SitesExport(false), 'sites.xlsx');
     }
     public function exportClientPdf()
     {

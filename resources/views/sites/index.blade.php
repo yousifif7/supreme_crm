@@ -23,6 +23,23 @@
                 <div class="my-auto mb-2">
                     <h2 class="mb-1">Sites</h2>
 
+                    @if (session('success'))
+                        <div class="alert alert-success mt-3">
+                            {{ session('success') }}
+                        </div>
+                    @endif
+
+                    {{-- show validation errors --}}
+                    @if ($errors->any())
+                        <div class="alert alert-danger mt-3">
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                 </div>
 
             </div>
@@ -96,7 +113,7 @@
                                             <div class="d-flex align-items-center file-name-icon">
                                                 <div class="ms-2">
                                                     <h6 class="fw-medium"><a
-                                                            onclick="viewSiteDetail({{ $site->id }})">{{ $site->client->client_name }}</a>
+                                                            onclick="viewSiteDetail({{ $site->id }})">{{ $site->client?->client_name }}</a>
                                                     </h6>
                                                 </div>
                                             </div>
@@ -663,26 +680,47 @@
 
     <!-- Import modal -->
     <div class="modal fade" id="import_modal">
-        <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Import Excel</h4>
+                    <h4 class="modal-title">Import Sites</h4>
                     <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
                         aria-label="Close">
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('sites.import') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="tab-content" id="myTabContent">
                         <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
                             aria-labelledby="info-tab" tabindex="0">
                             <div class="modal-body pb-0 ">
                                 <div class="row">
-                                    <div class="col-md-6">
-                                        <div class="d-flex gap-2">
-                                            <input type="file" name="import_file" class="form-control" required>
+                                    <div class="col-md-12 mb-3">
+                                        <div class="alert alert-info">
+                                            <h6 class="mb-2"><i class="ti ti-info-circle"></i> Import Guidelines:</h6>
+                                            <ul class="mb-0 small">
+                                                <li>Row 1 and Column A should be left empty</li>
+                                                <li>Row 2 starting from Column B should contain headers</li>
+                                                <li>Data should start from Row 3, Column B onwards</li>
+                                                <li><strong>Required:</strong> Site Name</li>
+                                                <li><strong>Optional:</strong> Client Name, Address, Site Code, Post Code, Guard Names, Contact Number, Contact Person, Note, Start Time, End Time, Break Time, Guard Rate, Office Rate, Billable Rate, Payable Rate</li>
+                                                <li>If Client Name is provided, it must exist in the clients database</li>
+                                                <li>The system will automatically find the client and assign its ID when Client Name is provided</li>
+                                                <li>Time fields should be in HH:MM format (e.g., 08:00, 18:30)</li>
+                                                <li>Rate fields should be numeric values</li>
+                                            </ul>
                                         </div>
+                                    </div>
+                                    <div class="col-md-8">
+                                        <div class="d-flex gap-2">
+                                            <input type="file" name="import_file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <a href="{{ route('sites.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
+                                            <i class="ti ti-download"></i> Download Template
+                                        </a>
                                     </div>
                                 </div>
                             </div>

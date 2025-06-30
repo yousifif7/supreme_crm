@@ -117,6 +117,9 @@ Route::middleware('auth')->group(function () {
     Route::get('/sites/{id}/logs/ajax', [SiteController::class, 'getLogs'])->name('sites.logs.ajax');
     Route::get('/sites/{id}/view', [SiteController::class, 'view'])->name('sites.view');
 
+    Route::get('/sites/export/excel', [ExportController::class, 'exportSiteExcel'])->name('sites.export.excel');
+    Route::get('/sites/export/pdf', [ExportController::class, 'exportSitePdf'])->name('sites.export.pdf');
+    Route::post('/sites/import', [ExportController::class, 'importSiteExcel'])->name('sites.import');
     /** End: Site Controller */
 
     /** Begin: Shift Controller */
@@ -227,10 +230,6 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
-
-Route::get('/sites/export/excel', [ExportController::class, 'exportSiteExcel'])->name('sites.export.excel');
-Route::get('/sites/export/pdf', [ExportController::class, 'exportSitePdf'])->name('sites.export.pdf');
-Route::post('/sites/import', [ExportController::class, 'importSiteExcel'])->name('sites.import');
 
 Route::get('/employees/export/excel', [ExportController::class, 'exportEmployeeExcel'])->name('employees.export.excel');
 Route::get('/employees/export/pdf', [ExportController::class, 'exportEmployeePdf'])->name('employees.export.pdf');
