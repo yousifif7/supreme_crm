@@ -143,56 +143,125 @@
         </div>
         <div class="tab-pane fade" id="address2" role="tabpanel" aria-labelledby="address-tab2">
             @if($shiftDate->staff)
-                <div class="images-grid">
-                    <div class="parent_image-wrapper">
-                        <div class="image-wrapper">
-                            <div class="badge">Profile</div>
-                            <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}" class="profile_picture" alt="Selfie 1" />
-                        </div>
-                        {{-- $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file']; --}}
-                        <div class=" id_card_wrapper">
-                            <a href="{{ $shiftDate->staff?->fileUrl('sia_licence_file') }}" target="_blank">
-                                <div class="badge">SIA CARD</div>
-                                <img src="{{ $shiftDate->staff?->fileUrl('sia_licence_file', true) }}" style="max-width: 300px; max-height: 210px; object-fit: cover;"
-                                    alt="SIA Card" />
-                            </a>
+                <div class="container-fluid p-3">
+                    <!-- First Row - 3 Images -->
+                    <div class="row mb-4">
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}" alt="Profile Picture" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">Profile Picture</h6>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class=" id_card_wrapper">
-                            <a href="{{ $shiftDate->staff?->fileUrl('passport_file') }}" target="_blank">
-                                <div class="badge">Passport</div>
-                                <img src="{{ $shiftDate->staff?->fileUrl('passport_file', true) }}" style="max-width: 300px; max-height: 210px; object-fit: cover;"
-                                    alt="SIA Card" />
-                            </a>
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('sia_licence_file', true) }}" alt="SIA Licence" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('sia_licence_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">SIA Licence</h6>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('passport_file', true) }}" alt="Passport" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('passport_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">Passport</h6>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="parent_image-wrapper">
-                        <div class="image-wrapper">
-                            <a href="{{ $shiftDate->staff?->fileUrl('proof_of_address_file') }}" target="_blank">
-                                <div class="badge">Proof of Address</div>
-                                <img src="{{ $shiftDate->staff?->fileUrl('proof_of_address_file', true) }}" alt="Selfie 2" />
-                            </a>
+
+                    <!-- Second Row - 3 Images -->
+                    <div class="row mb-4">
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('proof_of_address_file', true) }}" alt="Proof of Address" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('proof_of_address_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">Proof of Address</h6>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="image-wrapper">
-                            <a href="{{ $shiftDate->staff?->fileUrl('ni_letter_file') }}" target="_blank">
-                                <div class="badge">NI Letter</div>
-                                <img src="{{ $shiftDate->staff?->fileUrl('ni_letter_file', true) }}" alt="Selfie 2" />
-                            </a>
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('ni_letter_file', true) }}" alt="NI Letter" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('ni_letter_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">NI Letter</h6>
+                                </div>
+                            </div>
                         </div>
 
-                        <div class="image-wrapper">
-                            <a href="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file') }}" target="_blank">
-                                <div class="badge">First Aid Certificate</div>
-                                <img src="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file', true) }}" alt="Selfie 2" />
-                            </a>
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file', true) }}" alt="First Aid Certificate" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">First Aid Certificate</h6>
+                                </div>
+                            </div>
                         </div>
+                    </div>
 
-                        <div class="image-wrapper">
-                            <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}" target="_blank">
-                                <div class="badge">ACT Certificate</div>
-                                <img src="{{ $shiftDate->staff?->fileUrl('act_certificate_file', true) }}" alt="Selfie 2" />
-                            </a>
+                    <!-- Third Row - 1 Image (Centered) -->
+                    <div class="row justify-content-center">
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('act_certificate_file', true) }}" alt="ACT Certificate" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">ACT Certificate</h6>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -261,3 +330,118 @@
         map1.fitBounds(route.getBounds());
     });
 </script>
+
+<style>
+.document-card {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    transition: all 0.3s ease;
+    height: 100%;
+}
+
+.document-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.document-image-wrapper {
+    position: relative;
+    width: 70%;
+    margin: 0 auto;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: #f8f9fa;
+}
+
+.document-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.document-card:hover .document-image {
+    transform: scale(1.05);
+}
+
+.document-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.document-card:hover .document-overlay {
+    opacity: 1;
+}
+
+.view-btn {
+    background: #fff;
+    color: #333;
+    width: 35px;
+    height: 35px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.view-btn:hover {
+    background: #007bff;
+    color: #fff;
+    transform: scale(1.1);
+}
+
+.document-label {
+    padding: 10px;
+    background: #fff;
+    text-align: center;
+    border-top: 1px solid #e9ecef;
+}
+
+.document-label h6 {
+    color: #333;
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .document-card {
+        margin-bottom: 15px;
+    }
+
+    .document-label {
+        padding: 8px;
+    }
+
+    .document-label h6 {
+        font-size: 10px;
+    }
+
+    .document-image-wrapper {
+        width: 80%;
+    }
+}
+
+@media (max-width: 576px) {
+    .col-md-4 {
+        flex: 0 0 50%;
+        max-width: 50%;
+    }
+}
+</style>

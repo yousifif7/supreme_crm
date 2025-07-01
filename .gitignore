@@ -7,6 +7,8 @@
 /public/uploads/passport_file/
 /public/uploads/proof_of_address_file/
 /public/uploads/sia_licence_file/
+/public/uploads/ni_letter_file/
+/public/uploads/first_aid_certificate_file/
 /storage/*.key
 /storage/pail
 /vendor
