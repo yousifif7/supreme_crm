@@ -275,7 +275,32 @@
             <div class="modal-body">Job Progress content goes here.</div>
         </div>
         <div class="tab-pane fade" id="logs2" role="tabpanel" aria-labelledby="logs-tab2">
-            <div class="modal-body">Logs content goes here.</div>
+            @if(!$shiftDate->logs->isEmpty())
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Action</th>
+                            <th>Description</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($shiftDate->logs as $log)
+                            <tr>
+                                <td>{{ $log->user_name ?? 'N/A' }}</td>
+                                <td>{{ $log->action }}</td>
+                                <td>{{ $log->description }}</td>
+                                <td>{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <div class="alert alert-info" role="alert">
+                    No logs available for this shift.
+                </div>
+            @endif
         </div>
     </div>
 </div>

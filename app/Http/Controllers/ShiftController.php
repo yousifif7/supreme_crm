@@ -74,7 +74,7 @@ class ShiftController extends Controller
 
     public function show(ShiftDate $shiftDate)
     {
-        $shiftDate->load(['staff', 'shift.client', 'shift.site', 'shift.staff']);
+        $shiftDate->load(['staff', 'shift.client', 'shift.site', 'shift.staff', 'logs']);
         return $this->sendRes('success', ['view_data' => view('security_boards.shift-detail-modal', compact('shiftDate'))->render()]);
     }
 
