@@ -332,9 +332,15 @@ class ExportController extends Controller
         return back()->with('success', 'Reminders imported successfully.');
     }
 
-    public function exportShiftExcel()
+    public function exportShiftExcel(Request $request)
     {
-        return Excel::download(new ShiftDateExport, 'shifts.xlsx');
+        $isTemplate = $request->has('template') && $request->template == 1;
+
+        if ($isTemplate) {
+            return Excel::download(new ShiftDateExport(true), 'shifts_template.xlsx');
+        }
+
+        return Excel::download(new ShiftDateExport(false), 'shifts.xlsx');
     }
 
     public function exportShiftPdf()
@@ -351,8 +357,27 @@ class ExportController extends Controller
             'file' => 'required|mimes:xlsx,xls'
         ]);
 
-        Excel::import(new ShiftDateImport, $request->file('file'));
+        $import = new ShiftDateImport;
+        Excel::import($import, $request->file('file'));
 
-        return back()->with('success', 'Shift imported successfully.');
+        $failures = $import->getFailures();
+        $successCount = $import->getSuccessCount();
+        $failureCount = $import->getFailureCount();
+
+        if (!empty($failures)) {
+            $errorMessage = "Import completed: {$successCount} successful, {$failureCount} failed.<br><br>";
+            $errorMessage .= '<strong>Failed rows:</strong><br>';
+            foreach ($failures as $failure) {
+                $errorMessage .= "• Row {$failure['row']}: {$failure['error']}<br>";
+            }
+
+            if ($successCount > 0) {
+                return back()->with('warning', $errorMessage);
+            } else {
+                return back()->with('error', $errorMessage);
+            }
+        }
+
+        return back()->with('success', "All {$successCount} shifts imported successfully.");
     }
 }

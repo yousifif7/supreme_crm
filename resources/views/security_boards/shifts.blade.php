@@ -5,6 +5,37 @@
     <div id="scheduling" class="page-wrapper security_board">
         <div class="content">
             <div class="alert-box-container"></div>
+            @if (session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    {!! session('success') !!}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if (session('warning'))
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    {!! session('warning') !!}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            @if (session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    {!! session('error') !!}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            @endif
+
+            {{-- show validation errors --}}
+            @if ($errors->any())
+                <div class="alert alert-danger mt-3">
+                    <ul class="mb-0">
+                        @foreach ($errors->all() as $error)
+                            <li>{{ $error }}</li>
+                        @endforeach
+                    </ul>
+                </div>
+            @endif
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
                 <div class="my-auto mb-2">
@@ -23,16 +54,17 @@
                         </a>
                         <ul class="dropdown-menu  dropdown-menu-start p-3">
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('shifts.export.pdf') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('shifts.export.excel') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>
                     </div>
                 </div>
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift"
@@ -992,6 +1024,66 @@
                             </div>
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import modal -->
+        <div class="modal fade" id="import_modal">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h4 class="modal-title">Import Shifts</h4>
+                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
+                            aria-label="Close">
+                            <i class="ti ti-x"></i>
+                        </button>
+                    </div>
+                    <form action="{{ route('shifts.import') }}" method="POST" enctype="multipart/form-data">
+                        @csrf
+                        <div class="tab-content" id="myTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0 ">
+                                    <div class="row">
+                                        <div class="col-md-12 mb-3">
+                                            <div class="alert alert-info">
+                                                <h6 class="mb-2"><i class="ti ti-info-circle"></i> Import Guidelines:</h6>
+                                                <ul class="mb-0 small">
+                                                    <li>Headers should be in Row 1 starting from Column A</li>
+                                                    <li>Data should start from Row 2, Column A onwards</li>
+                                                    <li><strong>Required:</strong> Date, Client, Site, Start, End</li>
+                                                    <li><strong>Optional:</strong> #, Day, Officer, Phone, Lost Time, Hours, Comments</li>
+                                                    <li><strong>Date format:</strong> 01-May-2025, 2025-05-01, 01/05/2025</li>
+                                                    <li><strong>Time format:</strong> 06:00, 18:00, 6:00, 18:00</li>
+                                                    <li>Client and Site names must exist in the database</li>
+                                                    <li>Officer names are matched against employee records (first name, last name, or full name)</li>
+                                                    <li>Hours will be calculated automatically if not provided</li>
+                                                    <li>If Officer is assigned, SIA license expiry and overlapping shifts will be checked</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-8">
+                                            <div class="d-flex gap-2">
+                                                <input type="file" name="file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <a href="{{ route('shifts.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
+                                                <i class="ti ti-download"></i> Download Template
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-light border me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+
+                                    <button class="btn btn-primary" type="submit">Import</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
