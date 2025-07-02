@@ -73,86 +73,10 @@
             <div class="card">
 
                 <div class="card-body p-0">
-                    <div class="custom-datatable-filter table-responsive datatable">
-                        <table class="table table-striped table-hover">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>SIA</th>
-                                    <th>EXPIRY</th>
-                                    <th>VISA EXPIRY</th>
-                                    <th>IMMIGRATION STATUS</th>
-                                    <th>CONTACT NO</th>
-                                    <th>SUBCONTRACTOR</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse ($employees as $employee)
-                                    <tr id="employee_row_{{ $employee->id }}">
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $employee->id }}">
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium">
-                                                        {{ $employee->fore_name }} {{ $employee->middle_name }}
-                                                        {{ $employee->sur_name }}
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td class="text-start">
-                                            <p class="mb-0 fw-semibold">{{ $employee->sia_licence }}</p>
-                                            <span class="text-primary fw-bold">Active</span>
-                                        </td>
-                                        <td>{{ $employee->sia_expiry }}</td>
-                                        <td>{{ $employee->visa_expiry }}</td>
-                                        <td>{{ $employee->visa_type }}</td>
-                                        <td>{{ $employee->contact }}</td>
-                                        <td>{{ $employee->subcontractor }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button class="sites_action-btn"
-                                                    onclick="viewLogs({{ $employee->id }})">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewEmployeeDetail({{ $employee->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a class="me-2" onclick="editEmployee({{ $employee->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-
-                                                <a href="#" class="me-2"
-                                                    onclick="generatePayroll({{ $employee->id }})"><i
-                                                        class="ti ti-receipt"></i></a>
-
-                                                <a onclick="deleteEmployee({{ $employee->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                                <a href="{{ route('employees.print', $employee->id) }}" target="_blank">
-                                                    <i class="ti ti-printer"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="9" class="text-center">No employees found.</td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-
+                    <div class="custom-datatable-filter table-responsive">
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable table-striped table-hover']) }}
                     </div>
-
-
                 </div>
-
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $employees->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -1742,8 +1666,8 @@
                     },
                     success: function(response) {
                         $('#add_employee').modal('hide');
-                        $('#success_message').html('Employee Added Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Employee Added Successfully');
+                        reloadDatatable('#employees-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1793,8 +1717,8 @@
                     },
                     success: function(response) {
                         $('#edit_employee').modal('hide');
-                        $('#success_message').html('Employee Updated Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Employee Updated Successfully');
+                        reloadDatatable('#employees-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1843,8 +1767,8 @@
                     },
                     success: function(response) {
                         $('#generate_payroll').modal('hide');
-                        $('#success_message').html('Payroll Created Successfully!')
-                        $('#success_modal').modal('show');
+                        toast_success('Payroll Created Successfully!');
+                        reloadDatatable('#employees-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -2043,9 +1967,8 @@
                     },
                     success: function(response) {
                         $('#delete_modal').modal('hide');
-
-                        $('#success_message').html('Employee Deleted Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Employee Deleted Successfully');
+                        reloadDatatable('#employees-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -2076,8 +1999,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected employees deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected employees deleted successfully!');
+                    reloadDatatable('#employees-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -2284,4 +2207,5 @@
         }
     </script>
 
+    {!! $dataTable->scripts() !!}
 @endsection

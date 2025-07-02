@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\EmployeesDataTable;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeType;
@@ -17,14 +18,14 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    public function index()
+    public function index(EmployeesDataTable $dataTable)
     {
-        $employees = Employee::orderBy('id', 'desc')->paginate(15);
         $departments = Department::all();
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
         $licenses = License::all();
-        return view('employees.index', compact('employees', 'departments', 'visa_types', 'employee_types', 'licenses'));
+
+        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses'));
     }
 
     public function store(Request $request)
