@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\RolesDataTable;
 use Illuminate\Http\Request;
 use Spatie\Permission\Models\Role;
 use Spatie\Permission\Models\Permission;
@@ -9,12 +10,10 @@ use Illuminate\Support\Facades\DB;
 
 class RoleController extends Controller
 {
-    public function index()
+    public function index(RolesDataTable $dataTable)
     {
-        $roles = Role::paginate(10);
-
         $permissions = Permission::all();
-        return view('user_management.roles', ['roles' => $roles, 'permissions' => $permissions]);
+        return $dataTable->render('user_management.roles', compact('permissions'));
     }
 
     public function create()

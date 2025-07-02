@@ -64,42 +64,9 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable" style="width: 100%">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th style="width: 5%;"><input type="checkbox" id="selectAll"></th>
-                                    <th style="width: 5%;">#</th>
-                                    <th style="width: 70%;">Role Name</th>
-                                    <th style="width: 50%;">Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($roles as $role)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $role->id }}">
-                                        </td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $role->name }}</td>
-                                        <td>
-                                            <button class="sites_action-btn"
-                                                onclick="viewPermissions({{ $role->id }})">permissions</button>
-                                            <a onclick="editRole({{ $role->id }})" class="me-2"><i
-                                                    class="ti ti-edit"></i></a>
-
-                                            <a onclick="deleteRole({{ $role->id }})"><i class="ti ti-trash"></i></a>
-                                            </form>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
-
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $roles->links('vendor.pagination.bootstrap-5') }}
             </div>
             <!-- Add Role Modal -->
             <div class="modal fade" id="add_role" tabindex="-1" aria-labelledby="addRoleLabel" aria-hidden="true">
@@ -298,32 +265,6 @@
             </div>
         </div>
     </div>
-    <!-- Add User Success -->
-    <div class="modal fade" id="success_modal" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="text-center p-3">
-                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                class="ti ti-check fs-24"></i></span>
-                        <h5 class="mb-2" id="success_message"></h5>
-
-                        </p>
-                        <div>
-                            <div class="row g-2">
-                                <div class="col-12">
-                                    <a href="{{ route('roles.index') }}" class="btn btn-dark w-100">Back to
-                                        List</a>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- End user suscces -->
 
     <!-- Delete Modal -->
     <div class="modal fade" id="delete_modal">
@@ -414,8 +355,8 @@
                 },
                 success: function(response) {
                     $('#add_role').modal('hide');
-                    $('#success_message').html('Role created successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Role created successfully!');
+                    reloadDatatable('#roles-table');
                     form[0].reset();
                 },
                 error: function(xhr) {
@@ -472,8 +413,8 @@
                 },
                 success: function(response) {
                     $('#edit_role_modal').modal('hide');
-                    $('#success_message').html('Role updated successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Role updated successfully!');
+                    reloadDatatable('#roles-table');
                 },
                 error: function(xhr) {
                     if (xhr.status === 422) {
@@ -524,8 +465,8 @@
                     success: function(response) {
                         $('#delete_modal').modal('hide');
 
-                        $('#success_message').html('Role Deleted Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Role Deleted Successfully');
+                        reloadDatatable('#roles-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -557,8 +498,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected roles deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected roles deleted successfully!');
+                    reloadDatatable('#roles-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -566,4 +507,6 @@
             });
         });
     </script>
+
+    {!! $dataTable->scripts() !!}
 @endsection
