@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\SitesDataTable;
 use App\Models\Client;
 use App\Models\EmployeeType;
 use App\Models\Site;
@@ -10,12 +11,12 @@ use Illuminate\Support\Facades\Validator;
 
 class SiteController extends Controller
 {
-    public function index()
+    public function index(SitesDataTable $dataTable)
     {
         $clients = Client::get();
         $employee_types = EmployeeType::all();
-        $sites = Site::with('client')->orderBy('id', 'desc')->paginate(15);
-        return view('sites.index', compact('sites', 'clients', 'employee_types'));
+
+        return $dataTable->render('sites.index', compact('clients', 'employee_types'));
     }
     public function store(Request $request)
     {

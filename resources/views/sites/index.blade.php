@@ -89,61 +89,9 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Client Name</th>
-                                    <th>Site Name</th>
-                                    <th>Address</th>
-                                    <th>Site Code</th>
-                                    <th>Post Code</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $i = ($sites->currentPage() - 1) * $sites->perPage() + 1; @endphp
-                                @foreach ($sites as $site)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $site->id }}">
-                                        </td>
-                                        <td>{{ $i++ }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium"><a
-                                                            onclick="viewSiteDetail({{ $site->id }})">{{ $site->client?->client_name }}</a>
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="text-align: left;">{{ $site->site_name }}</td>
-                                        <td style="text-align: left;">{{ $site->address }}</td>
-                                        <td style="text-align: left;">{{ $site->site_code }}</td>
-                                        <td style="text-align: left;">{{ $site->post_code }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button onclick="viewLogs({{ $site->id }})"
-                                                    class="sites_action-btn">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewSiteDetail({{ $site->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a href="#" class="me-2" onclick="editSite({{ $site->id }})"><i
-                                                        class="ti ti-edit"></i></a>
-                                                <a onclick="deleteSite({{ $site->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $sites->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -632,32 +580,6 @@
     </div>
     <!-- /Edit Client -->
 
-    <!-- Add Client Success -->
-    <div class="modal fade" id="success_modal" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="text-center p-3">
-                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                class="ti ti-check fs-24"></i></span>
-                        <h5 class="mb-2" id="success_message"></h5>
-
-                        </p>
-                        <div>
-                            <div class="row g-2">
-                                <div class="col-12">
-                                    <a href="{{ url('sites') }}" class="btn btn-dark w-100">Back to List</a>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- /Add Client Success -->
-
     <!-- Delete Modal -->
     <div class="modal fade" id="delete_modal">
         <div class="modal-dialog modal-dialog-centered">
@@ -902,8 +824,8 @@
                     },
                     success: function(response) {
                         $('#add_site').modal('hide');
-                        $('#success_message').html('Sites Added Successfully')
-                        $('#success_modal').modal('show');
+                        toast_success('Sites Added Successfully')
+                        reloadDatatable('#sites-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -947,8 +869,8 @@
                     },
                     success: function(response) {
                         $('#edit_site').modal('hide');
-                        $('#success_message').html('Sites Updated Successfully!')
-                        $('#success_modal').modal('show');
+                        toast_success('Sites Updated Successfully!');
+                        reloadDatatable('#sites-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1058,8 +980,8 @@
                 success: function(response) {
                     $('#delete_modal').modal('hide');
 
-                    $('#success_message').html('Site Deleted Successfully!')
-                    $('#success_modal').modal('show');
+                    toast_success('Site Deleted Successfully!')
+                    reloadDatatable('#sites-table');
                 },
                 error: function(xhr) {
                     $('#delete_modal').modal('hide');
@@ -1090,8 +1012,8 @@
                 _token: '{{ csrf_token() }}'
             },
             success: function(response) {
-                $('#success_message').text('Selected sites deleted successfully!');
-                $('#success_modal').modal('show');
+                toast_success('Selected sites deleted successfully!');
+                reloadDatatable('#sites-table');
             },
             error: function() {
                 alert('Something went wrong during bulk delete.');
@@ -1163,4 +1085,6 @@
             });
         });
     </script>
+
+    {!! $dataTable->scripts() !!}
 @endsection
