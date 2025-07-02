@@ -502,7 +502,6 @@
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
         $(document).ready(function() {
             $('#add_vehicle-form').on('submit', function(e) {

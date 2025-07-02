@@ -8,6 +8,8 @@
     <meta name="author" content="Dreams technologies - Bootstrap Admin Template">
     <meta name="robots" content="noindex, nofollow">
     <title>@yield('title')</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    @vite(['resources/sass/app.scss', 'resources/js/app.js', 'resources/js/custom/toastr-helpers.js', 'resources/js/custom/ajax.js'])
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
 
     <!-- Favicon -->
@@ -17,11 +19,11 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/sp_logo.png') }}">
 
     <!-- Preload Critical CSS -->
-    <link rel="preload" href="{{ asset('assets/css/bootstrap.min.css') }}" as="style">
+    {{-- <link rel="preload" href="{{ asset('assets/css/bootstrap.min.css') }}" as="style"> --}}
     <link rel="preload" href="{{ asset('assets/css/style.css') }}" as="style">
 
     <!-- Core CSS -->
-    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
+    {{-- <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}"> --}}
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     <!-- Feather CSS -->
 
@@ -31,7 +33,6 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/tabler-icons/tabler-icons.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/fontawesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/daterangepicker/daterangepicker.css') }}">
@@ -39,14 +40,14 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
     <!-- Defer Theme Script -->
-    <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script>
+    {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
+    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
     <script src="{{ asset('assets/js/theme-script.js') }}" defer></script>
     <!-- Moment + Datetimepicker -->
     <script src="{{ asset('assets/js/moment.js') }}" defer></script>
     <script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
-    @vite(['resources/js/custom/toastr-helpers.js', 'resources/js/custom/ajax.js'])
     <script type="text/javascript">
         const baseUrl = "{{ url('/') }}";
     </script>
@@ -344,16 +345,8 @@
 
             // Client search functionality
             $('.search_box').on('keyup', function() {
-                let searchText = $(this).val().toLowerCase();
-
-                $('.datatable tbody tr').each(function() {
-                    let rowText = $(this).text().toLowerCase();
-                    if (rowText.indexOf(searchText) > -1) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
+                // trigger the search of datatable
+                $('.datatable').DataTable().search($(this).val()).draw();
             });
 
             // Select All toggle
@@ -365,13 +358,12 @@
 
 
     <!-- Core JS Libraries -->
-    <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}" defer></script>
+    {{-- <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}" defer></script> --}}
     <script src="{{ asset('assets/js/feather.min.js') }}" defer></script>
     <script src="{{ asset('assets/js/jquery.slimscroll.min.js') }}" defer></script>
 
     <!-- Plugins -->
     <script src="{{ asset('assets/plugins/daterangepicker/daterangepicker.js') }}" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/theia-sticky-sidebar@1.7.0/dist/theia-sticky-sidebar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/theia-sticky-sidebar@1.7.0/dist/jquery.theia.sticky.js"></script>
 

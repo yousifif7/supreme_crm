@@ -61,23 +61,23 @@ Template Name: Smarthr - Bootstrap Admin Template
 	}
 
 	// Datatable
-	if($('.datatable').length > 0 && $.fn.DataTable) {
-		$('.datatable').DataTable({
-			"bFilter": true,
-			"ordering": true,
-			"info": true,
-			"language": {
-				search: ' ',
-				sLengthMenu: 'Row Per Page _MENU_ Entries',
-				searchPlaceholder: "Search",
-				info: "Showing _START_ - _END_ of _TOTAL_ entries",
-				paginate: {
-					next: '<i class="ti ti-chevron-right"></i>',
-					previous: '<i class="ti ti-chevron-left"></i> '
-				},
-			 }
-		});
-	}
+	// if($('.datatable').length > 0 && $.fn.DataTable) {
+	// 	$('.datatable').DataTable({
+	// 		"bFilter": true,
+	// 		"ordering": true,
+	// 		"info": true,
+	// 		"language": {
+	// 			search: ' ',
+	// 			sLengthMenu: 'Row Per Page _MENU_ Entries',
+	// 			searchPlaceholder: "Search",
+	// 			info: "Showing _START_ - _END_ of _TOTAL_ entries",
+	// 			paginate: {
+	// 				next: '<i class="ti ti-chevron-right"></i>',
+	// 				previous: '<i class="ti ti-chevron-left"></i> '
+	// 			},
+	// 		 }
+	// 	});
+	// }
 
 	// Loader
 	setTimeout(function () {

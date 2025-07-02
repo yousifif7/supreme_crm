@@ -127,3 +127,10 @@ function update_global_modal(params) {
     params = JSON.parse(params);
     $('#globalModalBody').html(params.view_data);
 }
+
+window.reloadDatatable = function (tableId) {
+    if (typeof tableId === 'undefined' || tableId === null || tableId === '') {
+        tableId = '#dataTableBuilder';
+    }
+    $(tableId).DataTable().ajax.reload(null, false);
+};

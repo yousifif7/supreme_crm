@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\ClientsDataTable;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Employee;
@@ -14,19 +15,13 @@ use Spatie\Permission\Models\Role;
 
 class ClientController extends Controller
 {
-    public function index(Request $request)
+    public function index(ClientsDataTable $dataTable, Request $request)
     {
-        $filter = $request->query('filter') ?? null;
-
-        if ($filter === 'archived') {
-            $clients = Client::onlyTrashed()->paginate(10); // soft deleted
-        } else {
-            $clients = Client::orderBy('id', 'desc')->paginate(10);
-        }
-
         $companys = Company::all();
         $staffs = Employee::all();
-        return view('clients.index', compact('clients', 'companys', 'staffs', 'filter'));
+
+        return $dataTable->render('clients.index', compact('companys', 'staffs'));
+        // view('clients.index');
     }
 
     public function store(Request $request)
@@ -107,10 +102,7 @@ class ClientController extends Controller
         unset($clientData['username'], $clientData['password']);
 
         // Create client
-        $client = Client::create($clientData);
-
-
-
+        Client::create($clientData);
 
         return response()->json(['message' => 'Client created successfully']);
     }

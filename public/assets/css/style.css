@@ -60,7 +60,7 @@ h2{
   font-weight:600;
   letter-spacing:0.8px;
   font-size:18px;
-  
+
 }
 
 ol, ul {
@@ -2748,7 +2748,7 @@ button:focus {
 }
 
 .fc-event {
- 
+
   border: none;
   color: #FFF !important;
   cursor: move;
@@ -2811,10 +2811,10 @@ button:focus {
 }
 
 .fc-event {
- 
+
 
   color: #000;
- 
+
   font-weight: 400;
 }
 .fc-event.progress-danger {
@@ -2850,7 +2850,7 @@ button:focus {
   height: 26px;
   border-radius: 5px;
   padding: 6px 12px !important;
-  
+
   text-transform: capitalize;
 }
 .fc .fc-button-primary:hover, .fc .fc-button-primary.active, .fc .fc-button-primary:active {
@@ -23915,6 +23915,7 @@ table.table.dataTable > thead > tr th {
   font-size: 14px;
   font-weight: 600;
   padding: 10px 20px;
+  background-color: #E5E7EB;
 }
 
 .dataTables_filter {
@@ -28404,7 +28405,7 @@ cursor:pointer;
     font-family: "Montserrat";
     border-color: #F8F9FA;
     text-transform:uppercase;
-    
+
     letter-spacing: -0.1px;
     font-size: 12px;
   color:rgb(167, 168, 168);
@@ -28450,7 +28451,7 @@ cursor:pointer;
   left: 50%;
   transform: translate(-50%, -50%);
   font-size: 9px;
-  
+
   color: #000;
   font-family:"montserrat";
   font-weight:600;
@@ -28515,19 +28516,19 @@ border-bottom: 1px solid #e9e9e9;
         /* border-bottom: 1px solid #ddd; */
         padding: 10px 0px;
       }
-  
+
 #scheduling       .filters {
         display: flex;
         flex-direction: column;
         gap: 10px;
       }
-  
+
    #scheduling    .filters .left {
         display: flex;
-    
+
         flex-wrap: wrap;
       }
-  
+
    #scheduling    .filters .right {
         display: flex;
         gap:5px;
@@ -28562,28 +28563,28 @@ border-bottom: 1px solid #e9e9e9;
 		border-radius: 2px;
 		font-size: 14px;
       }
-  
+
       #scheduling   .filters button:hover {
         background: #e0e0e0;
       }
 
       #scheduling  .filters button.active{
 		background-color: rgb(230, 155, 50);
-		color:#fff;border: none; 
+		color:#fff;border: none;
 		font-weight: 500;
 	  }
-  
+
     #scheduling    .calendar-controls {
         display: flex;
         align-items: center;
         justify-content: center;
         gap: 10px;
       }
-  
+
       #scheduling      #calendar {
         margin-top: 10px;
       }
-  
+
       #scheduling   .fc-toolbar-title {
         font-size: 20px;
         font-weight: 600;
@@ -28609,27 +28610,27 @@ border-bottom: 1px solid #e9e9e9;
       }
       .datepic .fc .fc-col-header-cell-cushion{
         font-size:12px !important;
-      } 
+      }
      .datepic  .fc .fc-daygrid-day-frame {
         height: 32px !important;
         width: 30px !important;
         padding: 0px;
     }
- 
+
 .datepic  .fc .fc-daygrid-day.fc-day-today, .datepic .fc th.fc-day-today{
     background-color:rgb(230, 155, 50)!important;
-    color:#fff !important; 
+    color:#fff !important;
   }
 
       #scheduling    .fc-event {
-    
-        font-size: 14px;
-       
-     
-      }
-  
 
-  
+        font-size: 14px;
+
+
+      }
+
+
+
       /* Modal Styles */
       #scheduling .modal {
         display: none;
@@ -28645,7 +28646,7 @@ border-bottom: 1px solid #e9e9e9;
         overflow: auto; /* Add this for scroll on overflow */
         padding: 1rem; /* Prevent content touching screen edge */
       }
-      
+
       #scheduling .modal .modal-dialog {
         min-width:70%;
         max-width: 80%; /* Responsive */
@@ -28661,29 +28662,29 @@ border-bottom: 1px solid #e9e9e9;
       #scheduling .modal .modal-content::-webkit-scrollbar {
         width: 12px; /* Width of the scrollbar */
       }
-      
+
       #scheduling .modal .modal-content::-webkit-scrollbar-thumb {
         background-color: #ccc; /* Light grey thumb */
         border-radius: 6px;
       }
-      
+
       #scheduling .modal .modal-content::-webkit-scrollbar-track {
         background-color: #f1f1f1; /* Light background for track */
       }
-      
+
       /* Firefox */
       #scheduling .modal .modal-content {
         scrollbar-width: thin;
         scrollbar-color: #ccc #f1f1f1;
       }
-            
+
       .status-summary {
         display: flex;
         justify-content: flex-end;
         gap: 20px;
         margin-top: 10px;
       }
-  
+
       #scheduling     .status-summary div {
         font-size: 12px;
         display: flex;
@@ -28696,7 +28697,7 @@ border-bottom: 1px solid #e9e9e9;
         align-items: center;
         gap: 4px;
       }
-  
+
       #scheduling      .status-summary .active-sites { color: #c04ec0; }
       #scheduling     .status-summary .active-workers { color: #3ca4e0; }
       #scheduling     .status-summary .total-hours { color: #e1a742; }
@@ -28706,8 +28707,8 @@ border-bottom: 1px solid #e9e9e9;
         background-color: rgb(255, 245, 235) !important;
         border-radius:4px !important;
         border:1px solid #e9e9e9  !important;
-       
-        
+
+
       }
       #scheduling .refresh_btn:hover{
         box-shadow: rgba(0, 0, 0, 0.2) 0px 18px 50px -10px;
@@ -28746,39 +28747,39 @@ border-bottom: 1px solid #e9e9e9;
         margin-right:5px;
         width: 100%;
         cursor:pointer;
-       
+
       }
-  
+
       ._schedule-box-row {
         display: flex;
         justify-content: space-between;
         align-items: center;
         margin-bottom: 10px;
       }
-  
+
       ._schedule-box-row:last-child {
         margin-bottom: 0;
       }
-  
+
       ._schedule-box-text {
         color: #fff;
       }
-  
+
       ._schedule-box-time {
         font-size: 10px;
         color: #fff;
       }
-  
+
       ._schedule-box-name {
         color: #fff;
         font-size:10px;
       }
-  
+
       ._schedule-box-location {
         color: #fff;
         font-size:10px;
       }
-  
+
       ._schedule-box-avatar
      {
       width: 18px;
@@ -28786,8 +28787,8 @@ border-bottom: 1px solid #e9e9e9;
       border-radius: 50%;
       object-fit: cover;
       }
-  
- 
+
+
       ._schedule-box-icon,
       ._schedule-box-alert img{
         width: 15px;
@@ -28798,9 +28799,9 @@ border-bottom: 1px solid #e9e9e9;
       ._schedule-box-container.urgent-event {
         background-color: #ebcb8b;
 
-       
+
       }
-     
+
 
     #eventModal .tabs-parent_main{
       display:flex;
@@ -28821,7 +28822,7 @@ padding: 20px;
     border-radius: 2px;
     color:#000;
     font-size: 14px;
-    
+
     }
     #eventModal .tabs-parent_main .tabs-parent button.active{
       background-color: rgb(230, 155, 50);
@@ -28866,14 +28867,14 @@ padding: 20px;
     #eventModal .book-on_box  .profile-detail , #eventModal .book-off_box .profile-detail {
       width:70%;
     }
-    #eventModal .upper-stats-box .profile-detail h6,  #eventModal .book-on_box .profile-detail h6 ,  #eventModal .book-off_box .profile-detail h6{ 
+    #eventModal .upper-stats-box .profile-detail h6,  #eventModal .book-on_box .profile-detail h6 ,  #eventModal .book-off_box .profile-detail h6{
       margin-bottom:5px;
       font-size:18px;
     }
     #eventModal .book-on_box  .map-image ,  #eventModal .book-off_box  .map-image{
       width:140px;
       height:100px;
-      
+
     }
     #eventModal .book-on_box  .map-image img ,  #eventModal .book-off_box .map-image img{
       width:100%;
@@ -28885,7 +28886,7 @@ padding: 20px;
       display:flex;
       flex-wrap:wrap;
       width:100%;
-      
+
     }
     #eventModal .bottom-stats-box .other-detail_boxes .box ,  #eventModal .book-on_box .other-detail_boxes .box ,  #eventModal .book-off_box .other-detail_boxes .box  {
       width:33.3%;
@@ -29117,7 +29118,7 @@ border:1px solid #e9e9e9;
   max-width:85% !important;
  }
  .sites_action-btn{
-background: rgb(230, 155, 50) ; 
+background: rgb(230, 155, 50) ;
 color:#fff;
 border:none;
 outline:none;
@@ -29128,7 +29129,7 @@ margin-right: 4px;
 }
  .site_calendar #calendar .fc-daygrid-day-frame{
   border:1px solid #e9e9e9;
- } 
+ }
  #add_client .part-1 {
   display: flex;
   justify-content: space-between;
@@ -29224,12 +29225,12 @@ font-size:14px;
 background-color: rgb(217, 110, 104);
   font-weight: 400;
 color:#fff !important;
-} 
+}
 .action_require-table tr.required td{
   background-color: rgb(51, 125, 29);
     font-weight: 400;
   color:#fff !important;
-  } 
+  }
   .lastest_action-table td{
     text-align:start !important;
   }
@@ -29240,25 +29241,25 @@ color:#fff !important;
   .sidebar{
     overflow:auto;
   }
-  h2 { 
+  h2 {
     text-align: center;
     margin-bottom: 10px;
   }
-  
+
   .report-sheet_card .header-title {
     display: flex;
     justify-content: space-between;
     margin-bottom: 10px;
     font-size: 13px;
   }
-  
+
   .report-sheet_card .actions {
     display: flex;
     justify-content: flex-end;
     gap: 5px;
     margin-bottom: 15px;
   }
-  
+
   .report-sheet_card .btn {
     padding: 6px 12px;
     border: none;
@@ -29268,9 +29269,9 @@ color:#fff !important;
     border-radius: 0px;
     cursor: pointer;
   }
- 
-  .report-sheet_card .green { 
-    background-color: green; 
+
+  .report-sheet_card .green {
+    background-color: green;
   }
   @media only screen and (max-width:600px){
     .responsive-table{
@@ -29280,20 +29281,20 @@ color:#fff !important;
       width: 1400px;
     }
   }
-  .report-sheet_card .blue { 
-    background-color: green; 
+  .report-sheet_card .blue {
+    background-color: green;
   }
-  
-  .report-sheet_card .red { 
-    background-color: #dc3545; 
+
+  .report-sheet_card .red {
+    background-color: #dc3545;
   }
-  
+
   .report-sheet_card table {
     width: 100%;
     border-collapse: collapse;
     font-size: 10px;
   }
-  
+
   .report-sheet_card th, .report-sheet_card td {
     border: 1px solid #ccc;
     padding: 4px;
@@ -29308,12 +29309,12 @@ color:#fff !important;
     font-weight: 600;
     color:#000;
   }
-  
+
   .report-sheet_card .cell-top {
     font-weight: bold;
     display: block;
   }
-  
+
   .report-sheet_card .cell-bottom {
     font-size: 10px;
     color: #555;
