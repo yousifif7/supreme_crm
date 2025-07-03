@@ -353,13 +353,6 @@
     @endsection
     @section('scripts')
         <script>
-            // Function to reload the DataTable
-            function reloadDatatable(tableId) {
-                if ($.fn.dataTable.isDataTable(tableId)) {
-                    $(tableId).DataTable().ajax.reload(null, false);
-                }
-            }
-            
             $(document).ready(function() {
                 // Add Maintenance
                 $('#add_maintenance_form').on('submit', function(e) {
