@@ -1,0 +1,114 @@
+<?php
+
+namespace App\DataTables;
+
+use App\Models\Vehicle;
+use Illuminate\Database\Eloquent\Builder as QueryBuilder;
+use Yajra\DataTables\EloquentDataTable;
+use Yajra\DataTables\Html\Builder as HtmlBuilder;
+use Yajra\DataTables\Html\Column;
+use Yajra\DataTables\Services\DataTable;
+
+class VehiclesDataTable extends DataTable
+{
+    /**
+     * Build the DataTable class.
+     *
+     * @param QueryBuilder<Vehicle> $query Results from query() method.
+     */
+    public function dataTable(QueryBuilder $query): EloquentDataTable
+    {
+        return (new EloquentDataTable($query))
+            ->addColumn('action', function ($vehicle) {
+                return view('vehicle_management.vehicles.action', compact('vehicle'));
+            })
+            ->addColumn('checkbox', function ($vehicle) {
+                return '<input type="checkbox" class="dT-row-checkbox" value="' . $vehicle->id . '">';
+            })
+            ->editColumn('assigned_to', function ($vehicle) {
+                return $vehicle->assigned_to ?? 'Unassigned';
+            })
+            ->editColumn('vehicle_category', function ($vehicle) {
+                return ucfirst($vehicle->vehicle_category);
+            })
+            ->editColumn('first_registration_date', function ($vehicle) {
+                return \Carbon\Carbon::parse($vehicle->first_registration_date)->format('d M Y');
+            })
+            ->editColumn('odometer_reading', function ($vehicle) {
+                return number_format($vehicle->odometer_reading) . ' km';
+            })
+            ->rawColumns(['action', 'checkbox', 'registration_number'])
+            ->setRowId('id');
+    }
+
+    /**
+     * Get the query source of dataTable.
+     *
+     * @return QueryBuilder<Vehicle>
+     */
+    public function query(Vehicle $model): QueryBuilder
+    {
+        $query = $model->newQuery()
+            ->select('vehicles.*');
+
+        if ($this->filter === 'archived') {
+            $query = $model->onlyTrashed()
+                ->select('vehicles.*');
+        }
+
+        return $query;
+    }
+
+    /**
+     * Optional method if you want to use the html builder.
+     */
+    public function html(): HtmlBuilder
+    {
+        return $this->builder()
+            ->setTableId('vehicles-table')
+            ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold')
+            ->columns($this->getColumns())
+            ->minifiedAjax()
+            ->addAction(['width' => '80px'])
+            ->dom(
+                't
+                <"d-flex justify-content-between mt-2"
+                  <"col-sm-12 col-md-5 align-self-center ps-3"i>
+                  <"d-flex justify-content-between" p>
+                >'
+            )
+            ->orderBy([1, 'DESC'])
+            ->parameters([
+                "scrollX" => true,
+                "drawCallback" => "function(settings) {
+                    feather.replace();
+                }",
+            ]);
+    }
+
+    /**
+     * Get the dataTable columns definition.
+     */
+    public function getColumns(): array
+    {
+        return [
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
+            Column::make('id')->title('#')->width(60),
+            Column::make('registration_number')->title('Registration No.')->orderable(false),
+            Column::make('make')->title('Make'),
+            Column::make('model')->title('Model'),
+            Column::make('assigned_to')->title('Assigned To'),
+            Column::make('vehicle_category')->title('Category'),
+            Column::computed('first_registration_date')->title('Registration Date'),
+            Column::computed('odometer_reading')->title('Odometer')->orderable(false),
+        ];
+    }
+
+    /**
+     * Get the filename for export.
+     */
+    protected function filename(): string
+    {
+        return 'Vehicles_' . date('YmdHis');
+    }
+}

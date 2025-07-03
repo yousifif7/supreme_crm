@@ -46,7 +46,7 @@
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_vehicle"
-                        class=" add_btn btn btn-white d-inline-flex align-items-center"">
+                        class=" add_btn btn btn-white d-inline-flex align-items-center">
                         <i class="ti ti-plus me-2"></i>Vehicle
                     </a>
 
@@ -72,53 +72,9 @@
             <!-- /Breadcrumb -->
 
             <div class="card">
-
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Registration No.</th>
-                                    <th>Make</th>
-                                    <th>Model</th>
-                                    <th>Assigned Driver/Dept</th>
-                                    <th>Category</th>
-                                    <th>Actions</th>
-
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($vehicles as $vehicle)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $vehicle->id }}">
-                                        </td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $vehicle->registration_number }}</td>
-                                        <td>{{ $vehicle->make }}</td>
-                                        <td>{{ $vehicle->model }}</td>
-                                        <td>{{ $vehicle->assigned_to }}</td>
-                                        <td>{{ $vehicle->vehicle_category }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-
-                                                <a href="#" class="me-2"
-                                                    onclick="editVehicle({{ $vehicle->id }})"><i
-                                                        class="ti ti-edit"></i></a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteVehicle({{ $vehicle->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $vehicles->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
             </div>
@@ -413,35 +369,6 @@
             </div>
         </div>
 
-        <!-- /Edit Vehicle -->
-
-        <!-- Add Vehicle Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('vehicle_details') }}" class="btn btn-dark w-100">Back to
-                                            List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /Add Vehicle Success -->
-
         <!-- Delete Modal -->
         <div class="modal fade" id="delete_modal">
             <div class="modal-dialog modal-dialog-centered">
@@ -525,8 +452,9 @@
                     },
                     success: function(response) {
                         $('#add_vehicle').modal('hide');
-                        $('#success_message').html('Vehicle Added Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Vehicle Added Successfully');
+                        reloadDatatable('#vehicles-table');
+                        form.reset();
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -569,8 +497,8 @@
                     },
                     success: function(response) {
                         $('#edit_vehicle').modal('hide');
-                        $('#success_message').html('Vehicle Updated Successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Vehicle Updated Successfully!');
+                        reloadDatatable('#vehicles-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -631,8 +559,8 @@
                     },
                     success: function(response) {
                         $('#delete_modal').modal('hide');
-                        $('#success_message').html('Vehicle Deleted Successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Vehicle Deleted Successfully!');
+                        reloadDatatable('#vehicles-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -663,8 +591,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected vehicles deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected vehicles deleted successfully!');
+                    reloadDatatable('#vehicles-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -672,4 +600,5 @@
             });
         });
     </script>
+    {!! $dataTable->scripts() !!}
 @endsection
