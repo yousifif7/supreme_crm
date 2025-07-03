@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\SubcontractorsDataTable;
 use App\Models\Subcontractor;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -11,10 +12,9 @@ use Spatie\Permission\Models\Role;
 
 class SubContractorController extends Controller
 {
-    public function index()
+    public function index(SubcontractorsDataTable $dataTable)
     {
-        $subcontractors = Subcontractor::paginate();
-        return view('employees.sub_contractors', compact('subcontractors'));
+        return $dataTable->render('employees.sub_contractors');
     }
     public function store(Request $request)
     {

@@ -83,67 +83,9 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Address</th>
-                                    <th>Contact Person</th>
-                                    <th>Contact Number</th>
-                                    <th>Contact Email</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $i = ($subcontractors->currentPage() - 1) * $subcontractors->perPage() + 1; @endphp
-                                @foreach ($subcontractors as $subcontractor)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox"
-                                                value="{{ $subcontractor->id }}"></td>
-                                        <td>{{ $i++ }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium">
-                                                        <a onclick="viewSubcontractorDetail({{ $subcontractor->id }})">
-                                                            {{ $subcontractor->company_name }}
-                                                        </a>
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="text-align: left">{{ $subcontractor->company_address }}</td>
-                                        <td style="text-align: left">{{ $subcontractor->contact_person }}</td>
-                                        <td style="text-align: left">{{ $subcontractor->contact_number }}</td>
-                                        <td style="text-align: left">{{ $subcontractor->email }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button class="sites_action-btn"
-                                                    onclick="viewLogs({{ $subcontractor->id }})">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewSubcontractorDetail({{ $subcontractor->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a href="#" class="me-2"
-                                                    onclick="editSubcontractor({{ $subcontractor->id }})"><i
-                                                        class="ti ti-edit"></i></a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteSubcontractor({{ $subcontractor->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
-
-
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $subcontractors->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -159,7 +101,7 @@
                         </button>
                     </div>
 
-                    <form method="POST" id="add_subcontractor-form" enctype="multipart/form-data">
+                    <form method="POST" id="add_subcontractor-form" action="{{ route('subcontractors.store') }}" enctype="multipart/form-data">
                         @csrf
                         <div class="tab-content" id="subTabContent">
                             <div class="tab-pane fade show active" id="basic-info" role="tabpanel" tabindex="0">
@@ -672,8 +614,8 @@
                     },
                     success: function(response) {
                         $('#add_subcontractor').modal('hide');
-                        $('#success_message').html('Subcontractor Added Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Subcontractor Added Successfully');
+                        reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -713,8 +655,8 @@
                     },
                     success: function(response) {
                         $('#edit_subcontractor').modal('hide');
-                        $('#success_message').html('Subcontractor Updated Successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Subcontractor Updated Successfully!');
+                        reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -778,9 +720,8 @@
                     },
                     success: function(response) {
                         $('#delete_modal').modal('hide');
-
-                        $('#success_message').html('Subcontractor Deleted Successfully!')
-                        $('#success_modal').modal('show');
+                        toast_success('Subcontractor Deleted Successfully!');
+                        reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -811,8 +752,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected subcontractors deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected subcontractors deleted successfully!');
+                    reloadDatatable('#subcontractors-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -896,4 +837,6 @@
             $('#vatInputSub').toggle(this.checked);
         });
     </script>
+
+    {!! $dataTable->scripts() !!}
 @endsection
