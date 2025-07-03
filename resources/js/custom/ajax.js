@@ -117,7 +117,6 @@ $(document).on('click', '[data-toggle="ajax-modal"]', function () {
             //     initFlatPickr();
             //   }
             handlePostAjaxSuccess(response);
-            $('[data-bs-toggle="tooltip"]').tooltip();
             $('#globalModal').modal('show');
         }
     });

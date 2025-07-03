@@ -47,6 +47,7 @@
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
+                        <button class="btn btn-primary me-2" id="bulkDeleteBtn">Delete Selected</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -89,77 +90,7 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-
-                                    <th>#</th>
-                                    <th>Client Name</th>
-                                    <th>Site Name</th>
-                                    <th>Staff Name</th>
-                                    <th>Shift Date</th>
-                                    <th>Start Time</th>
-                                    <th>End Time</th>
-                                    <th>Break Time</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($shifts as $shift)
-                                    <tr>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $shift->shift->client->client_name }}</td>
-                                        <td>{{ $shift->shift->site->site_name }}</td>
-                                        @if (!empty($shift->shift->staff->fore_name))
-                                            <td>{{ $shift->shift->staff->fore_name }}</td>
-                                        @else
-                                            <td>No staff</td>
-                                        @endif
-                                        <td>{{ $shift->shift_date }}</td>
-                                        <td>{{ $shift->start_time }}</td>
-                                        <td>{{ $shift->end_time }}</td>
-                                        <td>{{ $shift->break_time }}</td>
-                                        <td>
-
-                                            @php
-                                                $statusMap = [
-                                                    0 => ['label' => 'Pending', 'color' => 'secondary'],
-                                                    1 => ['label' => 'Dispatched', 'color' => 'info'],
-                                                    2 => ['label' => 'Accepted', 'color' => 'primary'],
-                                                    3 => ['label' => 'Started', 'color' => 'warning'],
-                                                    4 => ['label' => 'Ended', 'color' => 'success'],
-                                                    5 => ['label' => 'Rejected', 'color' => 'danger'],
-                                                    6 => ['label' => 'Canceled', 'color' => 'dark'],
-                                                    7 => ['label' => 'Pre-Shift', 'color' => 'light'],
-                                                    8 => ['label' => 'Await-Finish', 'color' => 'purple'], // use a custom class if needed
-                                                ];
-
-                                                $status = $statusMap[$shift->shift->is_assign] ?? [
-                                                    'label' => 'Unknown',
-                                                    'color' => 'secondary',
-                                                ];
-                                            @endphp
-
-                                            <span class="badge bg-{{ $status['color'] }}">{{ $status['label'] }}</span>
-                                        </td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button onclick="window.location='#'"
-                                                    class="sites_action-btn">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="editShift({{ $shift->id }})"><i class="ti ti-edit"></i></a>
-                                                <a onclick="deleteShift({{ $shift->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $shifts->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
             </div>
@@ -1003,30 +934,6 @@
                 </div>
             </div>
         </div>
-        <!-- Add Shift Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('shifts') }}" class="btn btn-dark w-100">Back to List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
 
         <!-- Import modal -->
         <div class="modal fade" id="import_modal">
@@ -1087,6 +994,26 @@
                 </div>
             </div>
         </div>
+
+        <!-- Delete Modal -->
+        <div class="modal fade" id="delete_modal">
+            <div class="modal-dialog modal-dialog-centered" style="max-width: 20%; min-width: 20%;">
+                <div class="modal-content">
+                    <div class="modal-body text-center">
+                        <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                            <i class="ti ti-trash-x fs-36"></i>
+                        </span>
+                        <h4 class="mb-1">Confirm Delete</h4>
+                        <p class="mb-3">This action cannot be undone. Are you sure you want to delete?</p>
+                        <div class="d-flex justify-content-center">
+                            <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <!-- /Delete Modal -->
 
     </div>
     <!-- /Page Wrapper -->
@@ -1187,8 +1114,8 @@
                     },
                     success: function(response) {
                         $('#add_shift').modal('hide');
-                        $('#success_message').html('Shift Added Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Shift Added Successfully');
+                        reloadDatatable('#shifts-table');
 
                         // Optional: Reset form after success
                         form.reset();
@@ -1233,8 +1160,8 @@
                     },
                     success: function(response) {
                         $('#edit_shift').modal('hide');
-                        $('#success_message').html('Shifts Updated Successfully!')
-                        $('#success_modal').modal('show');
+                        toast_success('Shift Updated Successfully!');
+                        reloadDatatable('#shifts-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1253,6 +1180,64 @@
                     }
                 });
             });
+
+            // Bulk delete button
+            $('#bulkDeleteBtn').on('click', function() {
+                const selected = $('.dT-row-checkbox:checked').map(function() {
+                    return this.value;
+                }).get();
+
+                if (selected.length === 0) {
+                    alert('Please select at least one shift to delete.');
+                    return;
+                }
+
+                if (!confirm('Are you sure you want to delete the selected shifts?')) return;
+
+                $.ajax({
+                    url: '{{ route('shifts.bulkDelete') }}',
+                    type: 'POST',
+                    data: {
+                        ids: selected,
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        toast_success('Selected shifts deleted successfully!');
+                        reloadDatatable('#shifts-table');
+                    },
+                    error: function() {
+                        alert('Something went wrong during bulk delete.');
+                    }
+                });
+            });
+        });
+
+        let selectedId = null;
+
+        function deleteShift(record_id) {
+            selectedId = record_id;
+            $('#delete_modal').modal('show');
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (selectedId !== null) {
+                $.ajax({
+                    url: `${baseUrl}/deleteshift/${selectedId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                    },
+                    success: function(response) {
+                        $('#delete_modal').modal('hide');
+                        toast_success('Shift deleted successfully!');
+                        reloadDatatable('#shifts-table');
+                    },
+                    error: function(xhr) {
+                        $('#delete_modal').modal('hide');
+                        alert('Something went wrong. Please try again.');
+                    }
+                });
+            }
         });
 
         function editShift(record_id) {
@@ -1336,4 +1321,5 @@
             });
         });
     </script>
+    {!! $dataTable->scripts() !!}
 @endsection

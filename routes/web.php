@@ -130,6 +130,8 @@ Route::middleware('auth')->group(function () {
     Route::post('shifts', [ShiftController::class, 'store'])->name('shifts.store');
     Route::post('/updateshift/{id}', [ShiftController::class, 'update'])->name('shifts.update');
     Route::get('/editshift/{id}', [ShiftController::class, 'edit'])->name('shifts.edit');
+    Route::delete('/deleteshift/{id}', [ShiftController::class, 'destroy'])->name('shifts.destroy');
+    Route::post('/shifts/bulk-delete', [ShiftController::class, 'bulkDelete'])->name('shifts.bulkDelete');
     Route::get('/shifts/{shiftDate}', [ShiftController::class, 'show'])->name('shifts.show');
     Route::get('/api/shifts', [ShiftController::class, 'getShifts']);
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);

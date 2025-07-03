@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\ShiftsDataTable;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\EmployeeType;
@@ -16,16 +17,15 @@ use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
 {
-    public function index()
+    public function index(ShiftsDataTable $dataTable)
     {
-        $shifts = ShiftDate::with('shift.client', 'shift.site', 'shift.staff')->paginate(10);
         $clients = Client::all();
         $sites = Site::all();
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
         $services = EmployeeType::all();
-        return view('security_boards.shifts', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+        return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
     public function scheduling()
     {
@@ -324,6 +324,26 @@ class ShiftController extends Controller
         $shift->update($data);
 
         return response()->json(['message' => 'Shift updated successfully']);
+    }
+
+    public function destroy($id)
+    {
+        $shiftDate = ShiftDate::findOrFail($id);
+        $shiftDate->delete();
+
+        return response()->json(['success' => true, 'message' => 'Shift deleted successfully']);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:shift_dates,id',
+        ]);
+
+        ShiftDate::whereIn('id', $request->ids)->delete();
+
+        return response()->json(['message' => 'Selected shifts deleted successfully.']);
     }
 
     public function storeBookon(Request $request)
