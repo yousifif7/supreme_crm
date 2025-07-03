@@ -56,91 +56,7 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Vehicle</th>
-                                    <th>MOT Certificate</th>
-                                    <th>Insurance Certificate</th>
-                                    <th>V5C Logbook</th>
-                                    <th>Tax Confirmation</th>
-                                    <th>Tachograph Certificate</th>
-                                    <th>Service Report</th>
-                                    <th>Inspection Report</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($documents as $doc)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $doc->id }}"></td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $doc->vehicle->registration_number ?? 'N/A' }}</td>
-
-                                        <td>
-                                            @if ($doc->mot_certificate_path)
-                                                <a href="{{ asset('storage/' . $doc->mot_certificate_path) }}"
-                                                    target="_blank">View</a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($doc->insurance_certificate_path)
-                                                <a href="{{ asset('' . $doc->insurance_certificate_path) }}"
-                                                    target="_blank">View</a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($doc->v5c_logbook_path)
-                                                <a href="{{ asset('' . $doc->v5c_logbook_path) }}" target="_blank">View</a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($doc->tax_confirmation_path)
-                                                <a href="{{ asset('' . $doc->tax_confirmation_path) }}"
-                                                    target="_blank">View</a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($doc->tachograph_certificate_path)
-                                                <a href="{{ asset('' . $doc->tachograph_certificate_path) }}"
-                                                    target="_blank">View</a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($doc->service_report_path)
-                                                <a href="{{ asset('' . $doc->service_report_path) }}"
-                                                    target="_blank">View</a>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            @if ($doc->inspection_report_path)
-                                                <a href="{{ asset('' . $doc->inspection_report_path) }}"
-                                                    target="_blank">View</a>
-                                            @endif
-                                        </td>
-
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <a href="#" class="me-2"
-                                                    onclick="editDocumentation({{ $doc->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteDocumentation({{ $doc->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $documents->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {!! $dataTable->table(['class' => 'table datatable']) !!}
                     </div>
                 </div>
 
@@ -340,37 +256,6 @@
                     </div>
                 </div>
             </div>
-
-
-
-            <!-- Add Vehicle Compliances Success -->
-            <div class="modal fade" id="success_modal" role="dialog">
-                <div class="modal-dialog modal-dialog-centered modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center p-3">
-                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                        class="ti ti-check fs-24"></i></span>
-                                <h5 class="mb-2" id="success_message"></h5>
-
-                                </p>
-                                <div>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <a href="{{ url('documentation_uploads') }}" class="btn btn-dark w-100">Back
-                                                to
-                                                List</a>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- /Add Vehicle Success -->
-
             <!-- Delete Modal -->
             <div class="modal fade" id="delete_modal">
                 <div class="modal-dialog modal-dialog-centered">
@@ -456,8 +341,8 @@
                         },
                         success: function(response) {
                             $('#add_documentation').modal('hide');
-                            $('#success_message').html('Documents uploaded successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Documents uploaded successfully.');
+                            reloadDatatable('#documentation-table');
                             $('#add_documentation_form')[0].reset();
                         },
                         error: function(xhr) {
@@ -498,8 +383,8 @@
                         },
                         success: function(response) {
                             $('#edit_documentation').modal('hide');
-                            $('#success_message').html('Documents updated successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Documents updated successfully.');
+                            reloadDatatable('#documentation-table');
                         },
                         error: function(xhr) {
                             if (xhr.status === 422) {
@@ -553,8 +438,8 @@
                         },
                         success: function(response) {
                             $('#delete_modal').modal('hide');
-                            $('#success_message').html('Documentation Upload Deleted Successfully!');
-                            $('#success_modal').modal('show');
+                            toast_success('Documentation Upload Deleted Successfully!');
+                            reloadDatatable('#documentation-table');
                         },
                         error: function(xhr) {
                             $('#delete_modal').modal('hide');
@@ -584,8 +469,8 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#success_message').text('Selected documentation deleted successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Selected documentation deleted successfully!');
+                        reloadDatatable('#documentation-table');
                     },
                     error: function() {
                         alert('Something went wrong during bulk delete.');
@@ -593,4 +478,5 @@
                 });
             });
         </script>
+        {!! $dataTable->scripts() !!}
     @endsection

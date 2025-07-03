@@ -53,66 +53,7 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Invoice No</th>
-                                    <th>Invoice Title</th>
-                                    <th>Client Name</th>
-                                    <th>Site Name</th>
-                                    <th>Invoice Date</th>
-                                    <th>Due Date</th>
-                                    <th>Total Shift Hours</th>
-                                    <th>Net Amount</th>
-                                    <th>Paid Amount</th>
-                                    <th>Payment Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $i = ($invoices->currentPage() - 1) * $invoices->perPage() + 1; @endphp
-                                @foreach ($invoices as $invoice)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $invoice->id }}">
-                                        </td>
-                                        <td>{{ $i++ }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium"><a
-                                                            href="{{ ($invoice->client_id) ? route('invoices.show', $invoice->id) : route('payrolls.show', $invoice->id)  }}">{{ $invoice->invoice_no }}</a>
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>{{ $invoice->invoice_title }}</td>
-                                        <td>{{ $invoice->client?->client_name }}</td>
-                                        <td>{{ $invoice->site?->site_name }}</td>
-                                        <td>{{ $invoice->invoice_date }}</td>
-                                        <td>{{ $invoice->due_date }}</td>
-                                        <td>{{ $invoice->total_shift_hours }}</td>
-                                        <td>{{ $invoice->net_amount }}</td>
-                                        <td>{{ $invoice->paid_amount }}</td>
-                                        <td>{{ $invoice->payment_date }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                {{--<a href="#" class="me-2" onclick="editSite({{ $invoice->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>--}}
-                                                <a onclick="deleteInvoice({{ $invoice->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $invoices->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {!! $dataTable->table(['class' => 'table datatable']) !!}
                     </div>
                 </div>
             </div>
@@ -123,32 +64,6 @@
 
     </div>
     <!-- /Page Wrapper -->
-
-    <!-- Invoice Success -->
-    <div class="modal fade" id="success_modal" role="dialog">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content">
-                <div class="modal-body">
-                    <div class="text-center p-3">
-                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                class="ti ti-check fs-24"></i></span>
-                        <h5 class="mb-2" id="success_message"></h5>
-
-                        </p>
-                        <div>
-                            <div class="row g-2">
-                                <div class="col-12">
-                                    <a href="{{ url('invoices') }}" class="btn btn-dark w-100">Back to List</a>
-                                </div>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-    <!-- /Invoice Success -->
 
     <!-- Delete Modal -->
     <div class="modal fade" id="delete_modal">
@@ -192,8 +107,8 @@
                     success: function(response) {
                         $('#delete_modal').modal('hide');
 
-                        $('#success_message').html('Invoice Deleted Successfully!')
-                        $('#success_modal').modal('show');
+                        toast_success('Invoice Deleted Successfully!')
+                        reloadDatatable('#invoices-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -224,8 +139,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected invoice deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected invoice deleted successfully!');
+                    reloadDatatable('#invoices-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -233,4 +148,5 @@
             });
         });
     </script>
+    {!! $dataTable->scripts() !!}
 @endsection

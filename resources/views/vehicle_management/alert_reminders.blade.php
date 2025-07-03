@@ -75,52 +75,7 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Vehicle</th>
-                                    <th>MOT Due</th>
-                                    <th>Insurance Renewal</th>
-                                    <th>Tax Renewal</th>
-                                    <th>Service Due</th>
-                                    <th>Tachograph Calibration</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($reminders as $reminder)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $reminder->id }}">
-                                        </td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $reminder->vehicle->registration_number ?? 'N/A' }}</td>
-                                        <td>{{ $reminder->mot_due_date ?? '-' }}</td>
-                                        <td>{{ $reminder->insurance_renewal_date ?? '-' }}</td>
-                                        <td>{{ $reminder->tax_renewal_date ?? '-' }}</td>
-                                        <td>{{ $reminder->service_due_date ?? '-' }}</td>
-                                        <td>{{ $reminder->tachograph_calibration_date ?? '-' }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <a href="#" class="me-2"
-                                                    onclick="editReminder({{ $reminder->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteReminder({{ $reminder->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $reminders->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {!! $dataTable->table(['class' => 'table datatable']) !!}
                     </div>
                 </div>
 
@@ -298,33 +253,7 @@
                 </div>
             </div>
 
-            <!-- Add Vehicle Compliances Success -->
-            <div class="modal fade" id="success_modal" role="dialog">
-                <div class="modal-dialog modal-dialog-centered modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center p-3">
-                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                        class="ti ti-check fs-24"></i></span>
-                                <h5 class="mb-2" id="success_message"></h5>
 
-                                </p>
-                                <div>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <a href="{{ url('alert_reminders') }}" class="btn btn-dark w-100">Back
-                                                to
-                                                List</a>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- /Add Vehicle Success -->
 
             <!-- Delete Modal -->
             <div class="modal fade" id="delete_modal">
@@ -411,8 +340,8 @@
                         },
                         success: function(response) {
                             $('#add_reminder').modal('hide');
-                            $('#success_message').html('Reminder added successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Reminder added successfully.');
+                            reloadDatatable('#alert-reminders-table')
                             $('#add_reminder_form')[0].reset();
                         },
                         error: function(xhr) {
@@ -453,8 +382,8 @@
                         },
                         success: function(response) {
                             $('#edit_reminder').modal('hide');
-                            $('#success_message').html('Reminder updated successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Reminder updated successfully.');
+                            reloadDatatable('#alert-reminders-table')
                         },
                         error: function(xhr) {
                             if (xhr.status === 422) {
@@ -510,8 +439,8 @@
                         },
                         success: function(response) {
                             $('#delete_modal').modal('hide');
-                            $('#success_message').html('Alert Reminder Deleted Successfully!');
-                            $('#success_modal').modal('show');
+                            toast_success('Alert Reminder Deleted Successfully!');
+                            reloadDatatable('#alert-reminders-table')
                         },
                         error: function(xhr) {
                             $('#delete_modal').modal('hide');
@@ -541,8 +470,8 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#success_message').text('Selected alert reminder deleted successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Selected alert reminder deleted successfully!');
+                        reloadDatatable('#alert-reminders-table')
                     },
                     error: function() {
                         alert('Something went wrong during bulk delete.');
@@ -550,4 +479,5 @@
                 });
             });
         </script>
+        {!! $dataTable->scripts() !!}
     @endsection
