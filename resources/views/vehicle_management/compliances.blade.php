@@ -75,62 +75,7 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Vehicle RN</th>
-                                    <th>MOT Certificate</th>
-                                    <th>MOT Expiry</th>
-                                    <th>Insurance Provider</th>
-                                    <th>Insurance Expiry</th>
-                                    <th>Tax Status</th>
-                                    <th>Tax Expiry</th>
-                                    <th>LEZ/ULEZ</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($compliances as $compliance)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $compliance->id }}">
-                                        </td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $compliance->vehicle->registration_number }}</td>
-                                        <td>{{ $compliance->mot_certificate_number }}</td>
-                                        <td>{{ $compliance->mot_expiry_date }}</td>
-                                        <td>{{ $compliance->insurance_provider }}</td>
-                                        <td>{{ $compliance->insurance_expiry_date }}</td>
-                                        <td>{{ $compliance->vehicle_tax_status }}</td>
-                                        <td>{{ $compliance->tax_expiry_date }}</td>
-                                        <td>
-                                            @if ($compliance->lez_ulez_compliant)
-                                                <span class="badge bg-success">Yes</span>
-                                            @else
-                                                <span class="badge bg-danger">No</span>
-                                            @endif
-                                        </td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <a href="#" class="me-2"
-                                                    onclick="editCompliance({{ $compliance->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteCompliance({{ $compliance->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $compliances->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
 
@@ -388,33 +333,6 @@
 
         <!-- /Edit Vehicle -->
 
-        <!-- Add Vehicle Compliances Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('vehicle_compliances') }}" class="btn btn-dark w-100">Back to
-                                            List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /Add Vehicle Success -->
-
         <!-- Delete Modal -->
         <div class="modal fade" id="delete_modal">
             <div class="modal-dialog modal-dialog-centered">
@@ -498,8 +416,8 @@
                     },
                     success: function(response) {
                         $('#add_compliance').modal('hide');
-                        $('#success_message').html('Vehicle Compliance Added Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('Vehicle Compliance Added Successfully');
+                        reloadDatatable('#vehicle-compliances-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -542,8 +460,8 @@
                     },
                     success: function(response) {
                         $('#edit_compliance').modal('hide');
-                        $('#success_message').html('Vehicle Compliance Updated Successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Vehicle Compliance Updated Successfully!');
+                        reloadDatatable('#vehicle-compliances-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -609,8 +527,8 @@
                     },
                     success: function(response) {
                         $('#delete_modal').modal('hide');
-                        $('#success_message').html('Vehicle Compliance Deleted Successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Vehicle Compliance Deleted Successfully!');
+                        reloadDatatable('#vehicle-compliances-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -641,8 +559,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected vehicles deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected vehicles deleted successfully!');
+                    reloadDatatable('#vehicle-compliances-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -650,4 +568,5 @@
             });
         });
     </script>
+    {!! $dataTable->scripts() !!}
 @endsection
