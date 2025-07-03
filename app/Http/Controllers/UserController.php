@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\UsersDataTable;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Invoice;
@@ -75,11 +76,10 @@ class UserController extends Controller
         return view('dashboard', compact('clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));
     }
 
-    public function index()
+    public function index(UsersDataTable $dataTable)
     {
-        $users = User::paginate(10);
         $roles = Role::pluck('name', 'name')->all();
-        return view('user_management.users', ['users' => $users, 'roles' => $roles]);
+        return $dataTable->render('user_management.users', compact('roles'));
     }
 
     public function create()

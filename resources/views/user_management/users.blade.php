@@ -59,82 +59,9 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <td>Email</td>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($users as $user)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $user->id }}">
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <a onclick="viewUserDetail({{ $user->id }})"
-                                                    class="avatar avatar-md
-                                                    border avatar-rounded">
-                                                    <img src="{{ $user->profile_picture ? asset('uploads/profile_pictures/' . $user->profile_picture) : asset('uploads/no.png') }}"
-                                                        class="img-fluid" alt="Profile Picture">
-                                                </a>
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium"><a
-                                                            onclick="viewUserDetail({{ $user->id }})">{{ $user->first_name }}
-                                                            {{ $user->last_name }}</a>
-                                                    </h6>
-                                                    <span
-                                                        class="fs-10
-                                                            fw-normal "><i
-                                                            class="ti ti-phone"></i>&nbsp;{{ $user->phone_number }}&nbsp;<a
-                                                            href="#"><i class="ti ti-external-link"></i></a></span>
-
-
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {{ $user->email }}
-                                        </td>
-                                        <td>
-                                            @if (!empty($user->getRoleNames()))
-                                                @foreach ($user->getRoleNames() as $rolename)
-                                                    <label class="badge bg-primary mx-1">{{ $rolename }}</label>
-                                                @endforeach
-                                            @endif
-                                        </td>
-                                        <td>
-                                            {{ $user->status }}
-                                        </td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button class="sites_action-btn"
-                                                    onclick="viewLogs({{ $user->id }})">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewUserDetail({{ $user->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a onclick="editUser({{ $user->id }})" class="me-2"><i
-                                                        class="ti ti-edit"></i></a>
-                                                <a href="javascript:void(0);" onclick="deleteUser({{ $user->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $users->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -434,32 +361,6 @@
             </div>
         </div>
         <!-- /Edit Client -->
-        <!-- Add User Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ route('users.index') }}" class="btn btn-dark w-100">Back to
-                                            List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- End user suscces -->
 
         <!-- Delete Modal -->
         <div class="modal fade" id="delete_modal">
@@ -633,8 +534,8 @@
                     success: function(response) {
                         $('#add_user_form')[0].reset();
                         $('#add_user').modal('hide');
-                        $('#success_modal').modal('show'); // or show a toast
-                        // console.log('User saved successfully');
+                        toast_success('User Added Successfully');
+                        reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -673,9 +574,8 @@
                     },
                     success: function(response) {
                         $('#edit_user').modal('hide');
-                        $('#success_message').html('User updated successfully!');
-                        $('#success_modal').modal('show');
-                        // Optionally refresh data here
+                        toast_success('User updated successfully!');
+                        reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
                         $('.form-error').text(''); // Clear old errors
@@ -728,9 +628,8 @@
                     },
                     success: function(response) {
                         $('#delete_modal').modal('hide');
-
-                        $('#success_message').html('User Deleted Successfully');
-                        $('#success_modal').modal('show');
+                        toast_success('User deleted successfully!');
+                        reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
                         $('#delete_modal').modal('hide');
@@ -761,8 +660,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected users deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected users deleted successfully!');
+                    reloadDatatable('#users-table');
                 },
                 error: function() {
                     alert('Something went wrong during bulk delete.');
@@ -829,4 +728,5 @@
             });
         }
     </script>
+    {!! $dataTable->scripts() !!}
 @endsection
