@@ -661,6 +661,8 @@
             @include('security_boards.shiftmodal');
 
             <!-- /Breadcrumb -->
+            <!-- Assign Shift Modal -->
+            @include('security_boards.assign-shift-modal')
 
 
         </div>

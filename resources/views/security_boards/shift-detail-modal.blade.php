@@ -336,7 +336,7 @@
     });
 
     $(document).on('click', '#assignShiftBtn', function() {
-        $('#shift_id').val({{ $shiftDate->id }});
+        $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
         $('#assignShiftModal').modal('show');
     });
 

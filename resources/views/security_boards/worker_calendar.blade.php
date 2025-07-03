@@ -672,6 +672,9 @@
             </div>
         </div>
 
+        <!-- Assign Shift Modal -->
+        @include('security_boards.assign-shift-modal')
+
     </div>
 
     <!-- /Page Wrapper -->
