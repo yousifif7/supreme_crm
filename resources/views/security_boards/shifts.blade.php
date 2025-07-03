@@ -1113,7 +1113,7 @@
                             'content') // Better practice
                     },
                     success: function(response) {
-                        $('#add_shift').modal('hide');
+                        closeBsModal('#add_shift');
                         toast_success('Shift Added Successfully');
                         reloadDatatable('#shifts-table');
 
@@ -1159,7 +1159,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_shift').modal('hide');
+                        closeBsModal('#edit_shift');
                         toast_success('Shift Updated Successfully!');
                         reloadDatatable('#shifts-table');
                     },
@@ -1228,12 +1228,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         toast_success('Shift deleted successfully!');
                         reloadDatatable('#shifts-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

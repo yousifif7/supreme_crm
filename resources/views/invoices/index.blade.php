@@ -105,13 +105,13 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
 
                         toast_success('Invoice Deleted Successfully!')
                         reloadDatatable('#invoices-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

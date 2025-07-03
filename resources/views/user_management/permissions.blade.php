@@ -196,7 +196,7 @@
                 type: 'POST',
                 data: form.serialize(),
                 success: function(response) {
-                    $('#add_permission').modal('hide');
+                    closeBsModal('#add_permission');
                     $('#success_message').text('Permission created successfully');
                     $('#success_modal').modal('show');
                     form[0].reset();
@@ -230,7 +230,7 @@
                     'X-HTTP-Method-Override': 'PUT'
                 },
                 success: function(response) {
-                    $('#edit_permission_modal').modal('hide');
+                    closeBsModal('#edit_permission_modal');
                     $('#success_message').text('Permission updated successfully');
                     $('#success_modal').modal('show');
                 },
@@ -257,12 +257,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         $('#success_message').html('Permission deleted successfully!');
                         $('#success_modal').modal('show');
                     },
                     error: function() {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

@@ -823,7 +823,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_site').modal('hide');
+                        closeBsModal('#add_site');
                         toast_success('Sites Added Successfully')
                         reloadDatatable('#sites-table');
                     },
@@ -868,7 +868,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_site').modal('hide');
+                        closeBsModal('#edit_site');
                         toast_success('Sites Updated Successfully!');
                         reloadDatatable('#sites-table');
                     },
@@ -978,13 +978,13 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#delete_modal').modal('hide');
+                    closeBsModal('#delete_modal');
 
                     toast_success('Site Deleted Successfully!')
                     reloadDatatable('#sites-table');
                 },
                 error: function(xhr) {
-                    $('#delete_modal').modal('hide');
+                    closeBsModal('#delete_modal');
                     alert('Something went wrong. Please try again.');
                 }
             });

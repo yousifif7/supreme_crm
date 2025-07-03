@@ -875,7 +875,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_shift').modal('hide');
+                        closeBsModal('#add_shift');
                         $('#success_message').html('Shift Added Successfully')
                         $('#success_modal').modal('show');
                     },
@@ -1049,7 +1049,7 @@
                 data: $(this).serialize(),
                 success: function(response) {
                     $('#success_message').html('Shift assigned successfully!');
-                    $('#assignShiftModal').modal('hide');
+                    closeBsModal('#assignShiftModal');
                     $('#success_modal').modal('show');
                 },
                 error: function(xhr) {

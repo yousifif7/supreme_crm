@@ -374,7 +374,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#add_maintenance').modal('hide');
+                            closeBsModal('#add_maintenance');
                             toast_success('Maintenance record added successfully.');
                             reloadDatatable('#vehicle-maintenances-table');
                             $('#add_maintenance_form')[0].reset(); // Optional: reset form
@@ -417,7 +417,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#edit_maintenance').modal('hide');
+                            closeBsModal('#edit_maintenance');
                             toast_success('Maintenance record updated successfully.');
                             reloadDatatable('#vehicle-maintenances-table');
                         },
@@ -475,12 +475,12 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             toast_success('Vehicle Maintenance Deleted Successfully!');
                             reloadDatatable('#vehicle-maintenances-table');
                         },
                         error: function(xhr) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             alert('Something went wrong. Please try again.');
                         }
                     });

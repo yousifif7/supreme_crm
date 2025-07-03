@@ -451,7 +451,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_vehicle').modal('hide');
+                        closeBsModal('#add_vehicle');
                         toast_success('Vehicle Added Successfully');
                         reloadDatatable('#vehicles-table');
                         form.reset();
@@ -496,7 +496,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_vehicle').modal('hide');
+                        closeBsModal('#edit_vehicle');
                         toast_success('Vehicle Updated Successfully!');
                         reloadDatatable('#vehicles-table');
                     },
@@ -558,12 +558,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         toast_success('Vehicle Deleted Successfully!');
                         reloadDatatable('#vehicles-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

@@ -354,7 +354,7 @@
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                 },
                 success: function(response) {
-                    $('#add_role').modal('hide');
+                    closeBsModal('#add_role');
                     toast_success('Role created successfully!');
                     reloadDatatable('#roles-table');
                     form[0].reset();
@@ -412,7 +412,7 @@
                     'X-HTTP-Method-Override': 'PUT'
                 },
                 success: function(response) {
-                    $('#edit_role_modal').modal('hide');
+                    closeBsModal('#edit_role_modal');
                     toast_success('Role updated successfully!');
                     reloadDatatable('#roles-table');
                 },
@@ -463,13 +463,13 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
 
                         toast_success('Role Deleted Successfully');
                         reloadDatatable('#roles-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

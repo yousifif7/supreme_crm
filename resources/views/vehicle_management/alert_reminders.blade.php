@@ -339,7 +339,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#add_reminder').modal('hide');
+                            closeBsModal('#add_reminder');
                             toast_success('Reminder added successfully.');
                             reloadDatatable('#alert-reminders-table')
                             $('#add_reminder_form')[0].reset();
@@ -381,7 +381,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#edit_reminder').modal('hide');
+                            closeBsModal('#edit_reminder');
                             toast_success('Reminder updated successfully.');
                             reloadDatatable('#alert-reminders-table')
                         },
@@ -438,12 +438,12 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             toast_success('Alert Reminder Deleted Successfully!');
                             reloadDatatable('#alert-reminders-table')
                         },
                         error: function(xhr) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             alert('Something went wrong. Please try again.');
                         }
                     });

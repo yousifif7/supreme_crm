@@ -340,7 +340,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#add_documentation').modal('hide');
+                            closeBsModal('#add_documentation');
                             toast_success('Documents uploaded successfully.');
                             reloadDatatable('#documentation-table');
                             $('#add_documentation_form')[0].reset();
@@ -382,7 +382,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#edit_documentation').modal('hide');
+                            closeBsModal('#edit_documentation');
                             toast_success('Documents updated successfully.');
                             reloadDatatable('#documentation-table');
                         },
@@ -437,12 +437,12 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             toast_success('Documentation Upload Deleted Successfully!');
                             reloadDatatable('#documentation-table');
                         },
                         error: function(xhr) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             alert('Something went wrong. Please try again.');
                         }
                     });

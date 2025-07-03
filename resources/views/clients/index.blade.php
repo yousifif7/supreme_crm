@@ -864,7 +864,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_client').modal('hide');
+                        closeBsModal('#add_client');
                         toast_success('Client Added Successfully');
                         reloadDatatable('#clients-table');
                     },
@@ -909,7 +909,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_client').modal('hide');
+                        closeBsModal('#edit_client');
                         toast_success('Client Updated Successfully!')
                         reloadDatatable('#clients-table');
                     },
@@ -954,7 +954,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#generate_invoice').modal('hide');
+                        closeBsModal('#generate_invoice');
                         toast_success('Invoice Created Successfully!');
                         reloadDatatable('#clients-table');
                     },
@@ -1050,13 +1050,13 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
 
                         toast_success('Client Deleted Successfully!');
                         reloadDatatable('#clients-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

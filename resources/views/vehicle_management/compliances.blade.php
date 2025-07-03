@@ -415,7 +415,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_compliance').modal('hide');
+                        closeBsModal('#add_compliance');
                         toast_success('Vehicle Compliance Added Successfully');
                         reloadDatatable('#vehicle-compliances-table');
                     },
@@ -459,7 +459,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_compliance').modal('hide');
+                        closeBsModal('#edit_compliance');
                         toast_success('Vehicle Compliance Updated Successfully!');
                         reloadDatatable('#vehicle-compliances-table');
                     },
@@ -526,12 +526,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         toast_success('Vehicle Compliance Deleted Successfully!');
                         reloadDatatable('#vehicle-compliances-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

@@ -1665,7 +1665,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_employee').modal('hide');
+                        closeBsModal('#add_employee');
                         toast_success('Employee Added Successfully');
                         reloadDatatable('#employees-table');
                     },
@@ -1716,7 +1716,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_employee').modal('hide');
+                        closeBsModal('#edit_employee');
                         toast_success('Employee Updated Successfully');
                         reloadDatatable('#employees-table');
                     },
@@ -1766,7 +1766,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#generate_payroll').modal('hide');
+                        closeBsModal('#generate_payroll');
                         toast_success('Payroll Created Successfully!');
                         reloadDatatable('#employees-table');
                     },
@@ -1966,12 +1966,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         toast_success('Employee Deleted Successfully');
                         reloadDatatable('#employees-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

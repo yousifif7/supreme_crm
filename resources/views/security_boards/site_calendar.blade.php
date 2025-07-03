@@ -767,7 +767,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_shift').modal('hide');
+                        closeBsModal('#add_shift');
                         $('#success_message').html('Shift Added Successfully')
                         $('#success_modal').modal('show');
                     },

@@ -315,7 +315,7 @@
             data: $(this).serialize(),
             success: function(response) {
                 $('#success_message').html('Shift bookon updated successfully!');
-                $('#eventModal').modal('hide');
+                closeBsModal('#eventModal');
                 $('#success_modal').modal('show');
             },
             error: function(xhr) {

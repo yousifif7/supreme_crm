@@ -311,7 +311,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#add_check').modal('hide');
+                            closeBsModal('#add_check');
                             toast_success('Roadworthiness check added successfully.');
                             reloadDatatable('#roadworthiness-checks-table');
                             $('#add_check_form')[0].reset();
@@ -353,7 +353,7 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#edit_check').modal('hide');
+                            closeBsModal('#edit_check');
                             toast_success('Roadworthiness check updated successfully.');
                             reloadDatatable('#roadworthiness-checks-table');
                         },
@@ -407,12 +407,12 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             toast_success('Check Deleted Successfully!');
                             reloadDatatable('#roadworthiness-checks-table');
                         },
                         error: function(xhr) {
-                            $('#delete_modal').modal('hide');
+                            closeBsModal('#delete_modal');
                             alert('Something went wrong. Please try again.');
                         }
                     });

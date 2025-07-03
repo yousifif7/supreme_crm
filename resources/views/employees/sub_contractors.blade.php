@@ -613,7 +613,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_subcontractor').modal('hide');
+                        closeBsModal('#add_subcontractor');
                         toast_success('Subcontractor Added Successfully');
                         reloadDatatable('#subcontractors-table');
                     },
@@ -654,7 +654,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_subcontractor').modal('hide');
+                        closeBsModal('#edit_subcontractor');
                         toast_success('Subcontractor Updated Successfully!');
                         reloadDatatable('#subcontractors-table');
                     },
@@ -719,12 +719,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         toast_success('Subcontractor Deleted Successfully!');
                         reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

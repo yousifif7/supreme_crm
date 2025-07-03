@@ -533,7 +533,7 @@
                     },
                     success: function(response) {
                         $('#add_user_form')[0].reset();
-                        $('#add_user').modal('hide');
+                        closeBsModal('#add_user');
                         toast_success('User Added Successfully');
                         reloadDatatable('#users-table');
                     },
@@ -573,7 +573,7 @@
                         'X-HTTP-Method-Override': 'PUT' // simulate PUT for Laravel
                     },
                     success: function(response) {
-                        $('#edit_user').modal('hide');
+                        closeBsModal('#edit_user');
                         toast_success('User updated successfully!');
                         reloadDatatable('#users-table');
                     },
@@ -627,12 +627,12 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         toast_success('User deleted successfully!');
                         reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         alert('Something went wrong. Please try again.');
                     }
                 });

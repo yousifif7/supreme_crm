@@ -133,3 +133,19 @@ window.reloadDatatable = function (tableId) {
     }
     $(tableId).DataTable().ajax.reload(null, false);
 };
+
+window.openBsModal = function (modalId) {
+    if (typeof modalId === 'undefined' || modalId === null || modalId === '') {
+        modalId = '#globalModal';
+    }
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById(modalId.replace('#', '')));
+    modal.show();
+}
+
+window.closeBsModal = function (modalId) {
+    if (typeof modalId === 'undefined' || modalId === null || modalId === '') {
+        modalId = '#globalModal';
+    }
+    const modal = bootstrap.Modal.getOrCreateInstance(document.getElementById(modalId.replace('#', '')));
+    modal.hide();
+}
