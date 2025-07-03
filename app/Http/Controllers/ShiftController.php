@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\DataTables\ShiftsDataTable;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
 use App\Models\Shift;
 use App\Models\ShiftDate;
@@ -196,6 +197,27 @@ class ShiftController extends Controller
                     $staff = \App\Models\Employee::find($staffId);
                     if ($staff && $staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
                         $validator->errors()->add("staff_id", "Staff SIA license has expired.");
+                    }
+
+                    // check if staff visa is student visa and if the weekly hours exceed 20
+                    if ($staff && $staff->visa_type === 'Student') {
+
+                        // // if the staff has terms with from_date and to_date overlapping the shift, ignore 20-hour limit, because he can work any hours during the term
+                        $isShiftCommingInActiveTermPeriod = EmployeeTerm::where('employee_id', $staffId)
+                            ->where(function ($q) use ($from, $to) {
+                                $q->where('from_date', '<=', $to)
+                                    ->where('to_date', '>=', $from);
+                            })
+                            ->exists();
+
+                        if (!$isShiftCommingInActiveTermPeriod) {
+                            $weeklyHours = \App\Models\ShiftDate::where('staff_id', $staffId)
+                                ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
+                                ->sum('total_hours') + $this->calculateTotalHours($start, $end);
+                            if ($weeklyHours > 20) {
+                                $validator->errors()->add("staff_id", "Staff with student visa cannot work more than 20 hours a week.");
+                            }
+                        }
                     }
                 }
             });
@@ -660,10 +682,10 @@ class ShiftController extends Controller
 
         return response()->json($events);
     }
-    private function calculateTotalHours($start, $end)
+    private function calculateTotalHours($start, $end, $format = 'H:i')
     {
-        $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
-        $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
+        $startTime = \Carbon\Carbon::createFromFormat($format, $start);
+        $endTime = \Carbon\Carbon::createFromFormat($format, $end);
 
         // Handle overnight shifts (e.g. 22:00 to 06:00 next day)
         if ($endTime->lessThanOrEqualTo($startTime)) {
@@ -727,6 +749,28 @@ class ShiftController extends Controller
             return response()->json([
                 'error' => 'This staff’s SIA license is expired.'
             ], 422);
+        }
+
+        // Check if staff has a student visa and is exceeding 20 hours per week
+        if ($staff->visa_type === 'Student') {
+            // Check if the shift is within an active term period
+            $isShiftInActiveTerm = \App\Models\EmployeeTerm::where('employee_id', $staff->id)
+                ->where(function ($query) use ($shift) {
+                    $query->where('from_date', '<=', $shift->shift_date)
+                        ->where('to_date', '>=', $shift->shift_date);
+                })
+                ->exists();
+            if (!$isShiftInActiveTerm) {
+                // Calculate total hours worked this week
+                $weeklyHours = \App\Models\ShiftDate::where('staff_id', $staff->id)
+                    ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
+                    ->sum('total_hours') + $this->calculateTotalHours($shift->start_time, $shift->end_time, 'H:i:s');
+                if ($weeklyHours > 20) {
+                    return response()->json([
+                        'error' => 'This staff with a student visa cannot work more than 20 hours per week.'
+                    ], 422);
+                }
+            }
         }
 
         // 3. ✅ Proceed to assign if checks pass
