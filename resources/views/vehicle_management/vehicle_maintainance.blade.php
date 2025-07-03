@@ -75,58 +75,9 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Last Service</th>
-                                    <th>Next Service Due</th>
-                                    <th>Work Type</th>
-                                    <th>Maintenance Date</th>
-                                    <th>Garage/Provider</th>
-                                    <th>Reported By</th>
-                                    <th>Date Reported</th>
-                                    <th>Resolution Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($maintainances as $maintainance)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $maintainance->id }}">
-                                        </td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $maintainance->last_service_date }}</td>
-                                        <td>{{ $maintainance->next_service_due_date }}</td>
-                                        <td>{{ $maintainance->work_type }}</td>
-                                        <td>{{ $maintainance->maintenance_date }}</td>
-                                        <td>{{ $maintainance->garage_provider }}</td>
-                                        <td>{{ $maintainance->reported_by }}</td>
-                                        <td>{{ $maintainance->date_reported }}</td>
-                                        <td>{{ $maintainance->resolution_status }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <a href="#" class="me-2"
-                                                    onclick="editMaintenance({{ $maintainance->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteMaintenance({{ $maintainance->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $maintainances->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
-                </div </div>
+                </div>
 
             </div>
             <!-- Add Maintenance Modal -->
@@ -339,33 +290,6 @@
             </div>
 
             <!-- Add Vehicle Compliances Success -->
-            <div class="modal fade" id="success_modal" role="dialog">
-                <div class="modal-dialog modal-dialog-centered modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center p-3">
-                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                        class="ti ti-check fs-24"></i></span>
-                                <h5 class="mb-2" id="success_message"></h5>
-
-                                </p>
-                                <div>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <a href="{{ url('vehicle_maintenances') }}" class="btn btn-dark w-100">Back
-                                                to
-                                                List</a>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- /Add Vehicle Success -->
-
             <!-- Delete Modal -->
             <div class="modal fade" id="delete_modal">
                 <div class="modal-dialog modal-dialog-centered">
@@ -429,6 +353,13 @@
     @endsection
     @section('scripts')
         <script>
+            // Function to reload the DataTable
+            function reloadDatatable(tableId) {
+                if ($.fn.dataTable.isDataTable(tableId)) {
+                    $(tableId).DataTable().ajax.reload(null, false);
+                }
+            }
+            
             $(document).ready(function() {
                 // Add Maintenance
                 $('#add_maintenance_form').on('submit', function(e) {
@@ -451,8 +382,8 @@
                         },
                         success: function(response) {
                             $('#add_maintenance').modal('hide');
-                            $('#success_message').html('Maintenance record added successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Maintenance record added successfully.');
+                            reloadDatatable('#vehicle-maintenances-table');
                             $('#add_maintenance_form')[0].reset(); // Optional: reset form
                         },
                         error: function(xhr) {
@@ -494,8 +425,8 @@
                         },
                         success: function(response) {
                             $('#edit_maintenance').modal('hide');
-                            $('#success_message').html('Maintenance record updated successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Maintenance record updated successfully.');
+                            reloadDatatable('#vehicle-maintenances-table');
                         },
                         error: function(xhr) {
                             if (xhr.status === 422) {
@@ -552,8 +483,8 @@
                         },
                         success: function(response) {
                             $('#delete_modal').modal('hide');
-                            $('#success_message').html('Vehicle Maintenance Deleted Successfully!');
-                            $('#success_modal').modal('show');
+                            toast_success('Vehicle Maintenance Deleted Successfully!');
+                            reloadDatatable('#vehicle-maintenances-table');
                         },
                         error: function(xhr) {
                             $('#delete_modal').modal('hide');
@@ -583,8 +514,8 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#success_message').text('Selected vehicles maintenance deleted successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Selected vehicles maintenance deleted successfully!');
+                        reloadDatatable('#vehicle-maintenances-table');
                     },
                     error: function() {
                         alert('Something went wrong during bulk delete.');
@@ -592,4 +523,5 @@
                 });
             });
         </script>
+        {!! $dataTable->scripts() !!}
     @endsection
