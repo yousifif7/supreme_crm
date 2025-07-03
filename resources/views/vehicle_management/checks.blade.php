@@ -75,45 +75,7 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Date Completed</th>
-                                    <th>Checked By</th>
-                                    <th>Defects Found</th>
-                                    <th>Corrective Action Taken</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($checks as $check)
-                                    <tr>
-                                        <td><input type="checkbox" class="dT-row-checkbox" value="{{ $check->id }}"></td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $check->date_completed }}</td>
-                                        <td>{{ $check->checked_by }}</td>
-                                        <td>{{ $check->defects_found }}</td>
-                                        <td>{{ $check->corrective_action_taken }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <a href="#" class="me-2" onclick="editCheck({{ $check->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a href="javascript:void(0);" onclick="deleteCheck({{ $check->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $checks->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
 
@@ -265,34 +227,6 @@
             </div>
 
 
-            <!-- Add Vehicle Compliances Success -->
-            <div class="modal fade" id="success_modal" role="dialog">
-                <div class="modal-dialog modal-dialog-centered modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center p-3">
-                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                        class="ti ti-check fs-24"></i></span>
-                                <h5 class="mb-2" id="success_message"></h5>
-
-                                </p>
-                                <div>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <a href="{{ url('roadworthiness_check') }}" class="btn btn-dark w-100">Back
-                                                to
-                                                List</a>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- /Add Vehicle Success -->
-
             <!-- Delete Modal -->
             <div class="modal fade" id="delete_modal">
                 <div class="modal-dialog modal-dialog-centered">
@@ -378,8 +312,8 @@
                         },
                         success: function(response) {
                             $('#add_check').modal('hide');
-                            $('#success_message').html('Roadworthiness check added successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Roadworthiness check added successfully.');
+                            reloadDatatable('#roadworthiness-checks-table');
                             $('#add_check_form')[0].reset();
                         },
                         error: function(xhr) {
@@ -420,9 +354,8 @@
                         },
                         success: function(response) {
                             $('#edit_check').modal('hide');
-                            $('#success_message').html(
-                                'Roadworthiness check updated successfully.');
-                            $('#success_modal').modal('show');
+                            toast_success('Roadworthiness check updated successfully.');
+                            reloadDatatable('#roadworthiness-checks-table');
                         },
                         error: function(xhr) {
                             if (xhr.status === 422) {
@@ -475,8 +408,8 @@
                         },
                         success: function(response) {
                             $('#delete_modal').modal('hide');
-                            $('#success_message').html('Check Deleted Successfully!');
-                            $('#success_modal').modal('show');
+                            toast_success('Check Deleted Successfully!');
+                            reloadDatatable('#roadworthiness-checks-table');
                         },
                         error: function(xhr) {
                             $('#delete_modal').modal('hide');
@@ -506,8 +439,8 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#success_message').text('Selected check deleted successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Selected check deleted successfully!');
+                        reloadDatatable('#roadworthiness-checks-table');
                     },
                     error: function() {
                         alert('Something went wrong during bulk delete.');
@@ -515,4 +448,5 @@
                 });
             });
         </script>
+        {!! $dataTable->scripts() !!}
     @endsection
