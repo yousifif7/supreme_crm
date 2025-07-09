@@ -22,6 +22,9 @@ class InvoicesDataTable extends DataTable
             ->addColumn('checkbox', function ($row) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $row->id . '">';
             })
+            ->addColumn('number', function ($row) {
+                return '';
+            })
             ->addColumn('invoice_no', function ($row) {
                 return '<div class="d-flex align-items-center file-name-icon">
                             <div class="ms-2">
@@ -38,7 +41,20 @@ class InvoicesDataTable extends DataTable
             ->addColumn('action', function ($row) {
                 return view('invoices.action', compact('row'))->render();
             })
-            ->rawColumns(['checkbox', 'invoice_no', 'action']);
+            ->filterColumn('invoice_no', function($query, $keyword) {
+                $query->where('invoice_no', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('client_name', function($query, $keyword) {
+                $query->whereHas('client', function($q) use ($keyword) {
+                    $q->where('client_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('site_name', function($query, $keyword) {
+                $query->whereHas('site', function($q) use ($keyword) {
+                    $q->where('site_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->rawColumns(['checkbox', 'number', 'invoice_no', 'action']);
     }
 
     /**
@@ -66,11 +82,17 @@ class InvoicesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -81,9 +103,9 @@ class InvoicesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::make('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->orderable(false)->searchable(false),
-            Column::make('id'),
-            Column::make('invoice_no')->title('Invoice No'),
+            Column::computed('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('invoice_no')->title('Invoice No')->addClass('ps-0'),
             Column::make('invoice_title')->title('Invoice Title'),
             Column::make('client_name')->title('Client Name'),
             Column::make('site_name')->title('Site Name'),

@@ -25,6 +25,9 @@ class VehiclesDataTable extends DataTable
             ->addColumn('checkbox', function ($vehicle) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $vehicle->id . '">';
             })
+            ->addColumn('number', function ($vehicle) {
+                return '';
+            })
             ->editColumn('assigned_to', function ($vehicle) {
                 return $vehicle->assigned_to ?? 'Unassigned';
             })
@@ -37,7 +40,19 @@ class VehiclesDataTable extends DataTable
             ->editColumn('odometer_reading', function ($vehicle) {
                 return number_format($vehicle->odometer_reading) . ' km';
             })
-            ->rawColumns(['action', 'checkbox', 'registration_number'])
+            ->filterColumn('assigned_to', function($query, $keyword) {
+                $query->where('assigned_to', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('vehicle_category', function($query, $keyword) {
+                $query->where('vehicle_category', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('first_registration_date', function($query, $keyword) {
+                $query->where('first_registration_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('odometer_reading', function($query, $keyword) {
+                $query->where('odometer_reading', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number', 'registration_number'])
             ->setRowId('id');
     }
 
@@ -77,11 +92,17 @@ class VehiclesDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -92,15 +113,15 @@ class VehiclesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(60),
-            Column::make('registration_number')->title('Registration No.')->orderable(false),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('registration_number')->title('Registration No.')->addClass('ps-0')->orderable(false),
             Column::make('make')->title('Make'),
             Column::make('model')->title('Model'),
             Column::make('assigned_to')->title('Assigned To'),
             Column::make('vehicle_category')->title('Category'),
-            Column::computed('first_registration_date')->title('Registration Date'),
-            Column::computed('odometer_reading')->title('Odometer')->orderable(false),
+            Column::make('first_registration_date')->title('Registration Date'),
+            Column::make('odometer_reading')->title('Odometer')->orderable(false),
         ];
     }
 

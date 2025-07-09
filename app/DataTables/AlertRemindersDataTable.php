@@ -22,6 +22,9 @@ class AlertRemindersDataTable extends DataTable
             ->addColumn('checkbox', function ($row) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $row->id . '">';
             })
+            ->addColumn('number', function ($row) {
+                return '';
+            })
             ->addColumn('vehicle_registration', function ($row) {
                 return $row->vehicle ? $row->vehicle->registration_number : 'N/A';
             })
@@ -43,7 +46,27 @@ class AlertRemindersDataTable extends DataTable
             ->addColumn('action', function ($row) {
                 return view('vehicle_management.alert_reminders.action', compact('row'))->render();
             })
-            ->rawColumns(['checkbox', 'action']);
+            ->filterColumn('vehicle_registration', function($query, $keyword) {
+                $query->whereHas('vehicle', function($q) use ($keyword) {
+                    $q->where('registration_number', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('mot_due_date', function($query, $keyword) {
+                $query->where('mot_due_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('insurance_renewal_date', function($query, $keyword) {
+                $query->where('insurance_renewal_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('tax_renewal_date', function($query, $keyword) {
+                $query->where('tax_renewal_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('service_due_date', function($query, $keyword) {
+                $query->where('service_due_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('tachograph_calibration_date', function($query, $keyword) {
+                $query->where('tachograph_calibration_date', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['checkbox', 'number', 'action']);
     }
 
     /**
@@ -71,11 +94,17 @@ class AlertRemindersDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -86,9 +115,9 @@ class AlertRemindersDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::make('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->orderable(false)->searchable(false),
-            Column::make('id'),
-            Column::make('vehicle_registration')->title('Vehicle Registration'),
+            Column::computed('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('vehicle_registration')->title('Vehicle Registration')->addClass('ps-0'),
             Column::make('mot_due_date')->title('MOT Due'),
             Column::make('insurance_renewal_date')->title('Insurance Renewal'),
             Column::make('tax_renewal_date')->title('Tax Renewal'),

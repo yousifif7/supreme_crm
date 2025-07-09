@@ -25,7 +25,10 @@ class RolesDataTable extends DataTable
             ->addColumn('checkbox', function ($role) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $role->id . '">';
             })
-            ->rawColumns(['action', 'checkbox'])
+            ->addColumn('number', function ($role) {
+                return '';
+            })
+            ->rawColumns(['action', 'checkbox', 'number'])
             ->setRowId('id');
     }
 
@@ -57,11 +60,17 @@ class RolesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '80px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -72,9 +81,9 @@ class RolesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(60),
-            Column::make('name')->title('Role Name'),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('name')->title('Role Name')->addClass('ps-0'),
         ];
     }
 

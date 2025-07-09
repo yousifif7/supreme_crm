@@ -26,7 +26,10 @@ class VehicleCompliancesDataTable extends DataTable
             ->addColumn('checkbox', function ($compliance) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $compliance->id . '">';
             })
-            ->editColumn('vehicle_rn', function ($compliance) {
+            ->addColumn('number', function ($compliance) {
+                return '';
+            })
+            ->addColumn('vehicle_rn', function ($compliance) {
                 return $compliance->vehicle ? $compliance->vehicle->registration_number : 'N/A';
             })
             ->editColumn('mot_certificate_number', function ($compliance) {
@@ -50,7 +53,24 @@ class VehicleCompliancesDataTable extends DataTable
             ->editColumn('lez_ulez_compliant', function ($compliance) {
                 return $compliance->lez_ulez_compliant ? 'Yes' : 'No';
             })
-            ->rawColumns(['action', 'checkbox'])
+            ->filterColumn('vehicle_rn', function($query, $keyword) {
+                $query->whereHas('vehicle', function($q) use ($keyword) {
+                    $q->where('registration_number', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('mot_expiry_date', function($query, $keyword) {
+                $query->where('mot_expiry_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('insurance_expiry_date', function($query, $keyword) {
+                $query->where('insurance_expiry_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('tax_expiry_date', function($query, $keyword) {
+                $query->where('tax_expiry_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('lez_ulez_compliant', function($query, $keyword) {
+                $query->where('lez_ulez_compliant', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number'])
             ->setRowId('id');
     }
 
@@ -84,11 +104,17 @@ class VehicleCompliancesDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy(1, 'asc')
+            ->orderBy(2, 'asc')
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -99,9 +125,9 @@ class VehicleCompliancesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(30),
-            Column::make('vehicle_rn')->title('Vehicle RN')->data('vehicle_rn'),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('vehicle_rn')->title('Vehicle RN')->addClass('ps-0')->data('vehicle_rn'),
             Column::make('mot_certificate_number')->title('MOT Certificate'),
             Column::make('mot_expiry_date')->title('MOT Expiry'),
             Column::make('insurance_provider')->title('Insurance Provider'),

@@ -25,6 +25,9 @@ class SitesDataTable extends DataTable
             ->addColumn('checkbox', function ($site) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $site->id . '">';
             })
+            ->addColumn('number', function ($site) {
+                return '';
+            })
             ->editColumn('client_name', function ($site) {
                 return view('sites.client_name_column', ['site' => $site]);
             })
@@ -40,7 +43,15 @@ class SitesDataTable extends DataTable
             ->editColumn('post_code', function ($site) {
                 return $site->post_code;
             })
-            ->rawColumns(['action', 'checkbox', 'client_name'])
+            ->filterColumn('client_name', function($query, $keyword) {
+                $query->whereHas('client', function($q) use ($keyword) {
+                    $q->where('client_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('address', function($query, $keyword) {
+                $query->where('address', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number', 'client_name'])
             ->setRowId('id');
     }
 
@@ -82,11 +93,17 @@ class SitesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '80px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -97,9 +114,9 @@ class SitesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(60),
-            Column::computed('client_name')->title('Client Name')->orderable(false),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('client_name')->title('Client Name')->addClass('ps-0')->orderable(false),
             Column::make('site_name')->title('Site Name'),
             Column::make('address')->title('Address'),
             Column::make('site_code')->title('Site Code'),

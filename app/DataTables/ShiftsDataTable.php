@@ -25,6 +25,9 @@ class ShiftsDataTable extends DataTable
             ->addColumn('checkbox', function ($shiftDate) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $shiftDate->id . '">';
             })
+            ->addColumn('number', function ($shiftDate) {
+                return '';
+            })
             ->editColumn('client_name', function ($shiftDate) {
                 return $shiftDate->shift->client->client_name ?? 'N/A';
             })
@@ -33,14 +36,14 @@ class ShiftsDataTable extends DataTable
             })
             ->editColumn('staff_name', function ($shiftDate) {
                 if ($shiftDate->staff) {
-                    return $shiftDate->staff->first_name . ' ' . $shiftDate->staff->last_name;
+                    return $shiftDate->staff->fore_name . ' ' . $shiftDate->staff->sur_name;
                 }
                 return 'Unassigned';
             })
             ->editColumn('shift_date', function ($shiftDate) {
                 return \Carbon\Carbon::parse($shiftDate->shift_date)->format('d M Y');
             })
-            ->editColumn('shift_time', function ($shiftDate) {
+            ->addColumn('shift_time', function ($shiftDate) {
                 $start = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('h:i A');
                 $end = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('h:i A');
                 return $start . ' - ' . $end;
@@ -48,14 +51,36 @@ class ShiftsDataTable extends DataTable
             ->editColumn('total_hours', function ($shiftDate) {
                 return number_format($shiftDate->total_hours, 2) . ' hrs';
             })
-            ->editColumn('status', function ($shiftDate) {
+            ->addColumn('status', function ($shiftDate) {
                 $statusMap = [
                     0 => '<span class="badge bg-secondary">Pending</span>',
                     1 => '<span class="badge bg-info">Assigned</span>',
                 ];
                 return $statusMap[$shiftDate->is_assign] ?? '<span class="badge bg-secondary">Pending</span>';
             })
-            ->rawColumns(['action', 'checkbox', 'status'])
+            ->filterColumn('client_name', function($query, $keyword) {
+                $query->whereHas('shift.client', function($q) use ($keyword) {
+                    $q->where('client_name', 'like', "%$keyword%");
+                });
+            })
+            ->filterColumn('site_name', function($query, $keyword) {
+                $query->whereHas('shift.site', function($q) use ($keyword) {
+                    $q->where('site_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('staff_name', function($query, $keyword) {
+                $query->whereHas('staff', function($q) use ($keyword) {
+                    $q->where('fore_name', 'like', "%{$keyword}%")
+                      ->orWhere('sur_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('shift_date', function($query, $keyword) {
+                $query->where('shift_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('total_hours', function($query, $keyword) {
+                $query->where('total_hours', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number', 'status'])
             ->setRowId('id');
     }
 
@@ -89,11 +114,17 @@ class ShiftsDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([1, 'DESC'])
+            ->orderBy([3, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -104,16 +135,16 @@ class ShiftsDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(60),
-            Column::computed('client_name')->orderable(false),
-            Column::computed('site_name')->orderable(false),
-            Column::computed('staff_name')->orderable(false),
-            Column::computed('shift_date'),
-            Column::computed('shift_time')->orderable(false),
-            Column::computed('break_time')->title('Break Time')->orderable(false),
-            Column::computed('total_hours')->title('Total Hours')->orderable(false),
-            Column::computed('status')->title('Status')->orderable(false),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('client_name')->addClass('ps-0')->orderable(false),
+            Column::make('site_name')->orderable(false),
+            Column::make('staff_name')->orderable(false),
+            Column::make('shift_date')->orderable(false)->searchable(false),
+            Column::make('shift_time')->orderable(false)->searchable(false),
+            Column::make('break_time')->title('Break Time')->orderable(false),
+            Column::make('total_hours')->title('Total Hours')->orderable(false),
+            Column::make('status')->title('Status')->orderable(false)->searchable(false),
         ];
     }
 

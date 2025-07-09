@@ -25,6 +25,9 @@ class DocumentationUploadsDataTable extends DataTable
             ->addColumn('checkbox', function ($row) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $row->id . '">';
             })
+            ->addColumn('number', function ($row) {
+                return '';
+            })
             ->addColumn('vehicle_registration', function ($row) {
                 return $row->vehicle ? $row->vehicle->registration_number : 'N/A';
             })
@@ -52,7 +55,12 @@ class DocumentationUploadsDataTable extends DataTable
             ->addColumn('action', function ($row) {
                 return view('vehicle_management.documentation_uploads.action', compact('row'))->render();
             })
-            ->rawColumns(['checkbox', 'mot_certificate', 'insurance_certificate', 'v5c_logbook', 'tax_confirmation', 'tachograph_certificate', 'service_report', 'inspection_report', 'action']);
+            ->filterColumn('vehicle_registration', function($query, $keyword) {
+                $query->whereHas('vehicle', function($q) use ($keyword) {
+                    $q->where('registration_number', 'like', "%{$keyword}%");
+                });
+            })
+            ->rawColumns(['checkbox', 'number', 'mot_certificate', 'insurance_certificate', 'v5c_logbook', 'tax_confirmation', 'tachograph_certificate', 'service_report', 'inspection_report', 'action']);
     }
 
     /**
@@ -80,11 +88,17 @@ class DocumentationUploadsDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -95,16 +109,16 @@ class DocumentationUploadsDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::make('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->orderable(false)->searchable(false),
-            Column::make('id'),
-            Column::make('vehicle_registration')->title('Vehicle Registration'),
-            Column::make('mot_certificate')->title('MOT Certificate'),
-            Column::make('insurance_certificate')->title('Insurance Certificate'),
-            Column::make('v5c_logbook')->title('V5C Logbook'),
-            Column::make('tax_confirmation')->title('Tax Confirmation'),
-            Column::make('tachograph_certificate')->title('Tachograph Certificate'),
-            Column::make('service_report')->title('Service Report'),
-            Column::make('inspection_report')->title('Inspection Report'),
+            Column::computed('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('vehicle_registration')->title('Vehicle Registration')->addClass('ps-0'),
+            Column::computed('mot_certificate')->title('MOT Certificate'),
+            Column::computed('insurance_certificate')->title('Insurance Certificate'),
+            Column::computed('v5c_logbook')->title('V5C Logbook'),
+            Column::computed('tax_confirmation')->title('Tax Confirmation'),
+            Column::computed('tachograph_certificate')->title('Tachograph Certificate'),
+            Column::computed('service_report')->title('Service Report'),
+            Column::computed('inspection_report')->title('Inspection Report'),
         ];
     }
 

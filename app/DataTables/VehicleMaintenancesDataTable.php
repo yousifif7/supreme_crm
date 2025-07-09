@@ -26,6 +26,9 @@ class VehicleMaintenancesDataTable extends DataTable
             ->addColumn('checkbox', function ($maintenance) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $maintenance->id . '">';
             })
+            ->addColumn('number', function ($maintenance) {
+                return '';
+            })
             ->editColumn('last_service_date', function ($maintenance) {
                 return Carbon::parse($maintenance->last_service_date)->format('d M Y');
             })
@@ -50,7 +53,7 @@ class VehicleMaintenancesDataTable extends DataTable
             ->editColumn('resolution_status', function ($maintenance) {
                 $status = $maintenance->resolution_status;
                 $badge = '';
-                
+
                 switch ($status) {
                     case 'resolved':
                         $badge = '<span class="badge bg-success">Resolved</span>';
@@ -64,10 +67,25 @@ class VehicleMaintenancesDataTable extends DataTable
                     default:
                         $badge = '<span class="badge bg-secondary">' . ucfirst($status) . '</span>';
                 }
-                
+
                 return $badge;
             })
-            ->rawColumns(['action', 'checkbox', 'resolution_status'])
+            ->filterColumn('last_service_date', function($query, $keyword) {
+                $query->where('last_service_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('next_service_due_date', function($query, $keyword) {
+                $query->where('next_service_due_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('maintenance_date', function($query, $keyword) {
+                $query->where('maintenance_date', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('date_reported', function($query, $keyword) {
+                $query->where('date_reported', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('resolution_status', function($query, $keyword) {
+                $query->where('resolution_status', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number', 'resolution_status'])
             ->setRowId('id');
     }
 
@@ -100,11 +118,17 @@ class VehicleMaintenancesDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy(1, 'asc')
+            ->orderBy(2, 'asc')
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -115,9 +139,9 @@ class VehicleMaintenancesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(30),
-            Column::make('last_service_date')->title('Last Service'),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('last_service_date')->title('Last Service')->addClass('ps-0'),
             Column::make('next_service_due_date')->title('Next Service Due'),
             Column::make('work_type')->title('Work Type'),
             Column::make('maintenance_date')->title('Maintenance Date'),

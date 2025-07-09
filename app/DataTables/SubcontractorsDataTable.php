@@ -25,6 +25,9 @@ class SubcontractorsDataTable extends DataTable
             ->addColumn('checkbox', function ($subcontractor) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $subcontractor->id . '">';
             })
+            ->addColumn('number', function ($subcontractor) {
+                return '';
+            })
             ->editColumn('company_name', function ($subcontractor) {
                 return view('subcontractors.company_name_column', ['subcontractor' => $subcontractor]);
             })
@@ -40,7 +43,13 @@ class SubcontractorsDataTable extends DataTable
             ->editColumn('email', function ($subcontractor) {
                 return $subcontractor->email;
             })
-            ->rawColumns(['action', 'checkbox', 'company_name'])
+            ->filterColumn('company_name', function($query, $keyword) {
+                $query->where('company_name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('company_address', function($query, $keyword) {
+                $query->where('company_address', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number', 'company_name'])
             ->setRowId('id');
     }
 
@@ -82,11 +91,17 @@ class SubcontractorsDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -97,9 +112,9 @@ class SubcontractorsDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(60),
-            Column::computed('company_name')->title('Name')->orderable(false),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('company_name')->title('Name')->addClass('ps-0')->orderable(false),
             Column::make('company_address')->title('Address'),
             Column::make('contact_person')->title('Contact Person'),
             Column::make('contact_number')->title('Contact Number'),

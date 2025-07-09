@@ -25,6 +25,9 @@ class EmployeesDataTable extends DataTable
             ->addColumn('checkbox', function ($employee) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $employee->id . '">';
             })
+            ->addColumn('number', function ($employee) {
+                return '';
+            })
             ->editColumn('name', function ($employee) {
                 return view('employees.name_column', ['employee' => $employee]);
             })
@@ -47,7 +50,14 @@ class EmployeesDataTable extends DataTable
             ->editColumn('subcontractor', function ($employee) {
                 return $employee->subcontractor;
             })
-            ->rawColumns(['action', 'checkbox', 'name', 'sia_licence'])
+            ->filterColumn('name', function($query, $keyword) {
+                $query->where('fore_name', 'like', "%{$keyword}%")
+                      ->orWhere('sur_name', 'like', "%{$keyword}%");
+            })
+            ->filterColumn('sia_licence', function($query, $keyword) {
+                $query->where('sia_licence', 'like', "%{$keyword}%");
+            })
+            ->rawColumns(['action', 'checkbox', 'number', 'name', 'sia_licence'])
             ->setRowId('id');
     }
 
@@ -87,11 +97,17 @@ class EmployeesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([1, 'DESC'])
+            ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
+                "pageLength" => 15,
                 "drawCallback" => "function(settings) {
                     feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
                 }",
             ]);
     }
@@ -102,9 +118,9 @@ class EmployeesDataTable extends DataTable
     public function getColumns(): array
     {
         return [
-            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(30)->addClass('text-center')->orderable(false)->searchable(false),
-            Column::make('id')->title('#')->width(60),
-            Column::computed('name')->title('Name')->orderable(false),
+            Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
+            Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('name')->title('Name')->addClass('ps-0')->orderable(false),
             Column::make('sia_licence')->title('SIA'),
             Column::make('sia_expiry')->title('EXPIRY'),
             Column::make('visa_expiry')->title('VISA EXPIRY'),

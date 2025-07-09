@@ -149,22 +149,6 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}" alt="Profile Picture" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}" target="_blank" class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">Profile Picture</h6>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
                                     <img src="{{ $shiftDate->staff?->fileUrl('sia_licence_file', true) }}" alt="SIA Licence" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('sia_licence_file') }}" target="_blank" class="view-btn">
@@ -190,6 +174,22 @@
                                 </div>
                                 <div class="document-label">
                                     <h6 class="mb-0">Passport</h6>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-4 col-sm-6 mb-3">
+                            <div class="document-card">
+                                <div class="document-image-wrapper">
+                                    <img src="{{ $shiftDate->staff?->fileUrl('act_certificate_file', true) }}" alt="ACT Certificate" class="document-image" />
+                                    <div class="document-overlay">
+                                        <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}" target="_blank" class="view-btn">
+                                            <i class="ti ti-eye"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                                <div class="document-label">
+                                    <h6 class="mb-0">ACT Certificate</h6>
                                 </div>
                             </div>
                         </div>
@@ -241,25 +241,6 @@
                                 </div>
                                 <div class="document-label">
                                     <h6 class="mb-0">First Aid Certificate</h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Third Row - 1 Image (Centered) -->
-                    <div class="row justify-content-center">
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('act_certificate_file', true) }}" alt="ACT Certificate" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}" target="_blank" class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
-                                    </div>
-                                </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">ACT Certificate</h6>
                                 </div>
                             </div>
                         </div>
