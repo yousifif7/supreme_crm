@@ -19,7 +19,7 @@ class SubContractorController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'company_name'       => 'required|string|max:255',
+            'company_name'       => 'required|string|max:255|unique:users,username',
             'company_address'    => 'required|string|max:355',
             'contact_number'     => [
                 'required',
