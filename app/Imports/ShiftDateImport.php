@@ -62,7 +62,7 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
     public function model(array $row)
     {
         $this->currentRow++; // Increment row counter
-        
+
         // Skip empty rows or rows where required fields are empty
         if (empty($row['date']) || empty($row['client']) || empty($row['site']) || empty($row['start']) || empty($row['end'])) {
             return null;
@@ -304,6 +304,12 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
                 } catch (\Exception $e) {
                     continue;
                 }
+            }
+
+
+            // handle excel formate like 45871 instead of 02-Aug-2025
+            if (is_numeric($dateValue) && strlen($dateValue) >= 4) {
+                return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue));
             }
 
             // Try Carbon's flexible parsing as last resort

@@ -164,6 +164,10 @@ class EmployeesImport implements ToModel, WithHeadingRow, WithValidation, SkipsO
             elseif (preg_match('/^\d{2}-[A-Za-z]{3}-\d{4}$/', $dateString)) {
                 $date = Carbon::createFromFormat('d-M-Y', $dateString);
             }
+            // handle excel formate like 45871 instead of 02-Aug-2025
+            elseif (is_numeric($dateString) && strlen($dateString) >= 4) {
+                $date = Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateString));
+            }
             // Handle standard date formats
             else {
                 $date = Carbon::parse($dateString);
