@@ -127,10 +127,6 @@ class Employee extends Model
     {
         return $this->hasMany(EmployeeTerm::class, 'employee_id');
     }
-    public function logs()
-    {
-        return $this->morphMany(Log::class, 'loggable');
-    }
 
     public function profilePictureUrl()
     {

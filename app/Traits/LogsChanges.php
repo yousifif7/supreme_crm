@@ -2,6 +2,7 @@
 
 namespace App\Traits;
 
+use App\Models\Log;
 use Illuminate\Support\Facades\Auth;
 
 trait LogsChanges
@@ -32,5 +33,10 @@ trait LogsChanges
                 'description' => "{$modelType} '{$label}' was added.",
             ]);
         });
+    }
+
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable')->orderBy('created_at', 'desc');
     }
 }

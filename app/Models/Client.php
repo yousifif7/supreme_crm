@@ -32,11 +32,4 @@ class Client extends Model
     {
         return $this->belongsTo(Employee::class, 'manager_id');
     }
-    /**
-     * Polymorphic relation to logs.
-     */
-    public function logs()
-    {
-        return $this->morphMany(Log::class, 'loggable');
-    }
 }

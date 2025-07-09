@@ -28,8 +28,4 @@ class VehicleCompliance extends Model
     {
         return $this->belongsTo(Vehicle::class);
     }
-    public function logs()
-    {
-        return $this->morphMany(Log::class, 'loggable');
-    }
 }

@@ -19,8 +19,4 @@ class ShiftDate extends Model
     {
         return $this->belongsTo(Employee::class, 'staff_id');
     }
-    public function logs()
-    {
-        return $this->morphMany(Log::class, 'loggable');
-    }
 }

@@ -272,7 +272,7 @@
                                 <td>{{ $log->user_name ?? 'N/A' }}</td>
                                 <td>{{ $log->action }}</td>
                                 <td>{{ $log->description }}</td>
-                                <td>{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
+                                <td>{{ $log->created_at->format('Y-m-d H:i') }}</td>
                             </tr>
                         @endforeach
                     </tbody>
