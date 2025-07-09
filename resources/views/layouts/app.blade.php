@@ -353,6 +353,15 @@
             $('#selectAll').on('change', function() {
                 $('.dT-row-checkbox').prop('checked', $(this).prop('checked'));
             });
+
+            // toggle select all checkbox
+            $(document).on('change', '.dT-row-checkbox', function() {
+                if ($('.dT-row-checkbox:checked').length === $('.dT-row-checkbox').length) {
+                    $('#selectAll').prop('checked', true);
+                } else {
+                    $('#selectAll').prop('checked', false);
+                }
+            });
         });
     </script>
 
