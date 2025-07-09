@@ -28,13 +28,13 @@
                                     <h5>{{ $staffs->count() }}</h5>
                                 </div>
                             </div>
-                            <div class="progress progress-xs mb-2">
+                            {{-- <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-primary" role="progressbar"
                                     style="width: {{ $clientgrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-danger fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
-                                from last week</p>
+                                from last week</p> --}}
                         </div>
                     </div>
                 </div>
@@ -51,13 +51,13 @@
                                     <h5>{{ $clients->count() }}</h5>
                                 </div>
                             </div>
-                            <div class="progress progress-xs mb-2">
+                            {{-- <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-secondary" role="progressbar"
                                     style="width: {{ $clientgrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
-                                from last week</p>
+                                from last week</p> --}}
                         </div>
                     </div>
                 </div>
@@ -74,13 +74,13 @@
                                     <h5>{{ $invoices->count() }}</h5>
                                 </div>
                             </div>
-                            <div class="progress progress-xs mb-2">
+                            {{-- <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-pink" role="progressbar"
                                     style="width: {{ $invoicerowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>+{{ $invoicerowthPercentage }}% </span>
-                                from last week</p>
+                                from last week</p> --}}
                         </div>
                     </div>
                 </div>
@@ -97,13 +97,13 @@
                                     <h5>{{ $review }}</h5>
                                 </div>
                             </div>
-                            <div class="progress progress-xs mb-2">
+                            {{-- <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-purple" role="progressbar"
                                     style="width: {{ $reviewrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>+{{ $reviewrowthPercentage }}% </span>
-                                from last week</p>
+                                from last week</p> --}}
                         </div>
                     </div>
                 </div>
