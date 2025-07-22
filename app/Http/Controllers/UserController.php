@@ -204,9 +204,12 @@ class UserController extends Controller
 
     public function destroy($userId)
     {
+        // \Log::info("Destroy called for user: " . $userId);
         $user = User::findOrFail($userId);
-        $user->delete();
+        $user->forceDelete();
 
+        // $stillExists = User::find($userId);
+        // \Log::info('Still exists after delete? ' . ($stillExists ? 'YES' : 'NO'));
         return response()->json(['success' => true]);
     }
     public function bulkDelete(Request $request)

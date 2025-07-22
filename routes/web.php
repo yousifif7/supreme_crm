@@ -139,7 +139,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
     Route::get('/api/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);
     Route::get('/api/shifts-today', [ShiftController::class, 'getTodayShifts']);
-    Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
+Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
 
 
     Route::post('/shift/bookon/store', [ShiftController::class, 'storeBookon'])->name('shift.bookon.store');
