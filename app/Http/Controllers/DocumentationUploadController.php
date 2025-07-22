@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\DocumentationUploadsDataTable;
 use App\Models\DocumentationUpload;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
@@ -11,10 +10,11 @@ use Illuminate\Support\Facades\Validator;
 
 class DocumentationUploadController extends Controller
 {
-    public function index(DocumentationUploadsDataTable $dataTable)
+    public function index()
     {
+        $documents = DocumentationUpload::with('vehicle')->paginate(10);
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.documentation_uploads', compact('vehicles'));
+        return view('vehicle_management.documentation_uploads', compact('documents', 'vehicles'));
     }
     public function store(Request $request)
     {

@@ -17,17 +17,6 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
             @endif
-
-            {{-- show validation errors --}}
-            @if ($errors->any())
-                <div class="alert alert-danger mt-3">
-                    <ul class="mb-0">
-                        @foreach ($errors->all() as $error)
-                            <li>{{ $error }}</li>
-                        @endforeach
-                    </ul>
-                </div>
-            @endif
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
@@ -64,9 +53,25 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
+
+
                         <!-- /Search -->
+
+
                     </div>
+                    <div class="sort-box">
+                        <select name="" id="" class="form-control">
+                            <option value="" hidden>Sort Staff</option>
+                            <option value="">All</option>
+                            <option value="">Coordinators</option>
+                            <option value="">Archieved</option>
+                        </select>
+                        <i class="ti ti-chevron-down"></i>
+                    </div>
+
                 </div>
+
+
             </div>
             <!-- /Breadcrumb -->
 
@@ -74,16 +79,92 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable table-striped table-hover']) }}
+                        <table class="table table-striped table-hover">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>#</th>
+                                    <th>Name</th>
+                                    <th>SIA</th>
+                                    <th>EXPIRY</th>
+                                    <th>VISA EXPIRY</th>
+                                    <th>IMMIGRATION STATUS</th>
+                                    <th>CONTACT NO</th>
+                                    <th>SUBCONTRACTOR</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @forelse ($employees as $employee)
+                                    <tr id="employee_row_{{ $employee->id }}">
+                                        <td><input type="checkbox" class="employee-checkbox" value="{{ $employee->id }}">
+                                        <td>{{ $loop->iteration }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center file-name-icon">
+                                                <div class="ms-2">
+                                                    <h6 class="fw-medium">
+                                                        {{ $employee->fore_name }} {{ $employee->middle_name }}
+                                                        {{ $employee->sur_name }}
+                                                    </h6>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td class="text-start">
+                                            <p class="mb-0 fw-semibold">{{ $employee->sia_licence }}</p>
+                                            <span class="text-primary fw-bold">Active</span>
+                                        </td>
+                                        <td>{{ $employee->sia_expiry }}</td>
+                                        <td>{{ $employee->visa_expiry }}</td>
+                                        <td>{{ $employee->visa_type }}</td>
+                                        <td>{{ $employee->contact }}</td>
+                                        <td>{{ $employee->subcontractor }}</td>
+                                        <td>
+                                            <div class="action-icon d-inline-flex">
+                                                <button class="sites_action-btn"
+                                                    onclick="viewLogs({{ $employee->id }})">Logs</button>
+                                                <a href="#" class="me-2"
+                                                    onclick="viewEmployeeDetail({{ $employee->id }})"><i
+                                                        class="ti ti-eye"></i></a>
+                                                <a class="me-2" onclick="editEmployee({{ $employee->id }})">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>
+
+                                                <a href="#" class="me-2"
+                                                    onclick="generatePayroll({{ $employee->id }})"><i
+                                                        class="ti ti-receipt"></i></a>
+
+                                                <a onclick="deleteEmployee({{ $employee->id }})">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                                <a href="{{ route('employees.print', $employee->id) }}" target="_blank">
+                                                    <i class="ti ti-printer"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @empty
+                                    <tr>
+                                        <td colspan="9" class="text-center">No employees found.</td>
+                                    </tr>
+                                @endforelse
+                            </tbody>
+                        </table>
+
                     </div>
+
+
                 </div>
+
+            </div>
+            <div class="card-footer d-flex justify-content-center">
+                {{ $employees->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
         <!-- /Page Wrapper -->
         <!-- Add Employee -->
         <div class="modal fade" id="add_employee">
-            <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title">Add New Security Staff</h4>
@@ -92,26 +173,27 @@
                             <i class="ti ti-x"></i>
                         </button>
                     </div>
-                    <div class="modal-body pb-0 ">
-                        <form method="POST" id="add_worker-form1">
-                            @csrf
+                    <form method="POST" id="add_worker-form1">
+                        @csrf
+                        <div class="tab-content" id="myTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0 ">
                                     <div class="row part-1">
-                                        {{--<div class="col-md-6">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <div id="map"></div>
                                             </div>
-                                        </div>--}}
-                                        <div class="col-md-4 mb-3">
+                                        </div>
+                                        <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label">Email <span
+                                                <label class="form-label">Username <span
                                                         class="text-danger">*</span></label>
-                                                <input type="email" name="email" class="form-control"
-                                                    placeholder="Enter email">
-                                                <span class="text-danger form-error" id="error_email"></span>
+                                                <input type="email" name="username" class="form-control"
+                                                    placeholder="Enter Username">
+                                                <span class="text-danger form-error" id="error_username"></span>
 
                                             </div>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
                                             <div class="mb-3">
                                                 <label class="form-label">Password <span
                                                         class="text-danger">*</span></label>
@@ -119,8 +201,6 @@
                                                     placeholder="Enter Password">
                                                 <span class="text-danger form-error" id="error_password"></span>
                                             </div>
-                                        </div>
-                                        <div class="col-md-4 mb-3">
                                             <div class="mb-3">
                                                 <label class="form-label">Status</label>
                                                 <select class="form-select" name="status">
@@ -147,21 +227,22 @@
                                             <span class="text-danger form-error" id="error_sur_name"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Gender </label>
+                                            <label class="form-label">Gender <span class="text-danger">*</span></label>
                                             <select class="form-select bg-yellow" name="gender">
                                                 <option value="Male" selected>Male</option>
                                                 <option value="Female">Female</option>
                                             </select>
                                             <span class="text-danger form-error" id="error_gender"></span>
                                         </div>
-                                        {{--<div class="col-md-4 mb-3">
+                                        <div class="col-md-4 mb-3">
                                             <label class="form-label ">Email <span class="text-danger">*</span></label>
                                             <input type="email" name="email" class="form-control bg-yellow"
                                                 placeholder="Enter Email">
                                             <span class="text-danger form-error" id="error_email"></span>
-                                        </div>--}}
+                                        </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">N.I. Number </label>
+                                            <label class="form-label">N.I. Number <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="ni_number" class="form-control bg-yellow"
                                                 placeholder="Enter N.I. Number">
                                             <span class="text-danger form-error" id="error_ni_number"></span>
@@ -175,18 +256,21 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Licence</label>
+                                            <label class="form-label">SIA Licence <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="sia_licence" class="form-control bg-yellow"
                                                 placeholder="Enter SIA Licence"> <span class="text-danger form-error"
                                                 id="error_sia_licence"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Expiry </label>
+                                            <label class="form-label">SIA Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="sia_expiry" class="form-control bg-yellow"
                                                 placeholder="Enter SIA Expiry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Licence Type </label>
+                                            <label class="form-label">Licence Type <span
+                                                    class="text-danger">*</span></label>
                                             <select class="form-select bg-yellow" name="licence_type">
                                                 <option value="">--choose--</option>
                                                 @foreach ($licenses as $license)
@@ -195,12 +279,13 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Date of Entry / Re-entry</label>
+                                            <label class="form-label">Date of Entry / Re-entry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="entry_date" class="form-control"
                                                 placeholder="Enter Date of Entry / Re-entry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">D.O.B </label>
+                                            <label class="form-label">D.O.B <span class="text-danger">*</span></label>
                                             <input type="date" name="dob" class="form-control"
                                                 placeholder="D.O.B">
                                             <span class="text-danger form-error" id="error_dob"></span>
@@ -215,7 +300,7 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Visa Type</label>
+                                            <label class="form-label">Visa Type <span class="text-danger">*</span></label>
                                             <select class="form-select visa_type" name="visa_type">
                                                 <option value="">-- choose --</option>
                                                 @foreach ($visa_types as $visa)
@@ -226,13 +311,15 @@
                                             <span class="text-danger form-error" id="error_visa_type"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Visa Expiry</label>
+                                            <label class="form-label">Visa Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="visa_expiry" class="form-control"
                                                 placeholder="Enter Visa Expiry">
                                             <span class="text-danger form-error" id="error_visa_expiry"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Place of Work</label>
+                                            <label class="form-label">Place of Work <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="place_work" class="form-control"
                                                 placeholder="Place of Work">
                                             <span class="text-danger form-error" id="error_place_work"></span>
@@ -252,13 +339,15 @@
                                                 id="error_hour_per_week"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Passport no.</label>
+                                            <label class="form-label">Passport no. <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="passport_no" class="form-control"
                                                 placeholder="Enter Passport no.">
                                             <span class="text-danger form-error" id="error_passport_no"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Passport expiry</label>
+                                            <label class="form-label">Passport expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="passport_expiry" class="form-control"
                                                 placeholder="Enter Passport expiry">
                                             <span class="text-danger form-error" id="error_passport_expiry"></span>
@@ -270,7 +359,8 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Contact No:</label>
+                                            <label class="form-label">Contact No: <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="contact" class="form-control"
                                                 placeholder="Enter Contact No">
                                             <span class="text-danger form-error" id="error_contact_no"></span>
@@ -286,13 +376,14 @@
                                                 placeholder="Enter Job Title">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Nationality</label>
+                                            <label class="form-label">Nationality <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="nationality" class="form-control"
                                                 placeholder="Enter nationality">
                                             <span class="text-danger form-error" id="error_nationality"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">P.I.N </label>
+                                            <label class="form-label">P.I.N <span class="text-danger">*</span></label>
                                             <input type="text" name="pin" class="form-control"
                                                 placeholder="Enter PIN">
                                             <span class="text-danger form-error" id="error_pin"></span>
@@ -339,13 +430,15 @@
                                             <span class="text-danger form-error" id="error_kin_mobile"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Share code</label>
+                                            <label class="form-label">Share code <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="share_code" class="form-control"
                                                 placeholder="Enter share code">
                                                 <span class="text-danger form-error" id="error_share_code"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Share Code Expiry</label>
+                                            <label class="form-label">Share Code Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="share_code_expiry" class="form-control">
                                             <span class="text-danger form-error" id="error_share_code_expiry"></span>
                                         </div>
@@ -399,7 +492,8 @@
                                             <span class="text-danger form-error" id="error_department_id"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Subcontractor</label>
+                                            <label class="form-label">Subcontractor <span
+                                                    class="text-danger">*</span></label>
                                             <select class="form-select" name="subcontractor">
                                                 <option value="AWS SERVICES LTD">AWS SERVICES LTD</option>
                                                 <option value="GOOD HANDS LTD">GOOD HANDS LTD</option>
@@ -542,38 +636,38 @@
                                         <h3 class="mt-2 mb-4">Documents</h3>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="sia_licence_file">SIA Licence</label>
-                                            <input type="file" name="sia_licence_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="sia_licence">SIA Licence</label>
+                                            <input type="file" name="sia_licence" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="passport_file">Passport</label>
-                                            <input type="file" name="passport_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="passport">Passport</label>
+                                            <input type="file" name="passport" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="proof_of_address_file">Proof of address</label>
-                                            <input type="file" name="proof_of_address_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="proof_of_address">Proof of address</label>
+                                            <input type="file" name="proof_of_address" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="ni_letter_file">Ni letter</label>
-                                            <input type="file" name="ni_letter_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="ni_letter">Ni letter</label>
+                                            <input type="file" name="ni_letter" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="first_aid_certificate_file">First AID certificate</label>
-                                            <input type="file" name="first_aid_certificate_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="first_aid_certificate">First AID certificate</label>
+                                            <input type="file" name="first_aid_certificate" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="act_certificate_file">ACT certificate, Blue and Orange</label>
-                                            <input type="file" name="act_certificate_file" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
+                                            <label class="form-label" for="act_certificate">ACT certificate, Blue and Orange</label>
+                                            <input type="file" name="act_certificate" accept=".jpg,.jpeg,.png,.pdf" class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
@@ -658,14 +752,17 @@
                                         </div>
 
                                     </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-light border me-2"
-                            data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" form="add_worker-form1" id="saveemployee"
-                            class="btn btn-primary">Save </button>
-                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-light border me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" form="add_worker-form1" id="saveemployee"
+                                        class="btn btn-primary">Save </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -696,7 +793,7 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Employee Name <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="text" name="employee_name" id="payroll_employee_name" readonly style="background: #eee;"
+                                                        <input type="text" name="employee_name" id="payroll_employee_name" readonly style="background: #eee;" 
                                                             class="form-control" placeholder="Enter Employee Name">
                                                         <span class="text-danger form-error"
                                                             id="payrollerror_employee_name"></span>
@@ -719,7 +816,8 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Date From: </label>
+                                                                <label class="form-label">Date From: <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="date" name="date_from"
                                                                     id="payroll_date_from" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -728,7 +826,8 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Date To: </label>
+                                                                <label class="form-label">Date To: <span
+                                                                        class="text-danger">*</span></label>
                                                                 <input type="date" name="date_to"
                                                                     id="payroll_date_to" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -738,7 +837,8 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Notes </label>
+                                                        <label class="form-label">Notes <span
+                                                                class="text-danger">*</span></label>
                                                         <textarea class="form-control" name="notes" id="payroll_notes" rows="3"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="payrollerror_notes"></span>
@@ -765,7 +865,7 @@
 
         <!-- Edit Employee -->
         <div class="modal fade" id="edit_employee">
-            <div class="modal-dialog modal-dialog-scrollable modal-lg">
+            <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h4 class="modal-title">Edit Employee</h4>
@@ -774,20 +874,23 @@
                             <i class="ti ti-x"></i>
                         </button>
                     </div>
-                    <div class="modal-body pb-0 ">
-                            <form method="POST" id="edit_employee_form">
-                                    @csrf
-                                    <input type="hidden" name="employee_id" id="employee_id">
-                                    {{--<div class="row part-1">
-                                        <div class="col-md-4">
+                    <form method="POST" id="edit_employee_form">
+                        @csrf
+                        <div class="tab-content" id="myTabContent">
+                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
+                                aria-labelledby="info-tab" tabindex="0">
+                                <div class="modal-body pb-0 ">
+                                    <div class="row part-1">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <div id="map1"></div>
                                             </div>
                                         </div>
+                                        <input type="hidden" name="employee_id" id="employee_id">
                                         <div class="col-md-6">
 
                                         </div>
-                                    </div>--}}
+                                    </div>
 
                                     <div class="row part-2">
                                         <div class="col-md-4 mb-3">
@@ -803,7 +906,7 @@
                                             <span class="text-danger form-error" id="error_surname"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Gender</label>
+                                            <label class="form-label">Gender <span class="text-danger">*</span></label>
                                             <select class="form-select bg-yellow" name="gender" id="gender">
                                                 <option value="Male" selected>Male</option>
                                                 <option value="Female">Female</option>
@@ -817,7 +920,8 @@
                                             <span class="text-danger form-error" id="error_email"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">N.I. Number</label>
+                                            <label class="form-label">N.I. Number <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="ni_number" id="ni_number"
                                                 class="form-control bg-yellow" placeholder="Enter N.I. Number">
                                             <span class="text-danger form-error" id="error_ni_number"></span>
@@ -831,13 +935,15 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Licence</label>
+                                            <label class="form-label">SIA Licence <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="sia_licence" id="sia_licence"
                                                 class="form-control bg-yellow" placeholder="Enter SIA Licence"> <span
                                                 class="text-danger form-error" id="error_sia_licence"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Expiry</label>
+                                            <label class="form-label">SIA Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="sia_expiry" id="sia_expiry"
                                                 class="form-control bg-yellow" placeholder="Enter SIA Expiry">
                                         </div>
@@ -982,12 +1088,14 @@
                                                 placeholder="Enter Kin Mobile">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="share_code">Share Code</label>
+                                            <label class="form-label" for="share_code">Share Code <span
+                                                    class="text-danger">*</span></label>
                                             <input type="text" name="share_code" id="share_code" class="form-control"
                                                 placeholder="Enter Share Code">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="share_code_expiry">Share Code Expiry</label>
+                                            <label class="form-label" for="share_code_expiry">Share Code Expiry <span
+                                                    class="text-danger">*</span></label>
                                             <input type="date" name="share_code_expiry" id="share_code_expiry" class="form-control"
                                                 placeholder="Enter Share Code Expiry">
                                         </div>
@@ -1197,43 +1305,43 @@
                                         <h3 class="mt-2 mb-4">Documents</h3>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="sia_licence_file">SIA Licence</label>
-                                            <input type="file" name="sia_licence_file" accept=".jpg,.jpeg,.png,.pdf" id="sia_licence_file"
+                                            <label class="form-label" for="sia_licence">SIA Licence</label>
+                                            <input type="file" name="sia_licence" accept=".jpg,.jpeg,.png,.pdf" id="sia_licence"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="passport_file">Passport_file</label>
-                                            <input type="file" name="passport_file" accept=".jpg,.jpeg,.png,.pdf" id="passport_file"
+                                            <label class="form-label" for="passport">Passport</label>
+                                            <input type="file" name="passport" accept=".jpg,.jpeg,.png,.pdf" id="passport"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="proof_of_address_file">Proof of address</label>
-                                            <input type="file" name="proof_of_address_file" accept=".jpg,.jpeg,.png,.pdf" id="proof_of_address_file"
+                                            <label class="form-label" for="proof_of_address">Proof of address</label>
+                                            <input type="file" name="proof_of_address" accept=".jpg,.jpeg,.png,.pdf" id="proof_of_address"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="ni_letter_file">Ni letter</label>
-                                            <input type="file" name="ni_letter_file" accept=".jpg,.jpeg,.png,.pdf" id="ni_letter_file"
+                                            <label class="form-label" for="ni_letter">Ni letter</label>
+                                            <input type="file" name="ni_letter" accept=".jpg,.jpeg,.png,.pdf" id="ni_letter"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="first_aid_certificate_file">First AID certificate</label>
-                                            <input type="file" name="first_aid_certificate_file" accept=".jpg,.jpeg,.png,.pdf" id="first_aid_certificate_file"
+                                            <label class="form-label" for="first_aid_certificate">First AID certificate</label>
+                                            <input type="file" name="first_aid_certificate" accept=".jpg,.jpeg,.png,.pdf" id="first_aid_certificate"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
 
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="act_certificate_file">ACT certificate, Blue and Orange</label>
-                                            <input type="file" name="act_certificate_file" accept=".jpg,.jpeg,.png,.pdf" id="act_certificate_file"
+                                            <label class="form-label" for="act_certificate">ACT certificate, Blue and Orange</label>
+                                            <input type="file" name="act_certificate" accept=".jpg,.jpeg,.png,.pdf" id="act_certificate"
                                                 class="form-control">
                                             <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png, Pdf)</span>
                                         </div>
@@ -1340,14 +1448,17 @@
                                         </div>
 
                                     </div>
-                        </form>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-outline-light border me-2"
-                            data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" id="editEmployeeBtn" class="btn btn-primary" form="edit_employee_form">Update
-                            Employee</button>
-                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-outline-light border me-2"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" form="edit_employee_form" id="editemployee"
+                                        class="btn btn-primary">Update </button>
+                                </div>
+                            </div>
+
+                        </div>
+                    </form>
                 </div>
             </div>
         </div>
@@ -1401,10 +1512,10 @@
         <!-- /Delete Modal -->
         <!-- Import modal -->
         <div class="modal fade" id="import_modal">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-dialog modal-dialog-centered">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Import Employees</h4>
+                        <h4 class="modal-title">Import Excel</h4>
                         <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
                             aria-label="Close">
                             <i class="ti ti-x"></i>
@@ -1417,31 +1528,11 @@
                                 aria-labelledby="info-tab" tabindex="0">
                                 <div class="modal-body pb-0 ">
                                     <div class="row">
-                                        <div class="col-md-12 mb-3">
-                                            <div class="alert alert-info">
-                                                <h6 class="mb-2"><i class="ti ti-info-circle"></i> Import Guidelines:</h6>
-                                                <ul class="mb-0 small">
-                                                    <li>Headers should be in Row 1 starting from Column A</li>
-                                                    <li>Data should start from Row 2, Column A onwards</li>
-                                                    <li><strong>Required:</strong> Full Name</li>
-                                                    <li><strong>Optional:</strong> Date of Registration, Subcontractor, Pay Rate, Contact, SIA Number, Service Type, SIA Expiry, DOB, Email, Username, Address with Post Code, Address Group, Account Name, Sort Code, Account Number, NI Number, Visa Status, Visa Expiry Date</li>
-                                                    <li>Full Name will be split into First and Last name automatically</li>
-                                                    <li>If Subcontractor name is provided but doesn't exist, a new subcontractor will be created</li>
-                                                    <li><strong>User Account Creation:</strong> If Username is provided, a user account will be created with default password "password123". Username must be a valid email address.</li>
-                                                    <li>Date formats supported: "02-Aug-24", "02-Aug-2024", standard date formats</li>
-                                                    <li>Remaining SIA/VISA days are calculated automatically if expiry dates are provided</li>
-                                                </ul>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-8">
+                                        <div class="col-md-6">
                                             <div class="d-flex gap-2">
-                                                <input type="file" name="import_file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                                <input type="file" name="import_file" class="form-control"
+                                                    required>
                                             </div>
-                                        </div>
-                                        <div class="col-md-4">
-                                            <a href="{{ route('employees.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
-                                                <i class="ti ti-download"></i> Download Template
-                                            </a>
                                         </div>
                                     </div>
                                 </div>
@@ -1604,6 +1695,8 @@
 
 @endsection
 @section('scripts')
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
         $('#openAddModal').on('click', function() {
             $('#add_worker-form1')[0].reset();
@@ -1612,6 +1705,19 @@
         });
     </script>
     <script>
+        // Client search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
 
         $('.visa_type').on('change', function () {
             const form = $(this).closest('form');
@@ -1625,11 +1731,15 @@
                 $(this).empty();
             });
         });
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.employee-checkbox').prop('checked', $(this).prop('checked'));
+        });
         $(document).ready(function() {
             $('#add_worker-form1').on('submit', function(e) {
                 e.preventDefault();
 
-                $("[id^='error_']").addClass('d-none').text('');
+                $("[id^='error_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#saveemployee'); // Add an ID to your submit button
@@ -1647,24 +1757,19 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        closeBsModal('#add_employee');
-                        toast_success('Employee Added Successfully');
-                        reloadDatatable('#employees-table');
+                        $('#add_employee').modal('hide');
+                        $('#success_message').html('Employee Added Successfully');
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]).removeClass('d-none');
+                                $('#error_' + key).text(value[0]);
                             });
-
-                            // scroll to the first error visible
-                            $('#add_employee .modal-body').scrollTop(
-                                $('#add_employee .form-error:visible').first().siblings('label').offset().top - $('#add_employee .modal-body').offset().top + $('#add_employee .modal-body').scrollTop()
-                            );
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            alert('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1676,7 +1781,7 @@
             $('#edit_employee_form').on('submit', function(e) {
                 e.preventDefault();
 
-                $("[id^='editerror_']").text('').addClass('d-none');
+                $("[id^='editerror_']").text('');
                 let form = $(this)[0];
                 let formData = new FormData(form);
                 let submitButton = $('#editemployee'); // Your submit button should have this ID
@@ -1698,24 +1803,19 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        closeBsModal('#edit_employee');
-                        toast_success('Employee Updated Successfully');
-                        reloadDatatable('#employees-table');
+                        $('#edit_employee').modal('hide');
+                        $('#success_message').html('Employee Updated Successfully');
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
                             let errors = xhr.responseJSON.errors;
 
                             $.each(errors, function(key, value) {
-                                $('#editerror_' + key).text(value[0]).removeClass('d-none');
+                                $('#editerror_' + key).text(value[0]);
                             });
-
-                            // scroll to the first error visible
-                            $('#edit_employee .modal-body').scrollTop(
-                                $('#edit_employee .form-error:visible').first().siblings('label').offset().top - $('#edit_employee .modal-body').offset().top + $('#edit_employee .modal-body').scrollTop()
-                            );
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            alert('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1748,9 +1848,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        closeBsModal('#generate_payroll');
-                        toast_success('Payroll Created Successfully!');
-                        reloadDatatable('#employees-table');
+                        $('#generate_payroll').modal('hide');
+                        $('#success_message').html('Payroll Created Successfully!')
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1760,7 +1860,7 @@
                                 $('#payrollerror_' + key).text(value[0]);
                             });
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            alert('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1948,13 +2048,14 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        closeBsModal('#delete_modal');
-                        toast_success('Employee Deleted Successfully');
-                        reloadDatatable('#employees-table');
+                        $('#delete_modal').modal('hide');
+
+                        $('#success_message').html('Employee Deleted Successfully');
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
-                        closeBsModal('#delete_modal');
-                        toast_danger('Something went wrong. Please try again.');
+                        $('#delete_modal').modal('hide');
+                        alert('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -1962,12 +2063,12 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.dT-row-checkbox:checked').map(function() {
+            const selected = $('.employee-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                toast_danger('Please select at least one client to delete.');
+                alert('Please select at least one client to delete.');
                 return;
             }
 
@@ -1981,11 +2082,11 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    toast_success('Selected employees deleted successfully!');
-                    reloadDatatable('#employees-table');
+                    $('#success_message').text('Selected employees deleted successfully!');
+                    $('#success_modal').modal('show');
                 },
                 error: function() {
-                    toast_danger('Something went wrong during bulk delete.');
+                    alert('Something went wrong during bulk delete.');
                 }
             });
         });
@@ -2053,7 +2154,7 @@
             const editholidayRow = `
             <div class="row holiday-row mb-3 align-items-center" data-index="${editholiday}">
                 <div class="col-md-3"><label>Entitlement</label>
-                    <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control">
+                    <input type="text" name="holidays[${editholiday}][term_name]" class="form-control">
                 </div>
                 <div class="col-md-3"><label>From Date</label>
                     <input type="date" name="holidays[${editholiday}][from]" class="form-control">
@@ -2177,17 +2278,16 @@
                 $('#passport_no_detail').text(data.passport_no);
                 $('#passport_expiry_detail').text(data.passport_expiry);
                 $('#address_group_detail').text(data.address_group);
-                $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
-                $('#bank_info_detail').text(`${data.bank_name ?? 'N/A'} / ${data.account_name} / ${data.account_number}`);
+                $('#guard_rate_detail').text(`$${data.guard_rate}`);
+                $('#bank_info_detail').text(`${data.bank_name} / ${data.account_name} / ${data.account_number}`);
                 $('#other_info_detail').text(data.other_info);
 
                 let modal = new bootstrap.Modal(document.getElementById('viewEmployeeDetailModal'));
                 modal.show();
             }).fail(function() {
-                toast_danger('Failed to fetch employee detail.');
+                alert('Failed to fetch employee detail.');
             });
         }
     </script>
 
-    {!! $dataTable->scripts() !!}
 @endsection

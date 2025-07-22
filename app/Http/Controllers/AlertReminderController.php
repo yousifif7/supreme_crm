@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\AlertRemindersDataTable;
 use App\Models\AlertReminder;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
@@ -10,10 +9,11 @@ use Illuminate\Support\Facades\Validator;
 
 class AlertReminderController extends Controller
 {
-    public function index(AlertRemindersDataTable $dataTable)
+    public function index()
     {
+        $reminders = AlertReminder::with('vehicle')->paginate(10);
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.alert_reminders', compact('vehicles'));
+        return view('vehicle_management.alert_reminders', compact('reminders', 'vehicles'));
     }
     public function store(Request $request)
     {

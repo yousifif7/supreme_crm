@@ -10,6 +10,11 @@ class Invoice extends Model
 {
     use SoftDeletes, LogsChanges;
     protected $fillable = ['invoice_no', 'client_id', 'employee_id', 'due_date', 'notes', 'invoice_title', 'date_from', 'date_to', 'invoice_date', 'site_group_id', 'total_shift_hours', 'total_duration_hours', 'total_deductions_hours', 'gross_amount', 'net_amount', 'payment_note', 'rate_per_hour', 'total_break_hours'];
+    
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 
     public function client()
     {
@@ -36,20 +41,5 @@ class Invoice extends Model
             $nextInvoiceNumber = $latestInvoice ? intval(substr($latestInvoice->invoice_no, 4)) + 1 : 1;
             $invoice->invoice_no = 'INV-' . str_pad($nextInvoiceNumber, 5, '0', STR_PAD_LEFT);
         });
-    }
-
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
-
-    public function shifts()
-    {
-        return $this->hasMany(Shift::class);
-    }
-
-    public function adminReview()
-    {
-        return $this->hasOne(InvoiceReview::class);
     }
 }

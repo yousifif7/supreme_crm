@@ -23,23 +23,6 @@
                 <div class="my-auto mb-2">
                     <h2 class="mb-1">Sites</h2>
 
-                    @if (session('success'))
-                        <div class="alert alert-success mt-3">
-                            {{ session('success') }}
-                        </div>
-                    @endif
-
-                    {{-- show validation errors --}}
-                    @if ($errors->any())
-                        <div class="alert alert-danger mt-3">
-                            <ul class="mb-0">
-                                @foreach ($errors->all() as $error)
-                                    <li>{{ $error }}</li>
-                                @endforeach
-                            </ul>
-                        </div>
-                    @endif
-
                 </div>
 
             </div>
@@ -79,9 +62,25 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
+
+
                         <!-- /Search -->
+
+
                     </div>
+                    <div class="sort-box">
+                        <select name="" id="" class="form-control">
+                            <option value="" hidden>Sort Sites</option>
+                            <option value="">All</option>
+                            <option value="">Coordinators</option>
+                            <option value="">Archieved</option>
+                        </select>
+                        <i class="ti ti-chevron-down"></i>
+                    </div>
+
                 </div>
+
+
             </div>
             <!-- /Breadcrumb -->
 
@@ -89,9 +88,61 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
+                        <table class="table datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>#</th>
+                                    <th>Client Name</th>
+                                    <th>Site Name</th>
+                                    <th>Address</th>
+                                    <th>Site Code</th>
+                                    <th>Post Code</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $i = ($sites->currentPage() - 1) * $sites->perPage() + 1; @endphp
+                                @foreach ($sites as $site)
+                                    <tr>
+                                        <td><input type="checkbox" class="site-checkbox" value="{{ $site->id }}">
+                                        </td>
+                                        <td>{{ $i++ }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center file-name-icon">
+                                                <div class="ms-2">
+                                                    <h6 class="fw-medium"><a
+                                                            onclick="viewSiteDetail({{ $site->id }})">{{ $site->client->client_name }}</a>
+                                                    </h6>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td style="text-align: left;">{{ $site->site_name }}</td>
+                                        <td style="text-align: left;">{{ $site->address }}</td>
+                                        <td style="text-align: left;">{{ $site->site_code }}</td>
+                                        <td style="text-align: left;">{{ $site->post_code }}</td>
+                                        <td>
+                                            <div class="action-icon d-inline-flex">
+                                                <button onclick="viewLogs({{ $site->id }})"
+                                                    class="sites_action-btn">Logs</button>
+                                                <a href="#" class="me-2"
+                                                    onclick="viewSiteDetail({{ $site->id }})"><i
+                                                        class="ti ti-eye"></i></a>
+                                                <a href="#" class="me-2" onclick="editSite({{ $site->id }})"><i
+                                                        class="ti ti-edit"></i></a>
+                                                <a onclick="deleteSite({{ $site->id }})"><i
+                                                        class="ti ti-trash"></i></a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
                 </div>
+            </div>
+            <div class="card-footer d-flex justify-content-center">
+                {{ $sites->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -121,7 +172,7 @@
                                             <div class="col-md-6 mb-3">
                                                 <label class="form-label">Client Name <span
                                                         class="text-danger">*</span></label>
-                                                <select class="form-select select2 select-client" id="clientSelect" name="client_id"
+                                                <select class="form-select select2 select-client" name="client_id"
                                                     style="height: 100px !important;">
                                                     <option value="">--choose--</option>
                                                     @foreach ($clients as $client)
@@ -139,12 +190,14 @@
                                                 <span class="text-danger form-error" id="error_site_name"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Address</label>
+                                                <label class="form-label">Address <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="address" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="error_address"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Post Code </label>
+                                                <label class="form-label">Post Code <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="post_code" class="form-control"
                                                     placeholder="Enter Post Code">
                                                 <span class="text-danger form-error" id="error_post_code"></span>
@@ -152,7 +205,8 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Code </label>
+                                                <label class="form-label">Site Code <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="site_code" class="form-control"
                                                     placeholder="Enter Site Code">
                                                 <span class="text-danger form-error" id="error_site_code"></span>
@@ -160,7 +214,8 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Person </label>
+                                                <label class="form-label">Contact Person <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="contact_person" class="form-control"
                                                     placeholder="Enter Contact Person">
                                                 <span class="text-danger form-error" id="error_contact_person"></span>
@@ -168,7 +223,8 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Number </label>
+                                                <label class="form-label">Contact Number <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="contact_number" class="form-control"
                                                     placeholder="Enter Contact Number">
                                                 <span class="text-danger form-error" id="error_contact_number"></span>
@@ -176,7 +232,8 @@
 
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Note </label>
+                                                <label class="form-label">Site Note <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="note" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="error_note"></span>
                                             </div>
@@ -226,35 +283,39 @@
                                                 <span class="text-danger form-error" id="error_break_time"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Guard Rate</label>
+                                                <label class="form-label">Guard Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="guard_rate"
-                                                    class="form-control numeric-input guardRate" placeholder="Guard Rate">
+                                                    class="form-control numeric-input" placeholder="Guard Rate">
                                                 <span class="text-danger form-error" id="error_guard_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Rate </label>
+                                                <label class="form-label">Site Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="office_rate"
-                                                    class="form-control numeric-input siteRate" placeholder="Office Rate">
+                                                    class="form-control numeric-input" placeholder="Office Rate">
                                                 <span class="text-danger form-error" id="error_office_rate"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
                                                 <label class="form-label">
                                                     Name of the Guards
                                                     <small class="text-muted">(Include additional info such as Trained
-                                                        Guards, Banned Guards)</small> 
+                                                        Guards, Banned Guards)</small> <span class="text-danger">*</span>
                                                 </label>
                                                 <textarea name="guard_names" class="form-control" rows="3" placeholder="Enter names and info of guards..."></textarea>
                                                 <span class="text-danger form-error" id="error_guard_names"></span>
                                             </div>
 
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses</label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="billable_rate"
                                                     class="form-control numeric-input" placeholder="Billable">
                                                 <span class="text-danger form-error" id="error_billable_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses</label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="payable_rate"
                                                     class="form-control numeric-input" placeholder="Payable">
                                                 <span class="text-danger form-error" id="error_payable_rate"></span>
@@ -367,36 +428,42 @@
                                                 <span class="text-danger form-error" id="editerror_site_name"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Address</label>
+                                                <label class="form-label">Address <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="address" id="address" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="editerror_address"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Post Code</label>
+                                                <label class="form-label">Post Code <span class="text-danger">
+                                                        *</span></label>
                                                 <input type="text" name="post_code" id="post_code"
                                                     class="form-control" placeholder="Enter Post Code">
                                                 <span class="text-danger form-error" id="editerror_post_code"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Code </label>
+                                                <label class="form-label">Site Code <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="site_code" id="site_code"
                                                     class="form-control" placeholder="Enter Site Code">
                                                 <span class="text-danger form-error" id="editerror_site_code"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Person </label>
+                                                <label class="form-label">Contact Person <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="contact_person" id="contact_person"
                                                     class="form-control" placeholder="Enter Contact person">
                                                 <span class="text-danger form-error" id="editerror_contact_person"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Number </label>
+                                                <label class="form-label">Contact Number <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="contact_number" id="contact_number"
                                                     class="form-control" placeholder="Enter Contact Number">
                                                 <span class="text-danger form-error" id="editerror_contact_number"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Note</label>
+                                                <label class="form-label">Site Note <span
+                                                        class="text-danger">*</span></label>
                                                 <textarea class="form-control" name="note" id="note" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="editerror_note"></span>
                                             </div>
@@ -449,13 +516,15 @@
                                             </div>
 
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Guard Rate</label>
+                                                <label class="form-label">Guard Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="guard_rate" id="guard_rate"
                                                     class="form-control" placeholder="Guard Rate">
                                                 <span class="text-danger form-error" id="editerror_guard_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Office Rate</label>
+                                                <label class="form-label">Office Rate <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="office_rate" id="office_rate"
                                                     class="form-control" placeholder="Office Rate">
                                                 <span class="text-danger form-error" id="editerror_office_rate"></span>
@@ -464,20 +533,22 @@
                                                 <label class="form-label">
                                                     Name of the Guards
                                                     <small class="text-muted">(Include additional info such as Trained
-                                                        Guards, Banned Guards)</small>
+                                                        Guards, Banned Guards)</small> <span class="text-danger">*</span>
                                                 </label>
                                                 <textarea name="guard_names" id="guard_names" class="form-control" rows="3"
                                                     placeholder="Enter names and info of guards..."></textarea>
                                                 <span class="text-danger form-error" id="editerror_guard_names"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses </label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="billable_rate" id="billable_rate"
                                                     class="form-control numeric-input" placeholder="Billable">
                                                 <span class="text-danger form-error" id="editerror_billable_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses </label>
+                                                <label class="form-label">Expenses <span
+                                                        class="text-danger">*</span></label>
                                                 <input type="text" name="payable_rate" id="payable_rate"
                                                     class="form-control numeric-input" placeholder="Payable">
                                                 <span class="text-danger form-error" id="editerror_payable_rate"></span>
@@ -560,6 +631,32 @@
     </div>
     <!-- /Edit Client -->
 
+    <!-- Add Client Success -->
+    <div class="modal fade" id="success_modal" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="text-center p-3">
+                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                class="ti ti-check fs-24"></i></span>
+                        <h5 class="mb-2" id="success_message"></h5>
+
+                        </p>
+                        <div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <a href="{{ url('sites') }}" class="btn btn-dark w-100">Back to List</a>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Add Client Success -->
+
     <!-- Delete Modal -->
     <div class="modal fade" id="delete_modal">
         <div class="modal-dialog modal-dialog-centered">
@@ -582,47 +679,26 @@
 
     <!-- Import modal -->
     <div class="modal fade" id="import_modal">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h4 class="modal-title">Import Sites</h4>
+                    <h4 class="modal-title">Import Excel</h4>
                     <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
                         aria-label="Close">
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
-                <form action="{{ route('sites.import') }}" method="POST" enctype="multipart/form-data">
+                <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="tab-content" id="myTabContent">
                         <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
                             aria-labelledby="info-tab" tabindex="0">
                             <div class="modal-body pb-0 ">
                                 <div class="row">
-                                    <div class="col-md-12 mb-3">
-                                        <div class="alert alert-info">
-                                            <h6 class="mb-2"><i class="ti ti-info-circle"></i> Import Guidelines:</h6>
-                                            <ul class="mb-0 small">
-                                                <li>Row 1 and Column A should be left empty</li>
-                                                <li>Row 2 starting from Column B should contain headers</li>
-                                                <li>Data should start from Row 3, Column B onwards</li>
-                                                <li><strong>Required:</strong> Site Name</li>
-                                                <li><strong>Optional:</strong> Client Name, Address, Site Code, Post Code, Guard Names, Contact Number, Contact Person, Note, Start Time, End Time, Break Time, Guard Rate, Office Rate, Billable Rate, Payable Rate</li>
-                                                <li>If Client Name is provided, it must exist in the clients database</li>
-                                                <li>The system will automatically find the client and assign its ID when Client Name is provided</li>
-                                                <li>Time fields should be in HH:MM format (e.g., 08:00, 18:30)</li>
-                                                <li>Rate fields should be numeric values</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-8">
+                                    <div class="col-md-6">
                                         <div class="d-flex gap-2">
-                                            <input type="file" name="import_file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                            <input type="file" name="import_file" class="form-control" required>
                                         </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <a href="{{ route('sites.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
-                                            <i class="ti ti-download"></i> Download Template
-                                        </a>
                                     </div>
                                 </div>
                             </div>
@@ -755,34 +831,29 @@
 
 @endsection
 @section('scripts')
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <script>
         $(document).ready(function() {
             $('.select-client').select2({
                 width: '100%',
             });
         });
-        $(document).ready(function() {
+        // Site search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
 
-            $(document).on("change","#clientSelect",function() {
-                var $this = $(this);
-                const clientId = $(this).val();
-
-                if (!clientId) return;
-
-                $.ajax({
-                    url: `${baseUrl}/api/client/${clientId}`,
-                    method: 'GET',
-                    dataType: 'json',
-                    success: function (data) {
-                        $('.guardRate').val(data.client.guard_rate || '');
-                        $('.siteRate').val(data.client.office_rate || '');
-                    },
-                    error: function (xhr, status, error) {
-                        console.error('Fetch error:', error);
-                    }
-                });
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
             });
-
+        });
+        $(document).ready(function() {
             $('#add_site-form').on('submit', function(e) {
                 e.preventDefault();
                 $("[id^='error_']").text('');
@@ -803,9 +874,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        closeBsModal('#add_site');
-                        toast_success('Sites Added Successfully')
-                        reloadDatatable('#sites-table');
+                        $('#add_site').modal('hide');
+                        $('#success_message').html('Sites Added Successfully')
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -815,7 +886,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            alert('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -848,9 +919,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        closeBsModal('#edit_site');
-                        toast_success('Sites Updated Successfully!');
-                        reloadDatatable('#sites-table');
+                        $('#edit_site').modal('hide');
+                        $('#success_message').html('Sites Updated Successfully!')
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -860,7 +931,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            alert('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -876,7 +947,7 @@
             $.get(`${baseUrl}/editsite/` + record_id, function(data) {
                 if (data.site) {
                     $('#site_id').val(data.site.id);
-                    $('#client_id').val(data.site.client_id).trigger('change');
+                    $('#client_id').val(data.site.client_id);
                     $('#site_name').val(data.site.site_name);
                     $('#site_group').val(data.site.site_group);
                     $('#address').val(data.site.address);
@@ -927,17 +998,17 @@
             $('#start_time_detail').text(data.start_time);
             $('#end_time_detail').text(data.end_time);
             $('#break_time_detail').text(data.break_time);
-            $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
-            $('#office_rate_detail').text(`$${data.office_rate ?? 0}`);
-            $('#billable_rate_detail').text(`$${data.billable_rate ?? 0}`);
-            $('#payable_rate_detail').text(`$${data.payable_rate ?? 0}`);
+            $('#guard_rate_detail').text(`$${data.guard_rate}`);
+            $('#office_rate_detail').text(`$${data.office_rate}`);
+            $('#billable_rate_detail').text(`$${data.billable_rate}`);
+            $('#payable_rate_detail').text(`$${data.payable_rate}`);
             $('#manager_1_detail').text(data.manager_1_name ?? '');
             $('#manager_2_detail').text(data.manager_2_name ?? '');
 
             let modal = new bootstrap.Modal(document.getElementById('viewSiteDetailModal'));
             modal.show();
         }).fail(function() {
-            toast_danger('Failed to fetch site detail.');
+            alert('Failed to fetch site detail.');
         });
     }
 
@@ -958,27 +1029,31 @@
                     'X-CSRF-TOKEN': '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    closeBsModal('#delete_modal');
+                    $('#delete_modal').modal('hide');
 
-                    toast_success('Site Deleted Successfully!')
-                    reloadDatatable('#sites-table');
+                    $('#success_message').html('Site Deleted Successfully!')
+                    $('#success_modal').modal('show');
                 },
                 error: function(xhr) {
-                    closeBsModal('#delete_modal');
-                    toast_danger('Something went wrong. Please try again.');
+                    $('#delete_modal').modal('hide');
+                    alert('Something went wrong. Please try again.');
                 }
             });
         }
     });
 
+    // Select All toggle
+    $('#selectAll').on('change', function() {
+        $('.client-checkbox').prop('checked', $(this).prop('checked'));
+    });
     // Bulk delete button
     $('#bulkDeleteBtn').on('click', function() {
-        const selected = $('.dT-row-checkbox:checked').map(function() {
+        const selected = $('.site-checkbox:checked').map(function() {
             return this.value;
         }).get();
 
         if (selected.length === 0) {
-            toast_danger('Please select at least one site to delete.');
+            alert('Please select at least one site to delete.');
             return;
         }
 
@@ -992,11 +1067,11 @@
                 _token: '{{ csrf_token() }}'
             },
             success: function(response) {
-                toast_success('Selected sites deleted successfully!');
-                reloadDatatable('#sites-table');
+                $('#success_message').text('Selected sites deleted successfully!');
+                $('#success_modal').modal('show');
             },
             error: function() {
-                toast_danger('Something went wrong during bulk delete.');
+                alert('Something went wrong during bulk delete.');
             }
         });
     });
@@ -1038,6 +1113,43 @@
         }
     </script>
     <script>
+        $(document).ready(function() {
+
+            $('.submenu > a').click(function(e) {
+                e.preventDefault();
+
+                var $this = $(this);
+                var $submenu = $this.next('ul');
+
+                if (!$this.hasClass('subdrop')) {
+                    $('.submenu > a').removeClass('subdrop');
+                    $('.submenu ul').slideUp(200);
+
+                    $this.addClass('subdrop');
+                    $submenu.slideDown(200);
+                } else {
+                    $this.removeClass('subdrop');
+                    $submenu.slideUp(200);
+                }
+            });
+
+
+            var currentPage = window.location.pathname.split("/").pop();
+
+            $('#sidebar-menu a').each(function() {
+                var linkPage = $(this).attr('href');
+                if (linkPage === currentPage) {
+                    $(this).addClass('active');
+
+                    var $submenu = $(this).closest('.submenu');
+                    if ($submenu.length) {
+                        $submenu.find('> a').addClass('subdrop');
+                        $submenu.find('ul').slideDown(0).css('display', 'block');
+                    }
+                }
+            });
+        });
+
         document.querySelectorAll('.toggle-rate').forEach(function(checkbox) {
             checkbox.addEventListener('change', function() {
                 const id = this.dataset.id;
@@ -1065,6 +1177,4 @@
             });
         });
     </script>
-
-    {!! $dataTable->scripts() !!}
 @endsection

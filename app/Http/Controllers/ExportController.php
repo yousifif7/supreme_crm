@@ -9,19 +9,15 @@ use App\Exports\RolesExport;
 use App\Exports\ShiftDateExport;
 use App\Exports\InvoiceExport;
 use App\Exports\SitesExport;
-use App\Exports\SubcontractorsExport;
-use App\Exports\LeavesExport;
 use App\Exports\UsersExport;
 use App\Exports\VehicleComplianceExport;
 use App\Exports\VehicleMaintenanceExport;
 use App\Exports\VehiclesExport;
 use App\Imports\AlertReminderImport;
-use App\Imports\ClientsImport;
 use App\Imports\EmployeesImport;
 use App\Imports\RolesImport;
 use App\Imports\ShiftDateImport;
 use App\Imports\SitesImport;
-use App\Imports\SubcontractorsImport;
 use App\Imports\UsersImport;
 use App\Imports\VehicleComplianceImport;
 use App\Imports\VehicleMaintenanceImport;
@@ -33,8 +29,6 @@ use App\Models\RoadworthinessCheck;
 use App\Models\ShiftDate;
 use App\Models\Invoice;
 use App\Models\Site;
-use App\Models\Subcontractor;
-use App\Models\EmployeeLeave;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleCompliance;
@@ -46,15 +40,9 @@ use Spatie\Permission\Models\Role;
 
 class ExportController extends Controller
 {
-    public function exportClientExcel(Request $request)
+    public function exportClientExcel()
     {
-        $isTemplate = $request->has('template') && $request->get('template') == 1;
-
-        if ($isTemplate) {
-            return Excel::download(new ClientsExport(true), 'clients_template.xlsx');
-        }
-
-        return Excel::download(new ClientsExport(false), 'clients.xlsx');
+        return Excel::download(new ClientsExport, 'clients.xlsx');
     }
     public function importClientExcel(Request $request)
     {
@@ -62,55 +50,13 @@ class ExportController extends Controller
             'import_file' => 'required|mimes:xlsx,xls,csv'
         ]);
 
-        Excel::import(new ClientsImport(), $request->file('import_file'));
+        Excel::import(new Client(), $request->file('import_file'));
 
         return back()->with('success', 'Clients imported successfully!');
     }
-
-    /**
-     * Start Subcontractor Export/Import
-     */
-    public function exportSubcontractorExcel(Request $request)
+    public function exportSiteExcel()
     {
-        $isTemplate = $request->has('template') && $request->get('template') == 1;
-
-        if ($isTemplate) {
-            return Excel::download(new SubcontractorsExport(true), 'subcontractors_template.xlsx');
-        }
-
-        return Excel::download(new SubcontractorsExport(false), 'subcontractors.xlsx');
-    }
-
-    public function exportSubcontractorPdf()
-    {
-        $subcontractors = Subcontractor::all();
-        $pdf = Pdf::loadView('exports.subcontractors_pdf', compact('subcontractors'));
-        return $pdf->download('subcontractors.pdf');
-    }
-
-    public function importSubcontractorExcel(Request $request)
-    {
-        $request->validate([
-            'import_file' => 'required|mimes:xlsx,xls' // further validations are handled in the import class
-        ]);
-
-        Excel::import(new SubcontractorsImport(), $request->file('import_file'));
-
-        return back()->with('success', 'Subcontractors imported successfully!');
-    }
-    /**
-     * End Subcontractor Export/Import
-     */
-
-    public function exportSiteExcel(Request $request)
-    {
-        $isTemplate = $request->has('template') && $request->get('template') == 1;
-
-        if ($isTemplate) {
-            return Excel::download(new SitesExport(true), 'sites_template.xlsx');
-        }
-
-        return Excel::download(new SitesExport(false), 'sites.xlsx');
+        return Excel::download(new SitesExport, 'sites.xlsx');
     }
     public function exportClientPdf()
     {
@@ -144,15 +90,9 @@ class ExportController extends Controller
 
         return back()->with('success', 'Sites imported successfully!');
     }
-    public function exportEmployeeExcel(Request $request)
+    public function exportEmployeeExcel()
     {
-        $isTemplate = $request->has('template') && $request->get('template') == 1;
-
-        if ($isTemplate) {
-            return Excel::download(new EmployeesExport(true), 'employees_template.xlsx');
-        }
-
-        return Excel::download(new EmployeesExport(false), 'employees.xlsx');
+        return Excel::download(new EmployeesExport, 'employees.xlsx');
     }
 
     public function exportEmployeePdf()
@@ -173,17 +113,6 @@ class ExportController extends Controller
         return back()->with('success', 'Employees imported successfully!');
     }
 
-    public function exportLeaveExcel()
-    {
-        return Excel::download(new LeavesExport, 'leave.xlsx');
-    }
-
-    public function exportLeavePdf()
-    {
-        $leaves = EmployeeLeave::all();
-        $pdf = Pdf::loadView('exports.leaves_pdf', compact('leaves'));
-        return $pdf->download('leaves.pdf');
-    }
 
     public function exportUserExcel()
     {
@@ -345,15 +274,9 @@ class ExportController extends Controller
         return back()->with('success', 'Reminders imported successfully.');
     }
 
-    public function exportShiftExcel(Request $request)
+    public function exportShiftExcel()
     {
-        $isTemplate = $request->has('template') && $request->template == 1;
-
-        if ($isTemplate) {
-            return Excel::download(new ShiftDateExport(true), 'shifts_template.xlsx');
-        }
-
-        return Excel::download(new ShiftDateExport(false), 'shifts.xlsx');
+        return Excel::download(new ShiftDateExport, 'shifts.xlsx');
     }
 
     public function exportShiftPdf()
@@ -370,27 +293,8 @@ class ExportController extends Controller
             'file' => 'required|mimes:xlsx,xls'
         ]);
 
-        $import = new ShiftDateImport;
-        Excel::import($import, $request->file('file'));
+        Excel::import(new ShiftDateImport, $request->file('file'));
 
-        $failures = $import->getFailures();
-        $successCount = $import->getSuccessCount();
-        $failureCount = $import->getFailureCount();
-
-        if (!empty($failures)) {
-            $errorMessage = "Import completed: {$successCount} successful, {$failureCount} failed.<br><br>";
-            $errorMessage .= '<strong>Failed rows:</strong><br>';
-            foreach ($failures as $failure) {
-                $errorMessage .= "• Row {$failure['row']}: {$failure['error']}<br>";
-            }
-
-            if ($successCount > 0) {
-                return back()->with('warning', $errorMessage);
-            } else {
-                return back()->with('error', $errorMessage);
-            }
-        }
-
-        return back()->with('success', "All {$successCount} shifts imported successfully.");
+        return back()->with('success', 'Shift imported successfully.');
     }
 }

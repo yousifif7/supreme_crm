@@ -1,5 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
+
+
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
@@ -8,8 +11,6 @@
     <meta name="author" content="Dreams technologies - Bootstrap Admin Template">
     <meta name="robots" content="noindex, nofollow">
     <title>@yield('title')</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-    @vite(['resources/sass/app.scss', 'resources/js/app.js', 'resources/js/custom/toastr-helpers.js', 'resources/js/custom/ajax.js'])
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
 
     <!-- Favicon -->
@@ -19,20 +20,21 @@
     <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/sp_logo.png') }}">
 
     <!-- Preload Critical CSS -->
-    {{-- <link rel="preload" href="{{ asset('assets/css/bootstrap.min.css') }}" as="style"> --}}
+    <link rel="preload" href="{{ asset('assets/css/bootstrap.min.css') }}" as="style">
     <link rel="preload" href="{{ asset('assets/css/style.css') }}" as="style">
 
     <!-- Core CSS -->
-    {{-- <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}"> --}}
+    <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
     <!-- Feather CSS -->
 
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/feather/feather.css') }}">
     <!-- Dragula CSS -->
     <!-- Vendor CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/feather/feather.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/tabler-icons/tabler-icons.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/plugins/select2/css/select2.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/fontawesome.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/daterangepicker/daterangepicker.css') }}">
@@ -40,14 +42,11 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
     <!-- Defer Theme Script -->
-    {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
-    {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
+    <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script>
     <script src="{{ asset('assets/js/theme-script.js') }}" defer></script>
     <!-- Moment + Datetimepicker -->
     <script src="{{ asset('assets/js/moment.js') }}" defer></script>
     <script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
-    <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
     <script type="text/javascript">
         const baseUrl = "{{ url('/') }}";
     </script>
@@ -91,13 +90,13 @@
                                 <i class="ti ti-arrow-bar-to-left"></i>
                             </a>
                             <!-- Search -->
-                            {{--<div class="input-group input-group-flat d-inline-flex me-1">
+                            <div class="input-group input-group-flat d-inline-flex me-1">
                                 <span class="input-icon-addon">
                                     <i class="ti ti-search"></i>
                                 </span>
                                 <input type="text" class="form-control" placeholder="Search...">
 
-                            </div>--}}
+                            </div>
                             <!-- /Search -->
 
 
@@ -298,14 +297,241 @@
         <!-- /Header -->
 
         <!-- Sidebar -->
-        @include('layouts.sidebar')
-        <!-- /Sidebar -->
+        <div class="sidebar" id="sidebar">
+            <!-- Logo -->
+            <div class="sidebar-logo">
+                <a href="{{ url('dashboard') }}" class="logo logo-normal">
+                    <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+                </a>
+                <a href="{{ url('dashboard') }}" class="logo-small">
+                    <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+                </a>
+                <a href="{{ url('dashboard') }}" class="dark-logo">
+                    <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+                </a>
+            </div>
+            <!-- /Logo -->
+            <div class="modern-profile p-3 pb-0">
+                <div class="text-center rounded bg-light p-3 mb-4 user-profile">
+                    <div class="avatar avatar-lg online mb-3">
+                        <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-02.jpg"
+                            alt="Img" class="img-fluid rounded-circle">
+                    </div>
+                    <h6 class="fs-12 fw-normal mb-1">Adrian Herman</h6>
+                    <p class="fs-10">System Admin</p>
+                </div>
+                <div class="sidebar-nav mb-3">
+                    <ul class="nav nav-tabs nav-tabs-solid nav-tabs-rounded nav-justified bg-transparent"
+                        role="tablist">
+                        <li class="nav-item"><a class="nav-link active border-0" href="#">Menu</a></li>
+                        <li class="nav-item"><a class="nav-link border-0"
+                                href="#">Chats</a></li>
+                        <li class="nav-item"><a class="nav-link border-0"
+                                href="#">Inbox</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="sidebar-header p-3 pb-0 pt-2">
+                <div class="text-center rounded bg-light p-2 mb-4 sidebar-profile d-flex align-items-center">
+                    <div class="avatar avatar-md onlin">
+                        <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-02.jpg"
+                            alt="Img" class="img-fluid rounded-circle">
+                    </div>
+                    <div class="text-start sidebar-profile-info ms-2">
+                        <h6 class="fs-12 fw-normal mb-1">Adrian Herman</h6>
+                        <p class="fs-10">System Admin</p>
+                    </div>
+                </div>
+                <div class="input-group input-group-flat d-inline-flex mb-4">
+                    <span class="input-icon-addon">
+                        <i class="ti ti-search"></i>
+                    </span>
+                    <input type="text" class="form-control" placeholder="Search in HRMS">
+                    <span class="input-group-text">
+                        <kbd>CTRL + / </kbd>
+                    </span>
+                </div>
+                <div class="d-flex align-items-center justify-content-between menu-item mb-3">
+                    <div class="me-3">
+                        <a href="#" class="btn btn-menubar">
+                            <i class="ti ti-layout-grid-remove"></i>
+                        </a>
+                    </div>
+                    <div class="me-3">
+                        <a href="#"
+                            class="btn btn-menubar position-relative">
+                            <i class="ti ti-brand-hipchat"></i>
+                            <span
+                                class="badge bg-info rounded-pill d-flex align-items-center justify-content-center header-badge">5</span>
+                        </a>
+                    </div>
+                    <div class="me-3 notification-item">
+                        <a href="#"
+                            class="btn btn-menubar position-relative me-1">
+                            <i class="ti ti-bell"></i>
+                            <span class="notification-status-dot"></span>
+                        </a>
+                    </div>
+                    <div class="me-0">
+                        <a href="#" class="btn btn-menubar">
+                            <i class="ti ti-message"></i>
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="sidebar-inner slimscroll">
+                <div id="sidebar-menu" class="sidebar-menu">
+                    <ul>
+                        <li>
+                            <ul>
+                                <li class="menu-title">
+                                    <span>MAIN MENU</span>
+                                </li>
+                                <li class="{{ request()->is('dashboard*') ? 'active' : '' }}">
+                                    <a href="{{ url('dashboard') }}">
+                                        <i class="ti ti-layout-dashboard"></i>
+                                        <span>Dashboard</span>
+                                    </a>
+                                </li> @can('Read Security Board') <li class="submenu {{ request()->is('shifts') ? 'open' : '' }}">
+                                    <a href="javascript:void(0);">
+                                        <i class="ti ti-shield-half-filled"></i>
+                                        <span>Security Board</span>
+                                        <span class="menu-arrow"></span>
+                                    </a>
+                                    <ul>
+                                        <li class="{{ request()->is('scheduling') ? 'active' : '' }}">
+                                            <a href="{{ url('scheduling') }}">
+                                                <i class="ti ti-calendar-plus"></i>Scheduling </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('worker_calendar') }}">
+                                                <i class="ti ti-calendar-month"></i>Worker Calendar </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('site_calendar') }}">
+                                                <i class="ti ti-calendar-time"></i>Site Calendar </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('today_rota') }}">
+                                                <i class="ti ti-calendar-time"></i>Today's Rota </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('shifts') }}">
+                                                <i class="ti ti-calendar-time"></i>Manage Shift </a>
+                                        </li>
+                                    </ul>
+                                </li> @endcan @can('Read User Management') <li class="submenu">
+                                    <a href="javascript:void(0);">
+                                        <i class="ti ti-users"></i>
+                                        <span>User Management</span>
+                                        <span class="menu-arrow"></span>
+                                    </a>
+                                    <ul>
+                                        <li>
+                                            <a href="{{ route('users.index') }}">
+                                                <i class="ti ti-users"></i>All Users </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ route('roles.index') }}">
+                                                <i class="ti ti-accessible"></i>All Roles </a>
+                                        </li>
+                                    </ul>
+                                </li> @endcan @can('Read Clients') <li class="submenu {{ request()->is('clients') || request()->is('sites') ? 'open' : '' }}">
+                                    <a href="javascript:void(0);">
+                                        <i class="ti ti-heartbeat"></i>
+                                        <span>Clients</span>
+                                        <span class="menu-arrow"></span>
+                                    </a>
+                                    <ul>
+                                        <li class="{{ request()->is('clients') ? 'active' : '' }}">
+                                            <a href="{{ url('clients') }}">
+                                                <i class="ti ti-heartbeat"></i>Clients </a>
+                                        </li>
+                                        <li class="{{ request()->is('sites') ? 'active' : '' }}">
+                                            <a href="{{ url('sites') }}">
+                                                <i class="ti ti-world-pin"></i>Sites </a>
+                                        </li>
+                                    </ul>
+                                </li> @endcan @can('Read Security Staff') <li class="submenu {{ request()->is('employees') || request()->is('sub_contractors') ? 'open' : '' }}">
+                                    <a href="javascript:void(0);">
+                                        <i class="ti ti-heartbeat"></i>
+                                        <span>Security Staffs</span>
+                                        <span class="menu-arrow"></span>
+                                    </a>
+                                    <ul>
+                                        <li class="{{ request()->is('clients') ? 'active' : '' }}">
+                                            <a href="{{ url('employees') }}">
+                                                <i class="ti ti-users"></i>Staffs </a>
+                                        </li>
+                                        <li class="{{ request()->is('sites') ? 'active' : '' }}">
+                                            <a href="{{ url('subcontractors') }}">
+                                                <i class="ti ti-users"></i>Subcontractors </a>
+                                        </li>
+                                    </ul>
+                                </li> @endcan @can('Read Vehicle Management') <li class="submenu">
+                                    <a href="javascript:void(0);">
+                                        <i class="ti ti-search"></i>
+                                        <span>Vehicle Management</span>
+                                        <span class="menu-arrow"></span>
+                                    </a>
+                                    <ul>
+                                        <li>
+                                            <a href="{{ url('vehicle_details') }}">
+                                                <i class="ti ti-reorder"></i>Vehicle Details </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('vehicle_compliances') }}">
+                                                <i class="ti ti-waterpolo"></i>Legal & Compliance Documents </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('vehicle_maintenances') }}">
+                                                <i class="ti ti-waterpolo"></i>Service & Maintenance </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('roadworthiness_check') }}">
+                                                <i class="ti ti-waterpolo"></i>Roadworthiness Checks </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('documentation_uploads') }}">
+                                                <i class="ti ti-waterpolo"></i>Documentation Uploads </a>
+                                        </li>
+                                        <li>
+                                            <a href="{{ url('alert_reminders') }}">
+                                                <i class="ti ti-waterpolo"></i>Alerts & Reminders </a>
+                                        </li>
+                                    </ul>
+                                </li> @endcan
+                                <li class="submenu">
+                                    <a href="javascript:void(0);">
+                                        <i class="ti ti-tool"></i><span>Tools</span>
+                                        <span class="menu-arrow"></span>
+                                    </a>
+                                    <ul>
+                                        <li><a href="{{ route('invoices.index') }}"><i
+                                                    class="ti ti-file-invoice"></i>Invoices & Payments</a></li>
+                                        <li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
+                                        </li>
+                                        <li><a href="#"><i class="ti ti-door-exit"></i>Holiday Mgt.</a>
+                                        </li>
+                                        <li><a href="#"><i
+                                                    class="ti ti-calendar-stats"></i>Timesheet Report</a></li>
+                                        <li><a href="#"><i class="ti ti-checkup-list"></i>RIO Report</a>
+                                        </li>
+                                    </ul>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+
+
 
         <!-- Page Wrapper -->
         @yield('contents')
         <!-- /Page Wrapper -->
-
-        @include('_modals.global-modal')
 
     </div>
     <!-- /Main Wrapper -->
@@ -313,66 +539,52 @@
     <!-- jQuery -->
     <script>
         $(document).ready(function() {
-            // Sidebar Menu
-            $('.submenu > a').click(function(e) {
-                e.preventDefault();
-                var $this = $(this);
-                var $submenu = $this.next('ul');
 
-                if (!$this.hasClass('subdrop')) {
-                    $('.submenu > a').removeClass('subdrop');
-                    $('.submenu ul').slideUp(200);
-                    $this.addClass('subdrop');
-                    $submenu.slideDown(200);
-                } else {
-                    $this.removeClass('subdrop');
-                    $submenu.slideUp(200);
-                }
-            });
+            // $('.submenu > a').click(function(e) {
+            //     e.preventDefault();
 
-            var currentPage = window.location.pathname.split("/").pop();
-            $('#sidebar-menu a').each(function() {
-                var linkPage = $(this).attr('href');
-                if (linkPage === currentPage) {
-                    $(this).addClass('active');
-                    var $submenu = $(this).closest('.submenu');
-                    if ($submenu.length) {
-                        $submenu.find('> a').addClass('subdrop');
-                        $submenu.find('ul').slideDown(0).css('display', 'block');
-                    }
-                }
-            });
+            //     var $this = $(this);
+            //     var $submenu = $this.next('ul');
 
-            // Client search functionality
-            $('.search_box').on('keyup', function() {
-                // trigger the search of datatable
-                $('.datatable').DataTable().search($(this).val()).draw();
-            });
+            //     if (!$this.hasClass('subdrop')) {
+            //         $('.submenu > a').removeClass('subdrop');
+            //         $('.submenu ul').slideUp(200);
 
-            // Select All toggle
-            $('#selectAll').on('change', function() {
-                $('.dT-row-checkbox').prop('checked', $(this).prop('checked'));
-            });
+            //         $this.addClass('subdrop');
+            //         $submenu.slideDown(200);
+            //     } else {
+            //         $this.removeClass('subdrop');
+            //         $submenu.slideUp(200);
+            //     }
+            // });
 
-            // toggle select all checkbox
-            $(document).on('change', '.dT-row-checkbox', function() {
-                if ($('.dT-row-checkbox:checked').length === $('.dT-row-checkbox').length) {
-                    $('#selectAll').prop('checked', true);
-                } else {
-                    $('#selectAll').prop('checked', false);
-                }
-            });
+
+            // var currentPage = window.location.pathname.split("/").pop();
+
+            // $('#sidebar-menu a').each(function() {
+            //     var linkPage = $(this).attr('href');
+            //     if (linkPage === currentPage) {
+            //         $(this).addClass('active');
+
+            //         var $submenu = $(this).closest('.submenu');
+            //         if ($submenu.length) {
+            //             $submenu.find('> a').addClass('subdrop');
+            //             $submenu.find('ul').slideDown(0).css('display', 'block');
+            //         }
+            //     }
+            // });
         });
     </script>
 
 
     <!-- Core JS Libraries -->
-    {{-- <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}" defer></script> --}}
+    <script src="{{ asset('assets/js/bootstrap.bundle.min.js') }}" defer></script>
     <script src="{{ asset('assets/js/feather.min.js') }}" defer></script>
     <script src="{{ asset('assets/js/jquery.slimscroll.min.js') }}" defer></script>
 
     <!-- Plugins -->
     <script src="{{ asset('assets/plugins/daterangepicker/daterangepicker.js') }}" defer></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/theia-sticky-sidebar@1.7.0/dist/theia-sticky-sidebar.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/theia-sticky-sidebar@1.7.0/dist/jquery.theia.sticky.js"></script>
 
@@ -399,6 +611,32 @@
                 wrapper.appendChild(clone);
             });
         }
+    </script>
+    <script>
+        // window.addEventListener('load', function() {
+        //     if (typeof L === 'undefined') {
+        //         alert('Leaflet (L) is still undefined! Check CDN.');
+        //         return;
+        //     }
+
+        //     var map = L.map('map').setView([51.505, -0.09], 13);
+
+        //     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        //         attribution: '&copy; OpenStreetMap contributors'
+        //     }).addTo(map);
+        // });
+        // window.addEventListener('load', function() {
+        //     if (typeof L === 'undefined') {
+        //         alert('Leaflet (L) is still undefined! Check CDN.');
+        //         return;
+        //     }
+
+        //     var map = L.map('map1').setView([51.505, -0.09], 13);
+
+        //     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        //         attribution: '&copy; OpenStreetMap contributors'
+        //     }).addTo(map);
+        // });
     </script>
     <script>
         if (localStorage.getItem("successNotification")) {
@@ -444,7 +682,7 @@
     <script>
         window.addEventListener('load', function () {
             if (typeof L === 'undefined') {
-                toast_danger('Leaflet (L) is still undefined! Check CDN.');
+                alert('Leaflet (L) is still undefined! Check CDN.');
                 return;
             }
 
@@ -472,6 +710,33 @@
             }
         });
     </script>
+    <script>
+        // window.addEventListener('load', function() {
+        //     if (typeof L === 'undefined') {
+        //         alert('Leaflet (L) is still undefined! Check CDN.');
+        //         return;
+        //     }
+
+        //     var map = L.map('map').setView([51.505, -0.09], 13);
+
+        //     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        //         attribution: '&copy; OpenStreetMap contributors'
+        //     }).addTo(map);
+
+
+        //     var redZone = L.circle([51.505, -0.09], {
+        //         color: '',
+        //         fillColor: '#f03',
+        //         fillOpacity: 0.5,
+        //         radius: 700
+        //     }).addTo(map);
+
+        //     redZone.bindPopup("Red Zone Area");
+        // });
+    </script>
     @yield('scripts')
+
 </body>
+
+
 </html>

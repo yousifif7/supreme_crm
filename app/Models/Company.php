@@ -11,4 +11,8 @@ class Company extends Model
     use SoftDeletes, LogsChanges;
     protected $table = 'company';
     protected $fillable = ['company_name', 'company_address'];
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

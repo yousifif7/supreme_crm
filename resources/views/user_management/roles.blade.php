@@ -51,8 +51,22 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
+
+
                         <!-- /Search -->
+
+
                     </div>
+                    <div class="sort-box">
+                        <select name="" id="" class="form-control">
+                            <option value="" hidden>Sort Role</option>
+                            <option value="">All</option>
+                            <option value="">Coordinators</option>
+                            <option value="">Archieved</option>
+                        </select>
+                        <i class="ti ti-chevron-down"></i>
+                    </div>
+
                 </div>
 
 
@@ -64,9 +78,42 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
+                        <table class="table datatable" style="width: 100%">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th style="width: 5%;"><input type="checkbox" id="selectAll"></th>
+                                    <th style="width: 5%;">#</th>
+                                    <th style="width: 70%;">Role Name</th>
+                                    <th style="width: 50%;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($roles as $role)
+                                    <tr>
+                                        <td><input type="checkbox" class="role-checkbox" value="{{ $role->id }}">
+                                        </td>
+                                        <td>{{ $loop->iteration }}</td>
+                                        <td>{{ $role->name }}</td>
+                                        <td>
+                                            <button class="sites_action-btn"
+                                                onclick="viewPermissions({{ $role->id }})">permissions</button>
+                                            <a onclick="editRole({{ $role->id }})" class="me-2"><i
+                                                    class="ti ti-edit"></i></a>
+
+                                            <a onclick="deleteRole({{ $role->id }})"><i class="ti ti-trash"></i></a>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+
                     </div>
                 </div>
+
+            </div>
+            <div class="card-footer d-flex justify-content-center">
+                {{ $roles->links('vendor.pagination.bootstrap-5') }}
             </div>
             <!-- Add Role Modal -->
             <div class="modal fade" id="add_role" tabindex="-1" aria-labelledby="addRoleLabel" aria-hidden="true">
@@ -265,6 +312,32 @@
             </div>
         </div>
     </div>
+    <!-- Add User Success -->
+    <div class="modal fade" id="success_modal" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="text-center p-3">
+                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                class="ti ti-check fs-24"></i></span>
+                        <h5 class="mb-2" id="success_message"></h5>
+
+                        </p>
+                        <div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <a href="{{ route('roles.index') }}" class="btn btn-dark w-100">Back to
+                                        List</a>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- End user suscces -->
 
     <!-- Delete Modal -->
     <div class="modal fade" id="delete_modal">
@@ -354,9 +427,9 @@
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                 },
                 success: function(response) {
-                    closeBsModal('#add_role');
-                    toast_success('Role created successfully!');
-                    reloadDatatable('#roles-table');
+                    $('#add_role').modal('hide');
+                    $('#success_message').html('Role created successfully!');
+                    $('#success_modal').modal('show');
                     form[0].reset();
                 },
                 error: function(xhr) {
@@ -366,7 +439,7 @@
                             $('#error_' + field).text(messages[0]);
                         });
                     } else {
-                        toast_danger('Something went wrong.');
+                        alert('Something went wrong.');
                     }
                 },
                 complete: function() {
@@ -412,9 +485,9 @@
                     'X-HTTP-Method-Override': 'PUT'
                 },
                 success: function(response) {
-                    closeBsModal('#edit_role_modal');
-                    toast_success('Role updated successfully!');
-                    reloadDatatable('#roles-table');
+                    $('#edit_role_modal').modal('hide');
+                    $('#success_message').html('Role updated successfully!');
+                    $('#success_modal').modal('show');
                 },
                 error: function(xhr) {
                     if (xhr.status === 422) {
@@ -423,7 +496,7 @@
                             $('#error_' + field).text(messages[0]);
                         });
                     } else {
-                        toast_danger('Something went wrong.');
+                        alert('Something went wrong.');
                     }
                 },
                 complete: function() {
@@ -463,28 +536,76 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        closeBsModal('#delete_modal');
+                        $('#delete_modal').modal('hide');
 
-                        toast_success('Role Deleted Successfully');
-                        reloadDatatable('#roles-table');
+                        $('#success_message').html('Role Deleted Successfully');
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
-                        closeBsModal('#delete_modal');
-                        toast_danger('Something went wrong. Please try again.');
+                        $('#delete_modal').modal('hide');
+                        alert('Something went wrong. Please try again.');
                     }
                 });
             }
         });
     </script>
     <script>
+        // role search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
+
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.role-checkbox').prop('checked', $(this).prop('checked'));
+        });
+        // Sidebar Menu
+        $('.submenu > a').click(function(e) {
+            e.preventDefault();
+            var $this = $(this);
+            var $submenu = $this.next('ul');
+
+            if (!$this.hasClass('subdrop')) {
+                $('.submenu > a').removeClass('subdrop');
+                $('.submenu ul').slideUp(200);
+                $this.addClass('subdrop');
+                $submenu.slideDown(200);
+            } else {
+                $this.removeClass('subdrop');
+                $submenu.slideUp(200);
+            }
+        });
+
+        var currentPage = window.location.pathname.split("/").pop();
+        $('#sidebar-menu a').each(function() {
+            var linkPage = $(this).attr('href');
+            if (linkPage === currentPage) {
+                $(this).addClass('active');
+                var $submenu = $(this).closest('.submenu');
+                if ($submenu.length) {
+                    $submenu.find('> a').addClass('subdrop');
+                    $submenu.find('ul').slideDown(0).css('display', 'block');
+                }
+            }
+        });
+
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.dT-row-checkbox:checked').map(function() {
+            const selected = $('.role-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                toast_danger('Please select at least one role to delete.');
+                alert('Please select at least one role to delete.');
                 return;
             }
 
@@ -498,15 +619,13 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    toast_success('Selected roles deleted successfully!');
-                    reloadDatatable('#roles-table');
+                    $('#success_message').text('Selected roles deleted successfully!');
+                    $('#success_modal').modal('show');
                 },
                 error: function() {
-                    toast_danger('Something went wrong during bulk delete.');
+                    alert('Something went wrong during bulk delete.');
                 }
             });
         });
     </script>
-
-    {!! $dataTable->scripts() !!}
 @endsection

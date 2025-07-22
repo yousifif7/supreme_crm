@@ -10,4 +10,8 @@ class Department extends Model
 {
     use SoftDeletes, LogsChanges;
     protected $fillable = ['name'];
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

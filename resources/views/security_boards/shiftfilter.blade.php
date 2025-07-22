@@ -39,26 +39,20 @@
         </div>
 
         <div class="right  mt-4">
-            {{-- <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                🔍 Filter Options
-            </button> --}}
-                        <!--  -->
-            @include('security_boards.shifts.shift_filter_options')
-            <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift" class=" add_btn btn btn-white">
+            <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift" class=" add_btn btn btn-white"">
                 <i class="ti ti-plus me-0"></i> Add Shift
             </a>
             <div class="input-group input-group-flat d-inline-flex me-1">
                 <span class="input-icon-addon">
                     <i class="ti ti-search"></i>
                 </span>
-                <input type="text" id="calendarSearch" class="search_box" placeholder="Search...">
+                <input type="text" class=" search_box" placeholder="Search...">
 
 
                 <!-- /Search -->
 
 
             </div>
-
             <!--
          <a href="#" data-bs-toggle="modal" data-bs-target="#add_rota" class=" add_btn btn btn-white"">
              <i class="ti ti-plus me-0"></i> Rota (0)

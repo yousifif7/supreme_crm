@@ -20,4 +20,8 @@ class Site extends Model
     {
         return $this->belongsToMany(EmployeeType::class)->withPivot('guard_rate', 'office_rate');
     }
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

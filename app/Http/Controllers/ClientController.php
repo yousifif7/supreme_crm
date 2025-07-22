@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\ClientsDataTable;
 use App\Models\Client;
 use App\Models\Company;
 use App\Models\Employee;
@@ -15,41 +14,47 @@ use Spatie\Permission\Models\Role;
 
 class ClientController extends Controller
 {
-    public function index(ClientsDataTable $dataTable, Request $request)
+    public function index(Request $request)
     {
+        $filter = $request->query('filter') ?? null;
+
+        if ($filter === 'archived') {
+            $clients = Client::onlyTrashed()->paginate(10); // soft deleted
+        } else {
+            $clients = Client::orderBy('id', 'desc')->paginate(10);
+        }
+
         $companys = Company::all();
         $staffs = Employee::all();
-
-        return $dataTable->render('clients.index', compact('companys', 'staffs'));
-        // view('clients.index');
+        return view('clients.index', compact('clients', 'companys', 'staffs', 'filter'));
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'client_name'     => 'required|string|max:255',
-            'address'         => 'nullable|string|max:355',
+            'address'         => 'required|string|max:355',
             'contact_number' => [
-                'nullable',
+                'required',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'             => 'nullable|string|max:255',
-            'email' => 'required|email:dns|max:255|unique:users,email',
-            'invoice_terms'   => 'nullable|string|max:255',
-            'payment_terms'   => 'nullable|string|max:255',
+            'contact_person'             => 'required|string|max:255',
+            'email' => 'required|email:dns|max:255',
+            'invoice_terms'   => 'required|string|max:255',
+            'payment_terms'   => 'required|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
             'doc_2'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
             'doc_3'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
-            'contract_start'   => 'nullable|date',
-            'contract_end'     => 'nullable|date|after_or_equal:contact_start',
+            'contract_start'   => 'required|date',
+            'contract_end'     => 'required|date|after_or_equal:contact_start',
             'company_id'      => 'nullable|integer',
-            'guard_rate'      => 'nullable|numeric',
-            'office_rate'     => 'nullable|numeric',
+            'guard_rate'      => 'required|numeric',
+            'office_rate'     => 'required|numeric',
             'vat'  => 'nullable',
-            // 'username' => 'required|email|unique:users,username',
+            'username'        => 'required|email',
             'password' => [
                 'required',
                 'string',
@@ -85,8 +90,8 @@ class ClientController extends Controller
             'name' => $data['client_name'],
             'first_name' => $data['client_name'],
             'last_name' => '',
-            'username' => $data['email'],
-            'email' => $data['email'],
+            'username' => $data['client_name'],
+            'email' => $data['username'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -99,11 +104,13 @@ class ClientController extends Controller
         // Save client data (assuming Client model and $data matches columns)
         // Prepare client data by excluding user-related fields
         $clientData = $data;
-        unset($clientData['password']);
-        // unset($clientData['username'], $clientData['password']);
+        unset($clientData['username'], $clientData['password']);
 
         // Create client
-        Client::create($clientData);
+        $client = Client::create($clientData);
+
+
+
 
         return response()->json(['message' => 'Client created successfully']);
     }
@@ -112,26 +119,26 @@ class ClientController extends Controller
         $client = Client::findOrFail($id);
         $validator = Validator::make($request->all(), [
             'client_name'     => 'required|string|max:255',
-            'address'         => 'nullable|string|max:355',
+            'address'         => 'required|string|max:355',
             'contact_number' => [
-                'nullable',
+                'required',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'             => 'nullable|string|max:255',
+            'contact_person'             => 'required|string|max:255',
             'email' => 'required|email:dns|max:255',
-            'invoice_terms'   => 'nullable|string|max:255',
-            'payment_terms'   => 'nullable|string|max:255',
+            'invoice_terms'   => 'required|string|max:255',
+            'payment_terms'   => 'required|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_2'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_3'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
-            'contract_start'   => 'nullable|date',
-            'contract_end'     => 'nullable|date|after_or_equal:contact_start',
+            'contract_start'   => 'required|date',
+            'contract_end'     => 'required|date|after_or_equal:contact_start',
             'company_id'      => 'nullable|integer',
-            'guard_rate'      => 'nullable|numeric',
-            'office_rate'     => 'nullable|numeric',
+            'guard_rate'      => 'required|numeric',
+            'office_rate'     => 'required|numeric',
             'vat'  => 'nullable',
         ]);
 
@@ -219,8 +226,8 @@ class ClientController extends Controller
             'supervisor_rate' => $client->office_rate,
             'contract_period' => $client->contract_start . ' - ' . $client->contract_end,
             'documents' => collect([$client->doc_1, $client->doc_2, $client->doc_3])->filter()->implode(', '),
-            'company' => optional($client->company)->name ?? '',
-            'manager' => optional($client->manager)->fore_name ?? '',
+            'company' => optional($client->company)->name ?? 'N/A',
+            'manager' => optional($client->manager)->fore_name ?? 'N/A',
         ]);
     }
     public function assignManager(Request $request, $id)

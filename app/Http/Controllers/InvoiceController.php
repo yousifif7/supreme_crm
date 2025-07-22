@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\InvoicesDataTable;
 use App\Models\Client;
 use App\Models\EmployeeType;
 use App\Models\Invoice;
@@ -16,11 +15,12 @@ use Carbon\Carbon;
 
 class InvoiceController extends Controller
 {
-    public function index(InvoicesDataTable $dataTable)
+    public function index()
     {
-        return $dataTable->render('invoices.index');
+        $invoices = Invoice::with(['client','site'])->orderBy('id', 'desc')->paginate(15);
+        return view('invoices.index', compact('invoices'));
     }
-
+    
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -166,7 +166,7 @@ class InvoiceController extends Controller
 
     public function update(Request $request, $id)
     {
-
+        
     }
 
     public function edit($id)
@@ -248,7 +248,7 @@ class InvoiceController extends Controller
         $totalHours = $invoice->total_duration_hours;
         $totalBreaks = $invoice->total_break_hours;
 
-        return view('invoices.show', compact('invoice', 'client', 'site', 'shift', 'totalHours', 'totalBreaks', 'totalBookOnHours' , 'totalBookOffHours', 'shiftDays'));
+        return view('invoices.show', compact('invoice', 'client', 'site', 'shift', 'totalHours', 'totalBreaks', 'totalBookOnHours' , 'totalBookOffHours', 'shiftDays'));   
     }
 
     public function delete($id)

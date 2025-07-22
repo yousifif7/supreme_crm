@@ -24,4 +24,8 @@ class Vehicle extends Model
         'vehicle_category',
         'assigned_to',
     ];
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

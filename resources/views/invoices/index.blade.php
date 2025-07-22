@@ -43,9 +43,25 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
+
+
                         <!-- /Search -->
+
+
                     </div>
+                    <div class="sort-box">
+                        <select name="" id="" class="form-control">
+                            <option value="" hidden>Sort Invoices</option>
+                            <option value="">All</option>
+                            <option value="">Coordinators</option>
+                            <option value="">Archieved</option>
+                        </select>
+                        <i class="ti ti-chevron-down"></i>
+                    </div>
+
                 </div>
+
+
             </div>
             <!-- /Breadcrumb -->
 
@@ -53,7 +69,66 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {!! $dataTable->table(['class' => 'table datatable']) !!}
+                        <table class="table datatable">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th><input type="checkbox" id="selectAll"></th>
+                                    <th>#</th>
+                                    <th>Invoice No</th>
+                                    <th>Invoice Title</th>
+                                    <th>Client Name</th>
+                                    <th>Site Name</th>
+                                    <th>Invoice Date</th>
+                                    <th>Due Date</th>
+                                    <th>Total Shift Hours</th>
+                                    <th>Net Amount</th>
+                                    <th>Paid Amount</th>
+                                    <th>Payment Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @php $i = ($invoices->currentPage() - 1) * $invoices->perPage() + 1; @endphp
+                                @foreach ($invoices as $invoice)
+                                    <tr>
+                                        <td><input type="checkbox" class="invoice-checkbox" value="{{ $invoice->id }}">
+                                        </td>
+                                        <td>{{ $i++ }}</td>
+                                        <td>
+                                            <div class="d-flex align-items-center file-name-icon">
+                                                <div class="ms-2">
+                                                    <h6 class="fw-medium"><a
+                                                            href="{{ ($invoice->client_id) ? route('invoices.show', $invoice->id) : route('payrolls.show', $invoice->id)  }}">{{ $invoice->invoice_no }}</a>
+                                                    </h6>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ $invoice->invoice_title }}</td>
+                                        <td>{{ $invoice->client?->client_name }}</td>
+                                        <td>{{ $invoice->site?->site_name }}</td>
+                                        <td>{{ $invoice->invoice_date }}</td>
+                                        <td>{{ $invoice->due_date }}</td>
+                                        <td>{{ $invoice->total_shift_hours }}</td>
+                                        <td>{{ $invoice->net_amount }}</td>
+                                        <td>{{ $invoice->paid_amount }}</td>
+                                        <td>{{ $invoice->payment_date }}</td>
+                                        <td>
+                                            <div class="action-icon d-inline-flex">
+                                                {{--<a href="#" class="me-2" onclick="editSite({{ $invoice->id }})">
+                                                    <i class="ti ti-edit"></i>
+                                                </a>--}}
+                                                <a onclick="deleteInvoice({{ $invoice->id }})">
+                                                    <i class="ti ti-trash"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                        <div class="card-footer d-flex justify-content-center">
+                            {{ $invoices->links('vendor.pagination.bootstrap-5') }}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -64,6 +139,32 @@
 
     </div>
     <!-- /Page Wrapper -->
+
+    <!-- Invoice Success -->
+    <div class="modal fade" id="success_modal" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="text-center p-3">
+                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                class="ti ti-check fs-24"></i></span>
+                        <h5 class="mb-2" id="success_message"></h5>
+
+                        </p>
+                        <div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <a href="{{ url('invoices') }}" class="btn btn-dark w-100">Back to List</a>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- /Invoice Success -->
 
     <!-- Delete Modal -->
     <div class="modal fade" id="delete_modal">
@@ -87,7 +188,22 @@
 
 @endsection
 @section('scripts')
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
     <script>
+        // Site search functionality
+        $('.search_box').on('keyup', function() {
+            let searchText = $(this).val().toLowerCase();
+
+            $('.datatable tbody tr').each(function() {
+                let rowText = $(this).text().toLowerCase();
+                if (rowText.indexOf(searchText) > -1) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        });
 
     let selectedId = null;
 
@@ -105,27 +221,31 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        closeBsModal('#delete_modal');
+                        $('#delete_modal').modal('hide');
 
-                        toast_success('Invoice Deleted Successfully!')
-                        reloadDatatable('#invoices-table');
+                        $('#success_message').html('Invoice Deleted Successfully!')
+                        $('#success_modal').modal('show');
                     },
                     error: function(xhr) {
-                        closeBsModal('#delete_modal');
-                        toast_danger('Something went wrong. Please try again.');
+                        $('#delete_modal').modal('hide');
+                        alert('Something went wrong. Please try again.');
                     }
                 });
             }
         });
 
+        // Select All toggle
+        $('#selectAll').on('change', function() {
+            $('.invoice-checkbox').prop('checked', $(this).prop('checked'));
+        });
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.dT-row-checkbox:checked').map(function() {
+            const selected = $('.invoice-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                toast_danger('Please select at least one invoice to delete.');
+                alert('Please select at least one invoice to delete.');
                 return;
             }
 
@@ -139,14 +259,51 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    toast_success('Selected invoice deleted successfully!');
-                    reloadDatatable('#invoices-table');
+                    $('#success_message').text('Selected invoice deleted successfully!');
+                    $('#success_modal').modal('show');
                 },
                 error: function() {
-                    toast_danger('Something went wrong during bulk delete.');
+                    alert('Something went wrong during bulk delete.');
                 }
             });
         });
     </script>
-    {!! $dataTable->scripts() !!}
+    <script>
+        $(document).ready(function() {
+
+            $('.submenu > a').click(function(e) {
+                e.preventDefault();
+
+                var $this = $(this);
+                var $submenu = $this.next('ul');
+
+                if (!$this.hasClass('subdrop')) {
+                    $('.submenu > a').removeClass('subdrop');
+                    $('.submenu ul').slideUp(200);
+
+                    $this.addClass('subdrop');
+                    $submenu.slideDown(200);
+                } else {
+                    $this.removeClass('subdrop');
+                    $submenu.slideUp(200);
+                }
+            });
+
+
+            var currentPage = window.location.pathname.split("/").pop();
+
+            $('#sidebar-menu a').each(function() {
+                var linkPage = $(this).attr('href');
+                if (linkPage === currentPage) {
+                    $(this).addClass('active');
+
+                    var $submenu = $(this).closest('.submenu');
+                    if ($submenu.length) {
+                        $submenu.find('> a').addClass('subdrop');
+                        $submenu.find('ul').slideDown(0).css('display', 'block');
+                    }
+                }
+            });
+        });
+    </script>
 @endsection

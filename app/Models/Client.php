@@ -6,7 +6,6 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Log;
-use App\Models\User;
 
 use App\Traits\LogsChanges;
 
@@ -20,20 +19,19 @@ class Client extends Model
     {
         return $this->hasMany(Site::class);
     }
-    public function shift(): HasMany
-    {
-        return $this->hasMany(Shift::class);
-    }
     public function company()
     {
         return $this->belongsTo(Company::class);
     }
-    public function user()
-    {
-        return $this->belongsTo(User::class);
-    }
     public function manager()
     {
         return $this->belongsTo(Employee::class, 'manager_id');
+    }
+    /**
+     * Polymorphic relation to logs.
+     */
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
     }
 }

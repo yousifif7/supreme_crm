@@ -11,6 +11,35 @@
                     <h2 class="mb-1">Dashboard</h2>
 
                 </div>
+                <div class="d-flex my-xl-auto right-content align-items-center flex-wrap ">
+                    <div class="me-2 mb-2">
+                        <div class="dropdown">
+                            <a href="javascript:void(0);"
+                                class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
+                                data-bs-toggle="dropdown">
+                                <i class="ti ti-file-export me-1"></i>Export
+                            </a>
+                            <ul class="dropdown-menu  dropdown-menu-end p-3">
+                                <li>
+                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                            class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
+                                </li>
+                                <li>
+                                    <a href="javascript:void(0);" class="dropdown-item rounded-1"><i
+                                            class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div class="input-icon mb-2 position-relative">
+                        <span class="input-icon-addon">
+                            <i class="ti ti-calendar text-gray-9"></i>
+                        </span>
+                        <input type="text" class="form-control date-range bookingrange"
+                            placeholder="dd/mm/yyyy - dd/mm/yyyy">
+                    </div>
+
+                </div>
             </div>
             <!-- /Breadcrumb -->
 
@@ -28,13 +57,16 @@
                                     <h5>{{ $staffs->count() }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
+                            <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-primary" role="progressbar"
                                     style="width: {{ $clientgrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-danger fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
-                                from last week</p> --}}
+                                from last week</p>
+                            <span class="position-absolute top-0 end-0"><img
+                                    src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
+                                    alt="Img"></span>
                         </div>
                     </div>
                 </div>
@@ -51,13 +83,16 @@
                                     <h5>{{ $clients->count() }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
+                            <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-secondary" role="progressbar"
                                     style="width: {{ $clientgrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
-                                from last week</p> --}}
+                                from last week</p>
+                            <span class="position-absolute top-0 end-0"><img
+                                    src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
+                                    alt="Img"></span>
                         </div>
                     </div>
                 </div>
@@ -74,13 +109,16 @@
                                     <h5>{{ $invoices->count() }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
+                            <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-pink" role="progressbar"
                                     style="width: {{ $invoicerowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>+{{ $invoicerowthPercentage }}% </span>
-                                from last week</p> --}}
+                                from last week</p>
+                            <span class="position-absolute top-0 end-0"><img
+                                    src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
+                                    alt="Img"></span>
                         </div>
                     </div>
                 </div>
@@ -97,13 +135,16 @@
                                     <h5>{{ $review }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
+                            <div class="progress progress-xs mb-2">
                                 <div class="progress-bar bg-purple" role="progressbar"
                                     style="width: {{ $reviewrowthPercentage }}%"></div>
                             </div>
                             <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
                                         class="ti ti-arrow-wave-right-up me-1"></i>+{{ $reviewrowthPercentage }}% </span>
-                                from last week</p> --}}
+                                from last week</p>
+                            <span class="position-absolute top-0 end-0"><img
+                                    src="https://smarthr.co.in/demo/html/template/assets/img/bg/card-bg-04.png"
+                                    alt="Img"></span>
                         </div>
                     </div>
                 </div>
@@ -148,7 +189,7 @@
                                                 <td>{{ $shift->shift?->staff?->fore_name }}
                                                     {{ $shift->shift?->staff?->sur_name }}</td>
                                                 <td>X</td>
-                                                <td>{{ $shift->break_time }}
+                                                <td>{{ \Carbon\Carbon::parse($shift->break_time)->format('h:i A') }}
                                                 </td>
                                                 <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
                                                 </td>

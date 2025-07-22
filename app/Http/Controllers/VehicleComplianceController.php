@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\VehicleCompliancesDataTable;
 use App\Models\Vehicle;
 use App\Models\VehicleCompliance;
 use Illuminate\Http\Request;
@@ -10,10 +9,11 @@ use Illuminate\Support\Facades\Validator;
 
 class VehicleComplianceController extends Controller
 {
-    public function index(VehicleCompliancesDataTable $dataTable)
+    public function index()
     {
+        $compliances = VehicleCompliance::with('vehicle')->paginate();
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.compliances', compact('vehicles'));
+        return view('vehicle_management.compliances', compact('compliances', 'vehicles'));
     }
     public function store(Request $request)
     {

@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\SitesDataTable;
 use App\Models\Client;
 use App\Models\EmployeeType;
 use App\Models\Site;
@@ -11,33 +10,33 @@ use Illuminate\Support\Facades\Validator;
 
 class SiteController extends Controller
 {
-    public function index(SitesDataTable $dataTable)
+    public function index()
     {
         $clients = Client::get();
         $employee_types = EmployeeType::all();
-
-        return $dataTable->render('sites.index', compact('clients', 'employee_types'));
+        $sites = Site::with('client')->orderBy('id', 'desc')->paginate(15);
+        return view('sites.index', compact('sites', 'clients', 'employee_types'));
     }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'client_id'      => 'required|integer',
             'site_name'      => 'required|string|max:255',
-            'guard_names'        => 'nullable|string|max:255',
-            'address'        => 'nullable|string|max:255',
-            'post_code'      => 'nullable|string|max:50',
-            'site_code'      => 'nullable|string|max:50',
-            'contact_number' => 'nullable|string|max:50',
-            'note'           => 'nullable|string|max:1000',
+            'guard_names'        => 'required|string|max:255',
+            'address'        => 'required|string|max:255',
+            'post_code'      => 'required|string|max:50',
+            'site_code'      => 'required|string|max:50',
+            'contact_number' => 'required|string|max:50',
+            'note'           => 'required|string|max:1000',
             'manager_1_id'   => 'nullable|integer',
             'manager_2_id'   => 'nullable|integer',
             'start_time'     => 'nullable',
             'end_time'       => 'nullable',
             'break_time'     => 'nullable',
-            'guard_rate'     => 'nullable|numeric',
-            'office_rate'    => 'nullable|numeric',
-            'billable_rate'  => 'nullable|numeric',
-            'payable_rate'   => 'nullable|numeric',
+            'guard_rate'     => 'required|numeric',
+            'office_rate'    => 'required|numeric',
+            'billable_rate'  => 'required|numeric',
+            'payable_rate'   => 'required|numeric',
             'employee_types' => 'nullable|array',
             'employee_types.*' => 'integer|exists:employee_types,id',
             'employee_guard_rate' => 'nullable|array',
@@ -76,21 +75,21 @@ class SiteController extends Controller
         $validator = Validator::make($request->all(), [
             'client_id'      => 'required|integer',
             'site_name'      => 'required|string|max:255',
-            'guard_names'        => 'nullable|string|max:255',
-            'address'        => 'nullable|string|max:255',
-            'post_code'      => 'nullable|string|max:50',
-            'site_code'      => 'nullable|string|max:50',
-            'contact_number' => 'nullable|string|max:50',
-            'note'           => 'nullable|string|max:1000',
+            'guard_names'        => 'required|string|max:255',
+            'address'        => 'required|string|max:255',
+            'post_code'      => 'required|string|max:50',
+            'site_code'      => 'required|string|max:50',
+            'contact_number' => 'required|string|max:50',
+            'note'           => 'required|string|max:1000',
             'manager_1_id'   => 'nullable|integer',
             'manager_2_id'   => 'nullable|integer',
             'start_time'     => 'nullable|string',
             'end_time'       => 'nullable|string',
             'break_time'     => 'nullable|string',
-            'guard_rate'     => 'nullable|numeric',
-            'office_rate'    => 'nullable|numeric',
-            'billable_rate'  => 'nullable|numeric',
-            'payable_rate'   => 'nullable|numeric',
+            'guard_rate'     => 'required|numeric',
+            'office_rate'    => 'required|numeric',
+            'billable_rate'  => 'required|numeric',
+            'payable_rate'   => 'required|numeric',
             'employee_types' => 'nullable|array',
             'employee_types.*' => 'integer|exists:employee_types,id',
             'employee_guard_rate' => 'nullable|array',

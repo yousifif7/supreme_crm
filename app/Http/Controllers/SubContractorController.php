@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\SubcontractorsDataTable;
 use App\Models\Subcontractor;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -12,25 +11,26 @@ use Spatie\Permission\Models\Role;
 
 class SubContractorController extends Controller
 {
-    public function index(SubcontractorsDataTable $dataTable)
+    public function index()
     {
-        return $dataTable->render('employees.sub_contractors');
+        $subcontractors = Subcontractor::paginate();
+        return view('employees.sub_contractors', compact('subcontractors'));
     }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'company_name'       => 'required|string|max:255|unique:users,username',
-            'company_address'    => 'nullable|string|max:355',
+            'company_name'       => 'required|string|max:255',
+            'company_address'    => 'required|string|max:355',
             'contact_number'     => [
-                'nullable',
+                'required',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'     => 'nullable|string|max:255',
-            // 'email'              => 'required|email:dns|max:255',
-            'email'           => 'required|email|max:255|unique:users,email',
+            'contact_person'     => 'required|string|max:255',
+            'email'              => 'required|email:dns|max:255',
+            'username'           => 'required|email|max:255',
             'password'           => [
                 'required',
                 'string',
@@ -44,9 +44,6 @@ class SubContractorController extends Controller
             'vat_number'         => 'nullable|string|max:255',
             'pay_rate'           => 'nullable|numeric',
             'pmva_trained_officer' => 'nullable',
-        ], [
-            'contact_number.regex' => 'The contact number format is invalid. It should be a valid phone number.',
-            'password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
         ]);
 
         if ($validator->fails()) {
@@ -61,7 +58,7 @@ class SubContractorController extends Controller
             'first_name'     => $data['company_name'],
             'last_name'     => '',
             'username' => $data['company_name'],
-            'email'    => $data['email'],
+            'email'    => $data['username'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -69,10 +66,9 @@ class SubContractorController extends Controller
         $user->assignRole($role);
 
         $data['user_id'] = $user->id;
-        unset($data['password']);
-        // unset($data['username'], $data['password']);
+        unset($data['username'], $data['password']);
 
-        Subcontractor::create($data);
+        $subcontractor = Subcontractor::create($data);
 
         return response()->json(['message' => 'Subcontractor created successfully']);
     }
@@ -82,15 +78,15 @@ class SubContractorController extends Controller
 
         $validator = Validator::make($request->all(), [
             'company_name'       => 'required|string|max:255',
-            'company_address'    => 'nullable|string|max:355',
+            'company_address'    => 'required|string|max:355',
             'contact_number'     => [
-                'nullable',
+                'required',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'     => 'nullable|string|max:255',
+            'contact_person'     => 'required|string|max:255',
             'email'              => 'required|email:dns|max:255',
             'invoice_terms'      => 'nullable|string|max:255',
             'payment_terms'      => 'nullable|string|max:255',
