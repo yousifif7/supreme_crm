@@ -37,6 +37,9 @@ class ClientsDataTable extends DataTable
             ->editColumn('address', function ($client) {
                 return strlen($client->address) > 3 ? substr($client->address, 0, 20) . '...' : $client->address;
             })
+            ->editColumn('created_at', function ($user) {
+                return $user->created_at?->format('Y-m-d');
+            })
             ->addColumn('manager_name', function ($client) {
                 return $client->manager ? $client->manager->fore_name : 'N/A';
             })
@@ -95,7 +98,7 @@ class ClientsDataTable extends DataTable
         >'
       )
       ->addAction(['width' => '80px'])
-      ->orderBy([2, 'DESC'])
+      ->orderBy([9, 'DESC'])
       // ->responsive(true)
       ->parameters([
         "scrollX" => true,
@@ -125,7 +128,8 @@ class ClientsDataTable extends DataTable
             Column::make('manager_name')->title('Manager'),
             Column::make('contact_person')->title('Contact Person'),
             Column::make('contact_number')->title('Contact Number'),
-            Column::make('email')->title('Email')
+            Column::make('email')->title('Email'),
+            Column::make('created_at')->title('Created at'),
         ];
     }
 

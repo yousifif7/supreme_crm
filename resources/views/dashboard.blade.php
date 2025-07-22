@@ -148,7 +148,7 @@
                                                 <td>{{ $shift->shift?->staff?->fore_name }}
                                                     {{ $shift->shift?->staff?->sur_name }}</td>
                                                 <td>X</td>
-                                                <td>{{ \Carbon\Carbon::parse($shift->break_time)->format('h:i A') }}
+                                                <td>{{ $shift->break_time }}
                                                 </td>
                                                 <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
                                                 </td>

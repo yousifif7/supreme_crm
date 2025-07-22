@@ -127,14 +127,14 @@
                                                 <span class="text-danger form-error" id="error_last_name"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        {{--<div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Username <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="username" class="form-control">
                                                 <span class="text-danger form-error" id="error_username"></span>
                                             </div>
-                                        </div>
+                                        </div>--}}
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Email<span class="text-danger"> *</span></label>
@@ -165,7 +165,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Phone Number <span
                                                         class="text-danger">*</span></label>
@@ -173,7 +173,7 @@
                                                 <span class="text-danger form-error" id="error_phone_number"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Status</label>
                                                 <select name="status" class="form-control">
@@ -183,7 +183,7 @@
                                                 <span class="text-danger form-error" id="error_status"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Roles</label>
                                                 <select name="roles[]" class="form-control">
@@ -273,7 +273,7 @@
                                                 <span class="text-danger form-error" id="error_last_name"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        {{--<div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Username <span class="text-danger">
                                                         *</span></label>
@@ -281,7 +281,7 @@
                                                     class="form-control">
                                                 <span class="text-danger form-error" id="error_username"></span>
                                             </div>
-                                        </div>
+                                        </div>--}}
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Email<span class="text-danger"> *</span></label>
@@ -313,7 +313,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Phone Number <span class="text-danger">
                                                         *</span></label>
@@ -322,7 +322,7 @@
                                                 <span class="text-danger form-error" id="error_phone_number"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Status</label>
                                                 <select name="status" id="status" class="form-control">
@@ -333,7 +333,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Roles</label>
                                                 <select name="roles[]" id="roles" class="form-control">
@@ -545,7 +545,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -584,7 +584,7 @@
                                 $(`#error_${key}`).text(value[0]);
                             });
                         } else {
-                            alert('An unexpected error occurred.');
+                            toast_danger('An unexpected error occurred.');
                         }
                     },
                     complete: function() {
@@ -602,7 +602,7 @@
                     $('#first_name').val(data.user.first_name);
                     $('#last_name').val(data.user.last_name);
                     $('#email').val(data.user.email);
-                    $('#username').val(data.user.username);
+                    // $('#username').val(data.user.username);
                     $('#phone_number').val(data.user.phone_number);
                     $('#status').val(data.user.status);
                     $('#roles').val(Object.values(data.userRoles)).trigger('change');
@@ -633,7 +633,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -646,7 +646,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one user to delete.');
+                toast_danger('Please select at least one user to delete.');
                 return;
             }
 
@@ -664,7 +664,7 @@
                     reloadDatatable('#users-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
@@ -724,7 +724,7 @@
 
                 new bootstrap.Modal(document.getElementById('viewUserDetailModal')).show();
             }).fail(function() {
-                alert('Failed to fetch user details.');
+                toast_danger('Failed to fetch user details.');
             });
         }
     </script>

@@ -1,6 +1,6 @@
 <div class="action-icon d-inline-flex">
     <button class="sites_action-btn" onclick="assignManager({{ $client->id }})">Managers</button>
-    <button class="sites_action-btn" onclick="viewLogs({{ $client->id }})">Logs</button>
+    {{--<button class="sites_action-btn" onclick="viewLogs({{ $client->id }})">Logs</button>--}}
     <a href="#" class="me-2" onclick="viewClientDetail({{ $client->id }})"><i class="ti ti-eye"></i></a>
     <a href="#" class="me-2" onclick="editClient({{ $client->id }})"><i class="ti ti-edit"></i></a>
 

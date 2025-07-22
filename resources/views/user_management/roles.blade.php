@@ -366,7 +366,7 @@
                             $('#error_' + field).text(messages[0]);
                         });
                     } else {
-                        alert('Something went wrong.');
+                        toast_danger('Something went wrong.');
                     }
                 },
                 complete: function() {
@@ -423,7 +423,7 @@
                             $('#error_' + field).text(messages[0]);
                         });
                     } else {
-                        alert('Something went wrong.');
+                        toast_danger('Something went wrong.');
                     }
                 },
                 complete: function() {
@@ -470,7 +470,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -484,7 +484,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one role to delete.');
+                toast_danger('Please select at least one role to delete.');
                 return;
             }
 
@@ -502,7 +502,7 @@
                     reloadDatatable('#roles-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });

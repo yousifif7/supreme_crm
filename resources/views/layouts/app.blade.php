@@ -91,13 +91,13 @@
                                 <i class="ti ti-arrow-bar-to-left"></i>
                             </a>
                             <!-- Search -->
-                            <div class="input-group input-group-flat d-inline-flex me-1">
+                            {{--<div class="input-group input-group-flat d-inline-flex me-1">
                                 <span class="input-icon-addon">
                                     <i class="ti ti-search"></i>
                                 </span>
                                 <input type="text" class="form-control" placeholder="Search...">
 
-                            </div>
+                            </div>--}}
                             <!-- /Search -->
 
 
@@ -444,7 +444,7 @@
     <script>
         window.addEventListener('load', function () {
             if (typeof L === 'undefined') {
-                alert('Leaflet (L) is still undefined! Check CDN.');
+                toast_danger('Leaflet (L) is still undefined! Check CDN.');
                 return;
             }
 

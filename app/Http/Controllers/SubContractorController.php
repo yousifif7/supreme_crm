@@ -20,17 +20,17 @@ class SubContractorController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'company_name'       => 'required|string|max:255|unique:users,username',
-            'company_address'    => 'required|string|max:355',
+            'company_address'    => 'nullable|string|max:355',
             'contact_number'     => [
-                'required',
+                'nullable',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'     => 'required|string|max:255',
-            'email'              => 'required|email:dns|max:255',
-            'username'           => 'required|email|max:255|unique:users,email',
+            'contact_person'     => 'nullable|string|max:255',
+            // 'email'              => 'required|email:dns|max:255',
+            'email'           => 'required|email|max:255|unique:users,email',
             'password'           => [
                 'required',
                 'string',
@@ -61,7 +61,7 @@ class SubContractorController extends Controller
             'first_name'     => $data['company_name'],
             'last_name'     => '',
             'username' => $data['company_name'],
-            'email'    => $data['username'],
+            'email'    => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -69,7 +69,8 @@ class SubContractorController extends Controller
         $user->assignRole($role);
 
         $data['user_id'] = $user->id;
-        unset($data['username'], $data['password']);
+        unset($data['password']);
+        // unset($data['username'], $data['password']);
 
         Subcontractor::create($data);
 
@@ -81,15 +82,15 @@ class SubContractorController extends Controller
 
         $validator = Validator::make($request->all(), [
             'company_name'       => 'required|string|max:255',
-            'company_address'    => 'required|string|max:355',
+            'company_address'    => 'nullable|string|max:355',
             'contact_number'     => [
-                'required',
+                'nullable',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'     => 'required|string|max:255',
+            'contact_person'     => 'nullable|string|max:255',
             'email'              => 'required|email:dns|max:255',
             'invoice_terms'      => 'nullable|string|max:255',
             'payment_terms'      => 'nullable|string|max:255',

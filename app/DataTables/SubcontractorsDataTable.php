@@ -40,6 +40,9 @@ class SubcontractorsDataTable extends DataTable
             ->editColumn('contact_number', function ($subcontractor) {
                 return $subcontractor->contact_number;
             })
+            ->editColumn('created_at', function ($user) {
+                return $user->created_at?->format('Y-m-d');
+            })
             ->editColumn('email', function ($subcontractor) {
                 return $subcontractor->email;
             })
@@ -91,7 +94,7 @@ class SubcontractorsDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([2, 'DESC'])
+            ->orderBy([7, 'DESC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 15,
@@ -118,7 +121,8 @@ class SubcontractorsDataTable extends DataTable
             Column::make('company_address')->title('Address'),
             Column::make('contact_person')->title('Contact Person'),
             Column::make('contact_number')->title('Contact Number'),
-            Column::make('email')->title('Contact Email')
+            Column::make('email')->title('Contact Email'),
+            Column::make('created_at')->title('Created at'),
         ];
     }
 

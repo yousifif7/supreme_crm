@@ -11,7 +11,7 @@
                     <input type="hidden" id="assign_shift_modal_shift_id" name="shift_id">
                     <div class="mb-3">
                         <label for="staff_id" class="form-label">Select Staff</label>
-                        <select name="staff_id" id="staff_id" class="form-select" required>
+                        <select name="staff_id" id="staff_id" class="form-select selec2_assign_modal" required>
                             <option value="">-- Choose Staff --</option>
                             @foreach ($staffs as $staff)
                                 <option value="{{ $staff->id }}">{{ $staff->fore_name }}
@@ -31,30 +31,31 @@
 </div>
 
 <script>
-    $('#assignShiftForm').on('submit', function(e) {
+    $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
             e.preventDefault();
-
             $.ajax({
                 url: `${baseUrl}/assign-shift`,
                 type: 'POST',
                 data: $(this).serialize(),
                 success: function(response) {
                     $('#success_message').html('Shift assigned successfully!');
+                    $('#assignShiftBtn').remove();
                     closeBsModal('#assignShiftModal');
+                    closeBsModal('#globalModal');
                     $('#success_modal').modal('show');
                 },
                 error: function(xhr) {
                     if (xhr.status === 422 && xhr.responseJSON) {
                         // Show specific validation error
                         if (xhr.responseJSON.error) {
-                            alert(xhr.responseJSON.error);
+                            toast_danger(xhr.responseJSON.error);
                         } else if (xhr.responseJSON.errors) {
                             // Multiple field errors
                             let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            alert(messages);
+                            toast_danger(messages);
                         }
                     } else {
-                        alert('An unexpected error occurred while assigning the shift.');
+                        toast_danger('An unexpected error occurred while assigning the shift.');
                     }
                 }
             });

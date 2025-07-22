@@ -8,6 +8,9 @@
 
             <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2" type="button"
                 role="tab" aria-controls="logs2" aria-selected="false">Logs</button>
+
+            <button class="nav-link" id="checkcalls-tab2" data-bs-toggle="tab" data-bs-target="#checkcalls" type="button"
+                role="tab" aria-controls="checkcalls" aria-selected="false">Check Calls</button>
         </div>
 
         <div class="expiry_date">
@@ -149,7 +152,7 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('sia_licence_file', true) }}" alt="SIA Licence" class="document-image" />
+                                    <img src="{{ asset($shiftDate->staff?->fileUrl('sia_licence_file', true)) }}" alt="SIA Licence" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('sia_licence_file') }}" target="_blank" class="view-btn">
                                             <i class="ti ti-eye"></i>
@@ -165,7 +168,7 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('passport_file', true) }}" alt="Passport" class="document-image" />
+                                    <img src="{{ asset($shiftDate->staff?->fileUrl('passport_file', true)) }}" alt="Passport" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('passport_file') }}" target="_blank" class="view-btn">
                                             <i class="ti ti-eye"></i>
@@ -181,7 +184,7 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('act_certificate_file', true) }}" alt="ACT Certificate" class="document-image" />
+                                    <img src="{{ asset($shiftDate->staff?->fileUrl('act_certificate_file', true)) }}" alt="ACT Certificate" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}" target="_blank" class="view-btn">
                                             <i class="ti ti-eye"></i>
@@ -200,7 +203,7 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('proof_of_address_file', true) }}" alt="Proof of Address" class="document-image" />
+                                    <img src="{{ asset($shiftDate->staff?->fileUrl('proof_of_address_file', true)) }}" alt="Proof of Address" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('proof_of_address_file') }}" target="_blank" class="view-btn">
                                             <i class="ti ti-eye"></i>
@@ -216,7 +219,7 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('ni_letter_file', true) }}" alt="NI Letter" class="document-image" />
+                                    <img src="{{ asset($shiftDate->staff?->fileUrl('ni_letter_file', true)) }}" alt="NI Letter" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('ni_letter_file') }}" target="_blank" class="view-btn">
                                             <i class="ti ti-eye"></i>
@@ -232,7 +235,7 @@
                         <div class="col-md-4 col-sm-6 mb-3">
                             <div class="document-card">
                                 <div class="document-image-wrapper">
-                                    <img src="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file', true) }}" alt="First Aid Certificate" class="document-image" />
+                                    <img src="{{ asset($shiftDate->staff?->fileUrl('first_aid_certificate_file', true)) }}" alt="First Aid Certificate" class="document-image" />
                                     <div class="document-overlay">
                                         <a href="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file') }}" target="_blank" class="view-btn">
                                             <i class="ti ti-eye"></i>
@@ -261,7 +264,7 @@
                     <thead>
                         <tr>
                             <th>User</th>
-                            <th>Action</th>
+                            {{--<th>Action</th>--}}
                             <th>Description</th>
                             <th>Time</th>
                         </tr>
@@ -270,8 +273,8 @@
                         @foreach($shiftDate->logs as $log)
                             <tr>
                                 <td>{{ $log->user_name ?? 'N/A' }}</td>
-                                <td>{{ $log->action }}</td>
-                                <td>{{ $log->description }}</td>
+                                {{--<td>{{ $log->action }}</td>--}}
+                                <td>{!! $log->description !!}</td>
                                 <td>{{ $log->created_at->format('Y-m-d H:i') }}</td>
                             </tr>
                         @endforeach
@@ -283,11 +286,37 @@
                 </div>
             @endif
         </div>
+        <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2">
+            @if(!$shiftDate->shift->checkcalls->isEmpty())
+                <table class="table table-bordered table-striped">
+                    <thead>
+                        <tr>
+                            <th>Staff</th>
+                            <th>Name</th>
+                            <th>Time</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach($shiftDate->shift->checkcalls as $checkcalls)
+                            <tr>
+                                <td>{{ $checkcalls->staff->fore_name.' '.$checkcalls->staff->sur_name }}</td>
+                                <td>{{ $checkcalls->checkpoint_name }}</td>
+                                <td>{{ $checkcalls->checkpoint_time }}</td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            @else
+                <div class="alert alert-info" role="alert">
+                    No check calls available for this shift.
+                </div>
+            @endif
+        </div>
     </div>
 </div>
 
 <script>
-    $(document).on('submit', '#bookonForm, #bookoffForm', function(e) {
+    $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
         e.preventDefault();
         var actionUrl = $(this).attr('action');
         $.ajax({
@@ -303,22 +332,25 @@
                 if (xhr.status === 422 && xhr.responseJSON) {
                     // Show specific validation error
                     if (xhr.responseJSON.error) {
-                        alert(xhr.responseJSON.error);
+                        toast_danger(xhr.responseJSON.error);
                     } else if (xhr.responseJSON.errors) {
                         // Multiple field errors
                         let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                        alert(messages);
+                        toast_danger(messages);
                     }
                 } else {
-                    alert('An unexpected error occurred while assigning the shift.');
+                    toast_danger('An unexpected error occurred while assigning the shift.');
                 }
             }
         });
     });
 
-    $(document).on('click', '#assignShiftBtn', function() {
+    $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
         $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
         $('#assignShiftModal').modal('show');
+        $(".selec2_assign_modal").select2({
+            dropdownParent: $("#assignShiftModal")
+        });
     });
 
     $(document).ready(function() {

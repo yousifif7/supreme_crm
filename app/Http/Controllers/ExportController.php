@@ -10,6 +10,7 @@ use App\Exports\ShiftDateExport;
 use App\Exports\InvoiceExport;
 use App\Exports\SitesExport;
 use App\Exports\SubcontractorsExport;
+use App\Exports\LeavesExport;
 use App\Exports\UsersExport;
 use App\Exports\VehicleComplianceExport;
 use App\Exports\VehicleMaintenanceExport;
@@ -33,6 +34,7 @@ use App\Models\ShiftDate;
 use App\Models\Invoice;
 use App\Models\Site;
 use App\Models\Subcontractor;
+use App\Models\EmployeeLeave;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleCompliance;
@@ -171,6 +173,17 @@ class ExportController extends Controller
         return back()->with('success', 'Employees imported successfully!');
     }
 
+    public function exportLeaveExcel()
+    {
+        return Excel::download(new LeavesExport, 'leave.xlsx');
+    }
+
+    public function exportLeavePdf()
+    {
+        $leaves = EmployeeLeave::all();
+        $pdf = Pdf::loadView('exports.leaves_pdf', compact('leaves'));
+        return $pdf->download('leaves.pdf');
+    }
 
     public function exportUserExcel()
     {

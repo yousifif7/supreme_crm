@@ -96,20 +96,22 @@
                         <form method="POST" id="add_worker-form1">
                             @csrf
                                     <div class="row part-1">
-                                        <div class="col-md-6">
+                                        {{--<div class="col-md-6">
                                             <div class="mb-3">
                                                 <div id="map"></div>
                                             </div>
-                                        </div>
-                                        <div class="col-md-6">
+                                        </div>--}}
+                                        <div class="col-md-4 mb-3">
                                             <div class="mb-3">
-                                                <label class="form-label">Username <span
+                                                <label class="form-label">Email <span
                                                         class="text-danger">*</span></label>
-                                                <input type="email" name="username" class="form-control"
-                                                    placeholder="Enter Username">
-                                                <span class="text-danger form-error" id="error_username"></span>
+                                                <input type="email" name="email" class="form-control"
+                                                    placeholder="Enter email">
+                                                <span class="text-danger form-error" id="error_email"></span>
 
                                             </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
                                             <div class="mb-3">
                                                 <label class="form-label">Password <span
                                                         class="text-danger">*</span></label>
@@ -117,6 +119,8 @@
                                                     placeholder="Enter Password">
                                                 <span class="text-danger form-error" id="error_password"></span>
                                             </div>
+                                        </div>
+                                        <div class="col-md-4 mb-3">
                                             <div class="mb-3">
                                                 <label class="form-label">Status</label>
                                                 <select class="form-select" name="status">
@@ -143,22 +147,21 @@
                                             <span class="text-danger form-error" id="error_sur_name"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Gender <span class="text-danger">*</span></label>
+                                            <label class="form-label">Gender </label>
                                             <select class="form-select bg-yellow" name="gender">
                                                 <option value="Male" selected>Male</option>
                                                 <option value="Female">Female</option>
                                             </select>
                                             <span class="text-danger form-error" id="error_gender"></span>
                                         </div>
-                                        <div class="col-md-4 mb-3">
+                                        {{--<div class="col-md-4 mb-3">
                                             <label class="form-label ">Email <span class="text-danger">*</span></label>
                                             <input type="email" name="email" class="form-control bg-yellow"
                                                 placeholder="Enter Email">
                                             <span class="text-danger form-error" id="error_email"></span>
-                                        </div>
+                                        </div>--}}
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">N.I. Number <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">N.I. Number </label>
                                             <input type="text" name="ni_number" class="form-control bg-yellow"
                                                 placeholder="Enter N.I. Number">
                                             <span class="text-danger form-error" id="error_ni_number"></span>
@@ -172,21 +175,18 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Licence <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">SIA Licence</label>
                                             <input type="text" name="sia_licence" class="form-control bg-yellow"
                                                 placeholder="Enter SIA Licence"> <span class="text-danger form-error"
                                                 id="error_sia_licence"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Expiry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">SIA Expiry </label>
                                             <input type="date" name="sia_expiry" class="form-control bg-yellow"
                                                 placeholder="Enter SIA Expiry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Licence Type <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Licence Type </label>
                                             <select class="form-select bg-yellow" name="licence_type">
                                                 <option value="">--choose--</option>
                                                 @foreach ($licenses as $license)
@@ -195,13 +195,12 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Date of Entry / Re-entry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Date of Entry / Re-entry</label>
                                             <input type="date" name="entry_date" class="form-control"
                                                 placeholder="Enter Date of Entry / Re-entry">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">D.O.B <span class="text-danger">*</span></label>
+                                            <label class="form-label">D.O.B </label>
                                             <input type="date" name="dob" class="form-control"
                                                 placeholder="D.O.B">
                                             <span class="text-danger form-error" id="error_dob"></span>
@@ -216,7 +215,7 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Visa Type <span class="text-danger">*</span></label>
+                                            <label class="form-label">Visa Type</label>
                                             <select class="form-select visa_type" name="visa_type">
                                                 <option value="">-- choose --</option>
                                                 @foreach ($visa_types as $visa)
@@ -227,15 +226,13 @@
                                             <span class="text-danger form-error" id="error_visa_type"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Visa Expiry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Visa Expiry</label>
                                             <input type="date" name="visa_expiry" class="form-control"
                                                 placeholder="Enter Visa Expiry">
                                             <span class="text-danger form-error" id="error_visa_expiry"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Place of Work <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Place of Work</label>
                                             <input type="text" name="place_work" class="form-control"
                                                 placeholder="Place of Work">
                                             <span class="text-danger form-error" id="error_place_work"></span>
@@ -255,15 +252,13 @@
                                                 id="error_hour_per_week"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Passport no. <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Passport no.</label>
                                             <input type="text" name="passport_no" class="form-control"
                                                 placeholder="Enter Passport no.">
                                             <span class="text-danger form-error" id="error_passport_no"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Passport expiry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Passport expiry</label>
                                             <input type="date" name="passport_expiry" class="form-control"
                                                 placeholder="Enter Passport expiry">
                                             <span class="text-danger form-error" id="error_passport_expiry"></span>
@@ -275,8 +270,7 @@
                                             </select>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Contact No: <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Contact No:</label>
                                             <input type="text" name="contact" class="form-control"
                                                 placeholder="Enter Contact No">
                                             <span class="text-danger form-error" id="error_contact_no"></span>
@@ -292,14 +286,13 @@
                                                 placeholder="Enter Job Title">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Nationality <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Nationality</label>
                                             <input type="text" name="nationality" class="form-control"
                                                 placeholder="Enter nationality">
                                             <span class="text-danger form-error" id="error_nationality"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">P.I.N <span class="text-danger">*</span></label>
+                                            <label class="form-label">P.I.N </label>
                                             <input type="text" name="pin" class="form-control"
                                                 placeholder="Enter PIN">
                                             <span class="text-danger form-error" id="error_pin"></span>
@@ -346,15 +339,13 @@
                                             <span class="text-danger form-error" id="error_kin_mobile"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Share code <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Share code</label>
                                             <input type="text" name="share_code" class="form-control"
                                                 placeholder="Enter share code">
                                                 <span class="text-danger form-error" id="error_share_code"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Share Code Expiry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Share Code Expiry</label>
                                             <input type="date" name="share_code_expiry" class="form-control">
                                             <span class="text-danger form-error" id="error_share_code_expiry"></span>
                                         </div>
@@ -408,8 +399,7 @@
                                             <span class="text-danger form-error" id="error_department_id"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Subcontractor <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Subcontractor</label>
                                             <select class="form-select" name="subcontractor">
                                                 <option value="AWS SERVICES LTD">AWS SERVICES LTD</option>
                                                 <option value="GOOD HANDS LTD">GOOD HANDS LTD</option>
@@ -729,8 +719,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Date From: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Date From: </label>
                                                                 <input type="date" name="date_from"
                                                                     id="payroll_date_from" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -739,8 +728,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Date To: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Date To: </label>
                                                                 <input type="date" name="date_to"
                                                                     id="payroll_date_to" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -750,8 +738,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Notes <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Notes </label>
                                                         <textarea class="form-control" name="notes" id="payroll_notes" rows="3"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="payrollerror_notes"></span>
@@ -790,17 +777,17 @@
                     <div class="modal-body pb-0 ">
                             <form method="POST" id="edit_employee_form">
                                     @csrf
-                                    <div class="row part-1">
-                                        <div class="col-md-6">
+                                    <input type="hidden" name="employee_id" id="employee_id">
+                                    {{--<div class="row part-1">
+                                        <div class="col-md-4">
                                             <div class="mb-3">
                                                 <div id="map1"></div>
                                             </div>
                                         </div>
-                                        <input type="hidden" name="employee_id" id="employee_id">
                                         <div class="col-md-6">
 
                                         </div>
-                                    </div>
+                                    </div>--}}
 
                                     <div class="row part-2">
                                         <div class="col-md-4 mb-3">
@@ -816,7 +803,7 @@
                                             <span class="text-danger form-error" id="error_surname"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">Gender <span class="text-danger">*</span></label>
+                                            <label class="form-label">Gender</label>
                                             <select class="form-select bg-yellow" name="gender" id="gender">
                                                 <option value="Male" selected>Male</option>
                                                 <option value="Female">Female</option>
@@ -830,8 +817,7 @@
                                             <span class="text-danger form-error" id="error_email"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">N.I. Number <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">N.I. Number</label>
                                             <input type="text" name="ni_number" id="ni_number"
                                                 class="form-control bg-yellow" placeholder="Enter N.I. Number">
                                             <span class="text-danger form-error" id="error_ni_number"></span>
@@ -845,15 +831,13 @@
                                             </div>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Licence <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">SIA Licence</label>
                                             <input type="text" name="sia_licence" id="sia_licence"
                                                 class="form-control bg-yellow" placeholder="Enter SIA Licence"> <span
                                                 class="text-danger form-error" id="error_sia_licence"></span>
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label">SIA Expiry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">SIA Expiry</label>
                                             <input type="date" name="sia_expiry" id="sia_expiry"
                                                 class="form-control bg-yellow" placeholder="Enter SIA Expiry">
                                         </div>
@@ -998,14 +982,12 @@
                                                 placeholder="Enter Kin Mobile">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="share_code">Share Code <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label" for="share_code">Share Code</label>
                                             <input type="text" name="share_code" id="share_code" class="form-control"
                                                 placeholder="Enter Share Code">
                                         </div>
                                         <div class="col-md-4 mb-3">
-                                            <label class="form-label" for="share_code_expiry">Share Code Expiry <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label" for="share_code_expiry">Share Code Expiry</label>
                                             <input type="date" name="share_code_expiry" id="share_code_expiry" class="form-control"
                                                 placeholder="Enter Share Code Expiry">
                                         </div>
@@ -1682,7 +1664,7 @@
                                 $('#add_employee .form-error:visible').first().siblings('label').offset().top - $('#add_employee .modal-body').offset().top + $('#add_employee .modal-body').scrollTop()
                             );
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1733,7 +1715,7 @@
                                 $('#edit_employee .form-error:visible').first().siblings('label').offset().top - $('#edit_employee .modal-body').offset().top + $('#edit_employee .modal-body').scrollTop()
                             );
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1778,7 +1760,7 @@
                                 $('#payrollerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1972,7 +1954,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -1985,7 +1967,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one client to delete.');
+                toast_danger('Please select at least one client to delete.');
                 return;
             }
 
@@ -2003,7 +1985,7 @@
                     reloadDatatable('#employees-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
@@ -2071,7 +2053,7 @@
             const editholidayRow = `
             <div class="row holiday-row mb-3 align-items-center" data-index="${editholiday}">
                 <div class="col-md-3"><label>Entitlement</label>
-                    <input type="text" name="holidays[${editholiday}][term_name]" class="form-control">
+                    <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control">
                 </div>
                 <div class="col-md-3"><label>From Date</label>
                     <input type="date" name="holidays[${editholiday}][from]" class="form-control">
@@ -2195,14 +2177,14 @@
                 $('#passport_no_detail').text(data.passport_no);
                 $('#passport_expiry_detail').text(data.passport_expiry);
                 $('#address_group_detail').text(data.address_group);
-                $('#guard_rate_detail').text(`$${data.guard_rate}`);
-                $('#bank_info_detail').text(`${data.bank_name} / ${data.account_name} / ${data.account_number}`);
+                $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
+                $('#bank_info_detail').text(`${data.bank_name ?? 'N/A'} / ${data.account_name} / ${data.account_number}`);
                 $('#other_info_detail').text(data.other_info);
 
                 let modal = new bootstrap.Modal(document.getElementById('viewEmployeeDetailModal'));
                 modal.show();
             }).fail(function() {
-                alert('Failed to fetch employee detail.');
+                toast_danger('Failed to fetch employee detail.');
             });
         }
     </script>

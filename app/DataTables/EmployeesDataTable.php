@@ -31,9 +31,16 @@ class EmployeesDataTable extends DataTable
             ->editColumn('name', function ($employee) {
                 return view('employees.name_column', ['employee' => $employee]);
             })
+            // ->editColumn('sia_licence', function ($employee) {
+            //     return '<p class="mb-0 fw-semibold">' . $employee->sia_licence . '</p>
+            //             <span class="text-primary fw-bold">Active</span>';
+            // })
             ->editColumn('sia_licence', function ($employee) {
-                return '<p class="mb-0 fw-semibold">' . $employee->sia_licence . '</p>
-                        <span class="text-primary fw-bold">Active</span>';
+                $isActive = isset($employee->sia_expiry) && \Carbon\Carbon::parse($employee->sia_expiry)->isFuture();
+                return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>
+                        <span class="' . ($isActive ? 'text-primary' : 'text-danger') . ' fw-bold">'
+                            . ($isActive ? 'Active' : 'Inactive') .
+                        '</span>';
             })
             ->editColumn('sia_expiry', function ($employee) {
                 return $employee->sia_expiry;
@@ -46,6 +53,9 @@ class EmployeesDataTable extends DataTable
             })
             ->editColumn('contact', function ($employee) {
                 return $employee->contact;
+            })
+            ->editColumn('created_at', function ($user) {
+                return $user->created_at?->format('Y-m-d');
             })
             ->editColumn('subcontractor', function ($employee) {
                 return $employee->subcontractor;
@@ -97,7 +107,7 @@ class EmployeesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '120px'])
-            ->orderBy([2, 'DESC'])
+            ->orderBy([9, 'DESC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 15,
@@ -126,7 +136,8 @@ class EmployeesDataTable extends DataTable
             Column::make('visa_expiry')->title('VISA EXPIRY'),
             Column::make('visa_type')->title('IMMIGRATION STATUS'),
             Column::make('contact')->title('CONTACT NO'),
-            Column::make('subcontractor')->title('SUBCONTRACTOR')
+            Column::make('subcontractor')->title('SUBCONTRACTOR'),
+            Column::make('created_at')->title('Created at'),
         ];
     }
 

@@ -458,7 +458,7 @@
                                     <div class="shift-wrapper">
                                         <div class="shift-group">
                                             <div class="row">
-                                                <div class="col-md-4">
+                                                {{--<div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label class="form-label">Client <span
                                                                 class="text-danger">*</span></label>
@@ -472,13 +472,13 @@
                                                         </select>
                                                         <span class="text-danger form-error" id="error_client_id"></span>
                                                     </div>
-                                                </div>
+                                                </div>--}}
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label class="form-label">Staff <span
                                                                 class="text-danger">*</span></label>
-                                                        <select name="client_id" id="client_id"
-                                                            class="form-select select2" required>
+                                                        <select name="staff_id"
+                                                            class="form-select select2_modal" id="staff_id" required>
                                                             <option value="">--choose--</option>
                                                             @foreach ($staffs as $staff)
                                                                 <option value="{{ $staff->id }}">
@@ -489,7 +489,7 @@
                                                     </div>
                                                 </div>
 
-                                                <div class="col-md-4">
+                                                {{--<div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label class="form-label">Site <span
                                                                 class="text-danger">*</span></label>
@@ -503,7 +503,7 @@
                                                         </select>
                                                         <span class="text-danger form-error" id="error_site_id"></span>
                                                     </div>
-                                                </div>
+                                                </div>--}}
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label class="form-label">Shift Date <span
@@ -537,33 +537,32 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Book on <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="time" name="end_shift" id="end_shift"
-                                                            class="form-control">
-                                                        <span class="text-danger form-error" id="error_end_shift"></span>
+                                                        <input type="time" name="book_on" id="book_on"
+                                                            class="form-control" value="{{ date('h:i') }}">
+                                                        <span class="text-danger form-error" id="error_book_on"></span>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label class="form-label">Book off <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="time" name="end_shift" id="end_shift"
-                                                            class="form-control">
-                                                        <span class="text-danger form-error" id="error_end_shift"></span>
+                                                        <input type="time" name="book_off" id="book_off"
+                                                            class="form-control" value="{{ date('h:i') }}">
+                                                        <span class="text-danger form-error" id="error_book_off"></span>
                                                     </div>
                                                 </div>
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
-                                                        <label class="form-label">Status <span
-                                                                class="text-danger">*</span></label>
-                                                        <select name="client_id" id="client_id"
-                                                            class="form-select select2" required>
+                                                        <label class="form-label">Status </label>
+                                                        <select name="status_id" id="status_id"
+                                                            class="form-select select2_modal">
                                                             <option value="">--choose--</option>
-                                                            <option value="">Pending</option>
-                                                            <option value="">Dispatched</option>
-                                                            <option value="">Accepted</option>
-                                                            <option value="">Rejected</option>
+                                                            <option value="Pending">Pending</option>
+                                                            <option value="Dispatched">Dispatched</option>
+                                                            <option value="Accepted">Accepted</option>
+                                                            <option value="Rejected">Rejected</option>
                                                         </select>
-                                                        <span class="text-danger form-error" id="error_client_id"></span>
+                                                        <span class="text-danger form-error" id="error_status_id"></span>
                                                     </div>
                                                 </div>
                                             </div> <!-- .row -->
@@ -594,7 +593,7 @@
                             <i class="ti ti-x"></i>
                         </button>
                     </div>
-                    <form method="POST" id="edit_shift-form">
+                    <form method="POST" id="edit_all_shift-form">
                         @csrf
                         <input type="hidden" name="shift_id" id="shift_id">
                         <div class="tab-content" id="myTabContent">
@@ -933,7 +932,7 @@
                     </form>
                 </div>
             </div>
-        </div>
+        </div>--}}
 
         <!-- Import modal -->
         <div class="modal fade" id="import_modal">
@@ -1015,6 +1014,30 @@
         </div>
         <!-- /Delete Modal -->
 
+        <!-- Add Shift Success -->
+        <div class="modal fade" id="success_modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="text-center p-3">
+                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                    class="ti ti-check fs-24"></i></span>
+                            <h5 class="mb-2" id="success_message"></h5>
+
+                            </p>
+                            <div>
+                                <div class="row g-2">
+                                    <div class="col-12">
+                                        <a href="{{ url('shifts') }}" class="btn btn-dark w-100">Back to List</a>
+                                    </div>
+
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
         <!-- Assign Shift Modal -->
         @include('security_boards.assign-shift-modal')
 
@@ -1077,7 +1100,7 @@
                         if (shiftGroups.length > 1) {
                             btn.closest('.shift-group').remove();
                         } else {
-                            alert('You must have at least one shift.');
+                            toast_danger('You must have at least one shift.');
                         }
                     };
                 });
@@ -1092,6 +1115,10 @@
     </script>
     <script>
         $(document).ready(function() {
+            $(".select2_modal").select2({
+                dropdownParent: $("#edit_shift")
+            });
+            
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
 
@@ -1131,7 +1158,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1147,7 +1174,7 @@
                 let submitButton = $('#editshift'); // Your submit button should have this ID
 
                 // Get the client ID from a hidden input field
-                let shiftId = $('#shift_id').val();
+                let shiftId = $(this).find('#shift_id').val();
 
                 // Disable button and show loading
                 submitButton.prop('disabled', true).html('Updating...');
@@ -1174,7 +1201,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1191,7 +1218,7 @@
                 }).get();
 
                 if (selected.length === 0) {
-                    alert('Please select at least one shift to delete.');
+                    toast_danger('Please select at least one shift to delete.');
                     return;
                 }
 
@@ -1209,7 +1236,7 @@
                         reloadDatatable('#shifts-table');
                     },
                     error: function() {
-                        alert('Something went wrong during bulk delete.');
+                        toast_danger('Something went wrong during bulk delete.');
                     }
                 });
             });
@@ -1237,72 +1264,27 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
         });
 
         function editShift(record_id) {
-            $.get('/editshift/' + record_id, function(data) {
+            $.get(`${baseUrl}/editshift/` + record_id, function(data) {
                 if (data.shift) {
-                    $('#shift_id').val(data.shift.id);
-                    $('#client_id').val(data.shift.client_id);
-                    $('#site_id').val(data.shift.site_id);
-                    $('#company_id').val(data.shift.company_id);
-                    $('#start_shift').val(data.shift.start_shift);
-                    $('#end_shift').val(data.shift.end_shift);
-                    $('#break-mins_shift').val(data.shift['break-mins_shift']);
-                    $('#number_shift').val(data.shift.number_shift);
-                    $('#site_rate').val(data.shift.site_rate);
-                    $('#service_type_1').val(data.shift.service_type_1);
-                    $('#service_type_2').val(data.shift.service_type_2);
-                    $('#comments').val(data.shift.comments);
-                    $('#from_shift').val(data.shift.from_shift);
-                    $('#to_shift').val(data.shift.to_shift);
+                    $('#shift_id').val(record_id);
+                    $('#staff_id').val(data.shift.staff_id).trigger('change');
+                    $('#shift_date').val(data.shift.shift_date);
+                    
+                    $('#start_shift').val(data.shift.start_time);
+                    $('#end_shift').val(data.shift.end_time);
 
-                    // ✅ Staff and rates
-                    $('#staff_id').val(data.shift.staff_id);
-                    $('#employee_rate').val(data.shift.employee_rate);
-                    $('#start').val(data.shift.start);
-                    $('#end').val(data.shift.end);
-                    $('#po_number').val(data.shift.po_number);
-                    $('#lost_time').val(data.shift.lost_time);
-                    $('#po_rate').val(data.shift.po_rate);
-                    $('#manager_1_id').val(data.shift.manager_1_id);
-                    $('#manager_2_id').val(data.shift.manager_2_id);
-                    $('#subcontractor_id').val(data.shift.subcontractor_id);
+                    if(typeof data.shift.absentee_start_time != 'undefined')
+                        $('#book_on').val(data.shift.absentee_start_time);
+                    if(typeof data.shift.absentee_end_time != 'undefined')
+                        $('#book_off').val(data.shift.absentee_end_time);
 
-                    // ✅ Checkboxes
-                    $('#restrict_start_time').prop('checked', data.shift.restrict_start_time == 1);
-                    $('#enforce_picture_check').prop('checked', data.shift.enforce_picture_check == 1);
-                    $('#restrict_location_check').prop('checked', data.shift.restrict_location_check == 1);
-
-                    // ✅ Days Handling
-                    let daysStr = data.shift.days || '[]';
-                    try {
-                        // Parse JSON string (["Mon, Tue"])
-                        let parsedDays = JSON.parse(daysStr);
-
-                        if (Array.isArray(parsedDays) && parsedDays.length > 0) {
-                            daysStr = parsedDays[0]; // "Mon, Tue"
-                        }
-
-                        const selectedDays = daysStr.split(',').map(d => d.trim()); // ['Mon', 'Tue']
-
-                        // Reset day-box selections
-                        $('#edit_shift .day-box').removeClass('selected');
-
-                        // Highlight selected days
-                        selectedDays.forEach(day => {
-                            $(`#edit_shift .day-box[data-day="${day}"]`).addClass('selected');
-                        });
-
-                        // Update hidden input value
-                        $('#edit_shift .selectedDays').val(selectedDays.join(','));
-                    } catch (e) {
-                        console.error('Invalid days format:', e);
-                    }
 
                     // ✅ Show Modal
                     $('#edit_shift').modal('show');

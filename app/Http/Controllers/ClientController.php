@@ -28,28 +28,28 @@ class ClientController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'client_name'     => 'required|string|max:255',
-            'address'         => 'required|string|max:355',
+            'address'         => 'nullable|string|max:355',
             'contact_number' => [
-                'required',
+                'nullable',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'             => 'required|string|max:255',
+            'contact_person'             => 'nullable|string|max:255',
             'email' => 'required|email:dns|max:255|unique:users,email',
-            'invoice_terms'   => 'required|string|max:255',
-            'payment_terms'   => 'required|string|max:255',
+            'invoice_terms'   => 'nullable|string|max:255',
+            'payment_terms'   => 'nullable|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
             'doc_2'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
             'doc_3'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
-            'contract_start'   => 'required|date',
-            'contract_end'     => 'required|date|after_or_equal:contact_start',
+            'contract_start'   => 'nullable|date',
+            'contract_end'     => 'nullable|date|after_or_equal:contact_start',
             'company_id'      => 'nullable|integer',
-            'guard_rate'      => 'required|numeric',
-            'office_rate'     => 'required|numeric',
+            'guard_rate'      => 'nullable|numeric',
+            'office_rate'     => 'nullable|numeric',
             'vat'  => 'nullable',
-            'username' => 'required|email|unique:users,username',
+            // 'username' => 'required|email|unique:users,username',
             'password' => [
                 'required',
                 'string',
@@ -85,7 +85,7 @@ class ClientController extends Controller
             'name' => $data['client_name'],
             'first_name' => $data['client_name'],
             'last_name' => '',
-            'username' => $data['username'],
+            'username' => $data['email'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
@@ -99,7 +99,8 @@ class ClientController extends Controller
         // Save client data (assuming Client model and $data matches columns)
         // Prepare client data by excluding user-related fields
         $clientData = $data;
-        unset($clientData['username'], $clientData['password']);
+        unset($clientData['password']);
+        // unset($clientData['username'], $clientData['password']);
 
         // Create client
         Client::create($clientData);
@@ -111,26 +112,26 @@ class ClientController extends Controller
         $client = Client::findOrFail($id);
         $validator = Validator::make($request->all(), [
             'client_name'     => 'required|string|max:255',
-            'address'         => 'required|string|max:355',
+            'address'         => 'nullable|string|max:355',
             'contact_number' => [
-                'required',
+                'nullable',
                 'string',
                 'min:9',
                 'max:50',
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
-            'contact_person'             => 'required|string|max:255',
+            'contact_person'             => 'nullable|string|max:255',
             'email' => 'required|email:dns|max:255',
-            'invoice_terms'   => 'required|string|max:255',
-            'payment_terms'   => 'required|string|max:255',
+            'invoice_terms'   => 'nullable|string|max:255',
+            'payment_terms'   => 'nullable|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_2'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
             'doc_3'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png|max:2048',
-            'contract_start'   => 'required|date',
-            'contract_end'     => 'required|date|after_or_equal:contact_start',
+            'contract_start'   => 'nullable|date',
+            'contract_end'     => 'nullable|date|after_or_equal:contact_start',
             'company_id'      => 'nullable|integer',
-            'guard_rate'      => 'required|numeric',
-            'office_rate'     => 'required|numeric',
+            'guard_rate'      => 'nullable|numeric',
+            'office_rate'     => 'nullable|numeric',
             'vat'  => 'nullable',
         ]);
 
@@ -218,8 +219,8 @@ class ClientController extends Controller
             'supervisor_rate' => $client->office_rate,
             'contract_period' => $client->contract_start . ' - ' . $client->contract_end,
             'documents' => collect([$client->doc_1, $client->doc_2, $client->doc_3])->filter()->implode(', '),
-            'company' => optional($client->company)->name ?? 'N/A',
-            'manager' => optional($client->manager)->fore_name ?? 'N/A',
+            'company' => optional($client->company)->name ?? '',
+            'manager' => optional($client->manager)->fore_name ?? '',
         ]);
     }
     public function assignManager(Request $request, $id)

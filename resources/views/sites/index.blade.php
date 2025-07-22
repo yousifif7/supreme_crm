@@ -139,14 +139,12 @@
                                                 <span class="text-danger form-error" id="error_site_name"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Address <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Address</label>
                                                 <textarea class="form-control" name="address" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="error_address"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Post Code <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Post Code </label>
                                                 <input type="text" name="post_code" class="form-control"
                                                     placeholder="Enter Post Code">
                                                 <span class="text-danger form-error" id="error_post_code"></span>
@@ -154,8 +152,7 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Code <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Site Code </label>
                                                 <input type="text" name="site_code" class="form-control"
                                                     placeholder="Enter Site Code">
                                                 <span class="text-danger form-error" id="error_site_code"></span>
@@ -163,8 +160,7 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Person <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Contact Person </label>
                                                 <input type="text" name="contact_person" class="form-control"
                                                     placeholder="Enter Contact Person">
                                                 <span class="text-danger form-error" id="error_contact_person"></span>
@@ -172,8 +168,7 @@
 
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Number <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Contact Number </label>
                                                 <input type="text" name="contact_number" class="form-control"
                                                     placeholder="Enter Contact Number">
                                                 <span class="text-danger form-error" id="error_contact_number"></span>
@@ -181,8 +176,7 @@
 
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Note <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Site Note </label>
                                                 <textarea class="form-control" name="note" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="error_note"></span>
                                             </div>
@@ -232,15 +226,13 @@
                                                 <span class="text-danger form-error" id="error_break_time"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Guard Rate <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Guard Rate</label>
                                                 <input type="text" name="guard_rate"
                                                     class="form-control numeric-input guardRate" placeholder="Guard Rate">
                                                 <span class="text-danger form-error" id="error_guard_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Rate <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Site Rate </label>
                                                 <input type="text" name="office_rate"
                                                     class="form-control numeric-input siteRate" placeholder="Office Rate">
                                                 <span class="text-danger form-error" id="error_office_rate"></span>
@@ -249,22 +241,20 @@
                                                 <label class="form-label">
                                                     Name of the Guards
                                                     <small class="text-muted">(Include additional info such as Trained
-                                                        Guards, Banned Guards)</small> <span class="text-danger">*</span>
+                                                        Guards, Banned Guards)</small> 
                                                 </label>
                                                 <textarea name="guard_names" class="form-control" rows="3" placeholder="Enter names and info of guards..."></textarea>
                                                 <span class="text-danger form-error" id="error_guard_names"></span>
                                             </div>
 
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Expenses</label>
                                                 <input type="text" name="billable_rate"
                                                     class="form-control numeric-input" placeholder="Billable">
                                                 <span class="text-danger form-error" id="error_billable_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Expenses</label>
                                                 <input type="text" name="payable_rate"
                                                     class="form-control numeric-input" placeholder="Payable">
                                                 <span class="text-danger form-error" id="error_payable_rate"></span>
@@ -377,42 +367,36 @@
                                                 <span class="text-danger form-error" id="editerror_site_name"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Address <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Address</label>
                                                 <textarea class="form-control" name="address" id="address" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="editerror_address"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Post Code <span class="text-danger">
-                                                        *</span></label>
+                                                <label class="form-label">Post Code</label>
                                                 <input type="text" name="post_code" id="post_code"
                                                     class="form-control" placeholder="Enter Post Code">
                                                 <span class="text-danger form-error" id="editerror_post_code"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Site Code <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Site Code </label>
                                                 <input type="text" name="site_code" id="site_code"
                                                     class="form-control" placeholder="Enter Site Code">
                                                 <span class="text-danger form-error" id="editerror_site_code"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Person <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Contact Person </label>
                                                 <input type="text" name="contact_person" id="contact_person"
                                                     class="form-control" placeholder="Enter Contact person">
                                                 <span class="text-danger form-error" id="editerror_contact_person"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Contact Number <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Contact Number </label>
                                                 <input type="text" name="contact_number" id="contact_number"
                                                     class="form-control" placeholder="Enter Contact Number">
                                                 <span class="text-danger form-error" id="editerror_contact_number"></span>
                                             </div>
                                             <div class="col-md-12 mb-3">
-                                                <label class="form-label">Site Note <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Site Note</label>
                                                 <textarea class="form-control" name="note" id="note" cols="30" rows="4"></textarea>
                                                 <span class="text-danger form-error" id="editerror_note"></span>
                                             </div>
@@ -465,15 +449,13 @@
                                             </div>
 
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Guard Rate <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Guard Rate</label>
                                                 <input type="text" name="guard_rate" id="guard_rate"
                                                     class="form-control" placeholder="Guard Rate">
                                                 <span class="text-danger form-error" id="editerror_guard_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Office Rate <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Office Rate</label>
                                                 <input type="text" name="office_rate" id="office_rate"
                                                     class="form-control" placeholder="Office Rate">
                                                 <span class="text-danger form-error" id="editerror_office_rate"></span>
@@ -482,22 +464,20 @@
                                                 <label class="form-label">
                                                     Name of the Guards
                                                     <small class="text-muted">(Include additional info such as Trained
-                                                        Guards, Banned Guards)</small> <span class="text-danger">*</span>
+                                                        Guards, Banned Guards)</small>
                                                 </label>
                                                 <textarea name="guard_names" id="guard_names" class="form-control" rows="3"
                                                     placeholder="Enter names and info of guards..."></textarea>
                                                 <span class="text-danger form-error" id="editerror_guard_names"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Expenses </label>
                                                 <input type="text" name="billable_rate" id="billable_rate"
                                                     class="form-control numeric-input" placeholder="Billable">
                                                 <span class="text-danger form-error" id="editerror_billable_rate"></span>
                                             </div>
                                             <div class="col-md-6 mb-3">
-                                                <label class="form-label">Expenses <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Expenses </label>
                                                 <input type="text" name="payable_rate" id="payable_rate"
                                                     class="form-control numeric-input" placeholder="Payable">
                                                 <span class="text-danger form-error" id="editerror_payable_rate"></span>
@@ -835,7 +815,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -880,7 +860,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -896,7 +876,7 @@
             $.get(`${baseUrl}/editsite/` + record_id, function(data) {
                 if (data.site) {
                     $('#site_id').val(data.site.id);
-                    $('#client_id').val(data.site.client_id);
+                    $('#client_id').val(data.site.client_id).trigger('change');
                     $('#site_name').val(data.site.site_name);
                     $('#site_group').val(data.site.site_group);
                     $('#address').val(data.site.address);
@@ -947,17 +927,17 @@
             $('#start_time_detail').text(data.start_time);
             $('#end_time_detail').text(data.end_time);
             $('#break_time_detail').text(data.break_time);
-            $('#guard_rate_detail').text(`$${data.guard_rate}`);
-            $('#office_rate_detail').text(`$${data.office_rate}`);
-            $('#billable_rate_detail').text(`$${data.billable_rate}`);
-            $('#payable_rate_detail').text(`$${data.payable_rate}`);
+            $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
+            $('#office_rate_detail').text(`$${data.office_rate ?? 0}`);
+            $('#billable_rate_detail').text(`$${data.billable_rate ?? 0}`);
+            $('#payable_rate_detail').text(`$${data.payable_rate ?? 0}`);
             $('#manager_1_detail').text(data.manager_1_name ?? '');
             $('#manager_2_detail').text(data.manager_2_name ?? '');
 
             let modal = new bootstrap.Modal(document.getElementById('viewSiteDetailModal'));
             modal.show();
         }).fail(function() {
-            alert('Failed to fetch site detail.');
+            toast_danger('Failed to fetch site detail.');
         });
     }
 
@@ -985,7 +965,7 @@
                 },
                 error: function(xhr) {
                     closeBsModal('#delete_modal');
-                    alert('Something went wrong. Please try again.');
+                    toast_danger('Something went wrong. Please try again.');
                 }
             });
         }
@@ -998,7 +978,7 @@
         }).get();
 
         if (selected.length === 0) {
-            alert('Please select at least one site to delete.');
+            toast_danger('Please select at least one site to delete.');
             return;
         }
 
@@ -1016,7 +996,7 @@
                 reloadDatatable('#sites-table');
             },
             error: function() {
-                alert('Something went wrong during bulk delete.');
+                toast_danger('Something went wrong during bulk delete.');
             }
         });
     });

@@ -121,16 +121,14 @@
                                                             id="error_client_name"></span>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Address </label>
                                                         <textarea class="form-control" name="address" rows="2"></textarea>
                                                         <span class="text-danger form-error" id="error_address"></span>
                                                     </div>
                                                     <div class="row">
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number</label>
                                                                 <input type="text" name="contact_number"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -138,10 +136,9 @@
                                                                     id="error_contact_number"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Person </label>
                                                                 <input type="text" name="contact_person"
                                                                     class="form-control"
                                                                     placeholder="Enter Client Person">
@@ -149,16 +146,15 @@
                                                                     id="error_contact_person"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        {{--<div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Email <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Email </label>
                                                                 <input type="email" name="email" class="form-control"
                                                                     placeholder="Enter Contact Email">
                                                                 <span class="text-danger form-error"
                                                                     id="error_email"></span>
                                                             </div>
-                                                        </div>
+                                                        </div>--}}
                                                     </div>
                                                     <div class="row">
                                                         <div class="col-md-4">
@@ -206,12 +202,12 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <div class="form-label">Username <span
+                                                                <div class="form-label">Email <span
                                                                         class="text-danger">*</span></div>
-                                                                <input type="email" name="username"
-                                                                    class="form-control" placeholder="example">
+                                                                <input type="email" name="email"
+                                                                    class="form-control" placeholder="Email">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_username"></span>
+                                                                    id="error_email"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
@@ -233,8 +229,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Invoice Terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Invoice Terms</label>
                                                         <select class="form-select" name="invoice_terms">
                                                             <option value="">--choose--</option>
                                                             <option value="Fortnightly Invoice">Fortnightly Invoice
@@ -249,8 +244,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Payment Terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Payment Terms</label>
                                                         <textarea class="form-control" name="payment_terms" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="error_payment_terms"></span>
@@ -259,8 +253,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract Start: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract Start: </label>
                                                                 <input type="date" name="contract_start"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
@@ -269,8 +262,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract End: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract End:</label>
                                                                 <input type="date" name="contract_end"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
@@ -282,8 +274,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Guard Rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Guard Rate:</label>
                                                                 <input type="text" name="guard_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Guard rate">
@@ -293,8 +284,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Office Rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Office Rate:</label>
                                                                 <input type="text" name="office_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Office rate">
@@ -479,8 +469,7 @@
                                                             id="editerror_client_name"></span>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Address </label>
                                                         <textarea class="form-control" name="address" id="address" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="editerror_address"></span>
@@ -488,8 +477,7 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number </label>
                                                                 <input type="text" name="contact_number"
                                                                     id="contact_number" class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -499,8 +487,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">contact person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">contact person</label>
                                                                 <input type="text" name="contact_person"
                                                                     id="contact_person" class="form-control"
                                                                     placeholder="Enter Client Person">
@@ -510,8 +497,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Email <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Email</label>
                                                                 <input type="email" name="email" id="email"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Email">
@@ -572,8 +558,7 @@
 
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
-                                                        <label class="form-label">invoice terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">invoice terms </label>
                                                         <select class="form-select" name="invoice_terms"
                                                             id="invoice_terms">
                                                             <option value="">--choose--</option>
@@ -589,8 +574,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Payment Terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Payment Terms </label>
                                                         <textarea class="form-control" name="payment_terms" id="payment_terms" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="editerror_payment_terms"></span>
@@ -599,8 +583,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract Start: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract Start: </label>
                                                                 <input type="date" name="contract_start"
                                                                     id="contract_start" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -609,8 +592,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract End: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract End: </label>
                                                                 <input type="date" name="contract_end"
                                                                     id="contract_end" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -622,8 +604,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Guard rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Guard rate:</label>
                                                                 <input type="text" name="guard_rate" id="guard_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Guard rate">
@@ -633,8 +614,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Office rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Office rate: </label>
                                                                 <input type="text" name="office_rate" id="office_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Office rate">
@@ -876,7 +856,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -921,7 +901,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -966,7 +946,7 @@
                                 $('#invoiceerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1057,7 +1037,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -1070,7 +1050,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one client to delete.');
+                toast_danger('Please select at least one client to delete.');
                 return;
             }
 
@@ -1088,7 +1068,7 @@
                     reloadDatatable('#clients-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
@@ -1108,16 +1088,16 @@
                 $('#invoice_terms_detail').text(data.invoice_terms);
                 $('#payment_terms_detail').text(data.payment_terms);
                 $('#vat_detail').text(data.vat_registered);
-                $('#rate_detail').text(`$${data.guard_rate} | $${data.supervisor_rate}`);
-                $('#period_detail').text(data.contract_period);
-                $('#document_detail').text(data.documents);
-                $('#company_detail').text(data.company);
-                $('#manager_detail').text(data.manager);
+                $('#rate_detail').text(`$${data.guard_rate ?? 0} | $${data.supervisor_rate ?? 0}`);
+                $('#period_detail').text(data.contract_period ?? '');
+                $('#document_detail').text(data.documents ?? '');
+                $('#company_detail').text(data.company ?? '');
+                $('#manager_detail').text(data.manager ?? '');
 
                 let modal = new bootstrap.Modal(document.getElementById('viewDetailModal'));
                 modal.show();
             }).fail(function() {
-                alert('Failed to fetch client detail.');
+                toast_danger('Failed to fetch client detail.');
             });
         }
 

@@ -721,6 +721,24 @@
                             'selected'));
                         clone.querySelector('input[name="days[]"]').value = '';
 
+                        // Update data-shift-group attribute
+                        const allShiftGroups = wrapper.querySelectorAll('.shift-group');
+                        const newShiftGroupIndex = allShiftGroups.length;
+                        const checkpointBtn = clone.querySelector('.addCheckpointRow');
+                        if (checkpointBtn) {
+                            checkpointBtn.setAttribute('data-shift-group', newShiftGroupIndex);
+                        }
+                        const checkpointSection = clone.querySelector('.checkpoint-section');
+                        if (checkpointSection) {
+                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                        }
+
+                        // Clear checkpoint rows
+                        const checkpointRows = clone.querySelector('.checkpoint-rows');
+                        if (checkpointRows) {
+                            checkpointRows.innerHTML = '';
+                        }
+
                         wrapper.appendChild(clone);
 
                         // Re-init new shift group logic
@@ -736,7 +754,7 @@
                         if (shiftGroups.length > 1) {
                             btn.closest('.shift-group').remove();
                         } else {
-                            alert('You must have at least one shift.');
+                            toast_danger('You must have at least one shift.');
                         }
                     };
                 });
@@ -748,6 +766,39 @@
             // Initial binding
             bindEvents();
         });
+
+        let checkIndex = 0;
+        function addCheckpointRow($parentRow, groupIndex = 0) {
+            checkIndex++;
+
+            const checkpointRow = `
+                <div class="row checkpoint-row mb-3 align-items-center" data-index="${checkIndex}">
+                    <div class="col-md-3"><label>Checkpoint Name</label>
+                        <input type="text" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_name]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Time</label>
+                        <input type="time" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_time]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removeCheckpointRow">Remove</button>
+                    </div>
+                </div>
+            `;
+
+            $parentRow.append(checkpointRow);
+            // $('#checkpoint-rows').append(checkpointRow);
+        }
+
+        $(document).on('click', '.addCheckpointRow', function() {
+            var groupIndex = $(this).data('shift-group');
+            var $parentRow = $(this).parents(`#checkpoint-section${groupIndex}`).find('.checkpoint-rows');
+            addCheckpointRow($parentRow, groupIndex);
+        });
+        $(document).on('click', '.removeCheckpointRow', function() {
+            $(this).closest('.checkpoint-row').remove();
+        });
+        
     </script>
     <script>
         $(document).ready(function() {
@@ -785,9 +836,9 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else if (xhr.responseJSON?.error) {
-                            alert(xhr.responseJSON.error); //
+                            toast_danger(xhr.responseJSON.error); //
                         } else {
-                            alert('An unexpected error occurred. Please try again.');
+                            toast_danger('An unexpected error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -886,7 +937,7 @@
                         },
 
                         eventClick: function(info) {
-                            console.log('Event clicked:', info.event.extendedProps);
+                            // console.log('Event clicked:', info.event.extendedProps);
                             // create a button with data-toggle="ajax-modal" in body and click it
                             const button = document.createElement('button');
                             button.setAttribute('data-toggle', 'ajax-modal');
@@ -906,6 +957,23 @@
 
                     calendar.render();
 
+                    $('#calendarSearch').on('input', function() {
+                        const searchText = $(this).val().toLowerCase();
+
+                        calendar.batchRendering(() => {
+                            calendar.getEvents().forEach(event => {
+                                const matches = event.title.toLowerCase().includes(searchText) ||
+                                                (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
+
+                                if (matches) {
+                                    event.setProp('display', 'auto'); // show event
+                                } else {
+                                    event.setProp('display', 'none'); // hide event
+                                }
+                            });
+                        });
+                    });
+                    
                     // 🔸 Sidebar mini calendar
                     const sidebarEl = document.querySelector('.datepic');
                     if (sidebarEl) {
@@ -943,6 +1011,57 @@
                 const parts = this.value.split('.');
                 if (parts.length > 2) {
                     this.value = parts[0] + '.' + parts[1];
+                }
+            });
+        });
+    </script>
+    <script type="text/javascript">
+        $(document).on("change","#clientSelect",function() {
+            var $this = $(this);
+            const clientId = $(this).val();
+
+            if (!clientId) return;
+
+            var $siteSelect = $('#siteSelect');
+            // Clear current options
+            $siteSelect.html('<option value="">--choose--</option>');
+            
+            $.ajax({
+                url: `${baseUrl}/api/client/${clientId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+
+                    if (data.sites && data.sites.length > 0) {
+                        $.each(data.sites, function (index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                        });
+                    } else {
+                        $siteSelect.append('<option value="">No sites found</option>');
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
+        });
+
+        $(document).on("change","#StaffSelect",function() {
+            var $this = $(this);
+            const staffId = $(this).val();
+
+            if (!staffId) return;
+
+            $.ajax({
+                url: `${baseUrl}/api/staff/${staffId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function (data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                },
+                error: function (xhr, status, error) {
+                    console.error('Fetch error:', error);
                 }
             });
         });

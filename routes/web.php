@@ -13,6 +13,7 @@ use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\UserController;
+use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\VehicleMaintenanceController;
@@ -36,6 +37,7 @@ Route::middleware('auth')->group(function () {
     })->name('logout');
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
     Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulkDelete');
+    Route::post('/leaves/bulk-delete', [EmployeeLeaveController::class, 'bulkDelete'])->name('leaves.bulkDelete');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -137,6 +139,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
     Route::get('/api/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);
     Route::get('/api/shifts-today', [ShiftController::class, 'getTodayShifts']);
+    Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
+
 
     Route::post('/shift/bookon/store', [ShiftController::class, 'storeBookon'])->name('shift.bookon.store');
     Route::post('/shift/bookoff/store', [ShiftController::class, 'storeBookoff'])->name('shift.bookoff.store');
@@ -146,6 +150,17 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); // web.php or api.php
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
+
+    /** Begin: Holiday Controller */
+    Route::get('/leaves', [EmployeeLeaveController::class, 'index'])->name('leaves.index');
+    Route::post('/leaves', [EmployeeLeaveController::class, 'store'])->name('leaves.store');
+    Route::put('/leaves/{id}', [EmployeeLeaveController::class, 'update'])->name('leaves.update');
+    Route::get('/editleave/{id}', [EmployeeLeaveController::class, 'edit'])->name('leaves.edit');
+    Route::delete('/deleteleave/{id}', [EmployeeLeaveController::class, 'destroy'])->name('leaves.destroy');
+    Route::get('/leaves/{id}/logs/ajax', [EmployeeLeaveController::class, 'getLogs'])->name('leaves.logs.ajax');
+    Route::get('/leaves/{id}/view', [EmployeeLeaveController::class, 'view'])->name('leaves.view');
+
+    /** End: Holiday Controller */
 
 
     /** Begin: User Controller */
@@ -231,6 +246,9 @@ Route::middleware('auth')->group(function () {
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
+
+Route::get('/leaves/export/excel', [ExportController::class, 'exportLeaveExcel'])->name('leaves.export.excel');
+Route::get('/leaves/export/pdf', [ExportController::class, 'exportLeavePdf'])->name('leaves.export.pdf');
 
 Route::get('/users/export/excel', [ExportController::class, 'exportUserExcel'])->name('users.export.excel');
 Route::get('/users/export/pdf', [ExportController::class, 'exportUserPdf'])->name('users.export.pdf');

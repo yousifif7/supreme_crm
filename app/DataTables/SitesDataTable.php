@@ -43,6 +43,9 @@ class SitesDataTable extends DataTable
             ->editColumn('post_code', function ($site) {
                 return $site->post_code;
             })
+            ->editColumn('created_at', function ($user) {
+                return $user->created_at?->format('Y-m-d');
+            })
             ->filterColumn('client_name', function($query, $keyword) {
                 $query->whereHas('client', function($q) use ($keyword) {
                     $q->where('client_name', 'like', "%{$keyword}%");
@@ -93,7 +96,7 @@ class SitesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '80px'])
-            ->orderBy([2, 'DESC'])
+            ->orderBy([7, 'DESC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 15,
@@ -120,7 +123,8 @@ class SitesDataTable extends DataTable
             Column::make('site_name')->title('Site Name'),
             Column::make('address')->title('Address'),
             Column::make('site_code')->title('Site Code'),
-            Column::make('post_code')->title('Post Code')
+            Column::make('post_code')->title('Post Code'),
+            Column::make('created_at')->title('Created at'),
         ];
     }
 

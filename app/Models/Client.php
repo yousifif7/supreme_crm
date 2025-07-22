@@ -20,6 +20,10 @@ class Client extends Model
     {
         return $this->hasMany(Site::class);
     }
+    public function shift(): HasMany
+    {
+        return $this->hasMany(Shift::class);
+    }
     public function company()
     {
         return $this->belongsTo(Company::class);

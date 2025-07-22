@@ -158,16 +158,23 @@
                                 <i class="ti ti-tool"></i><span>Tools</span>
                                 <span class="menu-arrow"></span>
                             </a>
-                            <ul style="display: {{ request()->is('invoices*') ? 'block' : 'none' }};">
+                            <ul style="display: {{ request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
                                 <li class="{{ request()->is('invoices*') ? 'active' : '' }}"><a href="{{ route('invoices.index') }}"><i
                                             class="ti ti-file-invoice"></i>Invoices & Payments</a></li>
-                                <li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
+                                {{--<li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
                                 </li>
                                 <li><a href="#"><i class="ti ti-door-exit"></i>Holiday Mgt.</a>
+                                </li>--}}
+                                <li class="{{ request()->is('leaves') ? 'active' : '' }}">
+                                    <a href="{{ route('leaves.index') }}">
+                                        <i class="ti ti-door-exit"></i>Holiday Mgt. </a>
                                 </li>
-                                <li><a href="#"><i class="ti ti-calendar-stats"></i>Timesheet Report</a></li>
+                                
+                                <li><a href="#"><i class="ti ti-checkup-list"></i>Report</a>
+                                </li>
+                                {{--<li><a href="#"><i class="ti ti-calendar-stats"></i>Timesheet Report</a></li>
                                 <li><a href="#"><i class="ti ti-checkup-list"></i>RIO Report</a>
-                                </li>
+                                </li>--}}
                             </ul>
                         </li>
                     </ul>

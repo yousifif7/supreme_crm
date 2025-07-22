@@ -427,7 +427,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -471,7 +471,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -505,7 +505,7 @@
 
                     $('#edit_compliance').modal('show');
                 } else {
-                    alert('No compliance data found for this vehicle.');
+                    toast_danger('No compliance data found for this vehicle.');
                 }
             });
         }
@@ -532,7 +532,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -545,7 +545,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one vehicle to delete.');
+                toast_danger('Please select at least one vehicle to delete.');
                 return;
             }
 
@@ -563,7 +563,7 @@
                     reloadDatatable('#vehicle-compliances-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });

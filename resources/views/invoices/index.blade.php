@@ -112,7 +112,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -125,7 +125,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one invoice to delete.');
+                toast_danger('Please select at least one invoice to delete.');
                 return;
             }
 
@@ -143,7 +143,7 @@
                     reloadDatatable('#invoices-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });

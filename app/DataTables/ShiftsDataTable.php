@@ -40,6 +40,9 @@ class ShiftsDataTable extends DataTable
                 }
                 return 'Unassigned';
             })
+            // ->editColumn('created_at', function ($user) {
+            //     return $user->created_at?->format('Y-m-d');
+            // })
             ->editColumn('shift_date', function ($shiftDate) {
                 return \Carbon\Carbon::parse($shiftDate->shift_date)->format('d M Y');
             })
@@ -114,7 +117,7 @@ class ShiftsDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([3, 'DESC'])
+            ->orderBy([5, 'DESC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 15,
@@ -140,11 +143,12 @@ class ShiftsDataTable extends DataTable
             Column::make('client_name')->addClass('ps-0')->orderable(false),
             Column::make('site_name')->orderable(false),
             Column::make('staff_name')->orderable(false),
-            Column::make('shift_date')->orderable(false)->searchable(false),
+            Column::make('shift_date')->orderable(true)->searchable(false),
             Column::make('shift_time')->orderable(false)->searchable(false),
             Column::make('break_time')->title('Break Time')->orderable(false),
             Column::make('total_hours')->title('Total Hours')->orderable(false),
             Column::make('status')->title('Status')->orderable(false)->searchable(false),
+            // Column::make('created_at')->title('Created at'),
         ];
     }
 

@@ -1,6 +1,6 @@
 <div class="action-icon d-inline-flex">
-    <button class="sites_action-btn"
-        onclick="viewLogs({{ $user->id }})">Logs</button>
+    {{--<button class="sites_action-btn"
+        onclick="viewLogs({{ $user->id }})">Logs</button>--}}
     <a href="#" class="me-2"
         onclick="viewUserDetail({{ $user->id }})"><i
             class="ti ti-eye"></i></a>

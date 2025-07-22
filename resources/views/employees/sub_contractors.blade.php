@@ -120,18 +120,16 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Company Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Company Address</label>
                                                         <textarea class="form-control" name="company_address" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="error_company_address"></span>
                                                     </div>
 
                                                     <div class="row">
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number </label>
                                                                 <input type="text" name="contact_number"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -139,10 +137,9 @@
                                                                     id="error_contact_number"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Person</label>
                                                                 <input type="text" name="contact_person"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Person">
@@ -150,7 +147,7 @@
                                                                     id="error_contact_person"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        {{--<div class="col-md-4">
                                                             <div class="mb-3">
                                                                 <label class="form-label">Email <span
                                                                         class="text-danger">*</span></label>
@@ -159,12 +156,11 @@
                                                                 <span class="text-danger form-error"
                                                                     id="error_email"></span>
                                                             </div>
-                                                        </div>
+                                                        </div>--}}
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Department <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Department </label>
                                                         <input type="text" name="department" class="form-control"
                                                             placeholder="Enter Department">
                                                         <span class="text-danger form-error" id="error_department"></span>
@@ -190,12 +186,12 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Username <span
+                                                                <label class="form-label">Email <span
                                                                         class="text-danger">*</span></label>
-                                                                <input type="text" name="username"
-                                                                    class="form-control" placeholder="Username">
+                                                                <input type="text" name="email"
+                                                                    class="form-control" placeholder="Email">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_username"></span>
+                                                                    id="error_email"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-6">
@@ -303,8 +299,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Company Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Company Address</label>
                                                         <textarea class="form-control" name="company_address" id="company_address" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="editerror_company_address"></span>
@@ -313,8 +308,7 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number</label>
                                                                 <input type="text" name="contact_number"
                                                                     id="contact_number" class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -324,8 +318,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Person</label>
                                                                 <input type="text" name="contact_person"
                                                                     id="contact_person" class="form-control"
                                                                     placeholder="Enter Contact Person">
@@ -624,7 +617,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -665,7 +658,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -699,7 +692,7 @@
                     $('#edit_subcontractor').modal('show');
                 }
             }).fail(function() {
-                alert('Failed to load subcontractor data.');
+                toast_danger('Failed to load subcontractor data.');
             });
         }
 
@@ -725,7 +718,7 @@
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -738,7 +731,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one subcontractor to delete.');
+                toast_danger('Please select at least one subcontractor to delete.');
                 return;
             }
 
@@ -756,7 +749,7 @@
                     reloadDatatable('#subcontractors-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });

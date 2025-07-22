@@ -46,6 +46,9 @@ class UsersDataTable extends DataTable
             ->editColumn('status', function ($user) {
                 return ucfirst($user->status ?? 'active');
             })
+            ->editColumn('created_at', function ($user) {
+                return $user->created_at?->format('Y-m-d');
+            })
             ->filterColumn('name', function($query, $keyword) {
                 $query->where('name', 'like', "%{$keyword}%")
                       ->orWhere('first_name', 'like', "%{$keyword}%")
@@ -98,7 +101,7 @@ class UsersDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([2, 'DESC'])
+            ->orderBy([6, 'DESC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 15,
@@ -121,10 +124,11 @@ class UsersDataTable extends DataTable
         return [
             Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
-            Column::make('name')->title('Name')->addClass('ps-0')->orderable(false),
+            Column::make('name')->title('Name')->addClass('ps-0')->orderable(true),
             Column::make('email')->title('Email'),
             Column::make('roles')->title('Role')->orderable(false),
-            Column::make('status')->title('Status')
+            Column::make('status')->title('Status'),
+            Column::make('created_at')->title('Created at'),
         ];
     }
 

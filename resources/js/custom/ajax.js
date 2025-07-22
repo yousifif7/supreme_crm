@@ -77,15 +77,15 @@ $(document).on('click', '[data-toggle="ajax-modal"]', function () {
     var modal_size = $(this).data('size');
     var modal_width = $(this).data('width');
     if (typeof modal_width != 'undefined' && modal_width != '') {
-        $('.modal-dialog').css('min-width', modal_width);
+        $('#globalModal').find('.modal-dialog').css('min-width', modal_width);
     } else {
-        $('.modal-dialog').css('min-width', '');
+        $('#globalModal').find('.modal-dialog').css('min-width', '');
     }
-    $('.modal-dialog').removeClass('modal-lg modal-sm modal-xs modal-xl');
+    $('#globalModal').find('.modal-dialog').removeClass('modal-lg modal-sm modal-xs modal-xl');
     if (typeof modal_size == 'undefined' || modal_size == '') {
         modal_size = 'modal-lg';
     }
-    $('.modal-dialog').addClass(modal_size);
+    $('#globalModal').find('.modal-dialog').addClass(modal_size);
     $('#globalModalTitle').html(title);
     $.ajax({
         type: 'get',

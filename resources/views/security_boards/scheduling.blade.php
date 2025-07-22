@@ -44,6 +44,7 @@
             border-top: 1px solid #ccc !important;
         }
     </style>
+     
 @endsection
 @section('contents')
     <!-- Page Wrapper -->
@@ -59,9 +60,14 @@
 
             </div>
 
+            @php
+                $shifts = App\Models\Shift::with(['staff','site'])->get();
+            @endphp
 
             @include('security_boards.shiftfilter')
-
+            
+            <div id="shiftTableContainer">
+                {{-- @include('security_boards.partials.shifts_table') --}}
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
                 <!-- Calendar Sidebar -->
@@ -139,6 +145,7 @@
                 </div>
 
             </div>
+            </div>            
 
             <!-- Calendar View -->
 
@@ -670,6 +677,8 @@
             </div>
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
+
+
             <!-- /Breadcrumb -->
         </div>
 
@@ -754,7 +763,8 @@
                         }
                         const checkpointSection = clone.querySelector('.checkpoint-section');
                         if (checkpointSection) {
-                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                            checkpointSection.setAttribute('id',
+                                `checkpoint-section${newShiftGroupIndex}`);
                         }
 
                         // Clear checkpoint rows
@@ -778,7 +788,7 @@
                         if (shiftGroups.length > 1) {
                             btn.closest('.shift-group').remove();
                         } else {
-                            alert('You must have at least one shift.');
+                            toast_danger('You must have at least one shift.');
                         }
                     };
                 });
@@ -792,6 +802,7 @@
         });
 
         let checkIndex = 0;
+
         function addCheckpointRow($parentRow, groupIndex = 0) {
             checkIndex++;
 
@@ -855,13 +866,18 @@
 
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             let errors = xhr.responseJSON.errors;
+                            let responseIndex = xhr.responseJSON.index;
                             $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                                if ($('#error_' + key).length)
+                                    $('#error_' + key).text(value[0]);
+
+                                if ($('.error_' + key).length)
+                                    $('.error_' + key).eq(responseIndex).text(value[0]);
                             });
                         } else if (xhr.responseJSON?.error) {
-                            alert(xhr.responseJSON.error); //
+                            toast_danger(xhr.responseJSON.error); //
                         } else {
-                            alert('An unexpected error occurred. Please try again.');
+                            toast_danger('An unexpected error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -975,6 +991,24 @@
             calendar.render();
             updateCalendarView();
 
+            $('#calendarSearch').on('input', function() {
+                const searchText = $(this).val().toLowerCase();
+
+                calendar.batchRendering(() => {
+                    calendar.getEvents().forEach(event => {
+                        const matches = event.title.toLowerCase().includes(searchText) ||
+                            (event.extendedProps.location && event.extendedProps.location
+                                .toLowerCase().includes(searchText));
+
+                        if (matches) {
+                            event.setProp('display', 'auto'); // show event
+                        } else {
+                            event.setProp('display', 'none'); // hide event
+                        }
+                    });
+                });
+            });
+
             // Sidebar calendar
             const sidebarEl = document.querySelector('.datepic');
             if (sidebarEl) {
@@ -1012,26 +1046,39 @@
         });
     </script>
     <script type="text/javascript">
-        $(document).on("change","#clientSelect",function() {
+        $(document).on("change", "#clientSelect", function() {
             var $this = $(this);
             const clientId = $(this).val();
 
             if (!clientId) return;
 
+            var $siteSelect = $('#siteSelect');
+            // Clear current options
+            $siteSelect.html('<option value="">--choose--</option>');
+
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
+                success: function(data) {
                     $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+
+                    if (data.sites && data.sites.length > 0) {
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
+                        });
+                    } else {
+                        $siteSelect.append('<option value="">No sites found</option>');
+                    }
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
         });
 
-        $(document).on("change","#StaffSelect",function() {
+        $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);
             const staffId = $(this).val();
 
@@ -1041,10 +1088,11 @@
                 url: `${baseUrl}/api/staff/${staffId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                success: function(data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                    '');
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });

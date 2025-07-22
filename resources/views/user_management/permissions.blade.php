@@ -202,7 +202,7 @@
                     form[0].reset();
                 },
                 error: function(xhr) {
-                    alert('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
+                    toast_danger('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
                 },
                 complete: () => btn.prop('disabled', false).text('Save')
             });
@@ -235,7 +235,7 @@
                     $('#success_modal').modal('show');
                 },
                 error: function(xhr) {
-                    alert('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
+                    toast_danger('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
                 },
                 complete: () => btn.prop('disabled', false).text('Update')
             });
@@ -263,7 +263,7 @@
                     },
                     error: function() {
                         closeBsModal('#delete_modal');
-                        alert('Something went wrong. Please try again.');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -275,7 +275,7 @@
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one permission to delete.');
+                toast_danger('Please select at least one permission to delete.');
                 return;
             }
 
@@ -293,7 +293,7 @@
                     $('#success_modal').modal('show');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });

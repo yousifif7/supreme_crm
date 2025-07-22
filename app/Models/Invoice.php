@@ -37,4 +37,19 @@ class Invoice extends Model
             $invoice->invoice_no = 'INV-' . str_pad($nextInvoiceNumber, 5, '0', STR_PAD_LEFT);
         });
     }
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function shifts()
+    {
+        return $this->hasMany(Shift::class);
+    }
+
+    public function adminReview()
+    {
+        return $this->hasOne(InvoiceReview::class);
+    }
 }
