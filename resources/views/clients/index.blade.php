@@ -15,6 +15,17 @@
                         </div>
                     @endif
 
+                    {{-- show validation errors --}}
+                    @if ($errors->any())
+                        <div class="alert alert-danger mt-3">
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                 </div>
 
             </div>
@@ -73,86 +84,9 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Address</th>
-                                    <th>Contact Person</th>
-                                    <th>Contact Number</th>
-                                    <th>Contact Email</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $i = ($clients->currentPage() - 1) * $clients->perPage() + 1; @endphp
-                                @foreach ($clients as $client)
-                                    <tr>
-
-                                        <td><input type="checkbox" class="client-checkbox" value="{{ $client->id }}">
-                                        </td>
-                                        <td>{{ $i++ }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium"><a
-                                                            onclick="viewClientDetail({{ $client->id }})">{{ $client->client_name }}</a>
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="text-align: left">
-                                            {{ $client->address }}
-                                        </td>
-                                        <td style="text-align: left">
-                                            {{ $client->contact_person }}
-                                        </td>
-                                        <td style="text-align: left">
-                                            {{ $client->contact_number }}
-                                        </td>
-                                        <td style="text-align: left">
-                                            {{ $client->email }}
-                                        </td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button class="sites_action-btn"
-                                                    onclick="assignManager({{ $client->id }})">Managers</button>
-                                                <button class="sites_action-btn"
-                                                    onclick="viewLogs({{ $client->id }})">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewClientDetail({{ $client->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a href="#" class="me-2"
-                                                    onclick="editClient({{ $client->id }})"><i
-                                                        class="ti ti-edit"></i></a>
-
-                                                <a href="#" class="me-2"
-                                                    onclick="generateInvoice({{ $client->id }})"><i
-                                                        class="ti ti-receipt"></i></a>
-
-                                                {{--<a href="{{ route('invoices.show', $client->id) }}"><i
-                                                        class="ti ti-printer"></i></a>--}}
-
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteClient({{ $client->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
-
                 </div>
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $clients->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -187,16 +121,14 @@
                                                             id="error_client_name"></span>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Address </label>
                                                         <textarea class="form-control" name="address" rows="2"></textarea>
                                                         <span class="text-danger form-error" id="error_address"></span>
                                                     </div>
                                                     <div class="row">
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number</label>
                                                                 <input type="text" name="contact_number"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -204,10 +136,9 @@
                                                                     id="error_contact_number"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Person </label>
                                                                 <input type="text" name="contact_person"
                                                                     class="form-control"
                                                                     placeholder="Enter Client Person">
@@ -215,16 +146,15 @@
                                                                     id="error_contact_person"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        {{--<div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Email <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Email </label>
                                                                 <input type="email" name="email" class="form-control"
                                                                     placeholder="Enter Contact Email">
                                                                 <span class="text-danger form-error"
                                                                     id="error_email"></span>
                                                             </div>
-                                                        </div>
+                                                        </div>--}}
                                                     </div>
                                                     <div class="row">
                                                         <div class="col-md-4">
@@ -272,12 +202,12 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <div class="form-label">Username <span
+                                                                <div class="form-label">Email <span
                                                                         class="text-danger">*</span></div>
-                                                                <input type="email" name="username"
-                                                                    class="form-control" placeholder="example">
+                                                                <input type="email" name="email"
+                                                                    class="form-control" placeholder="Email">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_username"></span>
+                                                                    id="error_email"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-4">
@@ -299,8 +229,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Invoice Terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Invoice Terms</label>
                                                         <select class="form-select" name="invoice_terms">
                                                             <option value="">--choose--</option>
                                                             <option value="Fortnightly Invoice">Fortnightly Invoice
@@ -315,8 +244,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Payment Terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Payment Terms</label>
                                                         <textarea class="form-control" name="payment_terms" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="error_payment_terms"></span>
@@ -325,8 +253,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract Start: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract Start: </label>
                                                                 <input type="date" name="contract_start"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
@@ -335,8 +262,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract End: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract End:</label>
                                                                 <input type="date" name="contract_end"
                                                                     class="form-control">
                                                                 <span class="text-danger form-error"
@@ -348,8 +274,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Guard Rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Guard Rate:</label>
                                                                 <input type="text" name="guard_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Guard rate">
@@ -359,8 +284,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Office Rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Office Rate:</label>
                                                                 <input type="text" name="office_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Office rate">
@@ -436,7 +360,7 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Client Name <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="text" name="client_name" id="invoice_client_name" readonly style="background: #eee;" 
+                                                        <input type="text" name="client_name" id="invoice_client_name" readonly style="background: #eee;"
                                                             class="form-control" placeholder="Enter Client Name">
                                                         <span class="text-danger form-error"
                                                             id="invoiceerror_client_name"></span>
@@ -455,7 +379,7 @@
                                                     <div class="mb-3">
                                                         <label class="form-label">Due Date <span
                                                                 class="text-danger">*</span></label>
-                                                        <input type="date" name="due_date" id="invoice_due_date"  
+                                                        <input type="date" name="due_date" id="invoice_due_date"
                                                             class="form-control" placeholder="">
                                                         <span class="text-danger form-error"
                                                             id="invoiceerror_due_date"></span>
@@ -545,8 +469,7 @@
                                                             id="editerror_client_name"></span>
                                                     </div>
                                                     <div class="mb-3">
-                                                        <label class="form-label">Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Address </label>
                                                         <textarea class="form-control" name="address" id="address" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="editerror_address"></span>
@@ -554,8 +477,7 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number </label>
                                                                 <input type="text" name="contact_number"
                                                                     id="contact_number" class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -565,8 +487,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">contact person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">contact person</label>
                                                                 <input type="text" name="contact_person"
                                                                     id="contact_person" class="form-control"
                                                                     placeholder="Enter Client Person">
@@ -576,8 +497,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Email <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Email</label>
                                                                 <input type="email" name="email" id="email"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Email">
@@ -638,8 +558,7 @@
 
                                                 <div class="col-md-6">
                                                     <div class="mb-3">
-                                                        <label class="form-label">invoice terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">invoice terms </label>
                                                         <select class="form-select" name="invoice_terms"
                                                             id="invoice_terms">
                                                             <option value="">--choose--</option>
@@ -655,8 +574,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Payment Terms <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Payment Terms </label>
                                                         <textarea class="form-control" name="payment_terms" id="payment_terms" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="editerror_payment_terms"></span>
@@ -665,8 +583,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract Start: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract Start: </label>
                                                                 <input type="date" name="contract_start"
                                                                     id="contract_start" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -675,8 +592,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contract End: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contract End: </label>
                                                                 <input type="date" name="contract_end"
                                                                     id="contract_end" class="form-control">
                                                                 <span class="text-danger form-error"
@@ -688,8 +604,7 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Guard rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Guard rate:</label>
                                                                 <input type="text" name="guard_rate" id="guard_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Guard rate">
@@ -699,8 +614,7 @@
                                                         </div>
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Office rate: <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Office rate: </label>
                                                                 <input type="text" name="office_rate" id="office_rate"
                                                                     class="form-control numeric-input"
                                                                     placeholder="Enter Office rate">
@@ -822,32 +736,6 @@
             </div>
         </div>
 
-        <!-- Add Client Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('clients') }}" class="btn btn-dark w-100">Back to List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /Add Client Success -->
-
         <!-- Delete Modal -->
         <div class="modal fade" id="delete_modal">
             <div class="modal-dialog modal-dialog-centered">
@@ -867,43 +755,7 @@
             </div>
         </div>
         <!-- /Delete Modal -->
-        <!-- Import modal -->
-        <div class="modal fade" id="import_modal">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">Import Excel</h4>
-                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                            aria-label="Close">
-                            <i class="ti ti-x"></i>
-                        </button>
-                    </div>
-                    <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                aria-labelledby="info-tab" tabindex="0">
-                                <div class="modal-body pb-0 ">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="d-flex gap-2">
-                                                <input type="file" name="import_file" class="form-control" required>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-light border me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-
-                                    <button class="btn btn-primary" type="submit">Import</button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+        @include('clients.import_modal')
     </div>
     <!-- Logs Modal -->
     <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
@@ -959,9 +811,6 @@
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
     <script>
         $(document).ready(function() {
             $('.select-manager').select2({
@@ -969,24 +818,7 @@
                 dropdownParent: $('#assignManagerModal')
             });
         });
-        // Client search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
 
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.client-checkbox').prop('checked', $(this).prop('checked'));
-        });
         document.getElementById('vatCheck').addEventListener('change', function() {
             const vatInput = document.getElementById('vatInput');
             vatInput.style.display = this.checked ? 'block' : 'none';
@@ -1012,9 +844,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_client').modal('hide');
-                        $('#success_message').html('Client Added Successfully')
-                        $('#success_modal').modal('show');
+                        closeBsModal('#add_client');
+                        toast_success('Client Added Successfully');
+                        reloadDatatable('#clients-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1024,7 +856,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1057,9 +889,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_client').modal('hide');
-                        $('#success_message').html('Client Updated Successfully!')
-                        $('#success_modal').modal('show');
+                        closeBsModal('#edit_client');
+                        toast_success('Client Updated Successfully!')
+                        reloadDatatable('#clients-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1069,7 +901,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1102,9 +934,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#generate_invoice').modal('hide');
-                        $('#success_message').html('Invoice Created Successfully!')
-                        $('#success_modal').modal('show');
+                        closeBsModal('#generate_invoice');
+                        toast_success('Invoice Created Successfully!');
+                        reloadDatatable('#clients-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -1114,7 +946,7 @@
                                 $('#invoiceerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -1198,14 +1030,14 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
 
-                        $('#success_message').html('Client Deleted Successfully!')
-                        $('#success_modal').modal('show');
+                        toast_success('Client Deleted Successfully!');
+                        reloadDatatable('#clients-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
-                        alert('Something went wrong. Please try again.');
+                        closeBsModal('#delete_modal');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -1213,12 +1045,12 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.client-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one client to delete.');
+                toast_danger('Please select at least one client to delete.');
                 return;
             }
 
@@ -1232,11 +1064,11 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected clients deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected clients deleted successfully!');
+                    reloadDatatable('#clients-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
@@ -1256,16 +1088,16 @@
                 $('#invoice_terms_detail').text(data.invoice_terms);
                 $('#payment_terms_detail').text(data.payment_terms);
                 $('#vat_detail').text(data.vat_registered);
-                $('#rate_detail').text(`$${data.guard_rate} | $${data.supervisor_rate}`);
-                $('#period_detail').text(data.contract_period);
-                $('#document_detail').text(data.documents);
-                $('#company_detail').text(data.company);
-                $('#manager_detail').text(data.manager);
+                $('#rate_detail').text(`$${data.guard_rate ?? 0} | $${data.supervisor_rate ?? 0}`);
+                $('#period_detail').text(data.contract_period ?? '');
+                $('#document_detail').text(data.documents ?? '');
+                $('#company_detail').text(data.company ?? '');
+                $('#manager_detail').text(data.manager ?? '');
 
                 let modal = new bootstrap.Modal(document.getElementById('viewDetailModal'));
                 modal.show();
             }).fail(function() {
-                alert('Failed to fetch client detail.');
+                toast_danger('Failed to fetch client detail.');
             });
         }
 
@@ -1303,51 +1135,8 @@
                     modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
                 });
         }
-
-        document.getElementById('client_filter').addEventListener('change', function() {
-            const selected = this.value;
-            window.location.href = `?filter=${selected}`;
-        });
-        $('#client_filter').val({{ $filter }});
     </script>
     <script>
-        $(document).ready(function() {
-
-            $('.submenu > a').click(function(e) {
-                e.preventDefault();
-
-                var $this = $(this);
-                var $submenu = $this.next('ul');
-
-                if (!$this.hasClass('subdrop')) {
-                    $('.submenu > a').removeClass('subdrop');
-                    $('.submenu ul').slideUp(200);
-
-                    $this.addClass('subdrop');
-                    $submenu.slideDown(200);
-                } else {
-                    $this.removeClass('subdrop');
-                    $submenu.slideUp(200);
-                }
-            });
-
-
-            var currentPage = window.location.pathname.split("/").pop();
-
-            $('#sidebar-menu a').each(function() {
-                var linkPage = $(this).attr('href');
-                if (linkPage === currentPage) {
-                    $(this).addClass('active');
-
-                    var $submenu = $(this).closest('.submenu');
-                    if ($submenu.length) {
-                        $submenu.find('> a').addClass('subdrop');
-                        $submenu.find('ul').slideDown(0).css('display', 'block');
-                    }
-                }
-            });
-        });
-
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');
@@ -1360,4 +1149,6 @@
             });
         });
     </script>
+
+    {!! $dataTable->scripts() !!}
 @endsection

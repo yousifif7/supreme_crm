@@ -15,6 +15,17 @@
                         </div>
                     @endif
 
+                    {{-- show validation errors --}}
+                    @if ($errors->any())
+                        <div class="alert alert-danger mt-3">
+                            <ul class="mb-0">
+                                @foreach ($errors->all() as $error)
+                                    <li>{{ $error }}</li>
+                                @endforeach
+                            </ul>
+                        </div>
+                    @endif
+
                 </div>
 
             </div>
@@ -29,11 +40,11 @@
                         </a>
                         <ul class="dropdown-menu  dropdown-menu-start p-3">
                             <li>
-                                <a href="{{ route('clients.export.pdf') }}" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('subcontractors.export.pdf') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="{{ route('clients.export.excel') }}" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('subcontractors.export.excel') }}" class="dropdown-item rounded-1"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>
@@ -72,67 +83,9 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <th>Address</th>
-                                    <th>Contact Person</th>
-                                    <th>Contact Number</th>
-                                    <th>Contact Email</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @php $i = ($subcontractors->currentPage() - 1) * $subcontractors->perPage() + 1; @endphp
-                                @foreach ($subcontractors as $subcontractor)
-                                    <tr>
-                                        <td><input type="checkbox" class="subcontractor-checkbox"
-                                                value="{{ $subcontractor->id }}"></td>
-                                        <td>{{ $i++ }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium">
-                                                        <a onclick="viewSubcontractorDetail({{ $subcontractor->id }})">
-                                                            {{ $subcontractor->company_name }}
-                                                        </a>
-                                                    </h6>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td style="text-align: left">{{ $subcontractor->company_address }}</td>
-                                        <td style="text-align: left">{{ $subcontractor->contact_person }}</td>
-                                        <td style="text-align: left">{{ $subcontractor->contact_number }}</td>
-                                        <td style="text-align: left">{{ $subcontractor->email }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button class="sites_action-btn"
-                                                    onclick="viewLogs({{ $subcontractor->id }})">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewSubcontractorDetail({{ $subcontractor->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a href="#" class="me-2"
-                                                    onclick="editSubcontractor({{ $subcontractor->id }})"><i
-                                                        class="ti ti-edit"></i></a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteSubcontractor({{ $subcontractor->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
-
-
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $subcontractors->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -148,7 +101,7 @@
                         </button>
                     </div>
 
-                    <form method="POST" id="add_subcontractor-form" enctype="multipart/form-data">
+                    <form method="POST" id="add_subcontractor-form" action="{{ route('subcontractors.store') }}" enctype="multipart/form-data">
                         @csrf
                         <div class="tab-content" id="subTabContent">
                             <div class="tab-pane fade show active" id="basic-info" role="tabpanel" tabindex="0">
@@ -167,18 +120,16 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Company Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Company Address</label>
                                                         <textarea class="form-control" name="company_address" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="error_company_address"></span>
                                                     </div>
 
                                                     <div class="row">
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number </label>
                                                                 <input type="text" name="contact_number"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -186,10 +137,9 @@
                                                                     id="error_contact_number"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Person</label>
                                                                 <input type="text" name="contact_person"
                                                                     class="form-control"
                                                                     placeholder="Enter Contact Person">
@@ -197,7 +147,7 @@
                                                                     id="error_contact_person"></span>
                                                             </div>
                                                         </div>
-                                                        <div class="col-md-4">
+                                                        {{--<div class="col-md-4">
                                                             <div class="mb-3">
                                                                 <label class="form-label">Email <span
                                                                         class="text-danger">*</span></label>
@@ -206,12 +156,11 @@
                                                                 <span class="text-danger form-error"
                                                                     id="error_email"></span>
                                                             </div>
-                                                        </div>
+                                                        </div>--}}
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Department <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Department </label>
                                                         <input type="text" name="department" class="form-control"
                                                             placeholder="Enter Department">
                                                         <span class="text-danger form-error" id="error_department"></span>
@@ -237,12 +186,12 @@
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Username <span
+                                                                <label class="form-label">Email <span
                                                                         class="text-danger">*</span></label>
-                                                                <input type="text" name="username"
-                                                                    class="form-control" placeholder="Username">
+                                                                <input type="text" name="email"
+                                                                    class="form-control" placeholder="Email">
                                                                 <span class="text-danger form-error"
-                                                                    id="error_username"></span>
+                                                                    id="error_email"></span>
                                                             </div>
                                                         </div>
                                                         <div class="col-md-6">
@@ -350,8 +299,7 @@
                                                     </div>
 
                                                     <div class="mb-3">
-                                                        <label class="form-label">Company Address <span
-                                                                class="text-danger">*</span></label>
+                                                        <label class="form-label">Company Address</label>
                                                         <textarea class="form-control" name="company_address" id="company_address" rows="2"></textarea>
                                                         <span class="text-danger form-error"
                                                             id="editerror_company_address"></span>
@@ -360,8 +308,7 @@
                                                     <div class="row">
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Number <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Number</label>
                                                                 <input type="text" name="contact_number"
                                                                     id="contact_number" class="form-control"
                                                                     placeholder="Enter Contact Number">
@@ -371,8 +318,7 @@
                                                         </div>
                                                         <div class="col-md-4">
                                                             <div class="mb-3">
-                                                                <label class="form-label">Contact Person <span
-                                                                        class="text-danger">*</span></label>
+                                                                <label class="form-label">Contact Person</label>
                                                                 <input type="text" name="contact_person"
                                                                     id="contact_person" class="form-control"
                                                                     placeholder="Enter Contact Person">
@@ -612,42 +558,7 @@
         </div>
         <!-- /Delete Modal -->
         <!-- Import modal -->
-        <div class="modal fade" id="import_modal">
-            <div class="modal-dialog modal-dialog-centered">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">Import Excel</h4>
-                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                            aria-label="Close">
-                            <i class="ti ti-x"></i>
-                        </button>
-                    </div>
-                    <form action="{{ route('clients.import') }}" method="POST" enctype="multipart/form-data">
-                        @csrf
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                aria-labelledby="info-tab" tabindex="0">
-                                <div class="modal-body pb-0 ">
-                                    <div class="row">
-                                        <div class="col-md-6">
-                                            <div class="d-flex gap-2">
-                                                <input type="file" name="import_file" class="form-control" required>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-light border me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-
-                                    <button class="btn btn-primary" type="submit">Import</button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
+        @include('employees.import_modal')
     </div>
     <!-- Logs Modal -->
     <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
@@ -672,28 +583,8 @@
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-
     <script>
-        // search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
 
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.subcontractor-checkbox').prop('checked', $(this).prop('checked'));
-        });
         $(document).ready(function() {
             // Add Subcontractor
             $('#add_subcontractor-form').on('submit', function(e) {
@@ -715,9 +606,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#add_subcontractor').modal('hide');
-                        $('#success_message').html('Subcontractor Added Successfully');
-                        $('#success_modal').modal('show');
+                        closeBsModal('#add_subcontractor');
+                        toast_success('Subcontractor Added Successfully');
+                        reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -726,7 +617,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -756,9 +647,9 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
-                        $('#edit_subcontractor').modal('hide');
-                        $('#success_message').html('Subcontractor Updated Successfully!');
-                        $('#success_modal').modal('show');
+                        closeBsModal('#edit_subcontractor');
+                        toast_success('Subcontractor Updated Successfully!');
+                        reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -767,7 +658,7 @@
                                 $('#editerror_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -778,7 +669,7 @@
         });
 
         function editSubcontractor(record_id) {
-            $.get('/editsubcontractor/' + record_id, function(data) {
+            $.get(`${baseUrl}/editsubcontractor/${record_id}`, function(data) {
                 if (data.subcontractor) {
                     $('#subcontractor_id').val(data.subcontractor.id);
                     $('#company_name').val(data.subcontractor.company_name);
@@ -801,7 +692,7 @@
                     $('#edit_subcontractor').modal('show');
                 }
             }).fail(function() {
-                alert('Failed to load subcontractor data.');
+                toast_danger('Failed to load subcontractor data.');
             });
         }
 
@@ -821,14 +712,13 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
-
-                        $('#success_message').html('Subcontractor Deleted Successfully!')
-                        $('#success_modal').modal('show');
+                        closeBsModal('#delete_modal');
+                        toast_success('Subcontractor Deleted Successfully!');
+                        reloadDatatable('#subcontractors-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
-                        alert('Something went wrong. Please try again.');
+                        closeBsModal('#delete_modal');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -836,12 +726,12 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.subcontractor-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one subcontractor to delete.');
+                toast_danger('Please select at least one subcontractor to delete.');
                 return;
             }
 
@@ -855,11 +745,11 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected subcontractors deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected subcontractors deleted successfully!');
+                    reloadDatatable('#subcontractors-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
@@ -867,7 +757,7 @@
 
 
         function viewSubcontractorDetail(id) {
-            $.get(`/subcontractors/${id}/view`, function(data) {
+            $.get(`${baseUrl}/subcontractors/${id}/view`, function(data) {
                 $('#subcontractor_name_heading').text(data.company_name);
                 $('#company_name_detail').text(data.company_name);
                 $('#company_address_detail').text(data.company_address);
@@ -925,43 +815,6 @@
         }
     </script>
     <script>
-        $(document).ready(function() {
-
-            $('.submenu > a').click(function(e) {
-                e.preventDefault();
-
-                var $this = $(this);
-                var $submenu = $this.next('ul');
-
-                if (!$this.hasClass('subdrop')) {
-                    $('.submenu > a').removeClass('subdrop');
-                    $('.submenu ul').slideUp(200);
-
-                    $this.addClass('subdrop');
-                    $submenu.slideDown(200);
-                } else {
-                    $this.removeClass('subdrop');
-                    $submenu.slideUp(200);
-                }
-            });
-
-
-            var currentPage = window.location.pathname.split("/").pop();
-
-            $('#sidebar-menu a').each(function() {
-                var linkPage = $(this).attr('href');
-                if (linkPage === currentPage) {
-                    $(this).addClass('active');
-
-                    var $submenu = $(this).closest('.submenu');
-                    if ($submenu.length) {
-                        $submenu.find('> a').addClass('subdrop');
-                        $submenu.find('ul').slideDown(0).css('display', 'block');
-                    }
-                }
-            });
-        });
-
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');
@@ -977,4 +830,6 @@
             $('#vatInputSub').toggle(this.checked);
         });
     </script>
+
+    {!! $dataTable->scripts() !!}
 @endsection

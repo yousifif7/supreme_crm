@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\RoadworthinessChecksDataTable;
 use App\Models\RoadworthinessCheck;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
@@ -9,11 +10,10 @@ use Illuminate\Support\Facades\Validator;
 
 class RoadworthinessCheckController extends Controller
 {
-    public function index()
+    public function index(RoadworthinessChecksDataTable $dataTable)
     {
-        $checks = RoadworthinessCheck::with('vehicle')->paginate(10);
         $vehicles = Vehicle::all();
-        return view('vehicle_management.checks', compact('checks', 'vehicles'));
+        return $dataTable->render('vehicle_management.checks', compact('vehicles'));
     }
     public function store(Request $request)
     {

@@ -75,58 +75,9 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Last Service</th>
-                                    <th>Next Service Due</th>
-                                    <th>Work Type</th>
-                                    <th>Maintenance Date</th>
-                                    <th>Garage/Provider</th>
-                                    <th>Reported By</th>
-                                    <th>Date Reported</th>
-                                    <th>Resolution Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($maintainances as $maintainance)
-                                    <tr>
-                                        <td><input type="checkbox" class="vehicle-checkbox" value="{{ $maintainance->id }}">
-                                        </td>
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>{{ $maintainance->last_service_date }}</td>
-                                        <td>{{ $maintainance->next_service_due_date }}</td>
-                                        <td>{{ $maintainance->work_type }}</td>
-                                        <td>{{ $maintainance->maintenance_date }}</td>
-                                        <td>{{ $maintainance->garage_provider }}</td>
-                                        <td>{{ $maintainance->reported_by }}</td>
-                                        <td>{{ $maintainance->date_reported }}</td>
-                                        <td>{{ $maintainance->resolution_status }}</td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <a href="#" class="me-2"
-                                                    onclick="editMaintenance({{ $maintainance->id }})">
-                                                    <i class="ti ti-edit"></i>
-                                                </a>
-                                                <a href="javascript:void(0);"
-                                                    onclick="deleteMaintenance({{ $maintainance->id }})">
-                                                    <i class="ti ti-trash"></i>
-                                                </a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
-                        <div class="card-footer d-flex justify-content-center">
-                            {{ $maintainances->links('vendor.pagination.bootstrap-5') }}
-                        </div>
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
-                </div </div>
+                </div>
 
             </div>
             <!-- Add Maintenance Modal -->
@@ -339,33 +290,6 @@
             </div>
 
             <!-- Add Vehicle Compliances Success -->
-            <div class="modal fade" id="success_modal" role="dialog">
-                <div class="modal-dialog modal-dialog-centered modal-sm">
-                    <div class="modal-content">
-                        <div class="modal-body">
-                            <div class="text-center p-3">
-                                <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                        class="ti ti-check fs-24"></i></span>
-                                <h5 class="mb-2" id="success_message"></h5>
-
-                                </p>
-                                <div>
-                                    <div class="row g-2">
-                                        <div class="col-12">
-                                            <a href="{{ url('vehicle_maintenances') }}" class="btn btn-dark w-100">Back
-                                                to
-                                                List</a>
-                                        </div>
-
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <!-- /Add Vehicle Success -->
-
             <!-- Delete Modal -->
             <div class="modal fade" id="delete_modal">
                 <div class="modal-dialog modal-dialog-centered">
@@ -428,28 +352,7 @@
         <!-- /Page Wrapper -->
     @endsection
     @section('scripts')
-        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
         <script>
-            // Client search functionality
-            $('.search_box').on('keyup', function() {
-                let searchText = $(this).val().toLowerCase();
-
-                $('.datatable tbody tr').each(function() {
-                    let rowText = $(this).text().toLowerCase();
-                    if (rowText.indexOf(searchText) > -1) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            });
-
-            // Select All toggle
-            $('#selectAll').on('change', function() {
-                $('.vehicle-checkbox').prop('checked', $(this).prop('checked'));
-            });
-
             $(document).ready(function() {
                 // Add Maintenance
                 $('#add_maintenance_form').on('submit', function(e) {
@@ -471,9 +374,9 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#add_maintenance').modal('hide');
-                            $('#success_message').html('Maintenance record added successfully.');
-                            $('#success_modal').modal('show');
+                            closeBsModal('#add_maintenance');
+                            toast_success('Maintenance record added successfully.');
+                            reloadDatatable('#vehicle-maintenances-table');
                             $('#add_maintenance_form')[0].reset(); // Optional: reset form
                         },
                         error: function(xhr) {
@@ -483,7 +386,7 @@
                                     $('#error_' + key).text(value[0]);
                                 });
                             } else {
-                                alert('An error occurred. Please try again.');
+                                toast_danger('An error occurred. Please try again.');
                             }
                         },
                         complete: function() {
@@ -514,9 +417,9 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            $('#edit_maintenance').modal('hide');
-                            $('#success_message').html('Maintenance record updated successfully.');
-                            $('#success_modal').modal('show');
+                            closeBsModal('#edit_maintenance');
+                            toast_success('Maintenance record updated successfully.');
+                            reloadDatatable('#vehicle-maintenances-table');
                         },
                         error: function(xhr) {
                             if (xhr.status === 422) {
@@ -525,7 +428,7 @@
                                     $('#edit_error_' + key).text(value[0]);
                                 });
                             } else {
-                                alert('An error occurred. Please try again.');
+                                toast_danger('An error occurred. Please try again.');
                             }
                         },
                         complete: function() {
@@ -551,7 +454,7 @@
 
                         $('#edit_maintenance').modal('show');
                     } else {
-                        alert('No maintenance data found for this record.');
+                        toast_danger('No maintenance data found for this record.');
                     }
                 });
             }
@@ -572,13 +475,13 @@
                             'X-CSRF-TOKEN': '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            $('#delete_modal').modal('hide');
-                            $('#success_message').html('Vehicle Maintenance Deleted Successfully!');
-                            $('#success_modal').modal('show');
+                            closeBsModal('#delete_modal');
+                            toast_success('Vehicle Maintenance Deleted Successfully!');
+                            reloadDatatable('#vehicle-maintenances-table');
                         },
                         error: function(xhr) {
-                            $('#delete_modal').modal('hide');
-                            alert('Something went wrong. Please try again.');
+                            closeBsModal('#delete_modal');
+                            toast_danger('Something went wrong. Please try again.');
                         }
                     });
                 }
@@ -586,12 +489,12 @@
 
             // Bulk delete button
             $('#bulkDeleteBtn').on('click', function() {
-                const selected = $('.vehicle-checkbox:checked').map(function() {
+                const selected = $('.dT-row-checkbox:checked').map(function() {
                     return this.value;
                 }).get();
 
                 if (selected.length === 0) {
-                    alert('Please select at least one vehicle maintenance to delete.');
+                    toast_danger('Please select at least one vehicle maintenance to delete.');
                     return;
                 }
 
@@ -604,51 +507,14 @@
                         _token: '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#success_message').text('Selected vehicles maintenance deleted successfully!');
-                        $('#success_modal').modal('show');
+                        toast_success('Selected vehicles maintenance deleted successfully!');
+                        reloadDatatable('#vehicle-maintenances-table');
                     },
                     error: function() {
-                        alert('Something went wrong during bulk delete.');
+                        toast_danger('Something went wrong during bulk delete.');
                     }
                 });
             });
         </script>
-        <script>
-            $(document).ready(function() {
-
-                $('.submenu > a').click(function(e) {
-                    e.preventDefault();
-
-                    var $this = $(this);
-                    var $submenu = $this.next('ul');
-
-                    if (!$this.hasClass('subdrop')) {
-                        $('.submenu > a').removeClass('subdrop');
-                        $('.submenu ul').slideUp(200);
-
-                        $this.addClass('subdrop');
-                        $submenu.slideDown(200);
-                    } else {
-                        $this.removeClass('subdrop');
-                        $submenu.slideUp(200);
-                    }
-                });
-
-
-                var currentPage = window.location.pathname.split("/").pop();
-
-                $('#sidebar-menu a').each(function() {
-                    var linkPage = $(this).attr('href');
-                    if (linkPage === currentPage) {
-                        $(this).addClass('active');
-
-                        var $submenu = $(this).closest('.submenu');
-                        if ($submenu.length) {
-                            $submenu.find('> a').addClass('subdrop');
-                            $submenu.find('ul').slideDown(0).css('display', 'block');
-                        }
-                    }
-                });
-            });
-        </script>
+        {!! $dataTable->scripts() !!}
     @endsection

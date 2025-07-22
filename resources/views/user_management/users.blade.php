@@ -43,32 +43,15 @@
                         <i class="ti ti-plus me-2"></i>User
                     </a>
 
-
                     <!-- Search -->
                     <div class="input-group input-group-flat d-inline-flex me-1">
                         <span class="input-icon-addon">
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
-
-
                         <!-- /Search -->
-
-
                     </div>
-                    <div class="sort-box">
-                        <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort Users</option>
-                            <option value="">All</option>
-                            <option value="">Coordinators</option>
-                            <option value="">Archieved</option>
-                        </select>
-                        <i class="ti ti-chevron-down"></i>
-                    </div>
-
                 </div>
-
-
             </div>
             <!-- /Breadcrumb -->
 
@@ -76,82 +59,9 @@
 
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        <table class="table datatable">
-                            <thead class="thead-light">
-                                <tr>
-                                    <th><input type="checkbox" id="selectAll"></th>
-                                    <th>#</th>
-                                    <th>Name</th>
-                                    <td>Email</td>
-                                    <th>Role</th>
-                                    <th>Status</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @foreach ($users as $user)
-                                    <tr>
-                                        <td><input type="checkbox" class="user-checkbox" value="{{ $user->id }}">
-                                        <td>{{ $loop->iteration }}</td>
-                                        <td>
-                                            <div class="d-flex align-items-center file-name-icon">
-                                                <a onclick="viewUserDetail({{ $user->id }})"
-                                                    class="avatar avatar-md
-                                                    border avatar-rounded">
-                                                    <img src="{{ $user->profile_picture ? asset('uploads/profile_pictures/' . $user->profile_picture) : asset('uploads/no.png') }}"
-                                                        class="img-fluid" alt="Profile Picture">
-                                                </a>
-                                                <div class="ms-2">
-                                                    <h6 class="fw-medium"><a
-                                                            onclick="viewUserDetail({{ $user->id }})">{{ $user->first_name }}
-                                                            {{ $user->last_name }}</a>
-                                                    </h6>
-                                                    <span
-                                                        class="fs-10
-                                                            fw-normal "><i
-                                                            class="ti ti-phone"></i>&nbsp;{{ $user->phone_number }}&nbsp;<a
-                                                            href="#"><i class="ti ti-external-link"></i></a></span>
-
-
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            {{ $user->email }}
-                                        </td>
-                                        <td>
-                                            @if (!empty($user->getRoleNames()))
-                                                @foreach ($user->getRoleNames() as $rolename)
-                                                    <label class="badge bg-primary mx-1">{{ $rolename }}</label>
-                                                @endforeach
-                                            @endif
-                                        </td>
-                                        <td>
-                                            {{ $user->status }}
-                                        </td>
-                                        <td>
-                                            <div class="action-icon d-inline-flex">
-                                                <button class="sites_action-btn"
-                                                    onclick="viewLogs({{ $user->id }})">Logs</button>
-                                                <a href="#" class="me-2"
-                                                    onclick="viewUserDetail({{ $user->id }})"><i
-                                                        class="ti ti-eye"></i></a>
-                                                <a onclick="editUser({{ $user->id }})" class="me-2"><i
-                                                        class="ti ti-edit"></i></a>
-                                                <a href="javascript:void(0);" onclick="deleteUser({{ $user->id }})"><i
-                                                        class="ti ti-trash"></i></a>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            </tbody>
-                        </table>
-
+                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
                     </div>
                 </div>
-            </div>
-            <div class="card-footer d-flex justify-content-center">
-                {{ $users->links('vendor.pagination.bootstrap-5') }}
             </div>
         </div>
 
@@ -217,14 +127,14 @@
                                                 <span class="text-danger form-error" id="error_last_name"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        {{--<div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Username <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="username" class="form-control">
                                                 <span class="text-danger form-error" id="error_username"></span>
                                             </div>
-                                        </div>
+                                        </div>--}}
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Email<span class="text-danger"> *</span></label>
@@ -255,7 +165,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Phone Number <span
                                                         class="text-danger">*</span></label>
@@ -263,7 +173,7 @@
                                                 <span class="text-danger form-error" id="error_phone_number"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Status</label>
                                                 <select name="status" class="form-control">
@@ -273,7 +183,7 @@
                                                 <span class="text-danger form-error" id="error_status"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Roles</label>
                                                 <select name="roles[]" class="form-control">
@@ -363,7 +273,7 @@
                                                 <span class="text-danger form-error" id="error_last_name"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        {{--<div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Username <span class="text-danger">
                                                         *</span></label>
@@ -371,7 +281,7 @@
                                                     class="form-control">
                                                 <span class="text-danger form-error" id="error_username"></span>
                                             </div>
-                                        </div>
+                                        </div>--}}
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Email<span class="text-danger"> *</span></label>
@@ -403,7 +313,7 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Phone Number <span class="text-danger">
                                                         *</span></label>
@@ -412,7 +322,7 @@
                                                 <span class="text-danger form-error" id="error_phone_number"></span>
                                             </div>
                                         </div>
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Status</label>
                                                 <select name="status" id="status" class="form-control">
@@ -423,7 +333,7 @@
                                             </div>
                                         </div>
 
-                                        <div class="col-md-4">
+                                        <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Roles</label>
                                                 <select name="roles[]" id="roles" class="form-control">
@@ -451,32 +361,6 @@
             </div>
         </div>
         <!-- /Edit Client -->
-        <!-- Add User Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ route('users.index') }}" class="btn btn-dark w-100">Back to
-                                            List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- End user suscces -->
 
         <!-- Delete Modal -->
         <div class="modal fade" id="delete_modal">
@@ -611,24 +495,6 @@
 @section('scripts')
     <!-- ✅ Image Preview Script -->
     <script>
-        // Client search functionality
-        $('.search_box').on('keyup', function() {
-            let searchText = $(this).val().toLowerCase();
-
-            $('.datatable tbody tr').each(function() {
-                let rowText = $(this).text().toLowerCase();
-                if (rowText.indexOf(searchText) > -1) {
-                    $(this).show();
-                } else {
-                    $(this).hide();
-                }
-            });
-        });
-
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.site-checkbox').prop('checked', $(this).prop('checked'));
-        });
         document.getElementById('profile_picture_input').addEventListener('change', function(e) {
             const file = e.target.files[0];
             const preview = document.getElementById('profile_preview');
@@ -667,9 +533,9 @@
                     },
                     success: function(response) {
                         $('#add_user_form')[0].reset();
-                        $('#add_user').modal('hide');
-                        $('#success_modal').modal('show'); // or show a toast
-                        // console.log('User saved successfully');
+                        closeBsModal('#add_user');
+                        toast_success('User Added Successfully');
+                        reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -679,7 +545,7 @@
                                 $('#error_' + key).text(value[0]);
                             });
                         } else {
-                            alert('An error occurred. Please try again.');
+                            toast_danger('An error occurred. Please try again.');
                         }
                     },
                     complete: function() {
@@ -707,10 +573,9 @@
                         'X-HTTP-Method-Override': 'PUT' // simulate PUT for Laravel
                     },
                     success: function(response) {
-                        $('#edit_user').modal('hide');
-                        $('#success_message').html('User updated successfully!');
-                        $('#success_modal').modal('show');
-                        // Optionally refresh data here
+                        closeBsModal('#edit_user');
+                        toast_success('User updated successfully!');
+                        reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
                         $('.form-error').text(''); // Clear old errors
@@ -719,7 +584,7 @@
                                 $(`#error_${key}`).text(value[0]);
                             });
                         } else {
-                            alert('An unexpected error occurred.');
+                            toast_danger('An unexpected error occurred.');
                         }
                     },
                     complete: function() {
@@ -737,7 +602,7 @@
                     $('#first_name').val(data.user.first_name);
                     $('#last_name').val(data.user.last_name);
                     $('#email').val(data.user.email);
-                    $('#username').val(data.user.username);
+                    // $('#username').val(data.user.username);
                     $('#phone_number').val(data.user.phone_number);
                     $('#status').val(data.user.status);
                     $('#roles').val(Object.values(data.userRoles)).trigger('change');
@@ -762,14 +627,13 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
-
-                        $('#success_message').html('User Deleted Successfully');
-                        $('#success_modal').modal('show');
+                        closeBsModal('#delete_modal');
+                        toast_success('User deleted successfully!');
+                        reloadDatatable('#users-table');
                     },
                     error: function(xhr) {
-                        $('#delete_modal').modal('hide');
-                        alert('Something went wrong. Please try again.');
+                        closeBsModal('#delete_modal');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
@@ -777,12 +641,12 @@
 
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.user-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one user to delete.');
+                toast_danger('Please select at least one user to delete.');
                 return;
             }
 
@@ -796,47 +660,17 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    $('#success_message').text('Selected users deleted successfully!');
-                    $('#success_modal').modal('show');
+                    toast_success('Selected users deleted successfully!');
+                    reloadDatatable('#users-table');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
     </script>
 
     <script>
-        // Sidebar Menu
-        $('.submenu > a').click(function(e) {
-            e.preventDefault();
-            var $this = $(this);
-            var $submenu = $this.next('ul');
-
-            if (!$this.hasClass('subdrop')) {
-                $('.submenu > a').removeClass('subdrop');
-                $('.submenu ul').slideUp(200);
-                $this.addClass('subdrop');
-                $submenu.slideDown(200);
-            } else {
-                $this.removeClass('subdrop');
-                $submenu.slideUp(200);
-            }
-        });
-
-        var currentPage = window.location.pathname.split("/").pop();
-        $('#sidebar-menu a').each(function() {
-            var linkPage = $(this).attr('href');
-            if (linkPage === currentPage) {
-                $(this).addClass('active');
-                var $submenu = $(this).closest('.submenu');
-                if ($submenu.length) {
-                    $submenu.find('> a').addClass('subdrop');
-                    $submenu.find('ul').slideDown(0).css('display', 'block');
-                }
-            }
-        });
-
         function viewLogs(userId) {
             // Clear existing content
             const modalBody = document.querySelector('#logModal .modal-body');
@@ -890,8 +724,9 @@
 
                 new bootstrap.Modal(document.getElementById('viewUserDetailModal')).show();
             }).fail(function() {
-                alert('Failed to fetch user details.');
+                toast_danger('Failed to fetch user details.');
             });
         }
     </script>
+    {!! $dataTable->scripts() !!}
 @endsection

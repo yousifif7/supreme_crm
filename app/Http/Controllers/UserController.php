@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\UsersDataTable;
 use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Invoice;
@@ -75,11 +76,10 @@ class UserController extends Controller
         return view('dashboard', compact('clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));
     }
 
-    public function index()
+    public function index(UsersDataTable $dataTable)
     {
-        $users = User::paginate(10);
         $roles = Role::pluck('name', 'name')->all();
-        return view('user_management.users', ['users' => $users, 'roles' => $roles]);
+        return $dataTable->render('user_management.users', compact('roles'));
     }
 
     public function create()
@@ -93,7 +93,7 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'username' => 'required|string|unique:users,username',
+            // 'username' => 'required|string|unique:users,username',
             'email' => 'required|email:dns|unique:users,email',
             'password' => 'required|confirmed',
             'phone_number' => 'nullable|string|max:20',
@@ -112,6 +112,7 @@ class UserController extends Controller
 
         $validated = $validator->validated();
         $validated['password'] = Hash::make($validated['password']);
+        $validated['username'] = $validated['email'];
 
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
@@ -153,7 +154,7 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            'username' => 'required|string|unique:users,username,' . $id,
+            // 'username' => 'required|string|unique:users,username,' . $id,
             'email' => 'required|email:dns|unique:users,email,' . $id,
             'password' => 'nullable|confirmed',
             'phone_number' => 'nullable|string|max:20',
@@ -171,7 +172,8 @@ class UserController extends Controller
         }
 
         $validated = $validator->validated();
-
+        $validated['username'] = $validated['email'];
+        
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
@@ -202,9 +204,12 @@ class UserController extends Controller
 
     public function destroy($userId)
     {
+        // \Log::info("Destroy called for user: " . $userId);
         $user = User::findOrFail($userId);
-        $user->delete();
+        $user->forceDelete();
 
+        // $stillExists = User::find($userId);
+        // \Log::info('Still exists after delete? ' . ($stillExists ? 'YES' : 'NO'));
         return response()->json(['success' => true]);
     }
     public function bulkDelete(Request $request)

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\EmployeesDataTable;
 use App\Models\Department;
 use App\Models\Employee;
 use App\Models\EmployeeType;
@@ -17,14 +18,14 @@ use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
-    public function index()
+    public function index(EmployeesDataTable $dataTable)
     {
-        $employees = Employee::orderBy('id', 'desc')->paginate(15);
         $departments = Department::all();
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
         $licenses = License::all();
-        return view('employees.index', compact('employees', 'departments', 'visa_types', 'employee_types', 'licenses'));
+
+        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses'));
     }
 
     public function store(Request $request)
@@ -33,43 +34,43 @@ class EmployeeController extends Controller
             'status' => 'required|string',
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'required|email:dns|max:255',
-            'gender' => 'required|string',
-            'ni_number' => 'required|string',
-            'sia_licence' => 'required|string',
-            'sia_expiry' => 'required',
-            'licence_type' => 'required|string',
-            'entry_date' => 'required',
-            'dob' => 'required',
+            'email' => 'required|email:dns|max:255|unique:users,email',
+            'gender' => 'nullable|string',
+            'ni_number' => 'nullable|string',
+            'sia_licence' => 'nullable|string',
+            'sia_expiry' => 'nullable',
+            'licence_type' => 'nullable|string',
+            'entry_date' => 'nullable',
+            'dob' => 'nullable',
             'service_type' => 'nullable',
-            'visa_type' => 'required',
-            'visa_expiry' => 'required',
-            'place_work' => 'required',
-            'hour_per_week' => 'required',
-            'passport_no' => 'required',
-            'passport_expiry' => 'required',
+            'visa_type' => 'nullable',
+            'visa_expiry' => 'nullable',
+            'place_work' => 'nullable',
+            'hour_per_week' => 'nullable',
+            'passport_no' => 'nullable',
+            'passport_expiry' => 'nullable',
             'address_group' => 'nullable',
             'address_group_additional' => 'nullable',
             'contact' => 'nullable',
             'emergency_contact' => 'nullable',
             'job_title' => 'nullable',
             'nationality' => 'nullable',
-            'pin' => 'required',
+            'pin' => 'nullable',
             'reference_to_emp' => 'nullable',
             'relation_with_kin' => 'nullable',
             'kin_address' => 'nullable',
             'kin_number' => 'nullable',
             'kin_work_tel' => 'nullable',
             'kin_mobile' => 'nullable',
-            'share_code' => 'required',
-            'share_code_expiry' => 'required',
+            'share_code' => 'nullable',
+            'share_code_expiry' => 'nullable',
             'settlement' => 'nullable',
             'biometric_residence_permit' => 'nullable',
             'biometric_residence_permit_expiry' => 'nullable',
             'brp_status' => 'nullable',
             'gourd_rate' => 'nullable|numeric',
             'department_id' => 'nullable',
-            'subcontractor' => 'required',
+            'subcontractor' => 'nullable',
             'tags' => 'nullable',
             'additional_sia_number' => 'nullable',
             'license_expiry' => 'nullable',
@@ -83,12 +84,12 @@ class EmployeeController extends Controller
             'shoe' => 'nullable',
             'inseam' => 'nullable',
             'signature' => 'nullable|file',
-            'sia_licence' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'passport' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'proof_of_address' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'ni_letter' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'first_aid_certificate' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'act_certificate' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
             'fixed_pay' => 'nullable',
@@ -110,7 +111,9 @@ class EmployeeController extends Controller
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
-            'username'        => 'required|email',          // Assuming username is email for user
+            // 'username' => 'required|email|unique:users,username',
+
+            // 'username'        => 'required|email',          // Assuming username is email for user
             'password'        => 'required|string|min:6',   // Add password validation
         ]);
 
@@ -139,7 +142,7 @@ class EmployeeController extends Controller
             $data['signature'] = $fileName;
         }
 
-        $documents = ['sia_licence', 'passport', 'proof_of_address', 'ni_letter', 'first_aid_certificate', 'act_certificate'];
+        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
         foreach($documents as $document)
         {
             if ($request->hasFile($document)) {
@@ -155,8 +158,8 @@ class EmployeeController extends Controller
             'name' => $data['fore_name'],
             'first_name' => $data['fore_name'],
             'last_name' => '',
-            'username' => $data['sur_name'],
-            'email' => $data['username'],
+            'username' => $data['email'],
+            'email' => $data['email'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -169,7 +172,8 @@ class EmployeeController extends Controller
 
         // Prepare employee data by excluding user-related fields
         $employeeData = $data;
-        unset($employeeData['username'], $employeeData['password']);
+        // unset($employeeData['username'], $employeeData['password']);
+        unset($employeeData['password']);
 
         // Save employee
         $employee = Employee::create($employeeData);
@@ -205,42 +209,42 @@ class EmployeeController extends Controller
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
             'email' => 'required|email:dns|max:255',
-            'gender' => 'required|string',
-            'ni_number' => 'required|string',
-            'sia_licence' => 'required|string',
-            'sia_expiry' => 'required',
-            'licence_type' => 'required|string',
-            'entry_date' => 'required',
-            'dob' => 'required',
+            'gender' => 'nullable|string',
+            'ni_number' => 'nullable|string',
+            'sia_licence' => 'nullable|string',
+            'sia_expiry' => 'nullable',
+            'licence_type' => 'nullable|string',
+            'entry_date' => 'nullable',
+            'dob' => 'nullable',
             'service_type' => 'nullable',
-            'visa_type' => 'required',
-            'visa_expiry' => 'required',
-            'place_work' => 'required',
-            'hour_per_week' => 'required',
-            'passport_no' => 'required',
-            'passport_expiry' => 'required',
+            'visa_type' => 'nullable',
+            'visa_expiry' => 'nullable',
+            'place_work' => 'nullable',
+            'hour_per_week' => 'nullable',
+            'passport_no' => 'nullable',
+            'passport_expiry' => 'nullable',
             'address_group' => 'nullable',
             'address_group_additional' => 'nullable',
             'contact' => 'nullable',
             'emergency_contact' => 'nullable',
             'job_title' => 'nullable',
             'nationality' => 'nullable',
-            'pin' => 'required',
+            'pin' => 'nullable',
             'reference_to_emp' => 'nullable',
             'relation_with_kin' => 'nullable',
             'kin_address' => 'nullable',
             'kin_number' => 'nullable',
             'kin_work_tel' => 'nullable',
             'kin_mobile' => 'nullable',
-            'share_code' => 'required',
-            'share_code_expiry' => 'required',
+            'share_code' => 'nullable',
+            'share_code_expiry' => 'nullable',
             'settlement' => 'nullable',
             'biometric_residence_permit' => 'nullable',
             'biometric_residence_permit_expiry' => 'nullable',
             'brp_status' => 'nullable',
             'gourd_rate' => 'nullable|numeric',
             'department_id' => 'nullable',
-            'subcontractor' => 'required',
+            'subcontractor' => 'nullable',
             'tags' => 'nullable',
             'additional_sia_number' => 'nullable',
             'license_expiry' => 'nullable',
@@ -254,12 +258,12 @@ class EmployeeController extends Controller
             'shoe' => 'nullable',
             'inseam' => 'nullable',
             'signature' => 'nullable|file',
-            'sia_licence' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'passport' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'proof_of_address' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'ni_letter' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'first_aid_certificate' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'act_certificate' => 'required|file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
 
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
@@ -309,7 +313,7 @@ class EmployeeController extends Controller
             $data['signature'] = $fileName;
         }
 
-        $documents = ['sia_licence', 'passport', 'proof_of_address', 'ni_letter', 'first_aid_certificate', 'act_certificate'];
+        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
         foreach($documents as $document)
         {
             if ($request->hasFile($document)) {

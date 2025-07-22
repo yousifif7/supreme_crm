@@ -49,25 +49,9 @@
                             <i class="ti ti-search"></i>
                         </span>
                         <input type="text" class="form-control search_box" placeholder="Search...">
-
-
                         <!-- /Search -->
-
-
                     </div>
-                    <div class="sort-box">
-                        <select name="" id="" class="form-control">
-                            <option value="" hidden>Sort permission</option>
-                            <option value="">All</option>
-                            <option value="">Coordinators</option>
-                            <option value="">Archieved</option>
-                        </select>
-                        <i class="ti ti-chevron-down"></i>
-                    </div>
-
                 </div>
-
-
             </div>
 
             <div class="card">
@@ -84,7 +68,7 @@
                             <tbody>
                                 @foreach ($permissions as $permission)
                                     <tr>
-                                        <td><input type="checkbox" class="permission-checkbox"
+                                        <td><input type="checkbox" class="dT-row-checkbox"
                                                 value="{{ $permission->id }}"></td>
                                         <td>{{ $permission->name }}</td>
                                         <td>
@@ -212,13 +196,13 @@
                 type: 'POST',
                 data: form.serialize(),
                 success: function(response) {
-                    $('#add_permission').modal('hide');
+                    closeBsModal('#add_permission');
                     $('#success_message').text('Permission created successfully');
                     $('#success_modal').modal('show');
                     form[0].reset();
                 },
                 error: function(xhr) {
-                    alert('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
+                    toast_danger('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
                 },
                 complete: () => btn.prop('disabled', false).text('Save')
             });
@@ -246,12 +230,12 @@
                     'X-HTTP-Method-Override': 'PUT'
                 },
                 success: function(response) {
-                    $('#edit_permission_modal').modal('hide');
+                    closeBsModal('#edit_permission_modal');
                     $('#success_message').text('Permission updated successfully');
                     $('#success_modal').modal('show');
                 },
                 error: function(xhr) {
-                    alert('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
+                    toast_danger('Error: ' + xhr.responseJSON?.message ?? 'Something went wrong.');
                 },
                 complete: () => btn.prop('disabled', false).text('Update')
             });
@@ -273,30 +257,25 @@
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
                     },
                     success: function(response) {
-                        $('#delete_modal').modal('hide');
+                        closeBsModal('#delete_modal');
                         $('#success_message').html('Permission deleted successfully!');
                         $('#success_modal').modal('show');
                     },
                     error: function() {
-                        $('#delete_modal').modal('hide');
-                        alert('Something went wrong. Please try again.');
+                        closeBsModal('#delete_modal');
+                        toast_danger('Something went wrong. Please try again.');
                     }
                 });
             }
         });
-        // Select All toggle
-        $('#selectAll').on('change', function() {
-            $('.permission-checkbox').prop('checked', $(this).prop('checked'));
-        });
-
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.permission-checkbox:checked').map(function() {
+            const selected = $('.dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
             if (selected.length === 0) {
-                alert('Please select at least one permission to delete.');
+                toast_danger('Please select at least one permission to delete.');
                 return;
             }
 
@@ -314,40 +293,9 @@
                     $('#success_modal').modal('show');
                 },
                 error: function() {
-                    alert('Something went wrong during bulk delete.');
+                    toast_danger('Something went wrong during bulk delete.');
                 }
             });
-        });
-    </script>
-    <script>
-        // Sidebar Menu
-        $('.submenu > a').click(function(e) {
-            e.preventDefault();
-            var $this = $(this);
-            var $submenu = $this.next('ul');
-
-            if (!$this.hasClass('subdrop')) {
-                $('.submenu > a').removeClass('subdrop');
-                $('.submenu ul').slideUp(200);
-                $this.addClass('subdrop');
-                $submenu.slideDown(200);
-            } else {
-                $this.removeClass('subdrop');
-                $submenu.slideUp(200);
-            }
-        });
-
-        var currentPage = window.location.pathname.split("/").pop();
-        $('#sidebar-menu a').each(function() {
-            var linkPage = $(this).attr('href');
-            if (linkPage === currentPage) {
-                $(this).addClass('active');
-                var $submenu = $(this).closest('.submenu');
-                if ($submenu.length) {
-                    $submenu.find('> a').addClass('subdrop');
-                    $submenu.find('ul').slideDown(0).css('display', 'block');
-                }
-            }
         });
     </script>
 @endsection

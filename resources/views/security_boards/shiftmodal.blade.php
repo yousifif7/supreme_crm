@@ -28,7 +28,7 @@
                                                             {{ $client->client_name }}</option>
                                                     @endforeach
                                                 </select>
-                                                <span class="text-danger form-error" id="error_client_id"></span>
+                                                <span class="text-danger form-error error_client_id"></span>
                                             </div>
                                         </div>
 
@@ -36,14 +36,14 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Site <span
                                                         class="text-danger">*</span></label>
-                                                <select name="site_id[]" class="form-select">
+                                                <select name="site_id[]" class="form-select" id="siteSelect">
                                                     <option value="">--choose--</option>
-                                                    @foreach ($sites as $site)
+                                                    {{--@foreach ($sites as $site)
                                                         <option value="{{ $site->id }}">
                                                             {{ $site->site_name }}</option>
-                                                    @endforeach
+                                                    @endforeach--}}
                                                 </select>
-                                                <span class="text-danger form-error" id="error_site_id"></span>
+                                                <span class="text-danger form-error error_site_id"></span>
                                             </div>
                                         </div>
 
@@ -53,7 +53,7 @@
                                                 <select name="company_id[]" class="form-select">
                                                     <option value="">--choose--</option>
                                                 </select>
-                                                <span class="text-danger form-error" id="error_company_id"></span>
+                                                <span class="text-danger form-error error_company_id"></span>
                                             </div>
                                         </div>
 
@@ -63,7 +63,7 @@
                                                         class="text-danger">*</span></label>
                                                 <input type="time" name="start_shift[]" class="form-control">
 
-                                                <span class="text-danger form-error" id="error_start_shift"></span>
+                                                <span class="text-danger form-error error_start_shift"></span>
                                             </div>
                                         </div>
 
@@ -71,7 +71,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">End <span class="text-danger">*</span></label>
                                                 <input type="time" name="end_shift[]" class="form-control">
-                                                <span class="text-danger form-error" id="error_end_shift"></span>
+                                                <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
 
@@ -80,27 +80,25 @@
                                                 <label class="form-label">Break (mins) </label>
                                                 <input type="text" name="break-mins_shift[]"
                                                     class="form-control numeric-input">
-                                                <span class="text-danger form-error" id="error_break-mins_shift"></span>
+                                                <span class="text-danger form-error error_break-mins_shift"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Staff <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Staff</label>
                                                 <input type="text" name="number_shift[]" placeholder="number"
                                                     class="form-control">
-                                                <span class="text-danger form-error" id="error_number_shift"></span>
+                                                <span class="text-danger form-error error_number_shift"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Site rate <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Site rate </label>
                                                 <input type="text" name="site_rate[]" placeholder="$"
                                                     class="form-control numeric-input siteRate">
-                                                <span class="text-danger form-error" id="error_site_rate"></span>
+                                                <span class="text-danger form-error error_site_rate"></span>
                                             </div>
                                         </div>
 
@@ -114,7 +112,7 @@
                                                         </option>
                                                     @endforeach
                                                 </select>
-                                                <span class="text-danger form-error" id="error_service_type_1"></span>
+                                                <span class="text-danger form-error error_service_type_1"></span>
                                             </div>
                                         </div>
 
@@ -123,7 +121,7 @@
                                                 <label class="form-label">From <span
                                                         class="text-danger">*</span></label>
                                                 <input type="date" name="from_shift[]" class="form-control">
-                                                <span class="text-danger form-error" id="error_from_shift"></span>
+                                                <span class="text-danger form-error error_from_shift"></span>
                                             </div>
                                         </div>
 
@@ -132,7 +130,7 @@
                                                 <label class="form-label">To <span
                                                         class="text-danger">*</span></label>
                                                 <input type="date" name="to_shift[]" class="form-control">
-                                                <span class="text-danger form-error" id="error_to_shift"></span>
+                                                <span class="text-danger form-error error_to_shift"></span>
                                             </div>
                                         </div>
 
@@ -141,13 +139,12 @@
                                                 <label class="form-label">Comment </label>
                                                 <input type="text" name="comments[]" placeholder="Comment"
                                                     class="form-control">
-                                                <span class="text-danger form-error" id="error_comments"></span>
+                                                <span class="text-danger form-error error_comments"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-12">
-                                            <label class="form-label">Select Days <span
-                                                    class="text-danger">*</span></label>
+                                            <label class="form-label">Select Days</label>
                                             <div class="day-selector d-flex gap-2 flex-wrap">
                                                 @foreach (['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as $day)
                                                     <div class="day-box" data-day="{{ $day }}">
@@ -156,7 +153,7 @@
                                                 @endforeach
                                             </div>
                                             <input type="hidden" name="days[]" id="selectedDays">
-                                            <span class="text-danger form-error" id="error_days"></span>
+                                            <span class="text-danger form-error error_days"></span>
                                         </div>
 
                                         <div class="col-md-4">
@@ -170,16 +167,16 @@
                                                             {{ $staff->sur_name }}</option>
                                                     @endforeach
                                                 </select>
-                                                <span class="text-danger form-error" id="error_staff_id"></span>
+                                                <span class="text-danger form-error error_staff_id"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Employee Rate</label>
-                                                <input type="text" name="employee_rate[]" readonly placeholder="$"
+                                                <input type="text" name="employee_rate[]" placeholder="$"
                                                     class="form-control numeric-input staffRate">
-                                                <span class="text-danger form-error" id="error_employee_rate"></span>
+                                                <span class="text-danger form-error error_employee_rate"></span>
                                             </div>
                                         </div>
 
@@ -193,7 +190,7 @@
                                                         </option>
                                                     @endforeach
                                                 </select>
-                                                <span class="text-danger form-error" id="error_select_type_2"></span>
+                                                <span class="text-danger form-error error_select_type_2"></span>
                                             </div>
                                         </div>
 
@@ -201,7 +198,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start</label>
                                                 <input type="time" name="start[]" class="form-control">
-                                                <span class="text-danger form-error" id="error_start"></span>
+                                                <span class="text-danger form-error error_start"></span>
                                             </div>
                                         </div>
 
@@ -224,7 +221,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">End </label>
                                                 <input type="time" name="end[]" class="form-control">
-                                                <span class="text-danger form-error" id="error_end"></span>
+                                                <span class="text-danger form-error error_end"></span>
                                             </div>
                                         </div>
 
@@ -233,7 +230,7 @@
                                                 <label class="form-label">PO Number </label>
                                                 <input type="text" name="po_number[]" placeholder="PO Number"
                                                     class="form-control">
-                                                <span class="text-danger form-error" id="error_po_number"></span>
+                                                <span class="text-danger form-error error_po_number"></span>
                                             </div>
                                         </div>
 
@@ -242,7 +239,7 @@
                                                 <label class="form-label">Lost Time </label>
                                                 <input type="text" name="lost_time[]" placeholder="Lost Time"
                                                     class="form-control">
-                                                <span class="text-danger form-error" id="error_lost_time"></span>
+                                                <span class="text-danger form-error error_lost_time"></span>
                                             </div>
                                         </div>
 
@@ -251,7 +248,7 @@
                                                 <label class="form-label">PO Rate </label>
                                                 <input type="text" name="po_rate[]" placeholder="PO Rate"
                                                     class="form-control numeric-input">
-                                                <span class="text-danger form-error" id="error_po_rate"></span>
+                                                <span class="text-danger form-error error_po_rate"></span>
                                             </div>
                                         </div>
 
@@ -261,7 +258,7 @@
                                                 <select class="form-select" name="manager_1_id[]">
                                                     <option value="">--choose--</option>
                                                 </select>
-                                                <span class="text-danger form-error" id="error_manager_1_id"></span>
+                                                <span class="text-danger form-error error_manager_1_id"></span>
                                             </div>
                                         </div>
 
@@ -271,7 +268,7 @@
                                                 <select class="form-select" name="manager_2_id[]">
                                                     <option value="">--choose--</option>
                                                 </select>
-                                                <span class="text-danger form-error" id="error_manager_2_id"></span>
+                                                <span class="text-danger form-error error_manager_2_id"></span>
                                             </div>
                                         </div>
 
@@ -334,3 +331,4 @@
         </div>
     </div>
 </div>
+

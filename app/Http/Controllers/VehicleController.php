@@ -2,16 +2,16 @@
 
 namespace App\Http\Controllers;
 
+use App\DataTables\VehiclesDataTable;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class VehicleController extends Controller
 {
-    public function vehicle_details()
+    public function vehicle_details(VehiclesDataTable $dataTable)
     {
-        $vehicles = Vehicle::paginate(10);
-        return view('vehicle_management/vehicle_detail', compact('vehicles'));
+        return $dataTable->render('vehicle_management/vehicle_detail');
     }
     public function store(Request $request)
     {

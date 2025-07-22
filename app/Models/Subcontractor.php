@@ -31,8 +31,20 @@ class Subcontractor extends Model
     protected $hidden = [
         'password',
     ];
-    public function logs()
+
+    /**
+     * Get the user that owns the subcontractor
+     */
+    public function user()
     {
-        return $this->morphMany(Log::class, 'loggable');
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * Get the username (email from users table)
+     */
+    public function getUsernameAttribute()
+    {
+        return $this->user ? $this->user->email : null;
     }
 }
