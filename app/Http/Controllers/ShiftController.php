@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\ShiftsDataTable;
+use Carbon\Carbon;
+use App\Models\Site;
+use App\Models\User;
+use App\Models\Shift;
 use App\Models\Client;
 use App\Models\Employee;
+use Carbon\CarbonPeriod;
+use App\Models\CheckCall;
+use App\Models\ShiftDate;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
-use App\Models\Shift;
-use App\Models\ShiftDate;
-use App\Models\Site;
-use App\Models\Subcontractor;
-use App\Models\User;
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
+use App\Models\Subcontractor;
+use App\DataTables\ShiftsDataTable;
 use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
@@ -26,9 +27,8 @@ class ShiftController extends Controller
         $staffs = Employee::all();
         $subcontractors = Subcontractor::all();
         $users = User::all();
-        $shfits = Shift::with(['guard','site'])->get();
         $services = EmployeeType::all();
-        return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services', 'shifts'));
+        return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
     }
     public function scheduling()
     {
@@ -346,15 +346,17 @@ class ShiftController extends Controller
                         'shift_id' => $shift->id,
                         'staff_id' => $shift->staff_id ?? null,
                         'shift_date' => $date->format('Y-m-d'),
-                        'start_time' => $data['start_shift'],
-                        'end_time' => $data['end_shift'],
+
+                        // NEW: convert to UTC using Carbon with Europe/London source
+                        'start_time' => Carbon::createFromFormat('H:i', $data['start_shift'], 'Europe/London')->setTimezone('UTC')->format('H:i'),
+                        'end_time'   => Carbon::createFromFormat('H:i', $data['end_shift'], 'Europe/London')->setTimezone('UTC')->format('H:i'),
+
                         'is_assign' => $is_assign,
                         'break_time' => $data['break-mins_shift'] ?? null,
                         'total_hours' => $this->calculateTotalHours(
                             $data['start_shift'],
                             $data['end_shift'],
                         ),
-
                     ]);
                 }
             }
@@ -1067,26 +1069,103 @@ class ShiftController extends Controller
 
     public function filter(Request $request)
     {
-        $query = \App\Models\Shift::query();
-
-        if ($request->filled('guard')) {
-            $query->whereHas('guard', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->guard . '%');
-            });
-        }
+        $query = Shift::query();
 
         if ($request->filled('site')) {
-            $query->whereHas('site', function ($q) use ($request) {
-                $q->where('name', 'like', '%' . $request->site . '%');
+            $query->where('site_id', $request->site);
+        }
+
+        if ($request->filled('staff')) {
+            $query->where('staff_id', $request->staff);
+        }
+
+        if ($request->filled('status')) {
+            $query->where('status', $request->status);
+        }
+
+        if ($request->filled('start_time')) {
+            $query->whereTime('start_time', '>=', $request->start_time);
+        }
+
+        if ($request->filled('end_time')) {
+            $query->whereTime('end_time', '<=', $request->end_time);
+        }
+
+        if ($request->filled('created_at')) {
+            $query->whereDate('created_at', $request->created_at);
+        }
+
+        $shifts = $query->with(['site', 'staff'])->get();
+
+        if ($request->ajax()) {
+            $events = $shifts->map(function ($shift) {
+                return [
+                    'id' => $shift->id,
+                    'title' => optional($shift->staff)->name ?? 'No Staff',
+                    'start' => $shift->start_time ?? $shift->from_shift,
+                    'end' => $shift->end_time ?? null,
+                    'className' => 'bg-dark-blue',
+                    'location' => optional($shift->site)->site_name ?? 'No Site',
+                    'urgent' => false,
+                    'sd_id' => $shift->id
+                ];
             });
+
+            return response()->json(['events' => $events]);
         }
 
-        if ($request->filled('security')) {
-            $query->where('status', $request->security);
-        }
+        // Regular page load fallback (not used for filtering)
+        $sites = Site::all();
+        $staffs = User::all();
 
-        $shifts = $query->latest()->get();
+        return back()->with(compact('shifts', 'sites', 'staffs'));
+    }
 
-        return view('security_boards.partials.shift_table', compact('shifts'))->render();
+    // Update the status of a check call
+    public function updateStatus(Request $request, $id)
+    {
+        $request->validate([
+            'status' => 'required|in:pending,missed,completed', // adjust statuses as needed
+        ]);
+
+        $checkCall = CheckCall::findOrFail($id);
+        $checkCall->status = $request->input('status');
+        $checkCall->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Check call status updated successfully.',
+            'status' => $checkCall->status,
+        ]);
+    }
+
+    // Add a comment to a check call
+    public function addComment(Request $request, $id)
+    {
+        $request->validate([
+            'comment' => 'required|string|max:1000',
+        ]);
+
+        $checkCall = CheckCall::findOrFail($id);
+
+        // Assuming you have a comments relation or a comment column in check_calls table
+        // If you don't have a dedicated comments table, you might want to create one.
+        // For now, I'll assume a "comments" field (JSON or text) or a separate comments model.
+
+        // Example: Append comment to existing comments in JSON format
+        $comment = $checkCall->comment ? json_decode($checkCall->comment, true) : [];
+        $comment[] = [
+            'comment' => $request->input('comment'),
+            'created_at' => now()->toDateTimeString(),
+            // Optionally add user info if you track that
+        ];
+        $checkCall->comment = json_encode($comment);
+        $checkCall->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Comment added successfully.',
+            'comment' => $comment,
+        ]);
     }
 }

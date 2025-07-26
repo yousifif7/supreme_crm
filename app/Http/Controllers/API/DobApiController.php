@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
 use App\Models\DobEntry;
 use App\Models\DobMedia;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -23,8 +25,9 @@ class DobApiController extends Controller
             'timestamp' => 'required|date',
         ]);
 
+        $employee = Auth::user();
         $entry = DobEntry::create([
-            'user_id' => Auth::id(),
+            'user_id' =>$employee->id,
             'shift_id' => $data['shift_id'],
             'entry_type' => $data['entry_type'],
             'title' => $data['title'],
@@ -42,6 +45,13 @@ class DobApiController extends Controller
                 ]);
             }
         }
+        $employee = Employee::find(Auth::id());
+        Notify::toDashboard(
+            $employee->id,
+            'alert',
+            'DOB Uploaded',
+            'DOB uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
+        );
 
         return response()->json([
             'entry_id' => $entry->id,

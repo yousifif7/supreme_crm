@@ -1,6 +1,7 @@
 <?php
 // routes/api.php
 
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ShiftController;
@@ -90,9 +91,12 @@ Route::middleware('auth:sanctum')->group(function () {
 
 //DOB api controller routes
 //Should be authenticated
-Route::post('/dob', [DobApiController::class,'store']);
-Route::get('/dob', [DobApiController::class,'index']);
-Route::put('/dob/{id}', [DobApiController::class,'update']);
+Route::middleware('auth:sanctum')->group(function () {
+    Route::post('/dob', [DobApiController::class,'store']);
+    Route::get('/dob', [DobApiController::class,'index']);
+    Route::put('/dob/{id}', [DobApiController::class,'update']);
+});
+
 
 //Incident Reporting api controller routes
 //Should be authenticated
@@ -147,7 +151,13 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{notification_id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);
+    
 });
+
+// Route::middleware('auth:sanctum')->post('/notifications/mark-all-read', function () {
+//     Notification::where('user_id', auth()->id())->update(['read' => true]);
+//     return response()->json(['message' => 'All marked as read']);
+// });
 
 
 Route::middleware(['auth:sanctum'])->group(function () {

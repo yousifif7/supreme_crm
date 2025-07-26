@@ -44,7 +44,7 @@
             border-top: 1px solid #ccc !important;
         }
     </style>
-     
+
 @endsection
 @section('contents')
     <!-- Page Wrapper -->
@@ -60,14 +60,16 @@
 
             </div>
 
-            @php
-                $shifts = App\Models\Shift::with(['staff','site'])->get();
-            @endphp
-
-            @include('security_boards.shiftfilter')
+            @section('filter')
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+                Filter
+            </button>
+            @include('security_boards.shifts.shift_filter_options')
+            @endsection
             
-            <div id="shiftTableContainer">
-                {{-- @include('security_boards.partials.shifts_table') --}}
+            @include('security_boards.shiftfilter')
+
+            {{-- @include('security_boards.partials.shifts_table') --}}
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
                 <!-- Calendar Sidebar -->
@@ -145,8 +147,6 @@
                 </div>
 
             </div>
-            </div>            
-
             <!-- Calendar View -->
 
             <!-- Add Rota -->
@@ -919,45 +919,35 @@
                 initialView: window.innerWidth < 900 ? 'dayGridDay' : 'dayGridWeek',
                 initialDate: new Date().toISOString().split('T')[0],
                 headerToolbar: headerToolbarOptions,
-
-                // ✅ Load events from Laravel API
                 events: `${baseUrl}/api/shifts`,
 
                 eventContent: function(info) {
                     const event = info.event;
                     const props = event.extendedProps;
-
                     const container = document.createElement('div');
-
-                    // ✅ Fix: use event.classNames[0] instead of props.className
                     const bgClass = event.classNames?.[0] || 'bg-secondary';
 
                     container.className = `_schedule-box-container ${bgClass}`;
                     container.style.marginBottom = '5px';
 
-                    // ✅ Use color map for background
-                    if (colorMap[bgClass]) {
-                        container.style.backgroundColor = colorMap[bgClass];
-                    } else {
-                        container.style.backgroundColor = colorMap['bg-secondary'];
-                    }
+                    container.style.backgroundColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
                     if (props.urgent) container.classList.add('urgent-event');
 
                     container.innerHTML = `
-                        <div class="_schedule-box-row">
-                            <div class="_schedule-box-text _schedule-box-time">
-                                ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - 
-                                ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
-                            </div>
+                    <div class="_schedule-box-row">
+                        <div class="_schedule-box-text _schedule-box-time">
+                            ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
+                            ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </div>
-                        <div class="_schedule-box-row">
-                            <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
-                        </div>
-                        <div class="_schedule-box-row">
-                            <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
-                        </div>
-                    `;
+                    </div>
+                    <div class="_schedule-box-row">
+                        <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
+                    </div>
+                    <div class="_schedule-box-row">
+                        <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
+                    </div>
+                `;
 
                     return {
                         domNodes: [container]
@@ -965,7 +955,6 @@
                 },
 
                 eventClick: function(info) {
-                    // create a button with data-toggle="ajax-modal" in body and click it
                     const button = document.createElement('button');
                     button.setAttribute('data-toggle', 'ajax-modal');
                     button.setAttribute('data-title', 'Rota Detail');
@@ -976,7 +965,6 @@
                     document.body.appendChild(button);
                     button.click();
                 }
-
             });
 
             function updateCalendarView() {
@@ -993,23 +981,16 @@
 
             $('#calendarSearch').on('input', function() {
                 const searchText = $(this).val().toLowerCase();
-
                 calendar.batchRendering(() => {
                     calendar.getEvents().forEach(event => {
                         const matches = event.title.toLowerCase().includes(searchText) ||
                             (event.extendedProps.location && event.extendedProps.location
                                 .toLowerCase().includes(searchText));
-
-                        if (matches) {
-                            event.setProp('display', 'auto'); // show event
-                        } else {
-                            event.setProp('display', 'none'); // hide event
-                        }
+                        event.setProp('display', matches ? 'auto' : 'none');
                     });
                 });
             });
 
-            // Sidebar calendar
             const sidebarEl = document.querySelector('.datepic');
             if (sidebarEl) {
                 const sidebarCal = document.createElement('div');
@@ -1030,14 +1011,60 @@
                     initialDate: new Date().toISOString().split('T')[0],
                 }).render();
             }
+
+            // UPDATED FILTER HANDLER
+            const form = document.getElementById('shiftFilterForm');
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const formData = new FormData(form);
+
+                fetch("{{ route('shifts.filter') }}", {
+                        method: "POST",
+                        headers: {
+                            'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('Filtered data received:', data); // DEBUG LOG
+
+                        if (!data.events || !Array.isArray(data.events)) {
+                            console.error('No events array found in response');
+                            return;
+                        }
+
+                        calendar.getEvents().forEach(event => event.remove());
+
+                        data.events.forEach(event => {
+                            calendar.addEvent({
+                                id: event.id,
+                                title: event.title,
+                                start: event.start,
+                                end: event.end,
+                                className: event.className || 'bg-secondary',
+                                extendedProps: {
+                                    location: event.location || 'Unknown',
+                                    urgent: event.urgent || false,
+                                    sd_id: event.sd_id || null
+                                }
+                            });
+                        });
+
+                        const modal = bootstrap.Modal.getInstance(document.getElementById(
+                            'filterModal'));
+                        if (modal) modal.hide();
+                    })
+                    .catch(error => console.error('Filtering error:', error));
+            });
         });
     </script>
+
     <script>
         document.querySelectorAll('.numeric-input').forEach(function(input) {
             input.addEventListener('input', function() {
                 this.value = this.value.replace(/[^0-9.]/g, '');
-
-                // Optional: Only allow one decimal point
                 const parts = this.value.split('.');
                 if (parts.length > 2) {
                     this.value = parts[0] + '.' + parts[1];
@@ -1045,15 +1072,14 @@
             });
         });
     </script>
+
     <script type="text/javascript">
         $(document).on("change", "#clientSelect", function() {
             var $this = $(this);
             const clientId = $(this).val();
-
             if (!clientId) return;
 
             var $siteSelect = $('#siteSelect');
-            // Clear current options
             $siteSelect.html('<option value="">--choose--</option>');
 
             $.ajax({
@@ -1062,7 +1088,6 @@
                 dataType: 'json',
                 success: function(data) {
                     $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
-
                     if (data.sites && data.sites.length > 0) {
                         $.each(data.sites, function(index, site) {
                             $siteSelect.append('<option value="' + site.id + '">' + site
@@ -1081,7 +1106,6 @@
         $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);
             const staffId = $(this).val();
-
             if (!staffId) return;
 
             $.ajax({
@@ -1090,7 +1114,7 @@
                 dataType: 'json',
                 success: function(data) {
                     $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
-                    '');
+                        '');
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
@@ -1098,4 +1122,5 @@
             });
         });
     </script>
+
 @endsection

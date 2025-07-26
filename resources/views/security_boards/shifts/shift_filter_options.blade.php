@@ -1,4 +1,14 @@
 <!-- Filter Modal -->
+
+@php
+    $shifts = App\Models\Shift::with(['staff', 'site'])->get();
+    $staffIds = $shifts->pluck('staff_id')->unique();
+    $siteIds = $shifts->pluck('site_id')->unique();
+
+    $staffs = App\Models\User::whereIn('id', $staffIds)->get();
+    $sites = App\Models\Site::whereIn('id', $siteIds)->get();
+@endphp
+
 <!-- Filter Modal -->
 <div class="modal fade" id="filterModal" tabindex="-1" aria-labelledby="filterModalLabel" aria-hidden="true">
     <div class="modal-dialog">
@@ -7,31 +17,54 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="filterModalLabel">Filter Shifts</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close text-danger" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
+
                 <div class="modal-body">
+                    <div class="row">
+                        <!-- Staff -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Staff</label>
+                            <select class="form-select" name="staff">
+                                <option value="">--choose--</option>
+                                @foreach ($staffs as $staff)
+                                    <option value="{{ $staff->id }}">{{ $staff->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
 
-                    <div class="mb-3">
-                        <label for="guard">Guard</label>
-                        <input type="text" name="guard" class="form-control">
+                        <!-- Site -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Site</label>
+                            <select class="form-select" name="site">
+                                <option value="">--choose--</option>
+                                @foreach ($sites as $site)
+                                    <option value="{{ $site->id }}">{{ $site->site_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Start Time -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Start Time</label>
+                            <input type="time" class="form-control" name="start_time">
+                        </div>
+
+                        <!-- End Time -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">End Time</label>
+                            <input type="time" class="form-control" name="end_time">
+                        </div>
+
+                        <!-- Created At -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Date</label>
+                            <input type="date" class="form-control" name="from_shift">
+                        </div>
                     </div>
-
-                    <div class="mb-3">
-                        <label for="site">Site</label>
-                        <input type="text" name="site" class="form-control">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="security">Security Status</label>
-                        <select name="security" class="form-control">
-                            <option value="">-- All --</option>
-                            <option value="on_time">On-time</option>
-                            <option value="late">Late</option>
-                            <option value="missed">Missed</option>
-                        </select>
-                    </div>
-
                 </div>
+
                 <div class="modal-footer">
                     <button type="submit" class="btn btn-primary">Apply Filters</button>
                 </div>
@@ -42,44 +75,59 @@
 
 
 <script>
-    document.getElementById('applyFilters').addEventListener('click', function() {
-        const guard = document.getElementById('filterGuard').value.trim();
-        const site = document.getElementById('filterSite').value.trim();
-        const security = document.getElementById('filterSecurity').value;
-
-        const filters = {
-            guard: guard || null,
-            site: site || null,
-            security: security || null,
-        };
-
-        console.log('Filters applied:', filters);
-
-        // This is where you’d trigger your AJAX/filtering logic (next step if needed)
-
-        document.addEventListener('DOMContentLoaded', function () {
-        const form = document.getElementById('shiftFilterForm');
-
-        form.addEventListener('submit', function (e) {
-            e.preventDefault();
-
-            const formData = new FormData(form);
-
-            fetch("{{ route('shifts.filter') }}", {
-                method: "POST",
-                headers: {
-                    'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value,
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: formData
-            })
-                .then(response => response.text())
-                .then(html => {
-                    document.getElementById('shiftTableContainer').innerHTML = html;
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
-                    modal.hide();
-                })
-                .catch(error => console.error('Filtering error:', error));
-        });
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Select2
+    $('.select2').select2({
+        dropdownParent: $('#filterModal'),
+        placeholder: 'Select an option',
+        allowClear: true
     });
+
+    // Form Submit Handling
+    const form = document.getElementById('shiftFilterForm');
+    form.addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const formData = new FormData(form);
+
+        fetch("{{ route('shifts.filter') }}", {
+            method: "POST",
+            headers: {
+                'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (Array.isArray(data.events)) {
+                // Clear existing events from the FullCalendar instance
+                calendar.getEvents().forEach(event => event.remove());
+
+                // Add new events from the filtered result
+                data.events.forEach(event => {
+                    calendar.addEvent({
+                        id: event.id,
+                        title: event.title,
+                        start: event.start,
+                        end: event.end,
+                        className: event.className,
+                        extendedProps: {
+                            location: event.location,
+                            urgent: event.urgent,
+                            sd_id: event.sd_id
+                        }
+                    });
+                });
+
+                // Close modal
+                bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
+            } else {
+                console.error("Invalid response format: ", data);
+            }
+        })
+        .catch(error => console.error('Filtering error:', error));
+    });
+});
+
 </script>

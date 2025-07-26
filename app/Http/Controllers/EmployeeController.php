@@ -143,12 +143,11 @@ class EmployeeController extends Controller
         }
 
         $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
-        foreach($documents as $document)
-        {
+        foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
-                $fileName = time() . '_'.$document.'.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/'.$document), $fileName);
+                $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
             }
         }
@@ -314,12 +313,11 @@ class EmployeeController extends Controller
         }
 
         $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
-        foreach($documents as $document)
-        {
+        foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
-                $fileName = time() . '_'.$document.'.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/'.$document), $fileName);
+                $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
+                $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
             }
         }
@@ -438,6 +436,12 @@ class EmployeeController extends Controller
             'account_name'    => $employee->account_name,
             'account_number'  => $employee->account_number,
             'other_info'      => $employee->other_info,
+            'sia_licence_file' => $employee->sia_licence_file,
+            'passport_file' => $employee->passport_file,
+            'proof_of_address_file' => $employee->proof_of_address_file,
+            'ni_letter_file' => $employee->ni_letter_file,
+            'first_aid_certificate_file' => $employee->first_aid_certificate_file,
+            'act_certificate_file' => $employee->act_certificate_file,
         ]);
     }
     public function print($id)
@@ -471,6 +475,12 @@ class EmployeeController extends Controller
             'account_name'    => $employee->account_name,
             'account_number'  => $employee->account_number,
             'other_info'      => $employee->other_info,
+            'sia_licence_file' => $employee->sia_licence_file,
+            'passport_file' => $employee->passport_file,
+            'proof_of_address_file' => $employee->proof_of_address_file,
+            'ni_letter_file' => $employee->ni_letter_file,
+            'first_aid_certificate_file' => $employee->first_aid_certificate_file,
+            'act_certificate_file' => $employee->act_certificate_file,
         ]);
     }
 }

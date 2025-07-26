@@ -147,4 +147,35 @@ class Employee extends Model
             return '/uploads/no.png';
         }
     }
+
+    public function shifts()
+    {
+        return $this->hasMany(Shift::class, 'staff_id');
+    }
+
+    public function book()
+    {
+        return $this->hasMany(BookingAlarm::class, 'staff_id');
+    }
+
+    public function documents()
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function checkcalls()
+    {
+        return $this->hasMany(CheckCall::class);
+    }
+
+    
+    public function dobEntries()
+    {
+        return $this->hasMany(DobEntry::class);
+    }
+
+    public function leaveRequests()
+    {
+        return $this->hasMany(LeaveRequest::class);
+    }
 }

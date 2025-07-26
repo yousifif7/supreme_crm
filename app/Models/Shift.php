@@ -21,7 +21,7 @@ class Shift extends Model
     }
     public function staff()
     {
-        return $this->belongsTo(Employee::class); // or Employee::class based on your DB
+        return $this->belongsTo(Employee::class, 'staff_id');
     }
     public function subcontractor()
     {
@@ -36,4 +36,6 @@ class Shift extends Model
     {
         return $this->hasMany(ShiftCheckpoint::class);
     }
+
+
 }

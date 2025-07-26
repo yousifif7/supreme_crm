@@ -7,11 +7,11 @@ use Illuminate\Database\Eloquent\Model;
 class DeviceToken extends Model
 {
     protected $fillable = [
-        'user_id', 'push_token', 'platform'
+        'employee_id', 'push_token', 'platform'
     ];
 
-    public function user()
+    public function employee()
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Employee::class);
     }
 }

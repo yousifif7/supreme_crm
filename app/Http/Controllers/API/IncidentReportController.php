@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
+use App\Models\Employee;
 use Illuminate\Http\Request;
 use App\Models\IncidentMedia;
 use App\Models\IncidentPerson;
@@ -73,6 +75,14 @@ class IncidentReportController extends Controller
                 'description' => $person['description'] ?? null,
             ]);
         }
+
+        $employee = Employee::find(Auth::id());
+        Notify::toDashboard(
+            $employee->id,
+            'alert',
+            'Incident report',
+            'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name. ' In shift NO. #'. $request->shift_id,
+        );
 
         return response()->json([
             'message' => 'Incident report created',

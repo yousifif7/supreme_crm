@@ -9,11 +9,16 @@ class CheckCall extends Model
     //
     
     protected $fillable = [
-        'shift_id', 'scheduled_time', 'status', 'method',
+        'shift_id', 'scheduled_time', 'status', 'method','employee_id'
     ];
 
     public function shift()
     {
         return $this->belongsTo(Shift::class);
+    }
+
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class);
     }
 }

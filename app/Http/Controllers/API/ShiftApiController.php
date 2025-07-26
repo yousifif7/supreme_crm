@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
 use App\Models\Shift;
 use App\Models\Patrol;
+use App\Models\Employee;
 use App\Models\BookingAlarm;
 use App\Models\LeaveRequest;
+use App\Models\Notification;
 use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
 use App\Models\PatrolCheckpoint;
@@ -95,6 +98,15 @@ class ShiftApiController extends Controller
             'type' => $request->type,
             'status' => 'pending',
         ]);
+
+        $employee = Employee::find(Auth::id());
+        Notify::toDashboard(
+            $employee->id,
+            'alert',
+            'Leave Request',
+            'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
+        );
+
 
         return response()->json([
             'message' => 'Leave request submitted',
@@ -189,6 +201,14 @@ class ShiftApiController extends Controller
 
     public function bookOn(Request $request, $shift_id)
     {
+        Notification::create([
+            'user_id' => Auth::id(),
+            'employee_id' => $request->user()->id,
+            'type' => 'alert',
+            'title' => 'Shift booked on',
+            'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'read' => false,
+        ]);
         return $this->bookOnOff($request, $shift_id, 'book_on');
     }
 

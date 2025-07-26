@@ -1,26 +1,29 @@
 <?php
 
-use App\Http\Controllers\AlertReminderController;
-use App\Http\Controllers\ClientController;
-use App\Http\Controllers\DocumentationUploadController;
-use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\ExportController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\ShiftController;
-use App\Http\Controllers\SiteController;
-use App\Http\Controllers\SubContractorController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\EmployeeLeaveController;
-use App\Http\Controllers\VehicleComplianceController;
-use App\Http\Controllers\VehicleController;
-use App\Http\Controllers\VehicleMaintenanceController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\PayrollController;
+use App\Models\BookingAlarm;
+use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SiteController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\ExportController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\AlertReminderController;
+use App\Http\Controllers\EmployeeLeaveController;
+use App\Http\Controllers\SubContractorController;
+use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\VehicleComplianceController;
+use App\Http\Controllers\VehicleMaintenanceController;
+use App\Http\Controllers\DocumentationUploadController;
+use App\Http\Controllers\RoadworthinessCheckController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -139,8 +142,11 @@ Route::middleware('auth')->group(function () {
     Route::get('/api/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
     Route::get('/api/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);
     Route::get('/api/shifts-today', [ShiftController::class, 'getTodayShifts']);
-Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
+    Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
+    Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
+    Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
 
+    Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');
 
     Route::post('/shift/bookon/store', [ShiftController::class, 'storeBookon'])->name('shift.bookon.store');
     Route::post('/shift/bookoff/store', [ShiftController::class, 'storeBookoff'])->name('shift.bookoff.store');
@@ -284,4 +290,19 @@ Route::get('/shifts/export/pdf', [ExportController::class, 'exportShiftPdf'])->n
 Route::post('/shifts/import', [ExportController::class, 'importShiftExcel'])->name('shifts.import');
 Route::group(['middleware' => ['role:superadmin|user']], function () {});
 
+// notifications
+Route::middleware('auth')->group(function () {
+    Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+    Route::post('/notifications/mark-selected-read', [NotificationController::class, 'markSelectedRead']);
+});
+
+
 require __DIR__ . '/auth.php';
+
+// Route::get('/test-read-update', function () {
+//     Notification::where('user_id', Auth::id())
+//         ->where('read', false)
+//         ->update(['read' => true]);
+
+//     return 'done';
+// });

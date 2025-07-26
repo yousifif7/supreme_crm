@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
@@ -7,8 +8,11 @@
     <meta name="keywords" content="admin, estimates, bootstrap, business, html5, responsive, Projects">
     <meta name="author" content="Dreams technologies - Bootstrap Admin Template">
     <meta name="robots" content="noindex, nofollow">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title')</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"
+        integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ=="
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     @vite(['resources/sass/app.scss', 'resources/js/app.js', 'resources/js/custom/toastr-helpers.js', 'resources/js/custom/ajax.js'])
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
 
@@ -53,6 +57,43 @@
     </script>
     @yield('styles')
 </head>
+<style>
+    .notif-item {
+        padding: 10px;
+        margin-bottom: 10px;
+        border-bottom: 1px solid #ccc;
+        transition: background-color 0.2s;
+    }
+
+    .notif-item.unread {
+        background-color: #e8f1ff;
+        border-left: 4px solid #0d6efd;
+        font-weight: bold;
+    }
+
+    .notif-item.read {
+        background-color: #ffffff;
+        color: #6c757d;
+    }
+
+    #notif-list {
+        scrollbar-width: thin;
+        scrollbar-color: #0d6efd #f1f1f1;
+    }
+
+    #notif-list::-webkit-scrollbar {
+        width: 6px;
+    }
+
+    #notif-list::-webkit-scrollbar-thumb {
+        background-color: #0d6efd;
+        border-radius: 3px;
+    }
+
+    #notif-list::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+</style>
 
 <body style="font-size: 12px !important">
     <div id="global-loader" style="display: none;">
@@ -91,143 +132,101 @@
                                 <i class="ti ti-arrow-bar-to-left"></i>
                             </a>
                             <!-- Search -->
-                            {{--<div class="input-group input-group-flat d-inline-flex me-1">
+                            {{-- <div class="input-group input-group-flat d-inline-flex me-1">
                                 <span class="input-icon-addon">
                                     <i class="ti ti-search"></i>
                                 </span>
                                 <input type="text" class="form-control" placeholder="Search...">
 
-                            </div>--}}
+                            </div> --}}
                             <!-- /Search -->
 
 
                         </div>
-
+                        <!-- Display success message -->
+                        @if (session('success'))
+                            <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                {{ session('success') }}
+                                <button type="button" class="btn-close btn-dark" data-bs-dismiss="alert"
+                                    aria-label="Close"></button>
+                            </div>
+                        @endif
                         <!-- Horizontal Single -->
 
                         <!-- /Horizontal Single -->
-
+                        @php
+                            $notifications = \App\Models\Notification::where('user_id', 1)
+                                ->orderBy('created_at', 'desc')
+                                ->get();
+                        @endphp
                         <div class="d-flex align-items-center">
-
-
                             <div class="me-1 notification_item">
-                                <a href="#" class="btn btn-menubar position-relative me-1" id="notification_popup"
+                                <a href="" class="btn btn-menubar position-relative me-1" id="notificationBell"
                                     data-bs-toggle="dropdown">
                                     <i class="ti ti-bell"></i>
-                                    <span class="notification-status-dot"></span>
+                                    @if (!$notifications)
+                                    @else
+                                        <span class="text-danger">{{ $notifications->where('read', false)->count() }}
+                                        </span>
+                                    @endif
                                 </a>
                                 <div class="dropdown-menu dropdown-menu-end notification-dropdown p-4">
+                                    <!-- Hidden form for Mark All Read -->
+
+
+                                    <!-- Notifications Header -->
                                     <div
-                                        class="d-flex align-items-center justify-content-between border-bottom p-0 pb-3 mb-3">
-                                        <h4 class="notification-title">Notifications (2)</h4>
-                                        <div class="d-flex align-items-center">
-                                            <a href="#" class="text-primary fs-15 me-3 lh-1">Mark all as
-                                                read</a>
-                                            <div class="dropdown">
-                                                <a href="javascript:void(0);" class="bg-white dropdown-toggle"
-                                                    data-bs-toggle="dropdown">
-                                                    <i class="ti ti-calendar-due me-1"></i>Today
-                                                </a>
-                                                <ul class="dropdown-menu mt-2 p-3">
-                                                    <li>
-                                                        <a href="javascript:void(0);" class="dropdown-item rounded-1">
-                                                            This Week
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a href="javascript:void(0);" class="dropdown-item rounded-1">
-                                                            Last Week
-                                                        </a>
-                                                    </li>
-                                                    <li>
-                                                        <a href="javascript:void(0);" class="dropdown-item rounded-1">
-                                                            Last Month
-                                                        </a>
-                                                    </li>
-                                                </ul>
-                                            </div>
-                                        </div>
+                                        class="d-flex align-items-center justify-content-between border-bottom pb-3 mb-3">
+                                        <h4 class="notification-title">
+                                            Notifications (<span
+                                                id="notif-count">{{ $notifications->where('read', false)->count() }}</span>)
+                                        </h4>
+                                        <form id="markAllForm" action="{{ route('notifications.markAllRead') }}"
+                                            method="POST">
+                                            @csrf
+                                            <button type="submit" class="text-primary fs-15 btn btn-link p-0">Mark All
+                                                as Read</button>
+                                        </form>
+                                        {{-- <a href="#" id="mark-all-read"
+                                            class="text-primary fs-15 btn btn-link p-0">Mark all as read</a> --}}
                                     </div>
-                                    <div class="noti-content">
-                                        <div class="d-flex flex-column">
-                                            <div class="border-bottom mb-3 pb-3">
-                                                <a href="#">
+
+                                    <!-- Scrollable Notifications List (max 5 visible at once) -->
+                                    <div id="notif-list" style="max-height: 360px; overflow-y: auto;"
+                                        class="d-flex flex-column">
+                                        @forelse($notifications as $notif)
+                                            <div
+                                                class="notif-item border-bottom mb-3 pb-3 d-flex align-items-start {{ $notif->read ? 'read' : 'unread' }}">
+                                                <input type="checkbox" class="form-check-input me-2 notif-checkbox"
+                                                    value="{{ $notif->id }}">
+
+                                                <a href="{{ $notif->action_url ?? '#' }}"
+                                                    class="notification-link flex-grow-1"
+                                                    data-id="{{ $notif->id }}">
                                                     <div class="d-flex">
-                                                        <span class="avatar avatar-lg me-2 flex-shrink-0">
-                                                            <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-27.jpg"
-                                                                alt="Profile">
-                                                        </span>
-                                                        <div class="flex-grow-1">
-                                                            <p class="mb-1"><span
-                                                                    class="text-dark fw-semibold">Shawn</span>
-                                                                performance in Math is below the threshold.</p>
-                                                            <span>Just Now</span>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                            </div>
-                                            <div class="border-bottom mb-3 pb-3">
-                                                <a href="#"
-                                                    class="pb-0">
-                                                    <div class="d-flex">
-                                                        <span class="avatar avatar-lg me-2 flex-shrink-0">
-                                                            <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-23.jpg"
-                                                                alt="Profile">
-                                                        </span>
-                                                        <div class="flex-grow-1">
-                                                            <p class="mb-1"><span
-                                                                    class="text-dark fw-semibold">Sylvia</span> added
-                                                                appointment on 02:00 PM</p>
-                                                            <span>10 mins ago</span>
-                                                            <div
-                                                                class="d-flex justify-content-start align-items-center mt-1">
-                                                                <span class="btn btn-light btn-sm me-2">Deny</span>
-                                                                <span class="btn btn-primary btn-sm">Approve</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                            </div>
-                                            <div class="border-bottom mb-3 pb-3">
-                                                <a href="#">
-                                                    <div class="d-flex">
-                                                        <span class="avatar avatar-lg me-2 flex-shrink-0">
-                                                            <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-25.jpg"
-                                                                alt="Profile">
-                                                        </span>
-                                                        <div class="flex-grow-1">
-                                                            <p class="mb-1">New student record <span
-                                                                    class="text-dark fw-semibold"> George</span>
-                                                                is created by <span
-                                                                    class="text-dark fw-semibold">Teressa</span>
+                                                        <div>
+                                                            <p class="mb-1">
+                                                                <span class="fw-semibold"><b>{{ $notif->title }}:</b></span>
+                                                                {{ $notif->message }}
                                                             </p>
-                                                            <span>2 hrs ago</span>
+                                                            <span
+                                                                class="text-muted small">{{ $notif->created_at->diffForHumans() }}</span>
                                                         </div>
                                                     </div>
                                                 </a>
                                             </div>
-                                            <div class="border-0 mb-3 pb-0">
-                                                <a href="#">
-                                                    <div class="d-flex">
-                                                        <span class="avatar avatar-lg me-2 flex-shrink-0">
-                                                            <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-01.jpg"
-                                                                alt="Profile">
-                                                        </span>
-                                                        <div class="flex-grow-1">
-                                                            <p class="mb-1">A new teacher record for <span
-                                                                    class="text-dark fw-semibold">Elisa</span> </p>
-                                                            <span>09:45 AM</span>
-                                                        </div>
-                                                    </div>
-                                                </a>
-                                            </div>
-                                        </div>
+                                        @empty
+                                            <p class="text-muted">No new notifications</p>
+                                        @endforelse
                                     </div>
-                                    <div class="d-flex p-0">
+
+                                    <!-- Footer buttons -->
+                                    <div class="d-flex p-0 pt-3 border-top mt-3">
                                         <a href="#" class="btn btn-light w-100 me-2">Cancel</a>
-                                        <a href="#" class="btn btn-primary w-100">View All</a>
+                                        {{-- <a href="#" class="btn btn-primary w-100">View All</a> --}}
                                     </div>
                                 </div>
+
                             </div>
                             <div class="dropdown profile-dropdown">
                                 <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
@@ -259,7 +258,6 @@
                                                 <i class="ti ti-settings me-1"></i>Settings
                                             </a>
 
-
                                         </div>
                                         <div class="card-footer py-1">
                                             <form method="POST" action="{{ route('logout') }}">
@@ -285,8 +283,7 @@
                     <div class="dropdown-menu dropdown-menu-end">
                         <a class="dropdown-item" href="#">My
                             Profile</a>
-                        <a class="dropdown-item"
-                            href="#">Settings</a>
+                        <a class="dropdown-item" href="#">Settings</a>
                         <a class="dropdown-item" href="#">Logout</a>
                     </div>
                 </div>
@@ -442,7 +439,7 @@
     </script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        window.addEventListener('load', function () {
+        window.addEventListener('load', function() {
             if (typeof L === 'undefined') {
                 toast_danger('Leaflet (L) is still undefined! Check CDN.');
                 return;
@@ -471,7 +468,129 @@
                 }).addTo(map1);
             }
         });
+
+
+        // Handling notifications
+        // Fetch unread notifications count & list (limit to 5 for dropdown)
+        document.addEventListener('DOMContentLoaded', function() {
+            // 1. Mark a single notification as read when clicked
+            document.querySelectorAll('.notification-link').forEach(link => {
+                link.addEventListener('click', async function(e) {
+                    e.preventDefault();
+                    const id = this.dataset.id;
+
+                    try {
+                        await fetch(`/api/notifications/${id}/read`, {
+                            method: 'POST',
+                            headers: {
+                                'Accept': 'application/json',
+                                'Content-Type': 'application/json'
+                            },
+                            credentials: 'include'
+                        });
+
+                        window.location.href = this.href;
+                    } catch (err) {
+                        console.error('Failed to mark as read:', err);
+                    }
+                });
+            });
+
+            // 2. Mark all as read
+            document.addEventListener('DOMContentLoaded', function() {
+                const markAllBtn = document.getElementById('mark-all-read');
+                const form = document.getElementById('markAllForm');
+
+                if (markAllBtn && form) {
+                    markAllBtn.addEventListener('click', async function(e) {
+                        e.preventDefault();
+
+                        try {
+                            const formData = new FormData(form);
+
+                            const res = await fetch(form.action, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'X-CSRF-TOKEN': formData.get('_token'),
+                                },
+                                credentials: 'same-origin',
+                            });
+
+                            if (!res.ok) throw new Error('Request failed');
+
+                            // Update UI after marking all as read
+                            document.querySelectorAll('.notif-item').forEach(el => {
+                                el.classList.remove('unread');
+                                el.classList.add('read');
+                            });
+
+                            document.getElementById('notif-count').textContent = 0;
+                        } catch (err) {
+                            console.error('❌ Mark all failed:', err);
+                            alert('Failed to mark all notifications as read.');
+                        }
+                    });
+                }
+            });
+
+
+            // 3. Mark selected as read
+            document.getElementById('mark-selected-read')?.addEventListener('click', async function(
+                e) {
+                e.preventDefault();
+
+                const checkedBoxes = document.querySelectorAll(
+                    '.notif-checkbox:checked');
+                if (checkedBoxes.length === 0) {
+                    alert('No notifications selected.');
+                    return;
+                }
+
+                const ids = Array.from(checkedBoxes).map(cb => cb.value);
+
+                try {
+                    const csrf = document.querySelector('meta[name="csrf-token"]')
+                        .getAttribute(
+                            'content');
+
+                    const res = await fetch('/notifications/mark-selected-read', {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': csrf
+                        },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            ids
+                        })
+                    });
+
+                    if (!res.ok) throw new Error(
+                        'Failed to mark selected notifications as read');
+
+                    ids.forEach(id => {
+                        const box = document.querySelector(
+                            `.notif-checkbox[value="${id}"]`);
+                        if (box) {
+                            const row = box.closest('.notif-item');
+                            row.classList.remove('unread');
+                            row.classList.add('read');
+                        }
+                    });
+
+                    const countElement = document.getElementById('notif-count');
+                    countElement.textContent = Math.max(0, parseInt(countElement
+                            .textContent) - ids
+                        .length);
+                } catch (err) {
+                    console.error('Error marking selected as read:', err);
+                }
+            });
+        });
     </script>
     @yield('scripts')
 </body>
+
 </html>

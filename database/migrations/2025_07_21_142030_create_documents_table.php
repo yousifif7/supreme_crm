@@ -16,12 +16,12 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
 
             $table->enum('document_type', [
-                'sia_licence',
-                'right_to_work',
-                'dbs',
-                'first_aid',
-                'site_clearance',
-                'other'
+                'sia_licence_file',
+                'passport_file',
+                'proof_of_address_file',
+                'act_certificate_file',
+                'first_aid_certificate_file',
+                'ni_letter_file'
             ]);
 
             $table->string('file_path');

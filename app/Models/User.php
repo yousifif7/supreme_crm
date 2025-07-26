@@ -71,21 +71,12 @@ class User extends Authenticatable
         return $this->hasOne(Profile::class);
     }
 
-    public function documents()
-    {
-        return $this->hasMany(Document::class);
-    }
-
-    public function dobEntries()
-    {
-        return $this->hasMany(DobEntry::class);
-    }
 
     public function conversations()
     {
         return $this->belongsToMany(Conversation::class, 'conversation_user', 'user_id', 'conversation_id');
     }
-    
+
     public function messages()
     {
         return $this->hasMany(Message::class, 'sender_id');
@@ -101,7 +92,7 @@ class User extends Authenticatable
         return $this->belongsTo(User::class);
     }
 
-        public function locations()
+    public function locations()
     {
         return $this->hasMany(Location::class);
     }
@@ -111,7 +102,7 @@ class User extends Authenticatable
         return $this->hasMany(EmergencyAlert::class);
     }
 
-    
+
     public function invoices()
     {
         return $this->hasMany(Invoice::class);
@@ -121,9 +112,19 @@ class User extends Authenticatable
     {
         return $this->hasMany(Shift::class);
     }
-    
+
     public function alarms()
     {
         return $this->hasMany(Alarm::class);
+    }
+
+    public function notifications()
+    {
+        return $this->hasMany(Notification::class);
+    }
+
+    public function employee()
+    {
+        return $this->hasOne(Employee::class);
     }
 }

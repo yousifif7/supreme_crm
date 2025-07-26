@@ -39,11 +39,8 @@
         </div>
 
         <div class="right  mt-4">
-            {{-- <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
-                🔍 Filter Options
-            </button> --}}
-                        <!--  -->
-            @include('security_boards.shifts.shift_filter_options')
+            @yield('filter')
+
             <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift" class=" add_btn btn btn-white">
                 <i class="ti ti-plus me-0"></i> Add Shift
             </a>

@@ -2,16 +2,22 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\UsersDataTable;
-use App\Models\Client;
-use App\Models\Employee;
-use App\Models\Invoice;
-use App\Models\ShiftDate;
-use App\Models\User;
+use Notify;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Models\Shift;
+use App\Models\Client;
+use App\Models\Invoice;
+use App\Models\Document;
+use App\Models\Employee;
+use App\Models\CheckCall;
+use App\Models\ShiftDate;
+use App\Models\BookingAlarm;
+use App\Models\Notification;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\File;
+use App\DataTables\UsersDataTable;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -24,6 +30,41 @@ class UserController extends Controller
         $review = ShiftDate::where('is_assign', '1')->count();
         $clients = Client::all();
         $staffs = Employee::all();
+
+        $checkCalls = CheckCall::with(['shift.staff'])
+            ->whereIn('status', ['pending', 'missed', 'completed'])
+            ->orderBy('scheduled_time', 'asc')
+            ->limit(10)  // limit to recent 10 or whatever you want
+            ->get();
+
+        $now = Carbon::now();
+        $bookingAlarms = BookingAlarm::with(['shift.staff']) // eager load shift & staff
+            ->orderBy('scheduled_time')
+            ->get()
+            ->map(function ($alarm) use ($now) {
+                // Determine status
+                if ($alarm->acknowledged) {
+                    $alarm->status = 'Submitted';
+                } elseif ($alarm->scheduled_time < $now) {
+                    $alarm->status = 'Missed';
+                } else {
+                    $alarm->status = 'Due';
+                }
+
+                return $alarm;
+            });
+
+        $today = Carbon::today();
+
+        $siaDocuments = Employee::whereNotNull('sia_licence_file')
+            ->whereDate('sia_expiry', '<', Carbon::today())
+            ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
+            ->get()
+            ->map(function ($emp) {
+                $emp->license_status = 'Expired';
+                return $emp;
+            });
+
         // Get the full datetime range for this week
         $startOfThisWeek = Carbon::now()->startOfWeek()->startOfDay(); // Monday 00:00:00
         $endOfThisWeek = Carbon::now()->endOfWeek()->endOfDay();       // Sunday 23:59:59
@@ -73,7 +114,64 @@ class UserController extends Controller
         }
         $reviewrowthPercentage = round($reviewgrowthPercentage, 2);
 
-        return view('dashboard', compact('clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));
+        // Checking for missed shifts 
+        $now = now();
+
+        // --- Missed Book On Notifications (only for assigned shifts) ---
+        $missedBookOns = Shift::whereNotNull('staff_id')
+            ->whereNull('book_in_time')
+            ->whereDate('from_shift', '<=', $now->toDateString())
+            ->whereTime('start_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->get();
+
+        foreach ($missedBookOns as $shift) {
+            $employee = Employee::find($shift->staff_id);
+            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+
+            Notify::toDashboard(
+                null,
+                'alarm',
+                'Missed Book On',
+                "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}."
+            );
+        }
+
+        // --- Missed Book Off Notifications (only for assigned shifts) ---
+        $missedBookOffs = Shift::whereNotNull('staff_id')
+            ->whereNull('book_off_time')
+            ->whereDate('to_shift', '<=', $now->toDateString())
+            ->whereTime('end_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->get();
+
+        foreach ($missedBookOffs as $shift) {
+            $employee = Employee::find($shift->staff_id);
+            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+
+            Notify::toDashboard(
+                null,
+                'alarm',
+                'Missed Book Off',
+                "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}."
+            );
+        }
+
+        // --- Unassigned Shift Starting Soon (in next hour) ---
+        $unassignedShifts = Shift::whereNull('staff_id')
+            ->whereDate('from_shift', '=', $now->toDateString())
+            ->whereTime('start_shift', '>=', $now->format('H:i:s'))
+            ->whereTime('start_shift', '<=', $now->copy()->addHour()->format('H:i:s'))
+            ->get();
+
+        foreach ($unassignedShifts as $shift) {
+            Notify::toDashboard(
+                null,
+                'warning',
+                'Unassigned Shift',
+                "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned."
+            );
+        }
+
+        return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));
     }
 
     public function index(UsersDataTable $dataTable)
@@ -173,7 +271,7 @@ class UserController extends Controller
 
         $validated = $validator->validated();
         $validated['username'] = $validated['email'];
-        
+
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
         } else {
@@ -253,5 +351,15 @@ class UserController extends Controller
             'status' => ucfirst($user->status),
             'profile_picture' => $user->profile_picture ? asset('uploads/profile_picture/' . $user->profile_picture) : null,
         ]);
+    }
+
+    // booking function 
+    public function acknowledge(Request $request, $id)
+    {
+        $alarm = BookingAlarm::findOrFail($id);
+        $alarm->acknowledged = true;
+        $alarm->save();
+
+        return response()->json(['success' => true]);
     }
 }

@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
-use App\Models\Notification;
+use App\Models\Employee;
 use App\Models\DeviceToken;
+use App\Models\Notification;
 use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Notifications\DatabaseNotification;
 
 class NotificationController extends Controller
 {
@@ -19,7 +21,7 @@ class NotificationController extends Controller
             'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = Notification::where('user_id', Auth::id());
+        $query = Notification::all();
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);
@@ -49,8 +51,7 @@ class NotificationController extends Controller
 
     public function markAsRead($id)
     {
-        $notification = Notification::where('user_id', Auth::id())
-            ->findOrFail($id);
+        $notification = Notification::findOrFail($id);
 
         $notification->update(['read' => true]);
 
@@ -64,11 +65,48 @@ class NotificationController extends Controller
             'platform' => 'required|in:ios,android'
         ]);
 
+        $employee = Employee::find($request->user_id);
+
+        if (!$employee) {
+            return response()->json(['message' => 'Employee not found'], 404);
+        }
+
         DeviceToken::updateOrCreate(
-            ['user_id' => Auth::id(), 'push_token' => $request->push_token],
-            ['platform' => $request->platform]
+            [
+                'employee_id' => $employee->id,
+                'push_token' => $request->push_token
+            ],
+            [
+                'platform' => $request->platform
+            ]
         );
 
         return response()->json(['message' => 'Device registered']);
     }
+
+    public function markAllRead()
+    {
+        // \Log::info('Mark all read hit');
+        Notification::where('read', false)
+            ->update(['read' => true]);
+
+        return redirect()->back()->with('success', 'All notifications marked as read.');
+    }
+
+    public function markSelectedRead(Request $request)
+    {
+        $user = Auth::user();
+        $ids = $request->input('ids', []);
+
+        if (empty($ids)) {
+            return response()->json(['error' => 'No IDs provided'], 400);
+        }
+
+        Notification::where('user_id', Auth::id())
+            ->whereIn('id', $ids)
+            ->update(['read' => true]);
+
+        return response()->json(['success' => true]);
+    }
+
 }

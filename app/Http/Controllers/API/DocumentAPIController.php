@@ -2,10 +2,14 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
 use Carbon\Carbon;
 use App\Models\Document;
+use App\Models\Employee;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentAPIController extends Controller
@@ -14,7 +18,7 @@ class DocumentAPIController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'document_type' => 'required|in:sia_licence,right_to_work,dbs,first_aid,site_clearance,other',
+            'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file',
             'file' => 'required|file|mimes:pdf,jpg,jpeg,png',
             'expiry_date' => 'required|date',
             'description' => 'nullable|string',
@@ -30,6 +34,35 @@ class DocumentAPIController extends Controller
             'description' => $request->description,
             'status' => 'pending',
         ]);
+
+
+        // Map to employee table if this document type is one of the known fields
+        $syncToEmployeeTable = [
+            'sia_licence_file' => 'sia_licence_file',
+            'passport_file' => 'passport_file',
+            'proof_of_address_file' => 'proof_of_address_file',
+            'ni_letter_file' => 'ni_letter_file',
+            'first_aid_certificate_file' => 'first_aid_certificate_file',
+            'act_certificate_file' => 'act_certificate_file'
+        ];
+
+
+        if (isset($syncToEmployeeTable[$request->document_type])) {
+            $employeeColumn = $syncToEmployeeTable[$request->document_type];
+
+            Employee::find($request->user()->id)
+                ->update([
+                    $employeeColumn => basename($filePath),
+                    'licence_expiry' => $request->expiry_date
+                ]);
+            $employee=Employee::findOrFail(Auth::id());
+            Notify::toDashboard(
+                $employee->id,
+                'alert',
+                'Document Uploaded',
+                'Document uploaded by ' .$employee->fore_name . ' ' . $employee->sur_name,
+            );
+        }
 
         return response()->json([
             'document_id' => $document->id,

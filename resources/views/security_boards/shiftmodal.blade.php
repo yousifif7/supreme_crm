@@ -61,7 +61,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
-                                                <input type="time" name="start_shift[]" class="form-control">
+                                                <input type="time" name="start_shift[]" class="form-control time-input" lang="en-GB" value="{{ old('start_shift.0') }}">
 
                                                 <span class="text-danger form-error error_start_shift"></span>
                                             </div>
@@ -70,7 +70,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">End <span class="text-danger">*</span></label>
-                                                <input type="time" name="end_shift[]" class="form-control">
+                                                <input  type="time" name="start_shift[]" class="form-control time-input" lang="en-GB" placeholder="HH:MM">
                                                 <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
@@ -332,3 +332,13 @@
     </div>
 </div>
 
+<script>
+    document.querySelectorAll('.time-input').forEach(input => {
+        input.addEventListener('blur', function () {
+            if (/^\d{1,2}$/.test(this.value)) {
+                // e.g. "22" → "22:00"
+                this.value = this.value.padStart(2, '0') + ':00';
+            }
+        });
+    });
+</script>
