@@ -2,11 +2,11 @@
 
 @php
     $shifts = App\Models\Shift::with(['staff', 'site'])->get();
-    $staffIds = $shifts->pluck('staff_id')->unique();
-    $siteIds = $shifts->pluck('site_id')->unique();
+    // $staffIds = $shifts->pluck('staff_id')->unique();
+    // $siteIds = $shifts->pluck('site_id')->unique();
 
-    $staffs = App\Models\Employee::whereIn('id', $staffIds)->get();
-    $sites = App\Models\Site::whereIn('id', $siteIds)->get();
+    $staffs = App\Models\Employee::all();
+    $sites = App\Models\Site::all();
 @endphp
 
 <!-- Filter Modal -->
