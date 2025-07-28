@@ -184,9 +184,9 @@
                                 </thead>
                                 <tbody>
                                     @forelse ($checkCalls as $checkCall)
-                                    @php
-                                        $employee = App\Models\Employee::find($checkCall->employee_id);
-                                    @endphp
+                                        @php
+                                            $employee = App\Models\Employee::find($checkCall->employee_id);
+                                        @endphp
                                         <tr>
                                             <td>{{ $checkCall->shift->id ?? 'N/A' }}</td>
                                             <td>{{ $employee?->fore_name }} {{ $employee?->sur_name }}</td>
@@ -330,39 +330,78 @@
                             </div>
                         </div>
                         <div class="card-body">
-                            <table class="table table-striped">
-                                <thead>
-                                    <tr>
-                                        <th>Staff</th>
-                                        <th>Expiry Date</th>
-                                        <th>Status</th>
-                                        <th>Document</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @forelse ($siaDocuments as $doc)
+                                <table class="table">
+                                    <thead>
                                         <tr>
-                                            <td>{{ $doc->fore_name ?? 'N/A' }} {{ $doc->sur_name ?? '' }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('Y-m-d') }}</td>
-                                            <td><span class="badge bg-danger">{{ $doc->license_status }}</span></td>
-                                            <td>
-                                                @if ($doc->sia_licence_file)
-                                                    <a class="btn btn-sm btn-success"
-                                                        href="{{ asset('uploads/sia_licence_file/' . $doc->sia_licence_file) }}"
-                                                        target="_blank">View</a>
-                                                @else
-                                                    No File
-                                                @endif
-                                            </td>
+                                            <th>Staff</th>
+                                            <th>Expiry Date</th>
+                                            <th>Status</th>
+                                            <th>License</th>
                                         </tr>
-                                    @empty
-                                        <tr>
-                                            <td colspan="4" class="text-center">No expired SIA licenses.</td>
-                                        </tr>
-                                    @endforelse
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($siaDocuments as $doc)
+                                            <tr>
+                                                <td>{{ $doc->fore_name ?? 'N/A' }} {{ $doc->sur_name ?? '' }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('Y-m-d') }}</td>
+                                                <td><span class="badge bg-danger">Expired</span></td>
+                                                <td>
+                                                    @if ($doc->sia_licence_file)
+                                                        <a class="btn btn-sm btn-success"
+                                                            href="{{ asset('uploads/sia_licence_file/' . $doc->sia_licence_file) }}"
+                                                            target="_blank">View</a>
+                                                    @else
+                                                        No File
+                                                    @endif
+                                                </td>
+                                            </tr>
+                                        @empty
+                                            <tr>
+                                                <td colspan="4" class="text-center">No expired SIA licenses.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
 
+                                {{-- ✨ Minimal pagination links --}}
+                                @if ($siaDocuments->hasPages())
+                                    <div class="d-flex justify-content-center mt-3">
+                                        <nav>
+                                            <ul class="pagination pagination-sm mb-0">
+                                                {{-- Previous Page Link --}}
+                                                @if ($siaDocuments->onFirstPage())
+                                                    <li class="page-item disabled"><span class="page-link">‹</span></li>
+                                                @else
+                                                    <li class="page-item"><a class="page-link"
+                                                            href="{{ $siaDocuments->previousPageUrl() }}"
+                                                            rel="prev">‹</a></li>
+                                                @endif
+
+                                                {{-- Pagination Elements --}}
+                                                @foreach ($siaDocuments->links()->elements[0] as $page => $url)
+                                                    @if ($page == $siaDocuments->currentPage())
+                                                        <li class="page-item active"><span
+                                                                class="page-link">{{ $page }}</span></li>
+                                                    @else
+                                                        <li class="page-item"><a class="page-link"
+                                                                href="{{ $url }}">{{ $page }}</a></li>
+                                                    @endif
+                                                @endforeach
+
+                                                {{-- Next Page Link --}}
+                                                @if ($siaDocuments->hasMorePages())
+                                                    <li class="page-item"><a class="page-link"
+                                                            href="{{ $siaDocuments->nextPageUrl() }}"
+                                                            rel="next">›</a></li>
+                                                @else
+                                                    <li class="page-item disabled"><span class="page-link">›</span></li>
+                                                @endif
+                                            </ul>
+                                        </nav>
+                                    </div>
+                                @endif
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>

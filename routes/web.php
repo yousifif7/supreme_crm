@@ -293,7 +293,7 @@ Route::group(['middleware' => ['role:superadmin|user']], function () {});
 // notifications
 Route::middleware('auth')->group(function () {
     Route::post('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
-    Route::post('/notifications/mark-selected-read', [NotificationController::class, 'markSelectedRead']);
+    Route::post('/notifications/mark-selected-read/', [NotificationController::class, 'markSelectedRead'])->name('notifications.markSelectedRead');
 });
 
 

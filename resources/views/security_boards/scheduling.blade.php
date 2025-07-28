@@ -61,7 +61,7 @@
             </div>
 
             @section('filter')
-            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#filterModal">
+            <button type="button" class="add_btn btn btn-white" data-bs-toggle="modal" data-bs-target="#filterModal">
                 Filter
             </button>
             @include('security_boards.shifts.shift_filter_options')

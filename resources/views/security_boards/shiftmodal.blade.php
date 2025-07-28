@@ -70,7 +70,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">End <span class="text-danger">*</span></label>
-                                                <input  type="time" name="start_shift[]" class="form-control time-input" lang="en-GB" placeholder="HH:MM">
+                                                <input  type="time" name="end_shift[]" class="form-control time-input" lang="en-GB" placeholder="HH:MM">
                                                 <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>

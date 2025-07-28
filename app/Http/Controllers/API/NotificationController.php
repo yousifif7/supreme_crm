@@ -95,18 +95,14 @@ class NotificationController extends Controller
 
     public function markSelectedRead(Request $request)
     {
-        $user = Auth::user();
-        $ids = $request->input('ids', []);
+        $ids = $request->input('ids');
 
-        if (empty($ids)) {
-            return response()->json(['error' => 'No IDs provided'], 400);
+        if (!$ids || !is_array($ids)) {
+            return redirect()->back()->with('error', 'No notifications selected.');
         }
 
-        Notification::where('user_id', Auth::id())
-            ->whereIn('id', $ids)
-            ->update(['read' => true]);
+        Notification::whereIn('id', $ids)->update(['read' => true]);
 
-        return response()->json(['success' => true]);
+        return redirect()->back()->with('success', 'Selected notifications marked as read.');
     }
-
 }

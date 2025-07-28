@@ -192,33 +192,44 @@
                                     </div>
 
                                     <!-- Scrollable Notifications List (max 5 visible at once) -->
-                                    <div id="notif-list" style="max-height: 360px; overflow-y: auto;"
-                                        class="d-flex flex-column">
-                                        @forelse($notifications as $notif)
-                                            <div
-                                                class="notif-item border-bottom mb-3 pb-3 d-flex align-items-start {{ $notif->read ? 'read' : 'unread' }}">
-                                                <input type="checkbox" class="form-check-input me-2 notif-checkbox"
-                                                    value="{{ $notif->id }}">
+                                    <form action="{{ route('notifications.markSelectedRead') }}" method="POST">
+                                        @csrf
+                                        <div id="notif-list" style="max-height: 360px; overflow-y: auto;"
+                                            class="d-flex flex-column">
+                                            @forelse($notifications as $notif)
+                                                <div
+                                                    class="notif-item border-bottom mb-3 pb-3 d-flex align-items-start {{ $notif->read ? 'read' : 'unread' }}">
+                                                    @if (!$notif->read)
+                                                        <input type="checkbox"
+                                                            class="form-check-input me-2 notif-checkbox"
+                                                            name="ids[]" value="{{ $notif->id }}">
+                                                    @endif
 
-                                                <a href="{{ $notif->action_url ?? '#' }}"
-                                                    class="notification-link flex-grow-1"
-                                                    data-id="{{ $notif->id }}">
-                                                    <div class="d-flex">
-                                                        <div>
-                                                            <p class="mb-1">
-                                                                <span class="fw-semibold"><b>{{ $notif->title }}:</b></span>
-                                                                {{ $notif->message }}
-                                                            </p>
-                                                            <span
-                                                                class="text-muted small">{{ $notif->created_at->diffForHumans() }}</span>
+                                                    <a href="{{ $notif->action_url ?? '#' }}"
+                                                        class="notification-link flex-grow-1"
+                                                        data-id="{{ $notif->id }}">
+                                                        <div class="d-flex">
+                                                            <div>
+                                                                <p class="mb-1">
+                                                                    <span
+                                                                        class="fw-semibold"><b>{{ $notif->title }}:</b></span>
+                                                                    {{ $notif->message }}
+                                                                </p>
+                                                                <span
+                                                                    class="text-muted small">{{ $notif->created_at->diffForHumans() }}</span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </a>
-                                            </div>
-                                        @empty
-                                            <p class="text-muted">No new notifications</p>
-                                        @endforelse
-                                    </div>
+                                                    </a>
+                                                </div>
+                                            @empty
+                                                <p class="text-muted">No new notifications</p>
+                                            @endforelse
+                                        </div>
+                                        <br>
+                                        <div class="text-center">
+                                            <button class="btn btn-outline-primary" type="submit">Mark selected as read</button>
+                                        </div>
+                                    </form>
 
                                     <!-- Footer buttons -->
                                     <div class="d-flex p-0 pt-3 border-top mt-3">

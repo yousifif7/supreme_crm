@@ -153,7 +153,6 @@ class ShiftController extends Controller
                 'restrict_start_time' => 'nullable',
                 'enforce_picture_check' => 'nullable',
                 'restrict_location_check' => 'nullable',
-                'checkpoints' => 'nullable',
             ]);
 
 

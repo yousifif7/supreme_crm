@@ -56,14 +56,10 @@ class UserController extends Controller
 
         $today = Carbon::today();
 
-        $siaDocuments = Employee::whereNotNull('sia_licence_file')
-            ->whereDate('sia_expiry', '<', Carbon::today())
+        $siaDocuments = Employee::whereNotNull('sia_licence')
+            ->whereDate('sia_expiry', '<', Carbon::today()->toDateString())
             ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
-            ->get()
-            ->map(function ($emp) {
-                $emp->license_status = 'Expired';
-                return $emp;
-            });
+            ->paginate(5);
 
         // Get the full datetime range for this week
         $startOfThisWeek = Carbon::now()->startOfWeek()->startOfDay(); // Monday 00:00:00
@@ -117,11 +113,12 @@ class UserController extends Controller
         // Checking for missed shifts 
         $now = now();
 
-        // --- Missed Book On Notifications (only for assigned shifts) ---
+        // --- Missed Book On Notifications ---
         $missedBookOns = Shift::whereNotNull('staff_id')
             ->whereNull('book_in_time')
             ->whereDate('from_shift', '<=', $now->toDateString())
             ->whereTime('start_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->where('missed_book_on_notified', false) // prevent repeats
             ->get();
 
         foreach ($missedBookOns as $shift) {
@@ -134,13 +131,17 @@ class UserController extends Controller
                 'Missed Book On',
                 "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}."
             );
+
+            // ✅ Mark as notified
+            $shift->update(['missed_book_on_notified' => true]);
         }
 
-        // --- Missed Book Off Notifications (only for assigned shifts) ---
+        // --- Missed Book Off Notifications ---
         $missedBookOffs = Shift::whereNotNull('staff_id')
             ->whereNull('book_off_time')
             ->whereDate('to_shift', '<=', $now->toDateString())
             ->whereTime('end_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->where('missed_book_off_notified', false)
             ->get();
 
         foreach ($missedBookOffs as $shift) {
@@ -153,22 +154,27 @@ class UserController extends Controller
                 'Missed Book Off',
                 "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}."
             );
+
+            $shift->update(['missed_book_off_notified' => true]);
         }
 
-        // --- Unassigned Shift Starting Soon (in next hour) ---
+        // --- Unassigned Shift Starting Soon ---
         $unassignedShifts = Shift::whereNull('staff_id')
             ->whereDate('from_shift', '=', $now->toDateString())
             ->whereTime('start_shift', '>=', $now->format('H:i:s'))
             ->whereTime('start_shift', '<=', $now->copy()->addHour()->format('H:i:s'))
+            ->where('unassigned_shift_notified', false)
             ->get();
 
         foreach ($unassignedShifts as $shift) {
             Notify::toDashboard(
                 null,
-                'warning',
+                'alarm',
                 'Unassigned Shift',
                 "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned."
             );
+
+            $shift->update(['unassigned_shift_notified' => true]);
         }
 
         return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));

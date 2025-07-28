@@ -5,7 +5,7 @@
     $staffIds = $shifts->pluck('staff_id')->unique();
     $siteIds = $shifts->pluck('site_id')->unique();
 
-    $staffs = App\Models\User::whereIn('id', $staffIds)->get();
+    $staffs = App\Models\Employee::whereIn('id', $staffIds)->get();
     $sites = App\Models\Site::whereIn('id', $siteIds)->get();
 @endphp
 
@@ -17,7 +17,7 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="filterModalLabel">Filter Shifts</h5>
-                    <button type="button" class="btn-close text-danger" data-bs-dismiss="modal"
+                    <button type="button" class="add_btn btn btn-white" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
 
@@ -29,7 +29,7 @@
                             <select class="form-select" name="staff">
                                 <option value="">--choose--</option>
                                 @foreach ($staffs as $staff)
-                                    <option value="{{ $staff->id }}">{{ $staff->name }}</option>
+                                    <option value="{{ $staff->id }}">{{ $staff->fore_name }} {{$staff->sur_name  }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -66,7 +66,7 @@
                 </div>
 
                 <div class="modal-footer">
-                    <button type="submit" class="btn btn-primary">Apply Filters</button>
+                    <button type="submit" class="add_btn btn btn-white">Apply Filters</button>
                 </div>
             </div>
         </form>
