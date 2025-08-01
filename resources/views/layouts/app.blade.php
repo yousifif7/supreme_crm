@@ -41,7 +41,6 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/fontawesome/css/all.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/daterangepicker/daterangepicker.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/plugins/flatpickr/flatpickr.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
     <!-- Defer Theme Script -->
     {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
@@ -52,6 +51,13 @@
     <script src="{{ asset('assets/js/bootstrap-datetimepicker.min.js') }}" defer></script>
     <script src="https://cdn.jsdelivr.net/npm/toastr@2.1.4/toastr.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet" type="text/css">
+<style>
+* {
+ font-family: 'Poppins', sans-serif;
+}
+</style>
     <script type="text/javascript">
         const baseUrl = "{{ url('/') }}";
     </script>
@@ -109,10 +115,10 @@
 
                 <div class="header-left">
                     <a href="#" class="logo">
-                        <img src="{{ asset('assets/img/website-1.png') }}" alt="Logo">
+                        <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
                     </a>
                     <a href="#" class="dark-logo">
-                        <img src="{{ asset('assets/img/website-1.png') }}" alt="Logo">
+                        <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
                     </a>
                 </div>
 
@@ -392,6 +398,7 @@
     <script src="{{ asset('assets/plugins/@simonwep/pickr/pickr.es5.min.js') }}" defer></script>
     <script src="https://smarthr.co.in/demo/html/template/assets/plugins/fullcalendar/index.global.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <!-- Custom Scripts -->
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
@@ -605,3 +612,14 @@
 </body>
 
 </html>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    flatpickr(".time-input", {
+        enableTime: true,
+        noCalendar: true,
+        dateFormat: "H:i", // 24-hour format
+        time_24hr: true
+    });
+});
+</script>

@@ -24,6 +24,7 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
+use App\Http\Controllers\SettingController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -125,6 +126,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/sites/export/pdf', [ExportController::class, 'exportSitePdf'])->name('sites.export.pdf');
     Route::post('/sites/import', [ExportController::class, 'importSiteExcel'])->name('sites.import');
     /** End: Site Controller */
+
+
+    Route::get('settings/restrictions', [SettingController::class, 'index'])->name('restrictions.index');
+Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
+
+
+
 
     /** Begin: Shift Controller */
     Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');

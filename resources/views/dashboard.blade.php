@@ -19,22 +19,16 @@
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="avatar avatar-md br-10 icon-rotate bg-primary flex-shrink-0">
+                                <div class="avatar avatar-lg br-10 icon-rotate bg-primary flex-shrink-0">
                                     <span class="d-flex align-items-center"><i
-                                            class="ti ti-users text-white fs-16"></i></span>
+                                            class="ti ti-users text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1">Total Security Staff</p>
-                                    <h5>{{ $staffs->count() }}</h5>
+                                    <p class="fw-medium text-truncate mb-1 fs-16">Total Security Staff</p>
+                                    <h5 class="fs-18">{{ $staffs->count() }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-primary" role="progressbar"
-                                    style="width: {{ $clientgrowthPercentage }}%"></div>
-                            </div>
-                            <p class="fw-medium fs-13 mb-0"><span class="text-danger fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
-                                from last week</p> --}}
+                            
                         </div>
                     </div>
                 </div>
@@ -42,22 +36,16 @@
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="avatar avatar-md br-10 icon-rotate bg-secondary flex-shrink-0">
+                                <div class="avatar avatar-lg br-10 icon-rotate bg-secondary flex-shrink-0">
                                     <span class="d-flex align-items-center"><i
-                                            class="ti ti-heartbeat text-white fs-16"></i></span>
+                                            class="ti ti-heartbeat text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1">Total Clients</p>
-                                    <h5>{{ $clients->count() }}</h5>
+                                    <p class="fw-medium text-truncate mb-1 fs-16">Total Clients</p>
+                                    <h5 class="fs-18">{{ $clients->count() }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-secondary" role="progressbar"
-                                    style="width: {{ $clientgrowthPercentage }}%"></div>
-                            </div>
-                            <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>{{ $clientgrowthPercentage }}% </span>
-                                from last week</p> --}}
+                           
                         </div>
                     </div>
                 </div>
@@ -65,22 +53,16 @@
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="avatar avatar-md br-10 icon-rotate bg-danger flex-shrink-0">
+                                <div class="avatar avatar-lg br-10 icon-rotate bg-danger flex-shrink-0">
                                     <span class="d-flex align-items-center"><i
-                                            class="ti ti-stairs-up text-white fs-16"></i></span>
+                                            class="ti ti-stairs-up text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1">No of Invoice Sent</p>
-                                    <h5>{{ $invoices->count() }}</h5>
+                                    <p class="fw-medium text-truncate mb-1 fs-16">No of Invoice Sent</p>
+                                    <h5 class="fs-18">{{ $invoices->count() }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-pink" role="progressbar"
-                                    style="width: {{ $invoicerowthPercentage }}%"></div>
-                            </div>
-                            <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>+{{ $invoicerowthPercentage }}% </span>
-                                from last week</p> --}}
+                          
                         </div>
                     </div>
                 </div>
@@ -88,22 +70,16 @@
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
-                                <div class="avatar avatar-md br-10 icon-rotate bg-purple flex-shrink-0">
+                                <div class="avatar avatar-lg br-10 icon-rotate bg-purple flex-shrink-0">
                                     <span class="d-flex align-items-center"><i
-                                            class="ti ti-users-group text-white fs-16"></i></span>
+                                            class="ti ti-users-group text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1">Pending Review</p>
-                                    <h5>{{ $review }}</h5>
+                                    <p class="fw-medium text-truncate mb-1 fs-16 ">Pending Review</p>
+                                    <h5 class="fs-18">{{ $review }}</h5>
                                 </div>
                             </div>
-                            {{-- <div class="progress progress-xs mb-2">
-                                <div class="progress-bar bg-purple" role="progressbar"
-                                    style="width: {{ $reviewrowthPercentage }}%"></div>
-                            </div>
-                            <p class="fw-medium fs-13 mb-0"><span class="text-success fs-12"><i
-                                        class="ti ti-arrow-wave-right-up me-1"></i>+{{ $reviewrowthPercentage }}% </span>
-                                from last week</p> --}}
+                            
                         </div>
                     </div>
                 </div>
@@ -166,7 +142,7 @@
                 <div class="col-xxl-6 col-12 col-xl-6 d-flex">
                     <div class="card">
                         <div class="card-header">
-                            <h5>Check Calls Monitoring</h5>
+                            <h5 class="fs-18">Check Calls Monitoring</h5>
                             <small>Filter by status: Pending | Missed | Completed</small>
                         </div>
                         <div class="card-body" style="max-height: 400px; overflow-y: auto;">
@@ -257,7 +233,7 @@
                     <div class="card flex-fill">
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                                <h5>Upcomming Shifts</h5>
+                                <h5 class="fs-18">Upcomming Shifts</h5>
                             </div>
                             <div class="card-body p-0">
                                 <div class="table-responsive">
@@ -326,7 +302,7 @@
                     <div class="card mt-4">
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                                <h5>SIA License Check</h5>
+                                <h5 class="fs-18">SIA License Check</h5>
                             </div>
                         </div>
                         <div class="card-body">
@@ -410,7 +386,7 @@
                         <div class="card mt-4">
                             <div class="card-header">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                                    <h5>Book on | Book off</h5>
+                                    <h5 class="fs-18">Book on | Book off</h5>
                                 </div>
                             </div>
                             <div class="card-body">

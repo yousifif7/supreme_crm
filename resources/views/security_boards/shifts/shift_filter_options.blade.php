@@ -7,6 +7,7 @@
 
     $staffs = App\Models\Employee::all();
     $sites = App\Models\Site::all();
+     $clients = App\Models\Client::all();
 @endphp
 
 <!-- Filter Modal -->
@@ -34,6 +35,16 @@
                             </select>
                         </div>
 
+                         <div class="col-md-4 mb-3">
+                            <label class="form-label">Client</label>
+                            <select class="form-select" name="client_id">
+                                <option value="">--choose--</option>
+                                @foreach ($clients as $client)
+                                    <option value="{{ $client->id }}">{{ $client->client_name }} {{$client->email  }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <!-- Site -->
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Site</label>
@@ -46,21 +57,16 @@
                         </div>
 
                         <!-- Start Time -->
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">Start Time</label>
-                            <input type="time" class="form-control" name="start_time">
-                        </div>
-
-                        <!-- End Time -->
-                        <div class="col-md-4 mb-3">
-                            <label class="form-label">End Time</label>
-                            <input type="time" class="form-control" name="end_time">
-                        </div>
+                      
 
                         <!-- Created At -->
                         <div class="col-md-4 mb-3">
-                            <label class="form-label">Date</label>
+                            <label class="form-label">Start Date</label>
                             <input type="date" class="form-control" name="from_shift">
+                        </div>
+                         <div class="col-md-4 mb-3">
+                            <label class="form-label">End Date</label>
+                            <input type="date" class="form-control" name="to_shift">
                         </div>
                     </div>
                 </div>

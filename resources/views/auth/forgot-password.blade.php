@@ -1,4 +1,7 @@
 <x-guest-layout>
+    <div style="display: flex; justify-content: center;">
+            <img src="assets/sp_logo.png" alt="Logo" width="120px;" hieght="120px;">
+        </div>
     <div class="mb-4 text-sm text-gray-600 dark:text-gray-400">
         {{ __('Forgot your password? No problem. Just let us know your email address and we will email you a password reset link that will allow you to choose a new one.') }}
     </div>
@@ -8,6 +11,7 @@
 
     <form method="POST" action="{{ route('password.email') }}">
         @csrf
+
 
         <!-- Email Address -->
         <div>
