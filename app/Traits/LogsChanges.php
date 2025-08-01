@@ -62,7 +62,7 @@ trait LogsChanges
             $labels = rtrim($labels, ',<br> ');
 
             $model->logs()->create([
-                'user_name' => optional(Auth::user())->first_name . ' ' . optional(Auth::user())->last_name ?? 'System',
+                'user_name' => optional(Auth::user())->first_name??'System' . ' ' . optional(Auth::user())->last_name ?? 'System',
                 'action' => "Updated {$fields}",
                 'description' => $labels,
             ]);
@@ -88,7 +88,7 @@ trait LogsChanges
             }
 
             $model->logs()->create([
-                'user_name' => Auth::user()->first_name . ' ' . Auth::user()->last_name,
+                'user_name' => Auth::user()->first_name ?? 'System' . ' ' . isset(Auth::user()->last_name)?Auth::user()->last_name:'System',
                 'action' => "Created {$modelType} record",
                 'description' => "{$modelType} {$label} was added successfully.",
             ]);

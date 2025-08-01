@@ -8,7 +8,7 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Users</h2>
+                    <h2 class="mb-1">Dashboard / Users</h2>
 
                 </div>
 
