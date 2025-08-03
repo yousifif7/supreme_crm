@@ -14,16 +14,35 @@
 
     <!-- Scripts -->
     @vite(['resources/css/app.css', 'resources/js/app.js'])
+
+    <style>
+        .video-background {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: -1;
+        }
+
+        .content-wrapper {
+            position: relative;
+            z-index: 1;
+        }
+    </style>
 </head>
 
 <body class="font-sans text-gray-900 antialiased">
-    <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 bg-gray-100 dark:bg-gray-900">
-        <div>
-            <img src="assets/sp_logo.png" alt="Logo" width="120px;" hieght="120px;">
-        </div>
+    <!-- Background Video -->
+    <video autoplay muted loop class="video-background">
+        <source src="https://supremeprotection.co.uk/wp-content/uploads/2024/06/Untitled-design.mp4" type="video/mp4">
+        Your browser does not support the video tag.
+    </video>
 
-        <div
-            class="w-full sm:max-w-md mt-6 px-6 py-4 bg-white dark:bg-gray-800 shadow-md overflow-hidden sm:rounded-lg">
+    <!-- Foreground Content -->
+    <div class="min-h-screen flex flex-col sm:justify-center items-center pt-6 sm:pt-0 content-wrapper">
+        <div class="w-full sm:max-w-md mt-6 px-6 py-4  shadow-md overflow-hidden sm:rounded-lg" style="background:#0e1b23ab">
             {{ $slot }}
         </div>
     </div>

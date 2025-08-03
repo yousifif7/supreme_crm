@@ -40,10 +40,12 @@
 
         <div class="right  mt-4">
             @yield('filter')
+@if (Request::is('scheduling*'))
 
             <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift" class=" add_btn btn btn-white">
                 <i class="ti ti-plus me-0"></i> Add Shift
             </a>
+            @endif
             <div class="input-group input-group-flat d-inline-flex me-1">
                 <span class="input-icon-addon">
                     <i class="ti ti-search"></i>
@@ -56,14 +58,7 @@
 
             </div>
 
-            <!--
-         <a href="#" data-bs-toggle="modal" data-bs-target="#add_rota" class=" add_btn btn btn-white"">
-             <i class="ti ti-plus me-0"></i> Rota (0)
-         </a>
-         <a href="#" data-bs-toggle="modal" data-bs-target="#add_client" class=" day-off_btn btn btn-white"">
-             <i class="ti ti-plus me-0"></i> Day off (0)
-         </a>
-        -->
+        
             <div class="dropdown">
                 <a href="javascript:void(0);"
                     class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"

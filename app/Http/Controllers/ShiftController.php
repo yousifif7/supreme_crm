@@ -220,33 +220,9 @@ class ShiftController extends Controller
                 // ✅ Check SIA license expiry only if staff exists
                 if ($staffId) {
                     $staff = \App\Models\Employee::find($staffId);
-                    if ($staff && $staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
-                        $validator->errors()->add("staff_id", "Staff SIA license has expired.");
-                    }
+                   
+                    applyRestrictions($staff, $validator);
 
-                    if ($staff && $staff->visa_expiry && \Carbon\Carbon::parse($staff->visa_expiry)->lt(now())) {
-                        $validator->errors()->add("staff_id", "Staff Visa has expired.");
-                    }
-
-                    if ($staff && $staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
-                        $validator->errors()->add("staff_id", "Staff Passport has expired.");
-                    }
-
-                    if ($staff && $staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
-                        $validator->errors()->add("staff_id", "Staff Passport has expired.");
-                    }
-
-                    $missingDocuments = [];
-
-                    foreach ($documents as $key => $doc) {
-                        if (empty($staff->$key)) {
-                            $missingDocuments[] = $doc;
-                        }
-                    }
-
-                    if (count($missingDocuments)) {
-                        $validator->errors()->add("staff_id", "Missing required documents: " . implode(', ', $missingDocuments));
-                    }
 
                     $selectedDays = array_map('trim', explode(',', $dayString));
                     // $newShiftHours = $this->calculateTotalWorkingHours($staffId, $from, $to, $start, $end, $breakMinutes, $selectedDays);
@@ -358,8 +334,8 @@ class ShiftController extends Controller
                         'shift_date' => $date->format('Y-m-d'),
 
                         // NEW: convert to UTC using Carbon with Europe/London source
-                        'start_time' => Carbon::createFromFormat('H:i', $data['start_shift'], 'Europe/London')->setTimezone('UTC')->format('H:i'),
-                        'end_time'   => Carbon::createFromFormat('H:i', $data['end_shift'], 'Europe/London')->setTimezone('UTC')->format('H:i'),
+                        'start_time' => Carbon::createFromFormat('H:i', $data['start_shift'])->format('H:i'),
+                        'end_time'   => Carbon::createFromFormat('H:i', $data['end_shift'])->format('H:i'),
 
                         'is_assign' => $is_assign,
                         'break_time' => $data['break-mins_shift'] ?? null,
@@ -963,39 +939,7 @@ class ShiftController extends Controller
             ], 422);
         }
 
-        // 2. ✅ Check if staff SIA license is expired
-        if ($staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
-            return response()->json([
-                'error' => 'This staff’s SIA license is expired.'
-            ], 422);
-        }
-
-        if ($staff->visa_expiry && \Carbon\Carbon::parse($staff->visa_expiry)->lt(now())) {
-            return response()->json([
-                'error' => 'This staff’s Visa is expired.'
-            ], 422);
-        }
-
-        if ($staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
-            return response()->json([
-                'error' => 'This staff’s Passport is expired.'
-            ], 422);
-        }
-
-        $missingDocuments = [];
-
-        foreach ($documents as $key => $doc) {
-            if (empty($staff->$key)) {
-                $missingDocuments[] = $doc;
-            }
-        }
-
-        if (count($missingDocuments)) {
-            return response()->json([
-                'error' => "Missing required documents: " . implode(', ', $missingDocuments)
-            ], 422);
-        }
-
+         applyRestrictions($staff, $validator);
         $fromDate = \Carbon\Carbon::parse($from);
         $toDate = \Carbon\Carbon::parse($to);
 
@@ -1081,6 +1025,9 @@ class ShiftController extends Controller
     {
         $query = Shift::query();
 
+        $from_shift=$request->from_shift;
+        $to_shift=$request->to_shift;
+
         if ($request->filled('site')) {
             $query->where('site_id', $request->site);
         }
@@ -1097,6 +1044,10 @@ class ShiftController extends Controller
             $query->whereTime('start_time', '>=', $request->start_time);
         }
 
+        if ($request->filled('client_id')) {
+            $query->whereTime('client_id', '>=', $request->client_id);
+        }
+
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);
         }
@@ -1104,6 +1055,21 @@ class ShiftController extends Controller
         if ($request->filled('created_at')) {
             $query->whereDate('created_at', $request->created_at);
         }
+
+        if ($request->filled('created_at')) {
+            $query->whereDate('created_at', $request->created_at);
+        }
+if (!empty($from_shift) && !empty($to_shift)) {
+    $query->whereBetween('from_shift', [$from_shift, $to_shift])
+          ->whereBetween('to_shift', [$from_shift, $to_shift]);
+} elseif (!empty($from_shift)) {
+    $query->where('from_shift', '>=', $from_shift)
+          ->orWhere('to_shift', '>=', $from_shift);
+} elseif (!empty($to_shift)) {
+    $query->where('from_shift', '<=', $to_shift)
+          ->orWhere('to_shift', '<=', $to_shift);
+}
+
 
         $shifts = $query->with(['site', 'staff'])->get();
 

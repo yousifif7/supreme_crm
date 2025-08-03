@@ -127,11 +127,30 @@
                                     Await-Finish
                                 </div>
                             </div>
+                <!-- Calendar Sidebar -->
+                <div class="col-xxl-3 col-xl-3" style="padding-right: 0px !important; padding-left: 0px !important;">
+                    <div class="card">
+                        <div class="card-body p-3">
+                            <div class="border-bottom pb-2 mb-4">
+                                <div class="datepic"></div>
+                            </div>
+
+                            <!-- Event -->
+                            @include('security_boards.event_colors')
+                            <!-- /Event -->
+
+
+
                         </div>
                         <!-- /Event -->
 
 
 
+                <div class="col-xxl-9 col-xl-9 theiaStickySidebar">
+                    <div class="card border-0">
+                        <div class="card-body">
+                            <div id="calendar"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -145,6 +164,10 @@
                     </div>
                 </div>
             </div>
+            <!-- Add Rota -->
+
+            <!-- Add shift -->
+            @include('security_boards.shiftmodal');
 
         </div>
         <!-- Calendar View -->

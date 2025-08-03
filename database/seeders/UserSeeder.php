@@ -15,7 +15,9 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $user = User::firstOrCreate(
+
+/*        User::where(['email' => 'admin@gmail.com'])->update(['password' => Hash::make('654321')]);
+*/        $user = User::firstOrCreate(
             ['email' => 'admin@gmail.com'],
             [
                 'first_name' => 'Super',

@@ -34,7 +34,7 @@
             <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
                 <!-- Calendar Sidebar -->
-                <div class="col-xxl-2 col-xl-3" style="padding-right: 0px !important; padding-left: 0px !important;">
+                <div class="col-xxl-3 col-xl-3" style="padding-right: 0px !important; padding-left: 0px !important;">
                     <div class="card">
                         <div class="card-body p-3">
                             <div class="border-bottom pb-2 mb-4">
@@ -42,54 +42,7 @@
                             </div>
 
                             <!-- Event -->
-                            <div class="border-bottom pb-4 mb-4">
-                                <div class="d-flex align-items-center justify-content-between mb-2">
-                                    <h5>Event </h5>
-                                    <a href="#" class="link-primary" data-bs-toggle="modal"
-                                        data-bs-target="#add_event"><i
-                                            class="ti ti-square-rounded-plus-filled fs-16"></i></a>
-                                </div>
-                                <p class="fs-12 mb-2">Drag and drop your event or click in the calendar</p>
-                                <div id='external-events'>
-                                    <div class="fc-event bg-dark-blue mb-1" data-event='{ "title": "Pending" }'
-                                        data-event-classname="bg-dark-blue">
-                                        Pending
-                                    </div>
-                                    <div class="fc-event bg-lighter mb-1" data-event='{ "title": "Dispatched" }'
-                                        data-event-classname="bg-lighter">
-                                        Dispatched
-                                    </div>
-                                    <div class="fc-event bg-dark-green mb-1" data-event='{ "title": "Accepted" }'
-                                        data-event-classname="bg-dark-green">
-                                        Accepted
-                                    </div>
-                                    <div class="fc-event bg-light-yellow mb-1" data-event='{ "title": "Started" }'
-                                        data-event-classname="bg-light-yellow">
-                                        Started
-                                    </div>
-                                    <div class="fc-event bg-light-blue mb-1" data-event='{ "title": "Ended" }'
-                                        data-event-classname="bg-light-blue">
-                                        Ended
-                                    </div>
-                                    <div class="fc-event bg-purple mb-0" data-event='{ "title": "Rejected" }'
-                                        data-event-classname="bg-purple">
-                                        Rejected
-                                    </div>
-                                    <div class="fc-event bg-red mb-0" data-event='{ "title": "Cancelled" }'
-                                        data-event-classname="bg-red">
-                                        Cancelled
-                                    </div>
-                                    <div class="fc-event bg-dark-yellow mb-0" data-event='{ "title": "Pre-Start" }'
-                                        data-event-classname="bg-primary">
-                                        Pre-Start
-                                    </div>
-                                    <div class="fc-event bg-orange mb-0" data-event='{ "title": "Await-Finish" }'
-                                        data-event-classname="bg-orange">
-                                        Await-Finish
-                                    </div>
-                                </div>
-
-                            </div>
+                           @include('security_boards.event_colors')
                             <!-- /Event -->
 
 
@@ -100,7 +53,7 @@
                 </div>
                 <!-- /Calendar Sidebar -->
 
-                <div class="col-xxl-10 col-xl-9 theiaStickySidebar">
+                <div class="col-xxl-9 col-xl-9 theiaStickySidebar">
                     <div class="card border-0">
                         <div class="card-body">
                             <div id="calendar"></div>

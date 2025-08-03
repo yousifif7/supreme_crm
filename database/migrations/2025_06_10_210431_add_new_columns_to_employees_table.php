@@ -12,12 +12,11 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('employees', function (Blueprint $table) {
-            $table->string('sia_licence')->nullable();
             $table->string('passport')->nullable();
             $table->string('proof_of_address')->nullable();
             $table->string('ni_letter')->nullable();
-            $table->string('first_aid_certificate')->nullable();
-            $table->string('act_certificate')->nullable();
+            $table->text('first_aid_certificate')->nullable();
+            $table->text('act_certificate')->nullable();
         });
     }
 
@@ -27,7 +26,6 @@ return new class extends Migration
     public function down(): void
     {
         Schema::table('employees', function (Blueprint $table) {
-            $table->dropColumn('sia_licence');
             $table->dropColumn('passport');
             $table->dropColumn('proof_of_address');
             $table->dropColumn('ni_letter');

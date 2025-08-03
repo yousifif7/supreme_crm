@@ -16,7 +16,6 @@ return new class extends Migration
             $table->unsignedBigInteger('client_id')->nullable();
             $table->unsignedBigInteger('site_id')->nullable();
             $table->unsignedBigInteger('company_id')->nullable();
-            $table->bigInteger('staff_id')->nullable();
             $table->time('start_shift')->nullable();
             $table->time('end_shift')->nullable();
             $table->string('break-mins_shift')->nullable(); // Note: field name has a hyphen

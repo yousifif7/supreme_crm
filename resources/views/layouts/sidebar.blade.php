@@ -17,7 +17,7 @@
                 <li>
                     <ul>
                         <li class="menu-title">
-                            <span>MAIN MENU</span>
+                            <span>Supreme Protection</span>
                         </li>
                         <li class="{{ request()->is('dashboard*') ? 'active' : '' }}">
                             <a href="{{ url('dashboard') }}">
@@ -158,7 +158,7 @@
                                 <i class="ti ti-tool"></i><span>Tools</span>
                                 <span class="menu-arrow"></span>
                             </a>
-                            <ul style="display: {{ request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
+                            <ul style="display: {{ request()->is('restrictions.*') || request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
                                 <li class="{{ request()->is('invoices*') ? 'active' : '' }}"><a href="{{ route('invoices.index') }}"><i
                                             class="ti ti-file-invoice"></i>Invoices & Payments</a></li>
                                 {{--<li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
@@ -172,10 +172,29 @@
                                 
                                 <li><a href="#"><i class="ti ti-checkup-list"></i>Report</a>
                                 </li>
+
+                                 <li class="{{ request()->is('restrictions') ? 'active' : '' }}">
+                                    <a href="{{ route('restrictions.index') }}">
+                                        <i class="ti ti-door-exit"></i>Restictions</a>
+                                </li>
                                 {{--<li><a href="#"><i class="ti ti-calendar-stats"></i>Timesheet Report</a></li>
                                 <li><a href="#"><i class="ti ti-checkup-list"></i>RIO Report</a>
                                 </li>--}}
                             </ul>
+                        </li>
+                        <li >
+                            <!-- Logout Link -->
+<a href="{{ route('logout') }}" 
+   onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+    <i class="ti ti-logout"></i>
+    <span>Logout</span>
+</a>
+
+<!-- Logout Form -->
+<form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
+    @csrf
+</form>
+
                         </li>
                     </ul>
                 </li>
