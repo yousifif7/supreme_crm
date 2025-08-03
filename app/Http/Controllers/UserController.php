@@ -20,7 +20,8 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-
+use App\Models\Location;
+use DB;
 class UserController extends Controller
 {
     public function dashboard()
@@ -177,7 +178,15 @@ class UserController extends Controller
             $shift->update(['unassigned_shift_notified' => true]);
         }
 
-        return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));
+$locations = Location::select('id', 'user_id', 'latitude', 'longitude', 'accuracy', 'on_duty', 'timestamp')
+    ->with('user:id,name')
+    ->whereIn('id', function ($query) {
+        $query->select(DB::raw('MAX(id)'))
+              ->from('locations')
+              ->groupBy('user_id');
+    })
+    ->get();
+        return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
     }
 
     public function index(UsersDataTable $dataTable)
