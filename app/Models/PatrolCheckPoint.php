@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 
 class PatrolCheckpoint extends Model
 {
+    protected $table = 'patrol_check_points';
     //
     protected $fillable = [
         'patrol_id', 'name', 'qr_code', 'nfc_tag',

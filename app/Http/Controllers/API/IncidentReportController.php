@@ -82,6 +82,7 @@ class IncidentReportController extends Controller
             'alert',
             'Incident report',
             'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name. ' In shift NO. #'. $request->shift_id,
+            '#'
         );
 
         return response()->json([

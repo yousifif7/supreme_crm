@@ -105,6 +105,7 @@ class ShiftApiController extends Controller
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
+            '#'
         );
 
 
@@ -201,19 +202,50 @@ class ShiftApiController extends Controller
 
     public function bookOn(Request $request, $shift_id)
     {
+        $user = Auth::user();
+
         Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => $request->user()->id,
+            'user_id' => $user->id,
             'type' => 'alert',
             'title' => 'Shift booked on',
-            'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
             'read' => false,
         ]);
+
+        // Send push notification to employee/device
+        send_push_notification(
+            $user->id,
+            'Shift booked on',
+            'Your shift has been successfully booked on.',
+            ['shift_id' => $shift_id]
+        );
+
         return $this->bookOnOff($request, $shift_id, 'book_on');
     }
 
     public function bookOff(Request $request, $shift_id)
     {
+        $user = Auth::user(); // Get the authenticated user
+
+        Notification::create([
+            'user_id' => Auth::id(),
+            'type' => 'alert',
+            'title' => 'Shift booked off',
+            'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'read' => false,
+        ]);
+
+        // Optionally fetch the shift if you need more details
+        $shift = Shift::findOrFail($shift_id);
+
+        // Send push notification to employee/device
+        send_push_notification(
+            $user->id,
+            'Shift booked off',
+            'Your shift has been successfully booked off.',
+            ['shift_id' => $shift_id]
+        );
+
         return $this->bookOnOff($request, $shift_id, 'book_off');
     }
 
@@ -255,7 +287,10 @@ class ShiftApiController extends Controller
             'notes' => 'nullable|string',
             'issues_found' => 'nullable|string',
         ]);
-        $checkpoint = PatrolCheckpoint::findOrFail($checkpoint_id);
+        $checkpoint = PatrolCheckpoint::find($checkpoint_id);
+        if (!$checkpoint) {
+            return response()->json(['message' => 'Checkpoint not found.'], 404);
+        }
 
         $scan = $checkpoint->scans()->create([
             'user_id' => Auth::id(),
@@ -300,5 +335,38 @@ class ShiftApiController extends Controller
         ]);
 
         return response()->json(['message' => 'Patrol marked as completed']);
+    }
+
+    // check if guard is on duty
+    public function checkDutyStatus(Request $request)
+    {
+        $user = Auth::user();
+
+        // Get the most recent booking entry for this user
+        $latestBooking = \App\Models\ShiftBooking::where('user_id', $user->id)
+            ->orderBy('timestamp', 'desc')
+            ->first();
+
+        if (!$latestBooking) {
+            return response()->json([
+                'status' => 'off-duty',
+                'shift_id' => null,
+                'message' => 'No shift bookings found.'
+            ]);
+        }
+
+        if ($latestBooking->type === 'book_on') {
+            return response()->json([
+                'status' => 'on-duty',
+                'shift_id' => $latestBooking->shift_id,
+                'booked_on_at' => $latestBooking->timestamp,
+            ]);
+        }
+
+        return response()->json([
+            'status' => 'off-duty',
+            'shift_id' => null,
+            'booked_off_at' => $latestBooking->timestamp,
+        ]);
     }
 }

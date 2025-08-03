@@ -7,11 +7,14 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
+        "alymosul/exponent-server-sdk-php": "^1.3",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "*",
         "laravel/tinker": "^2.10.1",
         "maatwebsite/excel": "^3.1",
+        "setasign/fpdi": "*",
+        "spatie/image-optimizer": "^1.8",
         "spatie/laravel-permission": "^6.18",
         "yajra/laravel-datatables": "^12.0"
     },

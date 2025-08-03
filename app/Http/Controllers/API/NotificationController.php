@@ -21,14 +21,13 @@ class NotificationController extends Controller
             'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = Notification::all();
+        $query = Notification::query(); // ✅ Query builder
 
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
 
         if ($request->filled('read')) {
-            // Accept "true", "false", 1, 0 as strings and convert properly
             $read = filter_var($request->read, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
 
             if (!is_null($read)) {
@@ -65,15 +64,15 @@ class NotificationController extends Controller
             'platform' => 'required|in:ios,android'
         ]);
 
-        $employee = Employee::find($request->user_id);
+        // $employee = Employee::find($request->user_id);
 
-        if (!$employee) {
-            return response()->json(['message' => 'Employee not found'], 404);
-        }
+        // if (!$employee) {
+        //     return response()->json(['message' => 'Employee not found'], 404);
+        // }
 
         DeviceToken::updateOrCreate(
             [
-                'employee_id' => $employee->id,
+                'employee_id' => Auth::id(),
                 'push_token' => $request->push_token
             ],
             [

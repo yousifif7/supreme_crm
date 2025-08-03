@@ -19,6 +19,7 @@ use App\DataTables\UsersDataTable;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -129,7 +130,14 @@ class UserController extends Controller
                 null,
                 'alarm',
                 'Missed Book On',
-                "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}."
+                "Guard {$guardName} did not book on for their shift No. {$shift->id} starting at {$shift->start_shift} on {$shift->from_shift}.",
+                "scheduling?{$shift->id}"
+            );
+            send_push_notification(
+                $employee->id,
+                'Shift Missed',
+                'Your shift has been started you did not book on.',
+                ['shift_id' => $shift->id]
             );
 
             // ✅ Mark as notified
@@ -152,7 +160,14 @@ class UserController extends Controller
                 null,
                 'alarm',
                 'Missed Book Off',
-                "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}."
+                "Guard {$guardName} did not book off for their shift No. {$shift->id} ending at {$shift->end_shift} on {$shift->to_shift}.",
+                "scheduling?{$shift->id}"
+            );
+            send_push_notification(
+                $employee->id,
+                'Shift Finished',
+                'Your shift has been ended you did not book off.',
+                ['shift_id' => $shift->id]
             );
 
             $shift->update(['missed_book_off_notified' => true]);
@@ -171,11 +186,14 @@ class UserController extends Controller
                 null,
                 'alarm',
                 'Unassigned Shift',
-                "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned."
+                "Shift {$shift->id} at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned.",
+                "scheduling?{$shift->id}"
             );
 
             $shift->update(['unassigned_shift_notified' => true]);
         }
+        // Calling delete notifications every 30 days function 
+        $this->deleteOldNotifications();
 
         return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage'));
     }
@@ -367,5 +385,19 @@ class UserController extends Controller
         $alarm->save();
 
         return response()->json(['success' => true]);
+    }
+
+    protected function deleteOldNotifications()
+    {
+        // Run only once every 24 hours
+        if (!Cache::has('notifications_cleanup_ran_today')) {
+            $cutoff = Carbon::now()->subDays(30);
+
+            $deleted = Notification::where('created_at', '<', $cutoff)->delete();
+
+            Cache::put('notifications_cleanup_ran_today', true, now()->addDay());
+
+            \Log::info("Auto-deleted $deleted notifications older than 30 days");
+        }
     }
 }

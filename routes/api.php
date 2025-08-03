@@ -70,6 +70,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/alarms/booking', [ShiftApiController::class, 'getBookingAlarms']);
     Route::post('/alarms/{alarm_id}/acknowledge', [ShiftApiController::class, 'acknowledgeAlarm']);
+
+    Route::get('/shift-status', [ShiftApiController::class, 'checkDutyStatus']);
 });
 
 //Shifts api controller routes

@@ -111,10 +111,7 @@ class EmployeeController extends Controller
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
-            // 'username' => 'required|email|unique:users,username',
-
-            // 'username'        => 'required|email',          // Assuming username is email for user
-            'password'        => 'required|string|min:6',   // Add password validation
+            'password' => 'required|string|min:6',   // Add password validation
         ]);
 
         if ($validator->fails()) {

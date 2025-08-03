@@ -138,7 +138,7 @@ class ShiftController extends Controller
                 'service_type_1' => 'nullable',
                 'service_type_2' => 'nullable',
                 'subcontractor_id' => 'nullable',
-                'from_shift' => 'required|date|after_or_equal:today',
+                'from_shift' => 'required|date',
                 'to_shift' => 'required|date|after_or_equal:from_shift',
                 'comments' => 'nullable|string|max:1000',
                 'days' => 'nullable|string',
@@ -171,10 +171,21 @@ class ShiftController extends Controller
 
                     if ($startTime->eq($endTime)) {
                         $validator->errors()->add("end_shift", "End time must not be the same as start time.");
-                    } elseif ($endTime->lt($startTime)) {
-                        $validator->errors()->add("end_shift", "End time cannot be earlier than start time on the same day.");
+                    } else {
+                        // Calculate duration in minutes (handling overnight shifts)
+                        $duration = $endTime->diffInMinutes($startTime, false);
+
+                        if ($duration <= 0) {
+                            // If negative or zero, assume next day
+                            $duration += 1440; // Add 24 hours in minutes
+                        }
+
+                        if ($duration < 60) {
+                            $validator->errors()->add("end_shift", "Shift duration must be at least 1 hour.");
+                        }
                     }
                 }
+
 
                 // ✅ Check overlapping shift logic only if staff ID and dates exist
                 $staffId = $request->staff_id[$i] ?? null;
@@ -1166,5 +1177,12 @@ class ShiftController extends Controller
             'message' => 'Comment added successfully.',
             'comment' => $comment,
         ]);
+    }
+
+    // Opening shift modal via notifications
+    public function modal($id)
+    {
+        $shiftDate = Shift::findOrFail($id);
+        return redirect("/shifts");
     }
 }
