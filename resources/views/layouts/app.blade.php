@@ -455,38 +455,8 @@
             window.location.href = "#";
         });
     </script>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script>
-        window.addEventListener('load', function() {
-            if (typeof L === 'undefined') {
-                toast_danger('Leaflet (L) is still undefined! Check CDN.');
-                return;
-            }
-
-            // Check if container exists before initializing
-            const mapDiv = document.getElementById('map');
-            if (mapDiv) {
-                var map = L.map('map').setView([51.505, -0.09], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map);
-
-                L.circle([51.505, -0.09], {
-                    fillColor: '#f03',
-                    fillOpacity: 0.5,
-                    radius: 700
-                }).addTo(map).bindPopup("Red Zone Area");
-            }
-
-            const map1Div = document.getElementById('map1');
-            if (map1Div) {
-                var map1 = L.map('map1').setView([51.505, -0.09], 13);
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: '&copy; OpenStreetMap contributors'
-                }).addTo(map1);
-            }
-        });
-
+  
 
         // Handling notifications
         // Fetch unread notifications count & list (limit to 5 for dropdown)
