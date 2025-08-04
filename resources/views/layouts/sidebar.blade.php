@@ -16,9 +16,7 @@
             <ul>
                 <li>
                     <ul>
-                        <li class="menu-title">
-                            <span>Supreme Protection</span>
-                        </li>
+                        
                         <li class="{{ request()->is('dashboard*') ? 'active' : '' }}">
                             <a href="{{ url('dashboard') }}">
                                 <i class="ti ti-layout-dashboard"></i>
