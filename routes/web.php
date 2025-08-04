@@ -153,6 +153,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
+    Route::get('/shift/{id}', [ShiftController::class, 'modal']);
 
     Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');
 
@@ -162,7 +163,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
     Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
 
-    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); // web.php or api.php
+    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); 
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
 
     /** Begin: Holiday Controller */

@@ -52,4 +52,11 @@ class Invoice extends Model
     {
         return $this->hasOne(InvoiceReview::class);
     }
+
+    protected $casts = [
+    'start_date' => 'datetime',
+    'end_date' => 'datetime',
+    'submitted_at' => 'datetime',
+    'paid_at' => 'datetime',
+];
 }

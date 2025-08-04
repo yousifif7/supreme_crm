@@ -14,7 +14,6 @@ use Illuminate\Support\Facades\Storage;
 
 class DocumentAPIController extends Controller
 {
-    // 7. Upload Documents
     public function upload(Request $request)
     {
         $request->validate([
@@ -35,8 +34,7 @@ class DocumentAPIController extends Controller
             'status' => 'pending',
         ]);
 
-
-        // Map to employee table if this document type is one of the known fields
+        // Sync to employee table if applicable
         $syncToEmployeeTable = [
             'sia_licence_file' => 'sia_licence_file',
             'passport_file' => 'passport_file',
@@ -46,21 +44,30 @@ class DocumentAPIController extends Controller
             'act_certificate_file' => 'act_certificate_file'
         ];
 
+        $user = $request->user();
+        $employee = $user->employee; // Assuming you have $user->employee relationship
 
-        if (isset($syncToEmployeeTable[$request->document_type])) {
+        if ($employee && isset($syncToEmployeeTable[$request->document_type])) {
             $employeeColumn = $syncToEmployeeTable[$request->document_type];
 
-            Employee::find($request->user()->id)
-                ->update([
-                    $employeeColumn => basename($filePath),
-                    'licence_expiry' => $request->expiry_date
-                ]);
-            $employee=Employee::findOrFail(Auth::id());
+            $employee->update([
+                $employeeColumn => basename($filePath),
+                'licence_expiry' => $request->expiry_date
+            ]);
+
             Notify::toDashboard(
                 $employee->id,
                 'alert',
                 'Document Uploaded',
-                'Document uploaded by ' .$employee->fore_name . ' ' . $employee->sur_name,
+                'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
+                '/employee'
+            );
+            // Send push notification to employee/device
+            send_push_notification(
+                $user->id,
+                'You uploaded a document',
+                'Your Document has been uploaded succesfully.',
+                ['document_id' => $document->id],
             );
         }
 
@@ -70,11 +77,12 @@ class DocumentAPIController extends Controller
             'uploaded_at' => $document->created_at,
         ]);
     }
-
     // 8. Get User Documents
     public function index(Request $request)
     {
-        $documents = $request->user()->documents()->get()->map(function ($doc) {
+        $user = $request->user();
+
+        $documents = $user->documents()->get()->map(function ($doc) {
             return [
                 'id' => $doc->id,
                 'type' => $doc->document_type,
@@ -104,6 +112,16 @@ class DocumentAPIController extends Controller
                     'days_remaining' => Carbon::parse($doc->expiry_date)->diffInDays(now()),
                 ];
             });
+
+        foreach ($expiringSoon as $exp) {
+            send_push_notification(
+                $exp->user_id,
+                'Document expiry alert',
+                'Your document is about to expire.',
+                ['document_id' => $exp->id]
+            );
+        }
+
 
         return response()->json(['expiring_soon' => $expiringSoon]);
     }

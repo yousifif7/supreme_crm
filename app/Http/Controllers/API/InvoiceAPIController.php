@@ -92,23 +92,32 @@ class InvoiceAPIController extends Controller
 
         $invoices = $query->paginate($request->limit ?? 10);
 
+        // Transform the collection inside paginator
+        $invoices->getCollection()->transform(function ($invoice) {
+            return [
+                'id' => $invoice->id,
+                'invoice_number' => 'INV-' . str_pad($invoice->id, 5, '0', STR_PAD_LEFT),
+                'period' => optional($invoice->start_date)->format('Y-m-d') . ' to ' . optional($invoice->end_date)->format('Y-m-d'),
+                'amount' => $invoice->total_amount,
+                'status' => $invoice->status,
+                'admin_review' => $invoice->adminReview ? [
+                    'revised_amount' => $invoice->adminReview->revised_amount,
+                    'revision_reason' => $invoice->adminReview->revision_reason,
+                    'requires_confirmation' => $invoice->adminReview->requires_confirmation,
+                ] : null,
+                'submitted_at' => optional($invoice->submitted_at)->toDateTimeString(),
+                'paid_at' => optional($invoice->paid_at)->toDateTimeString(),
+            ];
+        });
+
         return response()->json([
-            'invoices' => $invoices->map(function ($invoice) {
-                return [
-                    'id' => $invoice->id,
-                    'invoice_number' => 'INV-' . str_pad($invoice->id, 5, '0', STR_PAD_LEFT),
-                    'period' => $invoice->start_date->format('Y-m-d') . ' to ' . $invoice->end_date->format('Y-m-d'),
-                    'amount' => $invoice->total_amount,
-                    'status' => $invoice->status,
-                    'admin_review' => $invoice->adminReview ? [
-                        'revised_amount' => $invoice->adminReview->revised_amount,
-                        'revision_reason' => $invoice->adminReview->revision_reason,
-                        'requires_confirmation' => $invoice->adminReview->requires_confirmation,
-                    ] : null,
-                    'submitted_at' => $invoice->submitted_at,
-                    'paid_at' => $invoice->paid_at,
-                ];
-            })
+            'invoices' => $invoices->items(),
+            'pagination' => [
+                'current_page' => $invoices->currentPage(),
+                'last_page' => $invoices->lastPage(),
+                'per_page' => $invoices->perPage(),
+                'total' => $invoices->total(),
+            ],
         ]);
     }
 

@@ -51,6 +51,7 @@ class DobApiController extends Controller
             'alert',
             'DOB Uploaded',
             'DOB uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
+            '/employee'
         );
 
         return response()->json([
