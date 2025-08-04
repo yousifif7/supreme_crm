@@ -27,6 +27,44 @@ if (!function_exists('notify_users')) {
     }
 }
 
+
+function applyRestrictions($entity, $validator, $fieldName = 'staff_id')
+{
+    $entityClass = get_class($entity);
+    $restrictions = \App\Models\Restriction::where('entity_type', $entityClass)
+                                           ->where('is_active', true)
+                                           ->get();
+
+    $missingDocuments = [];
+
+    foreach ($restrictions as $restriction) {
+        $field = $restriction->field_name;
+        $message = $restriction->error_message;
+
+        if ($restriction->restriction_type === 'expiry_check') {
+            if ($entity->$field && \Carbon\Carbon::parse($entity->$field)->lt(now())) {
+                $validator->errors()->add($fieldName, $message);
+            }
+        }
+
+        if ($restriction->restriction_type === 'required_field_check') {
+            if (empty($entity->$field)) {
+                $validator->errors()->add($fieldName, $message);
+            }
+        }
+
+        if ($restriction->restriction_type === 'document_check') {
+            if (empty($entity->$field)) {
+                $missingDocuments[] = $message;
+            }
+        }
+    }
+
+    if (!empty($missingDocuments)) {
+        $validator->errors()->add($fieldName, "Missing required documents: " . implode(', ', $missingDocuments));
+    }
+}
+
 if (!function_exists('send_push_notification')) {
     function send_push_notification($employeeId, $title, $message, $data = [])
     {
