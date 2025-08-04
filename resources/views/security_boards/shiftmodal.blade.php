@@ -332,7 +332,7 @@
     </div>
 </div>
 
-<script>
+{{-- <script>
     document.querySelectorAll('.time-input').forEach(input => {
         input.addEventListener('blur', function () {
             if (/^\d{1,2}$/.test(this.value)) {
@@ -341,4 +341,4 @@
             }
         });
     });
-</script>
+</script> --}}
