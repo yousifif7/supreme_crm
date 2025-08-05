@@ -28,7 +28,7 @@ if (!function_exists('notify_users')) {
 }
 
 
-function applyRestrictions($entity, $validator, $fieldName = 'staff_id')
+function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShiftHours = 0, $shiftDate = null)
 {
     $entityClass = get_class($entity);
     $restrictions = \App\Models\Restriction::where('entity_type', $entityClass)
@@ -41,22 +41,60 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id')
         $field = $restriction->field_name;
         $message = $restriction->error_message;
 
-        if ($restriction->restriction_type === 'expiry_check') {
-            if ($entity->$field && \Carbon\Carbon::parse($entity->$field)->lt(now())) {
-                $validator->errors()->add($fieldName, $message);
-            }
-        }
+        switch ($restriction->restriction_type) {
+            case 'expiry_check':
+                if ($entity->$field && \Carbon\Carbon::parse($entity->$field)->lt(now())) {
+                    $validator->errors()->add($fieldName, $message);
+                }
+                break;
 
-        if ($restriction->restriction_type === 'required_field_check') {
-            if (empty($entity->$field)) {
-                $validator->errors()->add($fieldName, $message);
-            }
-        }
+            case 'required_field_check':
+                if (empty($entity->$field)) {
+                    $validator->errors()->add($fieldName, $message);
+                }
+                break;
 
-        if ($restriction->restriction_type === 'document_check') {
-            if (empty($entity->$field)) {
-                $missingDocuments[] = $message;
-            }
+            case 'document_check':
+                if (empty($entity->$field)) {
+                    $missingDocuments[] = $message;
+                }
+                break;
+
+            case 'max_weekly_hours_check':
+                $weekStart = now()->startOfWeek();
+                $weekEnd = now()->endOfWeek();
+
+                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->id)
+                    ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                    ->sum('total_hours');
+
+                $maxWeeklyHours = $entity->hour_per_week ?? 40;
+
+                if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
+                    $validator->errors()->add($fieldName, $message);
+                }
+                break;
+
+            case 'student_visa_hours_check':
+                if ($entity->visa_type === 'Student' && $shiftDate) {
+                    $isShiftInActiveTerm = \App\Models\EmployeeTerm::where('employee_id', $entity->id)
+                        ->where(function ($query) use ($shiftDate) {
+                            $query->where('from_date', '<=', $shiftDate)
+                                  ->where('to_date', '>=', $shiftDate);
+                        })
+                        ->exists();
+
+                    if (!$isShiftInActiveTerm) {
+                        $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->id)
+                            ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
+                            ->sum('total_hours') + $newShiftHours;
+
+                        if ($weeklyHours > 20) {
+                            $validator->errors()->add($fieldName, $message);
+                        }
+                    }
+                }
+                break;
         }
     }
 
@@ -64,6 +102,7 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id')
         $validator->errors()->add($fieldName, "Missing required documents: " . implode(', ', $missingDocuments));
     }
 }
+
 
 if (!function_exists('send_push_notification')) {
     function send_push_notification($employeeId, $title, $message, $data = [])

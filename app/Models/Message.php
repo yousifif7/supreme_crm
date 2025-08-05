@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class Message extends Model
 {
     //
-    protected $fillable = ['conversation_id', 'sender_id', 'content', 'type', 'media_url', 'deleted'];
+    protected $fillable = ['conversation_id', 'sender_id', 'message', 'type', 'media_url', 'deleted'];
 
     public function sender()
     {

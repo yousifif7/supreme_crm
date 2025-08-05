@@ -180,6 +180,12 @@
                                 </li>--}}
                             </ul>
                         </li>
+                          <li class="{{ request()->is('chat*') ? 'active' : '' }}">
+                            <a href="{{ url('chat') }}">
+                                <i class="bi bi-chat"></i>
+                                <span>My Chats</span>
+                            </a>
+                        </li>
                         <li >
                             <!-- Logout Link -->
 <a href="{{ route('logout') }}" 

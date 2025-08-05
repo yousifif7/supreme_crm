@@ -55,13 +55,8 @@ class ShiftsDataTable extends DataTable
                 return number_format($shiftDate->total_hours, 2) . ' hrs';
             })
             ->addColumn('status', function ($shiftDate) {
-                $statusMap = [
-                    0 => '<span class="badge bg-secondary">Pending</span>',
-                    1 => '<span class="badge bg-info">Assigned</span>',
-                ];
-                return $statusMap[$shiftDate->is_assign] ?? '<span class="badge bg-secondary">Pending</span>';
-            })
-            ->filterColumn('client_name', function($query, $keyword) {
+    return ShiftDate::getStatusBadge($shiftDate->is_assign);
+})->filterColumn('client_name', function($query, $keyword) {
                 $query->whereHas('shift.client', function($q) use ($keyword) {
                     $q->where('client_name', 'like', "%$keyword%");
                 });

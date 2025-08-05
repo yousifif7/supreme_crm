@@ -8,7 +8,7 @@ class Conversation extends Model
 {
     //
     protected $fillable = [
-        'type', 'name'
+        'type', 'name','icon_path'
     ];
     public function participants()
     {
@@ -26,4 +26,9 @@ class Conversation extends Model
     {
         return $this->hasOne(Message::class)->latest();
     }
+
+        public function pinnedByUsers()
+{
+    return $this->hasMany(UserPinnedConversation::class, 'conversation_id');
+}
 }

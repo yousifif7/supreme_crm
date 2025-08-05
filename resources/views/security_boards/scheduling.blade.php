@@ -108,8 +108,9 @@
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
 
+                  @include('security_boards.edit');
 
-            <!-- /Breadcrumb -->
+      <!-- /Breadcrumb -->
         </div>
 
         <!-- Add Shift Success -->
@@ -319,6 +320,8 @@
         });
     </script>
     <script>
+        let calendar;
+
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
 
@@ -351,7 +354,9 @@
                 headerToolbar: headerToolbarOptions,
                 events: `${baseUrl}/api/shifts`,
 
+               
                 eventContent: function(info) {
+                    console.log(info)
                     const event = info.event;
                     const props = event.extendedProps;
                     const container = document.createElement('div');
@@ -367,12 +372,14 @@
                     container.innerHTML = `
                     <div class="_schedule-box-row">
                         <div class="_schedule-box-text _schedule-box-time">
-                            ${event.start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -
-                            ${event.end ? event.end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            ${props.shift_time}
                         </div>
                     </div>
                     <div class="_schedule-box-row">
                         <div class="_schedule-box-text _schedule-box-name">${event.title}</div>
+                    </div>
+                          <div class="_schedule-box-row">
+                        <div class="_schedule-box-text _schedule-box-name">${props.name}</div>
                     </div>
                     <div class="_schedule-box-row">
                         <div class="_schedule-box-text _schedule-box-location">${props.location || 'Unknown'}</div>
@@ -382,9 +389,7 @@
                     return {
                         domNodes: [container]
                     };
-                },
-
-                eventClick: function(info) {
+                }, eventClick: function(info) {
                     const button = document.createElement('button');
                     button.setAttribute('data-toggle', 'ajax-modal');
                     button.setAttribute('data-title', 'Rota Detail');
@@ -443,51 +448,30 @@
             }
 
             // UPDATED FILTER HANDLER
-            const form = document.getElementById('shiftFilterForm');
-            form.addEventListener('submit', function(e) {
-                e.preventDefault();
-                const formData = new FormData(form);
+           
+           document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
+    e.preventDefault();
 
-                fetch("{{ route('shifts.filter') }}", {
-                        method: "POST",
-                        headers: {
-                            'X-CSRF-TOKEN': form.querySelector('[name="_token"]').value,
-                            'X-Requested-With': 'XMLHttpRequest'
-                        },
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('Filtered data received:', data); // DEBUG LOG
+    const form = e.target;
+    const formData = new FormData(form);
+    const params = new URLSearchParams();
 
-                        if (!data.events || !Array.isArray(data.events)) {
-                            console.error('No events array found in response');
-                            return;
-                        }
+    for (const [key, value] of formData.entries()) {
+        if (value) {
+            params.append(key, value);
+        }
+    }
 
-                        calendar.getEvents().forEach(event => event.remove());
+    const filteredUrl = `${baseUrl}/api/shifts?${params.toString()}`;
 
-                        data.events.forEach(event => {
-                            calendar.addEvent({
-                                id: event.id,
-                                title: event.title,
-                                start: event.start,
-                                end: event.end,
-                                className: event.className || 'bg-secondary',
-                                extendedProps: {
-                                    location: event.location || 'Unknown',
-                                    urgent: event.urgent || false,
-                                    sd_id: event.sd_id || null
-                                }
-                            });
-                        });
+    calendar.removeAllEvents();
+    calendar.setOption('events', filteredUrl);
+    calendar.refetchEvents();
 
-                        const modal = bootstrap.Modal.getInstance(document.getElementById(
-                            'filterModal'));
-                        if (modal) modal.hide();
-                    })
-                    .catch(error => console.error('Filtering error:', error));
-            });
+    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+    modal.hide(); // Hide modal after applying filters
+});
+
         });
     </script>
 

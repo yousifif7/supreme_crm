@@ -40,7 +40,7 @@
 
 
                                 <div class="profile-details">
-                                    <h6 id="name">{{ $shiftDate->staff?->fore_name ?? '' }}</h6>
+                                    <h6 id="name">{{ $shiftDate->staff?->fore_name ?? '' }} {{ $shiftDate->staff?->sur_name ?? '' }} <a href="#" onclick="editShift({{ $shiftDate->id }})">Edit</a></h6>
                                     <div class="mb-1">
                                         <i class="ti ti-phone"></i>
                                         <span id="phone_number">{{ $shiftDate->staff?->contact ?? '' }}</span>
@@ -95,9 +95,7 @@
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-12">
-                        <div id="map-first"></div>
-                    </div>
+                    
                     <div class="col-md-6 col-12">
                         <div class="book-on_box">
                             <div class="profile-detail">

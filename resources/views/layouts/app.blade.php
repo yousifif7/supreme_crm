@@ -211,7 +211,7 @@
                                                             name="ids[]" value="{{ $notif->id }}">
                                                     @endif
 
-                                                    <a href="{{ $notif->action_url ?? '#' }}"
+                                                    <a href="{{ !empty($notif->action_url) ? url($notif->action_url): '#' }}"
                                                         class="notification-link flex-grow-1"
                                                         data-id="{{ $notif->id }}">
                                                         <div class="d-flex">
@@ -578,6 +578,8 @@
             });
         });
     </script>
+    @stack('js')
+
     @yield('scripts')
 </body>
 

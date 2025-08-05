@@ -366,7 +366,7 @@ class ShiftController extends Controller
         $validator = Validator::make($request->all(), [
             // 'client_id' => 'required|integer',
             // 'site_id' => 'required|integer',
-            // 'company_id' => 'nullable|integer',
+            'status_id' => 'nullable|integer',
             'staff_id' => 'nullable|integer',
             'start_shift' => 'required',
             'end_shift' => 'required',
@@ -399,8 +399,8 @@ class ShiftController extends Controller
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $data = $validator->validated();
 
+        $data = $validator->validated();
         $data['absentee_start_time'] = $data['book_on'] ?? null;
         $data['absentee_end_time'] = $data['book_off'] ?? null;
         $data['start_time'] = $data['start_shift'];
@@ -421,7 +421,7 @@ class ShiftController extends Controller
         // $data['restrict_location_check'] = $request->has('restrict_location_check') ? 1 : 0;
 
 
-        $data['is_assign'] = !empty($data['staff_id']) ? 1 : 0;
+        $data['is_assign'] = $data['status_id'];
 
         $shift->update($data);
 
@@ -492,15 +492,62 @@ class ShiftController extends Controller
         ], 422);
     }
 
-    public function getShifts()
+    public function getShifts(Request $request)
     {
-        $shiftDates = \App\Models\ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff'])->get();
+        $query = \App\Models\ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff']);
+
+
+        $from_shift=$request->from_shift;
+        $to_shift=$request->to_shift;
+
+
+$query->whereHas('shift', function ($q) use($request) {
+
+        if ($request->filled('site')) {
+            $q->where('site_id', $request->site);
+        }
+
+        if ($request->filled('staff')) {
+            $q->where('staff_id', $request->staff);
+        }
+
+        if ($request->filled('client_id')) {
+            $q->whereTime('client_id', '>=', $request->client_id);
+        }
+    });
+
+        if ($request->filled('status')) {
+            $query->where('is_assign', $request->status);
+        }
+
+        if ($request->filled('start_time')) {
+            $query->whereTime('start_time', '>=', $request->start_time);
+        }
+
+        
+
+        if ($request->filled('end_time')) {
+            $query->whereTime('end_time', '<=', $request->end_time);
+        }
+
+        if ($request->filled('created_at')) {
+            $query->whereDate('created_at', $request->created_at);
+        }
+
+        if ($request->filled('created_at')) {
+            $query->whereDate('created_at', $request->created_at);
+        }
+if (!empty($from_shift) && !empty($to_shift)) {
+    $query->whereBetween('shift_date', [$from_shift, $to_shift]);
+}
+
+$shiftDates=$query->get();
         $events = [];
 
         // Status color map
         $statusColorMap = [
             0 => 'bg-dark-blue',     // Pending
-            1 => 'bg-lighter',       // Dispatched
+            1 => '#b9b7b4',       // Dispatched
             2 => 'bg-dark-green',    // Accepted
             3 => 'bg-light-yellow',  // Started
             4 => 'bg-light-blue',    // Ended
@@ -545,7 +592,7 @@ class ShiftController extends Controller
                 'sia_number' => $sd->staff->sia_licence ?? '',
                 'sia_expiry' => $sd->staff->sia_expiry ?? '',
                 'profile_picture' => $sd->staff->profile_picture ?? '',
-                'name' => $sd->staff->fore_name ?? '',
+                'name' =>  isset($sd->staff->fore_name) ? $sd->staff->fore_name . " " . $sd->staff->sur_name : 'Not Assigned',
                 'subcontractor' => $sd->staff->subcontractor ?? '',
                 'client_name' => $shift->client->client_name ?? '',
                 'book_on' => $book_on,
@@ -622,7 +669,7 @@ class ShiftController extends Controller
 
                     if (isset($sd->is_assign) && $sd->is_assign == 1) {
                         $events[] = [
-                            'title' => isset($sd->staff->fore_name) ? $sd->staff->fore_name . " " . $sd->staff->last_name : 'Unknown Staff',
+                            'title' => isset($sd->staff->fore_name) ? $sd->staff->fore_name . " " . $sd->staff->sur_name : 'Unknown Staff',
                             'start' => $startDateTime,
                             'end' => $endDateTime,
                             'location' => $shift->site->site_name ?? 'Unknown Site',
@@ -956,30 +1003,9 @@ class ShiftController extends Controller
         // Check if adding new shift exceeds weekly limit
         $maxWeeklyHours = $staff->hour_per_week ?? 40;
 
-        if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
-            $validator->errors()->add("staff_id", "The guard cannot be assigned more than 40 hours in a week.");
-        }
-        // Check if staff has a student visa and is exceeding 20 hours per week
-        if ($staff->visa_type === 'Student') {
-            // Check if the shift is within an active term period
-            $isShiftInActiveTerm = \App\Models\EmployeeTerm::where('employee_id', $staff->id)
-                ->where(function ($query) use ($shiftDate) {
-                    $query->where('from_date', '<=', $shiftDate->shift_date)
-                        ->where('to_date', '>=', $shiftDate->shift_date);
-                })
-                ->exists();
-            if (!$isShiftInActiveTerm) {
-                // Calculate total hours worked this week
-                $weeklyHours = \App\Models\ShiftDate::where('staff_id', $staff->id)
-                    ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
-                    ->sum('total_hours') + $newShiftHours;
-                if ($weeklyHours > 20) {
-                    return response()->json([
-                        'error' => 'The guard cannot be assigned more than 20 hours a week.'
-                    ], 422);
-                }
-            }
-        }
+        applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $shiftDate->shift_date);
+
+
 
         // 3. ✅ Proceed to assign if checks pass (update without boot event and store logs manually)
         // $shiftDate->staff_id = $staff->id;
@@ -1023,30 +1049,36 @@ class ShiftController extends Controller
 
     public function filter(Request $request)
     {
-        $query = Shift::query();
+        $query = ShiftDate::with(['shift', 'staff']);
 
         $from_shift=$request->from_shift;
         $to_shift=$request->to_shift;
 
+
+$query->whereHas('shift', function ($q) use($request) {
+
         if ($request->filled('site')) {
-            $query->where('site_id', $request->site);
+            $q->where('site_id', $request->site);
         }
 
         if ($request->filled('staff')) {
-            $query->where('staff_id', $request->staff);
+            $q->where('staff_id', $request->staff);
         }
 
+        if ($request->filled('client_id')) {
+            $q->whereTime('client_id', '>=', $request->client_id);
+        }
+    });
+
         if ($request->filled('status')) {
-            $query->where('status', $request->status);
+            $query->where('is_assign', $request->status);
         }
 
         if ($request->filled('start_time')) {
             $query->whereTime('start_time', '>=', $request->start_time);
         }
 
-        if ($request->filled('client_id')) {
-            $query->whereTime('client_id', '>=', $request->client_id);
-        }
+        
 
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);
@@ -1060,30 +1092,23 @@ class ShiftController extends Controller
             $query->whereDate('created_at', $request->created_at);
         }
 if (!empty($from_shift) && !empty($to_shift)) {
-    $query->whereBetween('from_shift', [$from_shift, $to_shift])
-          ->whereBetween('to_shift', [$from_shift, $to_shift]);
-} elseif (!empty($from_shift)) {
-    $query->where('from_shift', '>=', $from_shift)
-          ->orWhere('to_shift', '>=', $from_shift);
-} elseif (!empty($to_shift)) {
-    $query->where('from_shift', '<=', $to_shift)
-          ->orWhere('to_shift', '<=', $to_shift);
+    $query->whereBetween('shift_date', [$from_shift, $to_shift]);
 }
 
 
-        $shifts = $query->with(['site', 'staff'])->get();
+        $shifts = $query->get();
 
         if ($request->ajax()) {
             $events = $shifts->map(function ($shift) {
                 return [
-                    'id' => $shift->id,
-                    'title' => optional($shift->staff)->name ?? 'No Staff',
-                    'start' => $shift->start_time ?? $shift->from_shift,
-                    'end' => $shift->end_time ?? null,
+                    'id' => $shift->shift->id,
+                    'title' => optional($shift->shift->staff)->name ?? 'No Staff',
+                    'start' => $shift->shift->start_time ?? $shift->shift->from_shift,
+                    'end' => $shift->shift->end_time ?? null,
                     'className' => 'bg-dark-blue',
-                    'location' => optional($shift->site)->site_name ?? 'No Site',
+                    'location' => optional($shift->shift->site)->site_name ?? 'No Site',
                     'urgent' => false,
-                    'sd_id' => $shift->id
+                    'sd_id' => $shift->shift->id
                 ];
             });
 

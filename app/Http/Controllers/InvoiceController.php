@@ -68,6 +68,14 @@ class InvoiceController extends Controller
         $data = $validator->validated();
 
         // $client = Client::find($request->get('client_id'));
+                    $shift = Shift::where('client_id', $data['client_id'])->where('site_id', $data['site_id'])->first();
+ if (empty($shift)) {
+            if ($request->ajax()) {
+                return response()->json(['errors' => ['site_id' => ['Shift data not found against that site.']]], 422);
+            } else {
+                return redirect()->back()->withErrors(['site_id' => ['Shift data not found against that site.']])->withInput();
+            }
+        }
 
         $invoiceData = [
             'client_id' => $data['client_id'],
@@ -85,7 +93,6 @@ class InvoiceController extends Controller
         if($invoice)
         {
             $client = Client::findOrFail($invoice->client_id);
-            $shift = Shift::where('client_id', $invoice->client_id)->where('site_id', $invoice->site_group_id)->first();
 
             $startDate = Carbon::parse($invoice->date_from);
             $endDate = Carbon::parse($invoice->date_to);
@@ -187,11 +194,11 @@ class InvoiceController extends Controller
         $startDate = Carbon::parse($invoice->date_from);
         $endDate = Carbon::parse($invoice->date_to);
 
-        $startTime = $shift->start_shift;
-        $endTime = $shift->end_shift;
-        $breakMinutesPerDay = $shift->{'break-mins_shift'};
+        $startTime = $shift->start_shift??'';
+        $endTime = $shift->end_shift??'';
+        $breakMinutesPerDay = $shift->{'break-mins_shift'}??'';
 
-        $string = $shift->days;
+        $string = $shift->days??'';
         // Step 1: Decode the JSON string into PHP array
         $shiftDays = $array = json_decode($string, true);
         // Step 2: Explode the first string element into individual days

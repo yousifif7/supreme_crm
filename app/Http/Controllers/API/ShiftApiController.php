@@ -105,7 +105,7 @@ class ShiftApiController extends Controller
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            '#'
+            'leaves'
         );
 
 

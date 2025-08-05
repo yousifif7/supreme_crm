@@ -25,6 +25,8 @@ use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
 use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ChatController;
+
 
 Route::get('/', function () {
     return view('auth.login');
@@ -34,6 +36,22 @@ Route::get('/dashboard', function () {
     //return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
+
+Route::get('chat',[ChatController::class,'index']);
+Route::get('load/conversations', [ChatController::class, 'getConversations']);
+Route::post('/conversations', [ChatController::class, 'createConversation'])->name('conversations');
+
+
+Route::post('/conversations/{conversationId}/messages', [ChatController::class, 'sendMessage']);
+Route::get('/conversations/{conversationId}/messages', [ChatController::class, 'getMessages']);
+
+
+Route::get('/conversations/{conversationId}/members', [ChatController::class, 'viewMembers']);
+
+Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
+
+Route::post('/create-one-to-one-conversation', [ChatController::class, 'createOneToOneConversation']);
+
 Route::middleware('auth')->group(function () {
     Route::post('/logout', function () {
         Auth::logout();
