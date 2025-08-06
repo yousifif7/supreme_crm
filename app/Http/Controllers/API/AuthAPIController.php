@@ -59,7 +59,7 @@ class AuthAPIController extends Controller
             'user' => [
                 'id' => $user->id,
                 'email' => $user->email,
-                'role' => $user->role,
+                'role' => $user->getRoleNames()->first(),
                 'profile' => $user->profile // make sure profile relation is defined
             ],
         ]);

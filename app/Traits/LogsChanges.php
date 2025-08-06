@@ -77,7 +77,7 @@ trait LogsChanges
             // create shift logs description
             if ($modelType == 'ShiftDate') {
                 $modelType = 'Shift';
-                $staff = isset($model->staff->fore_name) ? $model->staff?->fore_name . ' ' . $model->staff?->last_name : 'N/A';
+                $staff = isset($model->staff->fore_name) ? $model->staff?->fore_name . ' ' . $model->staff?->sur_name : 'N/A';
                 $site = $model->shift->site->site_name ?? 'N/A';
                 $date = $model->shift_date ?? 'N/A';
                 $start = $model->start_time ?? 'N/A';
@@ -87,8 +87,14 @@ trait LogsChanges
                 $label = '';
             }
 
+            if (auth::user()) {
+                $username=Auth::user()->first_name.' '.Auth::user()->last_name;
+            } else{
+                $username='System';
+            }
+
             $model->logs()->create([
-                'user_name' => Auth::user()->first_name ?? 'System' . ' ' . isset(Auth::user()->last_name)?Auth::user()->last_name:'System',
+                'user_name' => $username,
                 'action' => "Created {$modelType} record",
                 'description' => "{$modelType} {$label} was added successfully.",
             ]);

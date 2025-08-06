@@ -31,6 +31,9 @@ class EmployeesDataTable extends DataTable
             ->editColumn('name', function ($employee) {
                 return view('employees.name_column', ['employee' => $employee]);
             })
+            ->editColumn('email', function ($employee) {
+                return $employee->email;
+            })
             // ->editColumn('sia_licence', function ($employee) {
             //     return '<p class="mb-0 fw-semibold">' . $employee->sia_licence . '</p>
             //             <span class="text-primary fw-bold">Active</span>';
@@ -131,6 +134,7 @@ class EmployeesDataTable extends DataTable
             Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
             Column::make('name')->title('Name')->addClass('ps-0')->orderable(false),
+            Column::make('email')->title('Email')->addClass('ps-0')->orderable(false),
             Column::make('sia_licence')->title('SIA'),
             Column::make('sia_expiry')->title('EXPIRY'),
             Column::make('visa_expiry')->title('VISA EXPIRY'),
