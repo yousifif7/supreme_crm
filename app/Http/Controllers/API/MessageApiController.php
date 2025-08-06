@@ -35,7 +35,7 @@ class MessageApiController extends Controller
                 'role' => $p->user ? $p->user->role : null,
             ]),
             'last_message' => $c->latestMessage ? [
-                'content' => $c->latestMessage->content,
+                'message' => $c->latestMessage->message,
                 'timestamp' => $c->latestMessage->created_at->toDateTimeString(),
                 'sender_name' => $c->latestMessage->sender ? $c->latestMessage->sender->name : 'Unknown',
             ] : null,
@@ -58,7 +58,7 @@ class MessageApiController extends Controller
             'id' => $m->id,
             'sender_id' => $m->sender_id,
             'sender_name' => $m->sender->name,
-            'content' => $m->content,
+            'message' => $m->message,
             'message_type' => $m->type,
             'media_url' => $m->media_url,
             'timestamp' => $m->created_at->toDateTimeString(),
@@ -73,7 +73,7 @@ class MessageApiController extends Controller
     {
         $req->validate([
             'conversation_id' => 'required|exists:conversations,id',
-            'content' => 'required_without:media_file|string',
+            'message' => 'required_without:media_file|string',
             'message_type' => 'required|in:text,image,video,file',
             'media_file' => 'nullable|string',
         ]);
@@ -81,7 +81,7 @@ class MessageApiController extends Controller
         $msg = Message::create([
             'conversation_id' => $req->conversation_id,
             'sender_id' => Auth::id(),
-            'content' => $req->content,
+            'message' => $req->message,
             'type' => $req->message_type,
             'media_url' => $req->media_file ? $this->storeBase64Media($req->media_file) : null,
         ]);
