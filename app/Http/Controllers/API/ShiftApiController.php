@@ -202,20 +202,25 @@ class ShiftApiController extends Controller
 
     public function bookOn(Request $request, $shift_id)
     {
-        $user = Auth::user();
+        $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
 
+        if (!$employee) {
+            return response()->json(['message' => 'No employee record linked to this user.'], 404);
+        }
         Notification::create([
-            'user_id' => $user->id,
+            'user_id' => 1,
+            'employee_id' => $employee->id,
             'type' => 'alert',
-            'title' => 'Shift booked on',
-            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
+            'title' => 'Shift booked on ',
+            'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
             'read' => false,
         ]);
 
         // Send push notification to employee/device
         send_push_notification(
             $user->id,
-            'Shift booked on',
+            'Shift booked on ',
             'Your shift has been successfully booked on.',
             ['shift_id' => $shift_id]
         );
@@ -226,9 +231,14 @@ class ShiftApiController extends Controller
     public function bookOff(Request $request, $shift_id)
     {
         $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
 
+        if (!$employee) {
+            return response()->json(['message' => 'No employee record linked to this user.'], 404);
+        }
         Notification::create([
-            'user_id' => Auth::id(),
+            'user_id' => 1,
+            'employee_id' => $employee->id,
             'type' => 'alert',
             'title' => 'Shift booked off',
             'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,

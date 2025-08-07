@@ -1091,9 +1091,9 @@ $query->whereHas('shift', function ($q) use($request) {
         if ($request->filled('created_at')) {
             $query->whereDate('created_at', $request->created_at);
         }
-if (!empty($from_shift) && !empty($to_shift)) {
-    $query->whereBetween('shift_date', [$from_shift, $to_shift]);
-}
+        if (!empty($from_shift) && !empty($to_shift)) {
+            $query->whereBetween('shift_date', [$from_shift, $to_shift]);
+        }
 
 
         $shifts = $query->get();

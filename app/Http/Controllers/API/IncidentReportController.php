@@ -76,7 +76,8 @@ class IncidentReportController extends Controller
             ]);
         }
 
-        $employee = Employee::find(Auth::id());
+        $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
         Notify::toDashboard(
             $employee->id,
             'alert',

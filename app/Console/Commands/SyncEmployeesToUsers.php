@@ -25,11 +25,11 @@ class SyncEmployeesToUsers extends Command
 
             if (!$user) {
 
-                   $email = $employee->email;
-    if (empty($email)) {
-        $email = Str::slug($employee->fore_name . '.' . $employee->sur_name) . rand(1000, 9999) . '@example.com';
-        $this->warn("Generated email {$email} for employee ID {$employee->id}");
-    }
+                $email = $employee->email;
+                if (empty($email)) {
+                    $email = Str::slug($employee->fore_name . '.' . $employee->sur_name) . rand(1000, 9999) . '@example.com';
+                    $this->warn("Generated email {$email} for employee ID {$employee->id}");
+                }
                 // Check if a user with this email exists already
                 $user = User::where('email', $employee->email)->first();
 

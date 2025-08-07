@@ -21,15 +21,26 @@ class NotificationController extends Controller
             'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
-        $query = Notification::query(); // ✅ Query builder
+        // Get the currently authenticated user
+        $user = Auth::user();
 
+        // Find the linked employee
+        $employee = Employee::where('user_id', $user->id)->first();
+
+        if (!$employee) {
+            return response()->json(['message' => 'Employee not found for this user.'], 404);
+        }
+
+        // Start notifications query, filtered by employee_id
+        $query = Notification::where('employee_id', $employee->id);
+
+        // Optional filters
         if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
 
         if ($request->filled('read')) {
             $read = filter_var($request->read, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE);
-
             if (!is_null($read)) {
                 $query->where('read', $read);
             }
@@ -47,6 +58,7 @@ class NotificationController extends Controller
             ],
         ]);
     }
+
 
     public function markAsRead($id)
     {

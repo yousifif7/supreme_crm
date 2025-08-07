@@ -25,9 +25,10 @@ class DobApiController extends Controller
             'timestamp' => 'required|date',
         ]);
 
-        $employee = Auth::user();
+        $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
         $entry = DobEntry::create([
-            'user_id' =>$employee->id,
+            'user_id' => $employee->id,
             'shift_id' => $data['shift_id'],
             'entry_type' => $data['entry_type'],
             'title' => $data['title'],
@@ -45,7 +46,12 @@ class DobApiController extends Controller
                 ]);
             }
         }
-        $employee = Employee::find(Auth::id());
+
+        $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
+        if (!$employee) {
+            return response()->json(['message' => 'No employee record linked to this user.'], 404);
+        }
         Notify::toDashboard(
             $employee->id,
             'alert',
