@@ -107,32 +107,52 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
 if (!function_exists('send_push_notification')) {
     function send_push_notification($employeeId, $title, $message, $data = [])
     {
-        $device = DeviceToken::where('employee_id', $employeeId)->first();
+        // Fetch the device token for the given employee
+        $device = \App\Models\DeviceToken::where('employee_id', $employeeId)->first();
 
-        if (!$device || !$device->push_token) {
-            \Log::info("No device token found for employee ID: $employeeId");
+        if (!$device || empty($device->push_token)) {
+            \Log::info("No device token found for employee ID: {$employeeId}");
             return false;
         }
 
         try {
-            $driver = new ExpoFileDriver(); // This handles file storage
-            $registrar = new ExpoRegistrar($driver); // This wraps it properly
-            $expo = new Expo($registrar); // Now you're passing the correct type
+            $driver = new \ExponentPhpSDK\Repositories\ExpoFileDriver();
+            $registrar = new \ExponentPhpSDK\ExpoRegistrar($driver);
+            $expo = new \ExponentPhpSDK\Expo($registrar);
+
             $expo->setAccessToken('wz2xtEKGkvW7qTc_uUVVaefX-M2E1vilwavavQzw');
+
+            // Subscribe the device to a topic (in this case, employee ID is used)
             $expo->subscribe($employeeId, $device->push_token);
+
+            // Send the notification
             $expo->notify([$employeeId], [
                 'title' => $title,
                 'body' => $message,
                 'sound' => 'default',
                 'data' => $data,
             ]);
+
+            // Save to database
+            \App\Models\Notification::create([
+                'employee_id' => $employeeId,
+                'title' => $title,
+                'message' => $message,
+                'data' => $data,
+                'type' => $data['type'] ?? 'notification',
+                'read' => false,
+                'action_url' => $data['action_url'] ?? null,
+            ]);
+
             return true;
-        } catch (\Exception $e) {
-            \Log::error("Push notification error: " . $e->getMessage());
+
+        } catch (\Throwable $e) {
+            \Log::error("Push notification error for employee ID {$employeeId}: {$e->getMessage()}");
             return false;
         }
     }
 }
+
 
 class Notify
 {
