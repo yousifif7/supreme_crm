@@ -16,14 +16,14 @@ class ProcessShiftNotifications extends Command
      *
      * @var string
      */
-    protected $signature = 'app:process-shift-notifications';
+    protected $signature = 'shifts:notify';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Command description';
+    protected $description = 'Process and send shift notifications';
 
     /**
      * Execute the console command.
