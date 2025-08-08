@@ -26,7 +26,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = Subcontractor::all();
+        $subcontractors =User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -37,7 +37,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = Subcontractor::all();
+        $subcontractors =User::role('subcontractor')->get();
         // $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
@@ -48,7 +48,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = Subcontractor::all();
+        $subcontractors =User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.worker_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -59,7 +59,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = Subcontractor::all();
+        $subcontractors =User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.site_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -70,7 +70,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = Subcontractor::all();
+        $subcontractors =User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));

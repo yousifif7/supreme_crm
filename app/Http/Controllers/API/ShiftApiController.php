@@ -70,7 +70,7 @@ class ShiftApiController extends Controller
             'reason' => 'required_if:response,decline|string|nullable',
         ]);
 
-        $shift = Shift::where('id', $shift_id)
+        $shift = ShiftDate::where('id', $shift_id)
             ->where('staff_id', Auth::id())
             ->firstOrFail();
 
