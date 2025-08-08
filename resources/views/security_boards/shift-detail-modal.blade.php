@@ -412,9 +412,9 @@
                     </div>
                     <div class="mb-3">
                         <label>Scheduled Time</label>
-                        <input type="datetime-local" class="form-control" name="scheduled_time" id="scheduled_time" required>
+                        <input type="datetime" class="form-control" name="scheduled_time" id="scheduled_time" required>
                     </div>
-                    <div class="modal-footer">
+                    <div>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
                     </div>
                 </div>
