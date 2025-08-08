@@ -28,10 +28,11 @@ class ShiftApiController extends Controller
         $limit = $request->query('limit', 10);
 
         $shiftDates = ShiftDate::with('site')
-            ->where('staff_id', $user->id)
+            ->where('staff_id', $user->employee->id)
             ->where('shift_date', '>=', now()->toDateString())
             ->orderBy('shift_date')
             ->paginate($limit);
+            
 
         $transformed = $shiftDates->getCollection()->transform(function ($shiftDate) {
             return [
