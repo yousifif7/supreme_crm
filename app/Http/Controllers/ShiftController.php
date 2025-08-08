@@ -222,7 +222,6 @@ class ShiftController extends Controller
                 if ($staffId) {
                     $staff = \App\Models\Employee::find($staffId);
                    
-                    applyRestrictions($staff, $validator);
 
 
                     $selectedDays = array_map('trim', explode(',', $dayString));
@@ -254,6 +253,9 @@ class ShiftController extends Controller
 
                     // Check if adding new shift exceeds weekly limit
                     $maxWeeklyHours = $staff->hour_per_week ?? 40;
+
+                            applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $fromDate);
+
 
                     if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
                         $validator->errors()->add("staff_id", "The guard cannot be assigned more than $maxWeeklyHours hours in a week.");
@@ -994,34 +996,7 @@ $shiftDates=$query->get();
             ], 422);
         }
 
-        // 2. ✅ Check if staff SIA license is expired
-        if ($staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
-            Notify::toDashboard(
-                auth()->id(),
-                $staff->id,
-                'alarm',
-                'SIA expiry',
-                "{$staff->fore_name} {$staff->sur_name} SIA licenece has expired."
-            );
-
-
-            return response()->json([
-                'error' => 'This staff’s SIA license is expired.'
-            ], 422);
-        }
-
-        if ($staff->visa_expiry && \Carbon\Carbon::parse($staff->visa_expiry)->lt(now())) {
-            Notify::toDashboard(
-                auth()->id(),
-                $staff->id,
-                'alert',
-                'Visa Expired',
-                "{$staff->fore_name} {$staff->sur_name}'s Visa is expired. Shift not assigned."
-            );
-            return response()->json([
-                'error' => 'This staff’s Visa is expired.'
-            ], 422);
-        }
+       
 
         if ($staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
             Notify::toDashboard(
@@ -1057,7 +1032,6 @@ $shiftDates=$query->get();
             ], 422);
         }
 
-        applyRestrictions($staff, $validator);
         $fromDate = \Carbon\Carbon::parse($from);
         $toDate = \Carbon\Carbon::parse($to);
 
