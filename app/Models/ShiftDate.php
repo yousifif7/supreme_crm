@@ -61,7 +61,7 @@ class ShiftDate extends Model
    
     public function shift()
     {
-        return $this->belongsTo(Shift::class);
+        return $this->belongsTo(Shift::class)->with('site');
     }
     public function staff()
     {
