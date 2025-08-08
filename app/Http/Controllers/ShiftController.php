@@ -257,34 +257,6 @@ class ShiftController extends Controller
                             applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $fromDate);
 
 
-                    if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
-                        $validator->errors()->add("staff_id", "The guard cannot be assigned more than $maxWeeklyHours hours in a week.");
-                    }
-
-                    // check if staff visa is student visa and if the weekly hours exceed 20
-                    if ($staff && $staff->visa_type === 'Student') {
-
-                        // // if the staff has terms with from_date and to_date overlapping the shift, ignore 20-hour limit, because he can work any hours during the term
-                        $isShiftCommingInActiveTermPeriod = EmployeeTerm::where('employee_id', $staffId)
-                            ->where(function ($q) use ($from, $to) {
-                                $q->where('from_date', '<=', $to)
-                                    ->where('to_date', '>=', $from);
-                            })
-                            ->exists();
-
-                        if (!$isShiftCommingInActiveTermPeriod) {
-
-
-                            $weeklyHours = \App\Models\ShiftDate::where('staff_id', $staffId)
-                                ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
-                                ->sum('total_hours') + $newShiftHours; //$this->calculateTotalWorkingHours($from, $to, $start, $end, $breakMinutes, $selectedDays);
-                            $shiftsWorkingHours += $weeklyHours;
-
-                            if ($shiftsWorkingHours > 20) {
-                                $validator->errors()->add("staff_id", "The guard cannot be assigned more than 20 hours a week.");
-                            }
-                        }
-                    }
                 }
             });
 
