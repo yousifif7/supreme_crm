@@ -991,18 +991,6 @@ $shiftDates=$query->get();
             }
         }
 
-        if (count($missingDocuments)) {
-            Notify::toDashboard(
-                auth()->id(),
-                $staff->id,
-                'alert',
-                'Missing Documents',
-                "{$staff->fore_name} {$staff->sur_name} is missing: " . implode(', ', $missingDocuments)
-            );
-            return response()->json([
-                'error' => "Missing required documents: " . implode(', ', $missingDocuments)
-            ], 422);
-        }
 
         $fromDate = \Carbon\Carbon::parse($from);
         $toDate = \Carbon\Carbon::parse($to);
