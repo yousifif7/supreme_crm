@@ -30,7 +30,7 @@ class UserController extends Controller
         $invoices = Invoice::all();
         $review = ShiftDate::where('is_assign', '1')->count();
         $clients = Client::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
 
         $checkCalls = CheckCall::with(['shift.staff'])
             ->whereIn('status', ['pending', 'missed', 'completed'])

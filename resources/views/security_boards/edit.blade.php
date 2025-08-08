@@ -19,21 +19,7 @@
                                     <div class="shift-wrapper">
                                         <div class="shift-group">
                                             <div class="row">
-                                                {{--<div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Client <span
-                                                                class="text-danger">*</span></label>
-                                                        <select name="client_id" id="client_id"
-                                                            class="form-select select2" required>
-                                                            <option value="">--choose--</option>
-                                                            @foreach ($clients as $client)
-                                                                <option value="{{ $client->id }}">
-                                                                    {{ $client->client_name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <span class="text-danger form-error" id="error_client_id"></span>
-                                                    </div>
-                                                </div>--}}
+                                               
                                                 <div class="col-md-4">
                                                     <div class="mb-3">
                                                         <label class="form-label">Staff <span
@@ -43,7 +29,7 @@
                                                             <option value="">--choose--</option>
                                                             @foreach ($staffs as $staff)
                                                                 <option value="{{ $staff->id }}">
-                                                                    {{ $staff->fore_name }}</option>
+                                                                    {{ $staff->first_name }} {{ $staff->last_name }}</option>
                                                             @endforeach
                                                         </select>
                                                         <span class="text-danger form-error" id="error_client_id"></span>

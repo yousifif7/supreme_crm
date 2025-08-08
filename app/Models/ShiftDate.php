@@ -65,7 +65,7 @@ class ShiftDate extends Model
     }
     public function staff()
     {
-        return $this->belongsTo(Employee::class, 'staff_id');
+        return $this->belongsTo(User::class, 'staff_id');
     }
 
 }

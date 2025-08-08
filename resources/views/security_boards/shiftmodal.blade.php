@@ -25,7 +25,7 @@
                                                     <option value="">--choose--</option>
                                                     @foreach ($clients as $client)
                                                         <option value="{{ $client->id }}">
-                                                            {{ $client->client_name }}</option>
+                                                            {{ $client->first_name }} {{ $client->last_name }}</option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error error_client_id"></span>
@@ -163,8 +163,7 @@
                                                     <option value="">--choose--</option>
                                                     @foreach ($staffs as $staff)
                                                         <option value="{{ $staff->id }}">
-                                                            {{ $staff->fore_name }}
-                                                            {{ $staff->sur_name }}</option>
+                                                            {{ $staff->first_name }} {{ $staff->last_name }}</option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error error_staff_id"></span>

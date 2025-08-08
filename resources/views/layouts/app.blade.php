@@ -398,7 +398,6 @@
     <script src="{{ asset('assets/plugins/@simonwep/pickr/pickr.es5.min.js') }}" defer></script>
     <script src="https://smarthr.co.in/demo/html/template/assets/plugins/fullcalendar/index.global.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 
     <!-- Custom Scripts -->
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
@@ -583,13 +582,3 @@
 
 </html>
 
-<script>
-document.addEventListener('DOMContentLoaded', function () {
-    flatpickr(".time-input", {
-        enableTime: true,
-        noCalendar: true,
-        dateFormat: "H:i", // 24-hour format
-        time_24hr: true
-    });
-});
-</script>
