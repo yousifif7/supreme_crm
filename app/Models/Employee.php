@@ -93,7 +93,8 @@ class Employee extends Model
         'proof_of_address_file',
         'ni_letter_file',
         'first_aid_certificate_file',
-        'act_certificate_file'
+        'act_certificate_file',
+        'additional_files',
     ];
 
     protected $casts = [
@@ -108,6 +109,7 @@ class Employee extends Model
         'holiday_to' => 'date',
         'holiday_from_additional' => 'date',
         'holiday_to_additional' => 'date',
+        'additional_files' => 'array',
     ];
 
     public function department(): BelongsTo

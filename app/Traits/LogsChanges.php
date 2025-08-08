@@ -47,11 +47,17 @@ trait LogsChanges
 
 
                 if ($oldValue) {
-                    $label .= " from '{$oldValue}";
+                    if (is_array($oldValue)) {
+                        $oldValue = json_encode($oldValue);
+                    }
+                    $label .= " from '{$oldValue}'";
                 }
 
                 if ($newValue) {
-                    $label .= " to '{$newValue}";
+                    if (is_array($newValue)) {
+                        $newValue = json_encode($newValue);
+                    }
+                    $label .= " to '{$newValue}'";
                 }
 
                 $fields .= $field . ', ';
@@ -62,7 +68,7 @@ trait LogsChanges
             $labels = rtrim($labels, ',<br> ');
 
             $model->logs()->create([
-                'user_name' => optional(Auth::user())->first_name??'System' . ' ' . optional(Auth::user())->last_name ?? 'System',
+                'user_name' => optional(Auth::user())->first_name ?? 'System' . ' ' . optional(Auth::user())->last_name ?? 'System',
                 'action' => "Updated {$fields}",
                 'description' => $labels,
             ]);
@@ -88,9 +94,9 @@ trait LogsChanges
             }
 
             if (auth::user()) {
-                $username=Auth::user()->first_name.' '.Auth::user()->last_name;
-            } else{
-                $username='System';
+                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            } else {
+                $username = 'System';
             }
 
             $model->logs()->create([

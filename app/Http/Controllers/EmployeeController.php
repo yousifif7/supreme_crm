@@ -112,6 +112,7 @@ class EmployeeController extends Controller
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
             'password' => 'required|string|min:6',   // Add password validation
+            'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
         ]);
 
         if ($validator->fails()) {
@@ -148,6 +149,40 @@ class EmployeeController extends Controller
                 $data[$document] = $fileName;
             }
         }
+
+        // Process multiple additional files upload
+        if ($request->hasFile('additional_file')) {
+            $savedPaths = [];
+
+            foreach ($request->file('additional_file') as $file) {
+                if ($file->isValid()) {
+                    // Keep the original file name but prepend timestamp to avoid collisions
+                    $originalName = preg_replace('/\s+/', '_', $file->getClientOriginalName()); // replace spaces with underscores
+                    $fileName = time() . '_' . $originalName;
+
+                    // Move file to public/uploads/additional_docs
+                    $destinationPath = public_path('uploads/additional_docs');
+                    $moved = $file->move($destinationPath, $fileName);
+
+                    if ($moved) {
+                        // Save relative path to array
+                        $savedPaths[] = 'uploads/additional_docs/' . $fileName;
+                    } else {
+                        return response()->json([
+                            'error' => 'Failed to move file: ' . $file->getClientOriginalName()
+                        ], 500);
+                    }
+                } else {
+                    return response()->json([
+                        'error' => 'Uploaded file is not valid: ' . $file->getClientOriginalName()
+                    ], 400);
+                }
+            }
+
+            $data['additional_files'] = $savedPaths;
+        }
+
+
 
         // Create user with hashed password
         $user = User::create([
@@ -282,6 +317,7 @@ class EmployeeController extends Controller
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
+            'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
         ]);
 
         if ($validator->fails()) {
@@ -317,6 +353,51 @@ class EmployeeController extends Controller
                 $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
             }
+        }
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        // Process multiple additional files upload
+        if ($request->hasFile('additional_file')) {
+            $savedPaths = [];
+
+            foreach ($request->file('additional_file') as $file) {
+                if ($file->isValid()) {
+                    // Keep the original file name but prepend timestamp to avoid collisions
+                    $originalName = preg_replace('/\s+/', '_', $file->getClientOriginalName()); // replace spaces with underscores
+                    $fileName = time() . '_' . $originalName;
+
+                    // Move file to public/uploads/additional_docs
+                    $destinationPath = public_path('uploads/additional_docs');
+                    $moved = $file->move($destinationPath, $fileName);
+
+                    if ($moved) {
+                        // Save relative path to array
+                        $savedPaths[] = 'uploads/additional_docs/' . $fileName;
+                    } else {
+                        return response()->json([
+                            'error' => 'Failed to move file: ' . $file->getClientOriginalName()
+                        ], 500);
+                    }
+                } else {
+                    return response()->json([
+                        'error' => 'Uploaded file is not valid: ' . $file->getClientOriginalName()
+                    ], 400);
+                }
+            }
+
+            $data['additional_files'] = $savedPaths;
+        }
+
+
+        // Now update employee record
+        $updated = $employee->update($data);
+
+        if (!$updated) {
+            return response()->json(['error' => 'Failed to update employee record.'], 500);
         }
 
         // Update the employee record
@@ -439,6 +520,7 @@ class EmployeeController extends Controller
             'ni_letter_file' => $employee->ni_letter_file,
             'first_aid_certificate_file' => $employee->first_aid_certificate_file,
             'act_certificate_file' => $employee->act_certificate_file,
+            'additional_files' => $employee->additional_files,
         ]);
     }
     public function print($id)
@@ -478,6 +560,8 @@ class EmployeeController extends Controller
             'ni_letter_file' => $employee->ni_letter_file,
             'first_aid_certificate_file' => $employee->first_aid_certificate_file,
             'act_certificate_file' => $employee->act_certificate_file,
+            'additional_files' => $employee->additional_files,
+
         ]);
     }
 }

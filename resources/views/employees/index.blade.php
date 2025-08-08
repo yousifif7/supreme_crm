@@ -583,6 +583,17 @@
                                         Pdf)</span>
                                 </div>
 
+                                <h3 class="mt-2 mb-4">Additional Documents</h3>
+
+
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="additional_files">Upload any addition documents</label>
+                                    <input type="file" name="additional_file[]" accept=".jpg,.jpeg,.png,.pdf"
+                                        class="form-control" multiple>
+                                    <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
+                                        Pdf)</span>
+                                </div>
+
                                 <h3 class="mt-2 mb-4">Uniform Size</h3>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">Collar</label>
@@ -783,7 +794,7 @@
                         </button>
                     </div>
                     <div class="modal-body pb-0 ">
-                        <form method="POST" id="edit_employee_form">
+                        <form method="POST" id="edit_employee_form" enctype="multipart/form-data">
                             @csrf
                             <input type="hidden" name="employee_id" id="employee_id">
                             {{-- <div class="row part-1">
@@ -1241,6 +1252,18 @@
                                         Orange</label>
                                     <input type="file" name="act_certificate_file" accept=".jpg,.jpeg,.png,.pdf"
                                         id="act_certificate_file" class="form-control">
+                                    <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
+                                        Pdf)</span>
+                                </div>
+
+                                <h3 class="mt-2 mb-4">Additional Documents</h3>
+
+
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label" for="additional_files">Upload any addition
+                                        documents</label>
+                                    <input type="file" name="additional_file[]" accept=".jpg,.jpeg,.png,.pdf"
+                                        class="form-control" multiple>
                                     <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
                                         Pdf)</span>
                                 </div>
@@ -1819,9 +1842,10 @@
         function editEmployee(record_id) {
             $.get(`${baseUrl}/editemployee/` + record_id, function(data) {
                 if (data.employee) {
+                    // Fill all the form fields (same as your code)
                     $('#employee_id').val(data.employee.id);
-                    $('#username').val(data.employee.username)
-                    $('#status').val(data.employee.status)
+                    $('#username').val(data.employee.username);
+                    $('#status').val(data.employee.status);
                     $('#fore_name').val(data.employee.fore_name);
                     $('#sur_name').val(data.employee.sur_name);
                     $('#gender').val(data.employee.gender);
@@ -1865,7 +1889,6 @@
                     $('#license_type').val(data.employee.license_type);
                     $('#license_expiry').val(data.employee.license_expiry);
                     $('#dbs_confirmed').val(data.employee.dbs_confirmed);
-                    $('#license_expiry').val(data.employee.license_expiry);
                     $('#license_number1').val(data.employee.license_number);
                     $('#address_group_additional').val(data.employee.address_group_additional);
                     $('#employee_type').val(data.employee.employee_type);
@@ -1891,69 +1914,97 @@
                     $('#other_info').val(data.employee.other_info);
                     $('#current_endorsement').val(data.employee.current_endorsement);
 
-                    // Clear previous holidays
+                    // Handle Holidays
                     $('#editholiday-rows').empty();
-                    $('#editterm-rows').empty();
-
                     if (data.holidays && data.holidays.length > 0) {
-                        data.holidays.forEach((holiday, index) => {
+                        data.holidays.forEach((holiday) => {
                             editholiday++;
                             const holidayRow = `
-                                <div class="row holiday-row mb-3 align-items-center" data-index="${editholiday}">
-                                    <div class="col-md-3">
-                                        <label>Holiday Entitlement</label>
-                                        <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control" value="${holiday.holidays_entitement}">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label>From Date</label>
-                                        <input type="date" name="holidays[${editholiday}][from]" class="form-control" value="${holiday.from_date}">
-                                    </div>
-                                    <div class="col-md-3">
-                                        <label>To Date</label>
-                                        <input type="date" name="holidays[${editholiday}][to]" class="form-control" value="${holiday.to_date}">
-                                    </div>
-                                    <div class="col-md-3 d-flex align-items-end">
-                                        <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
-                                    </div>
-                                </div>
-                            `;
+                        <div class="row holiday-row mb-3 align-items-center" data-index="${editholiday}">
+                            <div class="col-md-3">
+                                <label>Holiday Entitlement</label>
+                                <input type="text" name="holidays[${editholiday}][entitlement]" class="form-control" value="${holiday.holidays_entitement}">
+                            </div>
+                            <div class="col-md-3">
+                                <label>From Date</label>
+                                <input type="date" name="holidays[${editholiday}][from]" class="form-control" value="${holiday.from_date}">
+                            </div>
+                            <div class="col-md-3">
+                                <label>To Date</label>
+                                <input type="date" name="holidays[${editholiday}][to]" class="form-control" value="${holiday.to_date}">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger btn-sm removeHolidayRow">Remove</button>
+                            </div>
+                        </div>`;
                             $('#editholiday-rows').append(holidayRow);
                         });
                     }
 
-                    if (data.employee.visa_type == 'Student') {
+                    // Handle Terms if visa_type is Student
+                    $('#editterm-rows').empty();
+                    if (data.employee.visa_type == 'Student' && data.terms && data.terms.length > 0) {
                         $('.terms-section-edit').show();
-                        if (data.terms && data.terms.length > 0) {
-                            data.terms.forEach((term, index) => {
-                                editterm++;
-                                const termRow = `
-                                    <div class="row term-row mb-3 align-items-center" data-index="${editterm}">
-                                        <div class="col-md-3">
-                                            <label>Term Name</label>
-                                            <input type="text" name="terms[${editterm}][term_name]" class="form-control" value="${term.term_name}">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label>From Date</label>
-                                            <input type="date" name="terms[${editterm}][from]" class="form-control" value="${term.from_date}">
-                                        </div>
-                                        <div class="col-md-3">
-                                            <label>To Date</label>
-                                            <input type="date" name="terms[${editterm}][to]" class="form-control" value="${term.to_date}">
-                                        </div>
-                                        <div class="col-md-3 d-flex align-items-end">
-                                            <button type="button" class="btn btn-danger btn-sm removeTermRow">Remove</button>
-                                        </div>
-                                    </div>
-                                `;
-                                $('#editterm-rows').append(termRow);
-                            });
+                        data.terms.forEach((term) => {
+                            editterm++;
+                            const termRow = `
+                        <div class="row term-row mb-3 align-items-center" data-index="${editterm}">
+                            <div class="col-md-3">
+                                <label>Term Name</label>
+                                <input type="text" name="terms[${editterm}][term_name]" class="form-control" value="${term.term_name}">
+                            </div>
+                            <div class="col-md-3">
+                                <label>From Date</label>
+                                <input type="date" name="terms[${editterm}][from]" class="form-control" value="${term.from_date}">
+                            </div>
+                            <div class="col-md-3">
+                                <label>To Date</label>
+                                <input type="date" name="terms[${editterm}][to]" class="form-control" value="${term.to_date}">
+                            </div>
+                            <div class="col-md-3 d-flex align-items-end">
+                                <button type="button" class="btn btn-danger btn-sm removeTermRow">Remove</button>
+                            </div>
+                        </div>`;
+                            $('#editterm-rows').append(termRow);
+                        });
+                    }
+
+                    // Handle Additional Documents
+                    const additionalDocsContainer = $('#edit-additional-documents');
+                    additionalDocsContainer.empty();
+
+                    let additionalFiles = [];
+                    if (Array.isArray(data.employee.additional_files)) {
+                        additionalFiles = data.employee.additional_files;
+                    } else if (typeof data.employee.additional_files === 'string') {
+                        try {
+                            additionalFiles = JSON.parse(data.employee.additional_files);
+                            if (!Array.isArray(additionalFiles)) additionalFiles = [];
+                        } catch (e) {
+                            additionalFiles = [];
                         }
+                    }
+
+                    if (additionalFiles.length > 0) {
+                        additionalFiles.forEach((fileName, index) => {
+                            const url = `${baseUrl}/uploads/additional_docs/${fileName}`;
+                            additionalDocsContainer.append(`
+                        <div class="d-flex align-items-center mb-2" data-index="${index}">
+                            <a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary me-2">${fileName}</a>
+                            <button type="button" class="btn btn-sm btn-danger remove-additional-file-btn">Remove</button>
+                        </div>
+                    `);
+                        });
+                    } else {
+                        additionalDocsContainer.html(
+                            '<span class="text-muted">No additional documents uploaded.</span>');
                     }
 
                     $('#edit_employee').modal('show');
                 }
-            })
+            });
         }
+
 
         let selectedId = null;
 
@@ -2205,7 +2256,7 @@
                     `${data.bank_name ?? 'N/A'} / ${data.account_name} / ${data.account_number}`);
                 $('#other_info_detail').text(data.other_info);
 
-                // Handle document display
+                // Main documents mapping
                 const documentTypes = {
                     sia_licence_file: "SIA Licence",
                     passport_file: "Passport",
@@ -2222,6 +2273,7 @@
                     const fileName = data[field];
                     if (fileName) {
                         hasDocs = true;
+                        // Adjust folder path as needed for your setup
                         const url = `${baseUrl}/uploads/${field}/${fileName}`;
                         documentHtml += `<div class="mb-1">
                     <strong>${label}:</strong> 
@@ -2231,18 +2283,58 @@
                 });
 
                 if (!hasDocs) {
-                    documentHtml = '<span class="text-muted">Employee didn\'t upload any file.</span>';
+                    documentHtml = '<span class="text-muted">Employee didn\'t upload any main document.</span>';
                 }
 
-                $('#document_list_detail').html(documentHtml);
+                // Additional documents (stored as JSON array)
+                let additionalHtml = "";
+                let hasAdditionalDocs = false;
+
+                if (data.additional_files) {
+                    let additionalDocs = data.additional_files;
+
+                    // If it's a string, parse it
+                    if (typeof additionalDocs === 'string') {
+                        try {
+                            additionalDocs = JSON.parse(additionalDocs);
+                        } catch (e) {
+                            additionalDocs = [];
+                        }
+                    }
+                    if (Array.isArray(additionalDocs) && additionalDocs.length > 0) {
+                        hasAdditionalDocs = true;
+                        additionalDocs.forEach(filePath => {
+                            // Extract the file name from the path
+                            const fileName = filePath.split('/').pop();
+
+                            additionalHtml += `<div class="mb-1">
+                                <span class="ms-2">${fileName}</span>
+            <a href="${baseUrl}/${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">View</a>
+        </div>`;
+                        });
+                    }
+                }
+
+                if (!hasAdditionalDocs) {
+                    additionalHtml = '<span class="text-muted">No additional documents uploaded.</span>';
+                }
+
+                // Set the combined documents HTML inside modal element
+                $('#document_list_detail').html(`
+            <h6>Main Documents</h6>
+            ${documentHtml}
+            <hr>
+            <h6>Additional Documents</h6>
+            ${additionalHtml}
+        `);
+
+                // Show the Bootstrap modal
                 let modal = new bootstrap.Modal(document.getElementById('viewEmployeeDetailModal'));
                 modal.show();
             }).fail(function() {
                 toast_danger('Failed to fetch employee detail.');
             });
         }
-
-        
     </script>
 
     {!! $dataTable->scripts() !!}
