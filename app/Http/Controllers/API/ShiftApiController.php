@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use Notify;
 use App\Models\Shift;
+use App\Models\ShiftDate;
 use App\Models\Patrol;
 use App\Models\Employee;
 use App\Models\BookingAlarm;
@@ -26,35 +27,35 @@ class ShiftApiController extends Controller
 
         $limit = $request->query('limit', 10);
 
-        $shifts = Shift::with('site')
+        $shiftDates = ShiftDate::with('site')
             ->where('staff_id', $user->id)
-            ->where('start_shift', '>=', now()->toDateString())
-            ->orderBy('start_shift')
+            ->where('shift_date', '>=', now()->toDateString())
+            ->orderBy('shift_date')
             ->paginate($limit);
 
-        $transformed = $shifts->getCollection()->transform(function ($shift) {
+        $transformed = $shiftDates->getCollection()->transform(function ($shiftDate) {
             return [
-                'id' => $shift->id,
-                'site_id' => $shift->site_id,
-                'site_name' => optional($shift->site)->name,
-                'site_address' => optional($shift->site)->address,
-                'start_time' => $shift->start_time,
-                'end_time' => $shift->end_time,
-                'duties' => $shift->duties,
-                'supervisor_name' => $shift->supervisor_name,
-                'supervisor_contact' => $shift->supervisor_contact,
-                'status' => $shift->status,
-                'briefing_pdf' => $shift->briefing_pdf_url,
-                'risk_assessment_pdf' => $shift->risk_assessment_pdf_url,
+                'id' => $shiftDate->id,
+                'site_id' => $shiftDate->site_id,
+                'site_name' => optional($shiftDate->shift->site)->name,
+                'site_address' => optional($shiftDate->shift->site)->address,
+                'start_time' => $shiftDate->start_time,
+                'end_time' => $shiftDate->end_time,
+                'duties' => optional($shiftDate->shift)->duties,
+                'supervisor_name' => $shiftDate->shift->supervisor_name,
+                'supervisor_contact' => $shiftDate->shift->supervisor_contact,
+                'status' => $shiftDate->status,
+                'briefing_pdf' => optional($shiftDate->shift)->briefing_pdf_url,
+                'risk_assessment_pdf' => optional($shiftDate->shift)->risk_assessment_pdf_url,
             ];
         });
 
         return response()->json([
             'shifts' => $transformed,
             'pagination' => [
-                'current_page' => $shifts->currentPage(),
-                'total_pages' => $shifts->lastPage(),
-                'total' => $shifts->total(),
+                'current_page' => $shiftDates->currentPage(),
+                'total_pages' => $shiftDates->lastPage(),
+                'total' => $shiftDates->total(),
             ],
         ]);
     }
