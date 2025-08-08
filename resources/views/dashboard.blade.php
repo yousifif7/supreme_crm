@@ -707,7 +707,7 @@
 
     <!-- Google Maps JS API -->
      <script
-      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6X9qZI8tU82Zmi16w-hcfVm4VdM_Uoxg&callback=initMap"
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzWn38Y6sP_o4rkr8SslyIszr2lwJNTHk&callback=initMap"
       async
     ></script>
 @endsection
