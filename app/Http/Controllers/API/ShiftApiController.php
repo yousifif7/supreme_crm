@@ -27,7 +27,7 @@ class ShiftApiController extends Controller
 
         $limit = $request->query('limit', 10);
 
-        $shiftDates = ShiftDate::with('site')
+        $shiftDates = ShiftDate::with('shift')
             ->where('staff_id', $user->employee->id)
             ->where('shift_date', '>=', now()->toDateString())
             ->orderBy('shift_date')
@@ -37,11 +37,12 @@ class ShiftApiController extends Controller
         $transformed = $shiftDates->getCollection()->transform(function ($shiftDate) {
             return [
                 'id' => $shiftDate->id,
-                'site_id' => $shiftDate->site_id,
+                'site_id' => $shiftDate->shift->site_id,
                 'site_name' => optional($shiftDate->shift->site)->name,
                 'site_address' => optional($shiftDate->shift->site)->address,
                 'start_time' => $shiftDate->start_time,
                 'end_time' => $shiftDate->end_time,
+                'shift_date' => $shiftDate->shift_date,
                 'duties' => optional($shiftDate->shift)->duties,
                 'supervisor_name' => $shiftDate->shift->supervisor_name,
                 'supervisor_contact' => $shiftDate->shift->supervisor_contact,
