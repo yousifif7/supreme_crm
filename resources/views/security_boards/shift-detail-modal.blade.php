@@ -372,7 +372,8 @@
                                 <td>
                                     <button class="btn btn-sm btn-primary edit-checkcall-btn"
                                         data-id="{{ $checkcall->id }}" data-name="{{ $checkcall->checkpoint_name }}"
-                                        data-time="{{ $checkcall->scheduled_time }}">
+                                        data-time="{{ $checkcall->scheduled_time }}"
+                                        data-status="{{ $checkcall->status }}"> <!-- Add this -->
                                         Edit
                                     </button>
 
@@ -394,7 +395,8 @@
     </div>
 </div>
 
-<div class="modal fade" id="editCheckCallModal" tabindex="-1" aria-labelledby="editCheckCallLabel" aria-hidden="true">
+<div class="modal fade" id="editCheckCallModal" tabindex="-1" aria-labelledby="editCheckCallLabel"
+    aria-hidden="true">
     <div class="modal-dialog">
         <form id="editCheckCallForm">
             @csrf
@@ -408,11 +410,21 @@
                     <input type="hidden" name="id" id="checkcall_id">
                     <div class="mb-3">
                         <label>Name</label>
-                        <input type="text" class="form-control" name="checkpoint_name" id="checkpoint_name" required>
+                        <input type="text" class="form-control" name="checkpoint_name" id="checkpoint_name"
+                            required>
                     </div>
                     <div class="mb-3">
                         <label>Scheduled Time</label>
-                        <input type="datetime" class="form-control" name="scheduled_time" id="scheduled_time" required>
+                        <input type="datetime" class="form-control" name="scheduled_time" id="scheduled_time"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Status</label>
+                        <select class="form-select" name="status" id="status" required>
+                            <option value="pending">Pending</option>
+                            <option value="completed">Completed</option>
+                            <option value="missed">Missed</option>
+                        </select>
                     </div>
                     <div>
                         <button type="submit" class="btn btn-primary">Save Changes</button>
@@ -479,47 +491,51 @@
 
 
     $(document).on('click', '.edit-checkcall-btn', function() {
-    $('#checkcall_id').val($(this).data('id'));
-    $('#checkpoint_name').val($(this).data('name'));
-    $('#scheduled_time').val($(this).data('time').replace(' ', 'T')); // for datetime-local
-    $('#editCheckCallModal').modal('show');
-});
+        $('#checkcall_id').val($(this).data('id'));
+        $('#checkpoint_name').val($(this).data('name'));
+        $('#scheduled_time').val($(this).data('time').replace(' ', 'T')); // for datetime-local
 
-// Handle update form submit
-$('#editCheckCallForm').on('submit', function(e) {
-    e.preventDefault();
-    let id = $('#checkcall_id').val();
+        // Set the status select based on the data-status attribute
+        $('#status').val($(this).data('status'));
 
-    $.ajax({
-        url: `/checkcalls/${id}`, // Your update route
-        type: 'POST',
-        data: $(this).serialize(),
-        success: function(res) {
-            location.reload(); // Refresh table
-        },
-        error: function(xhr) {
-            alert('Error updating check call');
-        }
+        $('#editCheckCallModal').modal('show');
     });
-});
+    // Handle update form submit
+    $('#editCheckCallForm').on('submit', function(e) {
+        e.preventDefault();
+        let id = $('#checkcall_id').val();
 
-$(document).on('click', '.delete-checkcall-btn', function() {
-    if (!confirm('Are you sure you want to delete this check call?')) return;
-    let id = $(this).data('id');
-
-    $.ajax({
-        url: `/checkcalls/${id}`,
-        type: 'DELETE',
-        data: {_token: '{{ csrf_token() }}'},
-        success: function() {
-            location.reload();
-        },
-        error: function() {
-            alert('Error deleting check call');
-        }
+        $.ajax({
+            url: `/checkcalls/${id}`, // Your update route
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(res) {
+                location.reload(); // Refresh table
+            },
+            error: function(xhr) {
+                alert('Error updating check call');
+            }
+        });
     });
-});
 
+    $(document).on('click', '.delete-checkcall-btn', function() {
+        if (!confirm('Are you sure you want to delete this check call?')) return;
+        let id = $(this).data('id');
+
+        $.ajax({
+            url: `/checkcalls/${id}`,
+            type: 'DELETE',
+            data: {
+                _token: '{{ csrf_token() }}'
+            },
+            success: function() {
+                location.reload();
+            },
+            error: function() {
+                alert('Error deleting check call');
+            }
+        });
+    });
 </script>
 
 <style>

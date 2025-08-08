@@ -91,17 +91,20 @@ class CheckCallController extends Controller
         ]);
     }
 
-    public function update(Request $request, $id)
-    {
-        $request->validate([
-            'scheduled_time' => 'required|date',
-        ]);
+public function update(Request $request, $id)
+{
+    $checkcall = CheckCall::findOrFail($id);
 
-        $checkCall = CheckCall::findOrFail($id);
-        $checkCall->update($request->only(['scheduled_time']));
+    $validated = $request->validate([
+        // 'checkpoint_name' => 'required|string',
+        'scheduled_time' => 'required|date',
+        'status' => 'required|in:pending,completed,missed',
+    ]);
 
-        return response()->json(['success' => true]);
-    }
+    $checkcall->update($validated);
+
+    return response()->json(['message' => 'Check call updated successfully']);
+}
 
     public function destroy($id)
     {
