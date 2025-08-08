@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Http\Controllers\API;
 
 use App\Models\CheckCall;
@@ -41,7 +42,7 @@ class CheckCallController extends Controller
                 Storage::put($filename, base64_decode($base64));
                 CheckCallMedia::create([
                     'check_call_id' => $checkCall->id,
-                    'media_path' => $filename,
+                    'file_path' => $filename,
                 ]);
             }
         }
@@ -72,8 +73,8 @@ class CheckCallController extends Controller
         $user = Auth::user();
 
         $alarms = CheckCall::whereHas('shift', function ($query) use ($user) {
-                $query->where('staff_id', $user->id);
-            })
+            $query->where('staff_id', $user->id);
+        })
             ->where('status', 'pending')
             ->where('scheduled_time', '<', now())
             ->get()
@@ -90,4 +91,21 @@ class CheckCallController extends Controller
         ]);
     }
 
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'scheduled_time' => 'required|date',
+        ]);
+
+        $checkCall = CheckCall::findOrFail($id);
+        $checkCall->update($request->only(['scheduled_time']));
+
+        return response()->json(['success' => true]);
+    }
+
+    public function destroy($id)
+    {
+        CheckCall::findOrFail($id)->delete();
+        return response()->json(['success' => true]);
+    }
 }

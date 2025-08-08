@@ -1,4 +1,3 @@
-
 <div class="row" id="eventModal">
     <div class="tabs-parent_main">
         <div class="tabs-parent nav nav-tabs" role="tablist">
@@ -40,7 +39,9 @@
 
 
                                 <div class="profile-details">
-                                    <h6 id="name">{{ $shiftDate->staff?->fore_name ?? '' }} {{ $shiftDate->staff?->sur_name ?? '' }} <a href="#" onclick="editShift({{ $shiftDate->id }})">Edit</a></h6>
+                                    <h6 id="name">{{ $shiftDate->staff?->fore_name ?? '' }}
+                                        {{ $shiftDate->staff?->sur_name ?? '' }} <a href="#"
+                                            onclick="editShift({{ $shiftDate->id }})">Edit</a></h6>
                                     <div class="mb-1">
                                         <i class="ti ti-phone"></i>
                                         <span id="phone_number">{{ $shiftDate->staff?->contact ?? '' }}</span>
@@ -95,7 +96,7 @@
                             </div>
                         </div>
                     </div>
-                    
+
                     <div class="col-md-6 col-12">
                         <div class="book-on_box">
                             <div class="profile-detail">
@@ -317,21 +318,69 @@
             @endif
         </div>
         <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2">
-            @if (optional(optional($shiftDate)->shift)->checkcalls && $shiftDate->shift->checkcalls->isNotEmpty())
+            @php
+                // Make sure $shiftDate is set and has shift_id before querying
+                $checkcalls = collect();
+                if (!empty($shiftDate?->shift_id)) {
+                    $checkcalls = \App\Models\CheckCall::where('shift_id', $shiftDate->shift_id)
+                        ->orderBy('scheduled_time', 'desc')
+                        ->get();
+                }
+            @endphp
+
+            @if ($checkcalls->isNotEmpty())
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th>Staff</th>
-                            <th>Name</th>
                             <th>Time</th>
+                            <th>Status</th>
+                            <th>Media</th>
+                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach ($shiftDate->shift->checkcalls as $checkcalls)
+                        @foreach ($checkcalls as $checkcall)
+                            @php
+                                $employee = \App\Models\Employee::find($checkcall->employee_id);
+                                $checkCallMedia =
+                                    \App\Models\CheckCallMedia::where('check_call_id', $checkcall->id)->get() ??
+                                    collect();
+                            @endphp
                             <tr>
-                                <td>{{ $checkcalls->staff->fore_name . ' ' . $checkcalls->staff->sur_name }}</td>
-                                <td>{{ $checkcalls->checkpoint_name }}</td>
-                                <td>{{ $checkcalls->checkpoint_time }}</td>
+                                <td>{{ $employee?->fore_name }} {{ $employee?->sur_name }}</td>
+                                <td>{{ $checkcall->scheduled_time }}</td>
+                                <td>
+                                    @if ($checkcall->status == 'pending')
+                                        <p class="bg-warning text-center">Pending</p>
+                                    @elseif ($checkcall->status == 'missed')
+                                        <p class="bg-danger text-center">Missed</p>
+                                    @elseif($checkcall->status == 'completed')
+                                        <p class="bg-success text-center">Completed</p>
+                                    @endif
+                                </td>
+                                <td>
+                                    @forelse ($checkCallMedia as $media)
+                                        <a href="{{ asset('storage/' . $media->file_path) }}" target="_blank"
+                                            class="btn btn-sm btn-primary">
+                                            View File
+                                        </a><br>
+                                    @empty
+                                        No media
+                                    @endforelse
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-primary edit-checkcall-btn"
+                                        data-id="{{ $checkcall->id }}" data-name="{{ $checkcall->checkpoint_name }}"
+                                        data-time="{{ $checkcall->scheduled_time }}">
+                                        Edit
+                                    </button>
+
+                                    <button class="btn btn-sm btn-danger delete-checkcall-btn"
+                                        data-id="{{ $checkcall->id }}">
+                                        Delete
+                                    </button>
+                                </td>
                             </tr>
                         @endforeach
                     </tbody>
@@ -344,6 +393,36 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="editCheckCallModal" tabindex="-1" aria-labelledby="editCheckCallLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="editCheckCallForm">
+            @csrf
+            @method('PUT')
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editCheckCallLabel">Edit Check Call</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="id" id="checkcall_id">
+                    <div class="mb-3">
+                        <label>Name</label>
+                        <input type="text" class="form-control" name="checkpoint_name" id="checkpoint_name" required>
+                    </div>
+                    <div class="mb-3">
+                        <label>Scheduled Time</label>
+                        <input type="datetime-local" class="form-control" name="scheduled_time" id="scheduled_time" required>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 
 <script>
     $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
@@ -397,6 +476,50 @@
         }).addTo(map1);
         map1.fitBounds(route.getBounds());
     });
+
+
+    $(document).on('click', '.edit-checkcall-btn', function() {
+    $('#checkcall_id').val($(this).data('id'));
+    $('#checkpoint_name').val($(this).data('name'));
+    $('#scheduled_time').val($(this).data('time').replace(' ', 'T')); // for datetime-local
+    $('#editCheckCallModal').modal('show');
+});
+
+// Handle update form submit
+$('#editCheckCallForm').on('submit', function(e) {
+    e.preventDefault();
+    let id = $('#checkcall_id').val();
+
+    $.ajax({
+        url: `/checkcalls/${id}`, // Your update route
+        type: 'POST',
+        data: $(this).serialize(),
+        success: function(res) {
+            location.reload(); // Refresh table
+        },
+        error: function(xhr) {
+            alert('Error updating check call');
+        }
+    });
+});
+
+$(document).on('click', '.delete-checkcall-btn', function() {
+    if (!confirm('Are you sure you want to delete this check call?')) return;
+    let id = $(this).data('id');
+
+    $.ajax({
+        url: `/checkcalls/${id}`,
+        type: 'DELETE',
+        data: {_token: '{{ csrf_token() }}'},
+        success: function() {
+            location.reload();
+        },
+        error: function() {
+            alert('Error deleting check call');
+        }
+    });
+});
+
 </script>
 
 <style>

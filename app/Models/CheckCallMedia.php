@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class CheckCallMedia extends Model
 {
     //
-    protected $fillable = ['check_call_id', 'media_path'];
+    protected $fillable = ['check_call_id', 'file_path'];
 
     public function checkCall()
     {

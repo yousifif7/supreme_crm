@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Notify;
 use Carbon\Carbon;
 use App\Models\Site;
 use App\Models\User;
@@ -981,12 +982,82 @@ $shiftDates=$query->get();
             ->exists();
 
         if ($overlap) {
+            Notify::toDashboard(
+                auth()->id(),
+                $staff->id,
+                'alarm',
+                'Shift Conflict',
+                "Attempted to assign a shift to {$staff->fore_name} {$staff->sur_name} but there's an overlapping shift."
+            );
             return response()->json([
                 'error' => 'This staff already has a shift during this time.'
             ], 422);
         }
 
-         applyRestrictions($staff, $validator);
+        // 2. ✅ Check if staff SIA license is expired
+        if ($staff->sia_expiry && \Carbon\Carbon::parse($staff->sia_expiry)->lt(now())) {
+            Notify::toDashboard(
+                auth()->id(),
+                $staff->id,
+                'alarm',
+                'SIA expiry',
+                "{$staff->fore_name} {$staff->sur_name} SIA licenece has expired."
+            );
+
+
+            return response()->json([
+                'error' => 'This staff’s SIA license is expired.'
+            ], 422);
+        }
+
+        if ($staff->visa_expiry && \Carbon\Carbon::parse($staff->visa_expiry)->lt(now())) {
+            Notify::toDashboard(
+                auth()->id(),
+                $staff->id,
+                'alert',
+                'Visa Expired',
+                "{$staff->fore_name} {$staff->sur_name}'s Visa is expired. Shift not assigned."
+            );
+            return response()->json([
+                'error' => 'This staff’s Visa is expired.'
+            ], 422);
+        }
+
+        if ($staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
+            Notify::toDashboard(
+                auth()->id(),
+                $staff->id,
+                'alert',
+                'Visa Expired',
+                "{$staff->fore_name} {$staff->sur_name}'s Visa is expired. Shift not assigned."
+            );
+            return response()->json([
+                'error' => 'This staff’s Passport is expired.'
+            ], 422);
+        }
+
+        $missingDocuments = [];
+
+        foreach ($documents as $key => $doc) {
+            if (empty($staff->$key)) {
+                $missingDocuments[] = $doc;
+            }
+        }
+
+        if (count($missingDocuments)) {
+            Notify::toDashboard(
+                auth()->id(),
+                $staff->id,
+                'alert',
+                'Missing Documents',
+                "{$staff->fore_name} {$staff->sur_name} is missing: " . implode(', ', $missingDocuments)
+            );
+            return response()->json([
+                'error' => "Missing required documents: " . implode(', ', $missingDocuments)
+            ], 422);
+        }
+
+        applyRestrictions($staff, $validator);
         $fromDate = \Carbon\Carbon::parse($from);
         $toDate = \Carbon\Carbon::parse($to);
 

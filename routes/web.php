@@ -4,6 +4,7 @@ use App\Models\BookingAlarm;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ChatController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SiteController;
 use App\Http\Controllers\UserController;
@@ -13,10 +14,12 @@ use App\Http\Controllers\ExportController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SettingController;
 use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\AlertReminderController;
+use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\API\NotificationController;
@@ -24,8 +27,6 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\SettingController;
-use App\Http\Controllers\ChatController;
 
 
 Route::get('/', function () {
@@ -171,6 +172,10 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
+    
+    Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
+    Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
+
     Route::get('/shift/{id}', [ShiftController::class, 'modal']);
 
     Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');

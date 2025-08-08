@@ -34,7 +34,7 @@ class Shift extends Model
 
     public function checkCalls()
     {
-        return $this->hasMany(ShiftCheckpoint::class);
+        return $this->hasMany(CheckCall::class);
     }
 
 
