@@ -5,9 +5,9 @@
     // $staffIds = $shifts->pluck('staff_id')->unique();
     // $siteIds = $shifts->pluck('site_id')->unique();
 
-    $staffs = App\Models\Employee::all();
+    $staffs = App\Models\User::role('security_staff')->get();
     $sites = App\Models\Site::all();
-     $clients = App\Models\Client::all();
+     $clients = App\Models\User::role('client')->get();
 @endphp
 
 <!-- Filter Modal -->
@@ -31,7 +31,7 @@
                             <select class="form-select" name="staff">
                                 <option value="">--choose--</option>
                                 @foreach ($staffs as $staff)
-                                    <option value="{{ $staff->id }}">{{ $staff->fore_name }} {{$staff->sur_name  }}</option>
+                                    <option value="{{ $staff->id }}">{{ $staff->first_name }} {{ $staff->last_name }}</option>
                                 @endforeach
                             </select>
                         </div>
@@ -41,7 +41,7 @@
                             <select class="form-select" name="client_id">
                                 <option value="">--choose--</option>
                                 @foreach ($clients as $client)
-                                    <option value="{{ $client->id }}">{{ $client->client_name }} {{$client->email  }}</option>
+                                    <option value="{{ $client->id }}">{{ $client->first_name }} {{$client->last_name  }}</option>
                                 @endforeach
                             </select>
                         </div>

@@ -39,8 +39,8 @@
 
 
                                 <div class="profile-details">
-                                    <h6 id="name">{{ $shiftDate->staff?->fore_name ?? '' }}
-                                        {{ $shiftDate->staff?->sur_name ?? '' }} <a href="#"
+                                    <h6 id="name">{{ $shiftDate->staff?->first_name ?? '' }}
+                                        {{ $shiftDate->staff?->last_name ?? '' }} <a href="#"
                                             onclick="editShift({{ $shiftDate->id }})">Edit</a></h6>
                                     <div class="mb-1">
                                         <i class="ti ti-phone"></i>

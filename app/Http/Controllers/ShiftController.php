@@ -23,9 +23,9 @@ class ShiftController extends Controller
 {
     public function index(ShiftsDataTable $dataTable)
     {
-        $clients = Client::all();
+        $clients = User::role('client')->get();
         $sites = Site::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
         $subcontractors = Subcontractor::all();
         $users = User::all();
         $services = EmployeeType::all();
@@ -34,9 +34,9 @@ class ShiftController extends Controller
     public function scheduling()
     {
         // $shifts = Shift::all();
-        $clients = Client::all();
+        $clients = User::role('client')->get();
         $sites = Site::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
         $subcontractors = Subcontractor::all();
         // $users = User::all();
         $services = EmployeeType::all();
@@ -45,9 +45,9 @@ class ShiftController extends Controller
     public function worker_calendar()
     {
         $shifts = Shift::all();
-        $clients = Client::all();
+        $clients = User::role('client')->get();
         $sites = Site::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
         $subcontractors = Subcontractor::all();
         $users = User::all();
         $services = EmployeeType::all();
@@ -56,9 +56,9 @@ class ShiftController extends Controller
     public function site_calendar()
     {
         $shifts = Shift::all();
-        $clients = Client::all();
+        $clients = User::role('client')->get();
         $sites = Site::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
         $subcontractors = Subcontractor::all();
         $users = User::all();
         $services = EmployeeType::all();
@@ -67,9 +67,9 @@ class ShiftController extends Controller
     public function today_rota()
     {
         $shifts = Shift::all();
-        $clients = Client::all();
+        $clients = User::role('client')->get();
         $sites = Site::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
         $subcontractors = Subcontractor::all();
         $users = User::all();
         $services = EmployeeType::all();
@@ -567,7 +567,7 @@ $shiftDates=$query->get();
                 'sia_number' => $sd->staff->sia_licence ?? '',
                 'sia_expiry' => $sd->staff->sia_expiry ?? '',
                 'profile_picture' => $sd->staff->profile_picture ?? '',
-                'name' =>  isset($sd->staff->fore_name) ? $sd->staff->fore_name . " " . $sd->staff->sur_name : 'Not Assigned',
+                'name' =>  isset($sd->staff->first_name) ? $sd->staff->first_name . " " . $sd->staff->last_name : 'Not Assigned',
                 'subcontractor' => $sd->staff->subcontractor ?? '',
                 'client_name' => $shift->client->client_name ?? '',
                 'book_on' => $book_on,
@@ -642,9 +642,9 @@ $shiftDates=$query->get();
                         ->with('staff')
                         ->first();
 
-                    if (isset($sd->is_assign) && $sd->is_assign == 1) {
+                    if (isset($sd->is_assign) && !empty($sd->staff_id)) {
                         $events[] = [
-                            'title' => isset($sd->staff->fore_name) ? $sd->staff->fore_name . " " . $sd->staff->sur_name : 'Unknown Staff',
+                            'title' => isset($sd->staff->first_name) ? $sd->staff->first_name . " " . $sd->staff->last_name : 'Unknown Staff',
                             'start' => $startDateTime,
                             'end' => $endDateTime,
                             'location' => $shift->site->site_name ?? 'Unknown Site',
@@ -725,7 +725,7 @@ $shiftDates=$query->get();
                         ->with('staff')
                         ->first();
 
-                    if (isset($sd->is_assign) && $sd->is_assign == 1) {
+                    if (isset($sd->is_assign) && !empty($sd->shift->site_id)) {
                         $events[] = [
                             'title' => $sd->shift->site->site_name ?? 'Unknown Site',
                             'start' => $startDateTime,
@@ -785,7 +785,7 @@ $shiftDates=$query->get();
                 ->where('shift_date', $today)
                 ->first();
 
-            if (isset($sd->is_assign) && $sd->is_assign == 1) {
+            if (isset($sd->is_assign)) {
                 $events[] = [
                     'title' => $shift->client->client_name ?? 'Unknown Client',
                     'start' => $start,
@@ -793,7 +793,7 @@ $shiftDates=$query->get();
                     'client' => $shift->client->client_name ?? '',
                     'site' => $shift->site->site_name ?? '',
                     // 'staff' => $sd->staff->site_name ?? '',
-                    'staff' => $sd?->staff?->fore_name . ' ' . $sd?->staff?->sur_name,
+                    'staff' => $sd?->staff?->first_name . ' ' . $sd?->staff?->last_name,
                     'allDay' => false,
                     'color' => '#3a87ad',
                     'urgent' => rand(0, 1) === 1,
@@ -961,7 +961,7 @@ $shiftDates=$query->get();
                 $staff->id,
                 'alarm',
                 'Shift Conflict',
-                "Attempted to assign a shift to {$staff->fore_name} {$staff->sur_name} but there's an overlapping shift."
+                "Attempted to assign a shift to {$staff->first_name} {$staff->last_name} but there's an overlapping shift."
             );
             return response()->json([
                 'error' => 'This staff already has a shift during this time.'
@@ -976,7 +976,7 @@ $shiftDates=$query->get();
                 $staff->id,
                 'alert',
                 'Visa Expired',
-                "{$staff->fore_name} {$staff->sur_name}'s Visa is expired. Shift not assigned."
+                "{$staff->first_name} {$staff->last_name}'s Visa is expired. Shift not assigned."
             );
             return response()->json([
                 'error' => 'This staff’s Passport is expired.'
@@ -1022,7 +1022,7 @@ $shiftDates=$query->get();
             $shiftDate->save();
         });
 
-        $staffName = $shiftDate?->staff?->fore_name . ' ' . $shiftDate?->staff?->sur_name;
+        $staffName = $shiftDate?->staff?->first_name . ' ' . $shiftDate?->staff?->last_name;
 
         $shiftDate->logs()->create([
             'user_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,

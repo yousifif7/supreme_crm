@@ -14,8 +14,8 @@
                         <select name="staff_id" id="staff_id" class="form-select selec2_assign_modal" required>
                             <option value="">-- Choose Staff --</option>
                             @foreach ($staffs as $staff)
-                                <option value="{{ $staff->id }}">{{ $staff->fore_name }}
-                                    {{ $staff->sur_name }}
+                                <option value="{{ $staff->id }}">{{ $staff->first_name }}
+                                    {{ $staff->last_name }}
                                 </option>
                             @endforeach
                         </select>
