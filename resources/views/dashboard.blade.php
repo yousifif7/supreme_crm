@@ -91,16 +91,56 @@
                             <div class="card-title">Live Tracking</div>
                         </div>
                         <div class="card-body">
-                            <div id="map" style="height: 600px;"></div>
+                            <div id="map" style="height: 500px;"></div>
                         </div>
                     </div>
                 </div>
 
             </div>
             <div class="row">
-            
-                <div class="col-xxl-12 col-12 col-xl-12 d-flex">
-                    <div class="card w-100">
+                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
+                    <div class="card flex-fill">
+                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                            <h5 class="mb-2">Today Shifts (Live)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-nowrap mb-0">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>TIME</th>
+                                            <th>PERSON</th>
+                                            <th>IN</th>
+                                            <th>BREAK</th>
+                                            <th>OUT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($shifts as $shift)
+                                            <tr>
+                                                <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
+                                                </td>
+                                                <td>{{ $shift->shift?->staff?->fore_name }}
+                                                    {{ $shift->shift?->staff?->sur_name }}</td>
+                                                <td>X</td>
+                                                <td>{{ $shift->break_time }}
+                                                </td>
+                                                <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+
+
+
+                                    </tbody>
+                                </table>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
+                    <div class="card">
                         <div class="card-header">
                             <h5 class="fs-18">Check Calls Monitoring</h5>
                             <small>Filter by status: Pending | Missed | Completed</small>
@@ -162,48 +202,34 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Today Shifts (Live)</h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-nowrap mb-0">
-                                    <thead>
-                                        <tr class="text-center">
-                                            <th>TIME</th>
-                                            <th>PERSON</th>
-                                            <th>IN</th>
-                                            <th>BREAK</th>
-                                            <th>OUT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($shifts as $shift)
-                                            <tr>
-                                                <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
-                                                </td>
-                                                <td>{{ $shift->shift?->staff?->fore_name }}
-                                                    {{ $shift->shift?->staff?->sur_name }}</td>
-                                                <td>X</td>
-                                                <td>{{ $shift->break_time }}
-                                                </td>
-                                                <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
-                                                </td>
-                                            </tr>
-                                        @endforeach
 
-
-
-                                    </tbody>
-                                </table>
-
+                <!-- Comment Modal -->
+                <div class="modal fade" id="commentModal" tabindex="-1" aria-labelledby="commentModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog">
+                        <form id="commentForm">
+                            @csrf
+                            <input type="hidden" name="check_call_id" id="check_call_id" value="">
+                            <div class="modal-content">
+                                <div class="modal-header">
+                                    <h5 class="modal-title" id="commentModalLabel">Add Comment</h5>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body">
+                                    <textarea name="comment" class="form-control" rows="4" placeholder="Write your comment here..."></textarea>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="submit" class="btn btn-primary">Submit Comment</button>
+                                </div>
                             </div>
-                        </div>
+                        </form>
                     </div>
                 </div>
-  <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
+
+            </div>
+            <div class="row">
+                <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
@@ -272,8 +298,7 @@
                         </div>
                     </div>
                 </div>
-
-                 <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
+                <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
                     <div class="card mt-4">
                         <div class="card-header">
                             <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
@@ -354,8 +379,10 @@
                                 </div>
                             </div>
                         </div>
-
-                   <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class=" col-12 d-flex">
                         <div class="card mt-4">
                             <div class="card-header">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
@@ -381,7 +408,7 @@
                                                 $staff = App\Models\Employee::find($alarm->staff_id);
                                             @endphp
                                             <tr>
-                                                <td style="width: 30px">{{ $staff->fore_name ?? 'N/A' }}
+                                                <td>{{ $staff->fore_name ?? 'N/A' }}
                                                     {{ $staff->sur_name ?? '' }}</td>
                                                 <td>{{ $alarm->shift_id }}</td>
                                                 <td>{{ ucfirst($alarm->type) }}</td>
@@ -409,32 +436,7 @@
                             </div>
                         </div>
                     </div>
-                <!-- Comment Modal -->
-                <div class="modal fade" id="commentModal" tabindex="-1" aria-labelledby="commentModalLabel"
-                    aria-hidden="true">
-                    <div class="modal-dialog">
-                        <form id="commentForm">
-                            @csrf
-                            <input type="hidden" name="check_call_id" id="check_call_id" value="">
-                            <div class="modal-content">
-                                <div class="modal-header">
-                                    <h5 class="modal-title" id="commentModalLabel">Add Comment</h5>
-                                    <button type="button" class="btn-close" data-bs-dismiss="modal"
-                                        aria-label="Close"></button>
-                                </div>
-                                <div class="modal-body">
-                                    <textarea name="comment" class="form-control" rows="4" placeholder="Write your comment here..."></textarea>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="submit" class="btn btn-primary">Submit Comment</button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
                 </div>
-
-            </div>
-          
             </div>
         </div>
 
@@ -664,7 +666,8 @@
             loadNotifications();
         });
     </script>
-    <script>
+
+     <script>
         function initMap() {
             const map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 4,
@@ -675,32 +678,20 @@
             const locations = @json($locations);
 
             locations.forEach(loc => {
-             
-                    const position = { lat: parseFloat(loc.latitude), lng: parseFloat(loc.longitude) };
-    const username = loc.user ? loc.user.name : 'Unknown';
-    const formattedTime = formatDateTime(loc.timestamp);
+                const position = { lat: parseFloat(loc.latitude), lng: parseFloat(loc.longitude) };
+                const username = loc.user ? loc.user.name : 'Unknown';
 
                 const marker = new google.maps.Marker({
-    position,
-    map,
-    title: `User: ${username} | Accuracy: ${loc.accuracy}`,
-    label: {
-        text: username,
-        color: "red",
-        fontSize: "12px",
-        fontWeight: "bold",
-    },
-    icon: {
-        url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",  // default pin
-        labelOrigin: new google.maps.Point(15, -10)  // Shift label above marker
-    }
-});
+                    position,
+                    map,
+                    title: `User: ${username} | Accuracy: ${loc.accuracy}`,
+                });
 
                 const infoWindow = new google.maps.InfoWindow({
                     content: `<p><strong>User:</strong> ${username}<br>
                               <strong>Accuracy:</strong> ${loc.accuracy} meters<br>
                               <strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}<br>
-                              <strong>Timestamp:</strong> ${formattedTime}</p>`,
+                              <strong>Timestamp:</strong> ${loc.timestamp}</p>`,
                 });
 
                 marker.addListener("click", () => {
@@ -712,29 +703,11 @@
 
             map.fitBounds(bounds);
         }
-       function formatDateTime(dateString) {
-    const date = new Date(dateString);
-
-    // Format date (e.g., Aug 3, 2025)
-    const options = { year: 'numeric', month: 'short', day: 'numeric' };
-    const formattedDate = date.toLocaleDateString(undefined, options);
-
-    // Format time in AM/PM
-    const hours = date.getHours();
-    const minutes = date.getMinutes();
-    const ampm = hours >= 12 ? 'PM' : 'AM';
-    const formattedHours = hours % 12 || 12;
-    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
-    const formattedTime = `${formattedHours}:${formattedMinutes} ${ampm}`;
-
-    return `${formattedDate} ${formattedTime}`;
-}
-
-
     </script>
 
     <!-- Google Maps JS API -->
-    <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDzWn38Y6sP_o4rkr8SslyIszr2lwJNTHk&callback=initMap">
-    </script>
+     <script
+      src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC6X9qZI8tU82Zmi16w-hcfVm4VdM_Uoxg&callback=initMap"
+      async
+    ></script>
 @endsection

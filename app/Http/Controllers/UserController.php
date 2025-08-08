@@ -19,10 +19,9 @@ use App\DataTables\UsersDataTable;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 use App\Models\Location;
-use DB;
+
 class UserController extends Controller
 {
     public function dashboard()
@@ -112,17 +111,74 @@ class UserController extends Controller
         }
         $reviewrowthPercentage = round($reviewgrowthPercentage, 2);
 
-        // Calling delete notifications every 30 days function 
-        $this->deleteOldNotifications();
+        // Checking for missed shifts 
+        $now = now();
 
-$locations = Location::select('id', 'user_id', 'latitude', 'longitude', 'accuracy', 'on_duty', 'timestamp')
-    ->with('user:id,name')
-    ->whereIn('id', function ($query) {
-        $query->select(DB::raw('MAX(id)'))
-              ->from('locations')
-              ->groupBy('user_id');
-    })
-    ->get();
+        // --- Missed Book On Notifications ---
+        $missedBookOns = Shift::whereNotNull('staff_id')
+            ->whereNull('book_in_time')
+            ->whereDate('from_shift', '<=', $now->toDateString())
+            ->whereTime('start_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->where('missed_book_on_notified', false) // prevent repeats
+            ->get();
+
+        foreach ($missedBookOns as $shift) {
+            $employee = Employee::find($shift->staff_id);
+            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+
+            Notify::toDashboard(
+                null,
+                'alarm',
+                'Missed Book On',
+                "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}."
+            );
+
+            // ✅ Mark as notified
+            $shift->update(['missed_book_on_notified' => true]);
+        }
+
+        // --- Missed Book Off Notifications ---
+        $missedBookOffs = Shift::whereNotNull('staff_id')
+            ->whereNull('book_off_time')
+            ->whereDate('to_shift', '<=', $now->toDateString())
+            ->whereTime('end_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->where('missed_book_off_notified', false)
+            ->get();
+
+        foreach ($missedBookOffs as $shift) {
+            $employee = Employee::find($shift->staff_id);
+            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+
+            Notify::toDashboard(
+                null,
+                'alarm',
+                'Missed Book Off',
+                "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}."
+            );
+
+            $shift->update(['missed_book_off_notified' => true]);
+        }
+
+        // --- Unassigned Shift Starting Soon ---
+        $unassignedShifts = Shift::whereNull('staff_id')
+            ->whereDate('from_shift', '=', $now->toDateString())
+            ->whereTime('start_shift', '>=', $now->format('H:i:s'))
+            ->whereTime('start_shift', '<=', $now->copy()->addHour()->format('H:i:s'))
+            ->where('unassigned_shift_notified', false)
+            ->get();
+
+        foreach ($unassignedShifts as $shift) {
+            Notify::toDashboard(
+                null,
+                'alarm',
+                'Unassigned Shift',
+                "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned."
+            );
+
+            $shift->update(['unassigned_shift_notified' => true]);
+        }
+ $locations = Location::with('user:id,name')  // Eager load only id & name
+        ->get(['id', 'user_id', 'latitude', 'longitude', 'accuracy', 'on_duty', 'timestamp']);
         return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
     }
 
@@ -313,19 +369,5 @@ $locations = Location::select('id', 'user_id', 'latitude', 'longitude', 'accurac
         $alarm->save();
 
         return response()->json(['success' => true]);
-    }
-
-    protected function deleteOldNotifications()
-    {
-        // Run only once every 24 hours
-        if (!Cache::has('notifications_cleanup_ran_today')) {
-            $cutoff = Carbon::now()->subDays(30);
-
-            $deleted = Notification::where('created_at', '<', $cutoff)->delete();
-
-            Cache::put('notifications_cleanup_ran_today', true, now()->addDay());
-
-            \Log::info("Auto-deleted $deleted notifications older than 30 days");
-        }
     }
 }

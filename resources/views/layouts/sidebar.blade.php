@@ -156,7 +156,7 @@
                                 <i class="ti ti-tool"></i><span>Tools</span>
                                 <span class="menu-arrow"></span>
                             </a>
-                            <ul style="display: {{ request()->is('restrictions.*') || request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
+                            <ul style="display: {{ request()->is('incident_report.*') || request()->is('restrictions.*') || request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
                                 <li class="{{ request()->is('invoices*') ? 'active' : '' }}"><a href="{{ route('invoices.index') }}"><i
                                             class="ti ti-file-invoice"></i>Invoices & Payments</a></li>
                                 {{--<li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
@@ -168,7 +168,7 @@
                                         <i class="ti ti-door-exit"></i>Holiday Mgt. </a>
                                 </li>
                                 
-                                <li><a href="#"><i class="ti ti-checkup-list"></i>Report</a>
+                                <li class="{{ request()->is('incident_report') ? 'active' : '' }}"><a href="{{ route('incident_report.index') }}"><i class="ti ti-checkup-list"></i>Incident Report</a>
                                 </li>
 
                                  <li class="{{ request()->is('restrictions') ? 'active' : '' }}">
