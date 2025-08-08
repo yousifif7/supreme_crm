@@ -156,7 +156,7 @@ if (!function_exists('send_push_notification')) {
 
 class Notify
 {
-    public static function toDashboard($employeeId, $type, $title, $message, $action_url==false)
+    public static function toDashboard($employeeId, $type, $title, $message, $action_url=false)
     {
         // Assuming user ID 1 is the dashboard user
         Notification::create([
