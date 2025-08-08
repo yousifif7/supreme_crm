@@ -58,6 +58,13 @@ Route::middleware('auth')->group(function () {
         Auth::logout();
         return redirect('/login');
     })->name('logout');
+
+
+    Route::get('incident_report',[IncidentReportController::class,'index'])->name('incident_report.index');
+     Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
+    Route::get('/incident_report/export/pdf', [ExportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
+
+
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
     Route::post('/users/bulk-delete', [UserController::class, 'bulkDelete'])->name('users.bulkDelete');
     Route::post('/leaves/bulk-delete', [EmployeeLeaveController::class, 'bulkDelete'])->name('leaves.bulkDelete');
