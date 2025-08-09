@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Document;
 use App\Models\Employee;
+use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\BookingAlarm;
@@ -17,10 +18,10 @@ use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\DataTables\UsersDataTable;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use App\Models\Location;
 
 class UserController extends Controller
 {
@@ -127,7 +128,7 @@ class UserController extends Controller
             $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
 
             Notify::toDashboard(
-                null,
+                $employee->id,
                 'alarm',
                 'Missed Book On',
                 "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}."
@@ -150,7 +151,7 @@ class UserController extends Controller
             $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
 
             Notify::toDashboard(
-                null,
+                $employee->id,
                 'alarm',
                 'Missed Book Off',
                 "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}."
