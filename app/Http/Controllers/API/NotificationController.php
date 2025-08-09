@@ -82,9 +82,11 @@ class NotificationController extends Controller
         //     return response()->json(['message' => 'Employee not found'], 404);
         // }
 
+        $employee = Employee::where('user_id',Auth::id())->first();
+
         DeviceToken::updateOrCreate(
             [
-                'employee_id' => Auth::id(),
+                'employee_id' => $employee->id,
                 'push_token' => $request->push_token
             ],
             [
