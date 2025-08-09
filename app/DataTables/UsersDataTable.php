@@ -68,20 +68,27 @@ class UsersDataTable extends DataTable
      *
      * @return QueryBuilder<User>
      */
-    public function query(User $model): QueryBuilder
-    {
-        $query = $model->newQuery()
+   public function query(User $model): QueryBuilder
+{
+    $query = $model->newQuery()
+        ->with(['roles'])
+        ->select('users.*')
+        ->whereDoesntHave('roles', function ($q) {
+            $q->whereIn('name', ['client', 'sub_contractor', 'security_staff']);
+        });
+
+    if ($this->filter === 'archived') {
+        $query = $model->onlyTrashed()
             ->with(['roles'])
-            ->select('users.*');
-
-        if ($this->filter === 'archived') {
-            $query = $model->onlyTrashed()
-                ->with(['roles'])
-                ->select('users.*');
-        }
-
-        return $query;
+            ->select('users.*')
+            ->whereDoesntHave('roles', function ($q) {
+                $q->whereIn('name', ['client', 'sub_contractor', 'security_staff']);
+            });
     }
+
+    return $query;
+}
+
 
     /**
      * Optional method if you want to use the html builder.
