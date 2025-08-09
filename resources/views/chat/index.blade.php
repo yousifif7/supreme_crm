@@ -244,7 +244,7 @@
 
 @endsection
 
-@push('js')
+@section('js')
 <script src="https://cdn.jsdelivr.net/npm/pusher-js@7.0.3/dist/web/pusher.min.js"></script>
 <!-- EmojiMart Styles -->
 
@@ -598,4 +598,4 @@ function togglePin(conversationId, shouldPin) {
 
     document.addEventListener('DOMContentLoaded', loadConversations);
 </script>
-@endpush
+@endsection
