@@ -8,12 +8,13 @@ use App\Models\EmployeeType;
 use App\Models\Site;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Models\User;
 
 class SiteController extends Controller
 {
     public function index(SitesDataTable $dataTable)
     {
-        $clients = Client::get();
+        $clients = User::role('client')->get();
         $employee_types = EmployeeType::all();
 
         return $dataTable->render('sites.index', compact('clients', 'employee_types'));

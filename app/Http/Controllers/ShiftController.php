@@ -1035,7 +1035,7 @@ $shiftDates=$query->get();
 
     public function getClient($id)
     {
-        $client = Client::with('site')->findOrFail($id);
+        $client = User::role('client')->with('site')->findOrFail($id);
 
         return response()->json([
             'client' => $client,

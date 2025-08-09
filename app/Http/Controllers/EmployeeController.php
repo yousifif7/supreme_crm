@@ -24,8 +24,9 @@ class EmployeeController extends Controller
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
         $licenses = License::all();
+        $subcontractors =User::role('subcontractor')->get();
 
-        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses'));
+        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses','subcontractors'));
     }
 
     public function store(Request $request)
