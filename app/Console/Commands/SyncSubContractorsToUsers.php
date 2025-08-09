@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\User;
-use App\Models\SubContractor;
+use App\Models\Subcontractor;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -15,7 +15,7 @@ class SyncSubContractorsToUsers extends Command
 
     public function handle()
     {
-        $subContractors = SubContractor::all();
+        $subContractors = Subcontractor::all();
         $createdCount = 0;
         $skippedCount = 0;
 
