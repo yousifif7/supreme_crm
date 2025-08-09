@@ -13,6 +13,7 @@ use App\Models\Employee;
 use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
+use Illuminate\Support\Str;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Str;
+
 class UserController extends Controller
 {
     public function dashboard()
