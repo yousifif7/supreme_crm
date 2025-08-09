@@ -957,7 +957,6 @@ $shiftDates=$query->get();
 
         if ($overlap) {
             Notify::toDashboard(
-                auth()->id(),
                 $staff->id,
                 'alarm',
                 'Shift Conflict',
@@ -972,7 +971,6 @@ $shiftDates=$query->get();
 
         if ($staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
             Notify::toDashboard(
-                auth()->id(),
                 $staff->id,
                 'alert',
                 'Visa Expired',
