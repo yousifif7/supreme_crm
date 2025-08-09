@@ -72,9 +72,8 @@ class CheckCallController extends Controller
     public function getCheckCallAlarms(Request $request)
     {
         $user = Auth::user();
-        $employee = Employee::where('user_id',$user->id)->first();
         $alarms = CheckCall::whereHas('shift', function ($query) use ($user) {
-            $query->where('staff_id', $employee->id);
+            $query->where('staff_id',  Employee::where('user_id',$user->id)->first());
         })
             ->where('status', 'pending')
             ->where('scheduled_time', '<', now())
