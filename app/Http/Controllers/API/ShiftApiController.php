@@ -23,12 +23,11 @@ class ShiftApiController extends Controller
     // 10. Get Upcoming Shifts
     public function getUpcomingShifts(Request $request)
     {
-        $user = Auth::user();
+        $employee = Employee::where('user_id',Auth::id())->first();
 
         $limit = $request->query('limit', 10);
 
         $shiftDates = ShiftDate::with('shift')
-            ->where('staff_id', $user->id)
             ->where('shift_date', '>=', now()->toDateString())
             ->orderBy('shift_date')
             ->paginate($limit);
@@ -70,8 +69,10 @@ class ShiftApiController extends Controller
             'reason' => 'required_if:response,decline|string|nullable',
         ]);
 
+        $employee = Employee::where('user_id',Auth::id())->first();
+
         $shift = ShiftDate::where('id', $shift_id)
-            ->where('staff_id', Auth::id())
+            ->where('staff_id', $employee->id)
             ->firstOrFail();
 
         $shift->status = $request->response === 'accept' ? 2 : 5;
@@ -102,7 +103,7 @@ class ShiftApiController extends Controller
             'status' => 'pending',
         ]);
 
-        $employee = Employee::find(Auth::id());
+        $employee = Employee::where('user_id',Auth::id())->first();
         Notify::toDashboard(
             $employee->id,
             'alert',
@@ -127,8 +128,10 @@ class ShiftApiController extends Controller
             'acknowledgment_timestamp' => 'required|date',
         ]);
 
+        $employee = Employee::where('user_id',Auth::id())->first();
+
         $shift = Shift::where('id', $shift_id)
-            ->where('staff_id', Auth::id())
+            ->where('staff_id', $employee->id)
             ->firstOrFail();
 
         $shift->update([
