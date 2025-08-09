@@ -70,7 +70,7 @@ class ShiftDate extends Model
 
      public function checkCalls()
     {
-        return $this->hasMany(CheckCall::class);
+        return $this->hasMany(CheckCall::class,'shift_id');
     }
      public function patrols()
     {
