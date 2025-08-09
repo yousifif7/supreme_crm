@@ -78,7 +78,7 @@ class ShiftController extends Controller
 
     public function show(ShiftDate $shiftDate)
     {
-        $shiftDate->load(['staff', 'shift.client', 'shift.site', 'shift.staff', 'logs', 'shift.checkCalls']);
+        $shiftDate->load(['staff', 'shift.client', 'shift.site', 'shift.staff', 'logs', 'checkCalls']);
         return $this->sendRes('success', ['view_data' => view('security_boards.shift-detail-modal', compact('shiftDate'))->render()]);
     }
 
@@ -553,7 +553,7 @@ $shiftDates=$query->get();
             $book_on = $sd->shift_date . ", at  " . $sd->absentee_start_time;
             $book_off = $sd->shift_date . ", at " . $sd->absentee_end_time;
             $events[] = [
-                'title' => $shift->client->client_name ?? 'Unknown Client',
+                'title' => $shift->client->first_name ?? 'Unknown Client',
                 'start' => $sd->shift_date . 'T' . $sd->start_time,
                 'end' => $sd->shift_date . 'T' . $sd->end_time,
                 'location' => $shift->site->site_name ?? 'Unknown Site',

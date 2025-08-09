@@ -74,7 +74,7 @@ class ShiftApiController extends Controller
             ->where('staff_id', Auth::id())
             ->firstOrFail();
 
-        $shift->status = $request->response === 'accept' ? 'accepted' : 'declined';
+        $shift->status = $request->response === 'accept' ? 2 : 5;
         $shift->decline_reason = $request->reason ?? null;
         $shift->save();
 

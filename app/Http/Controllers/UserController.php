@@ -22,7 +22,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-
+use App\Models\Location;
+use Str;
 class UserController extends Controller
 {
     public function dashboard()
@@ -279,7 +280,7 @@ class UserController extends Controller
         }
 
         $validated = $validator->validated();
-        $validated['username'] = $validated['email'];
+        $validated['username'] = Str::slug($validated['first_name'] . $validated['last_name']).rand(1,100);
 
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);

@@ -98,49 +98,9 @@
 
             </div>
             <div class="row">
-                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
-                    <div class="card flex-fill">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Today Shifts (Live)</h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                <table class="table table-nowrap mb-0">
-                                    <thead>
-                                        <tr class="text-center">
-                                            <th>TIME</th>
-                                            <th>PERSON</th>
-                                            <th>IN</th>
-                                            <th>BREAK</th>
-                                            <th>OUT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($shifts as $shift)
-                                            <tr>
-                                                <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
-                                                </td>
-                                                <td>{{ $shift->shift?->staff?->fore_name }}
-                                                    {{ $shift->shift?->staff?->sur_name }}</td>
-                                                <td>X</td>
-                                                <td>{{ $shift->break_time }}
-                                                </td>
-                                                <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
-                                                </td>
-                                            </tr>
-                                        @endforeach
-
-
-
-                                    </tbody>
-                                </table>
-
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
-                    <div class="card">
+               
+                <div class="col-xxl-12 col-12 col-xl-12 d-flex">
+                    <div class="card w-100">
                         <div class="card-header">
                             <h5 class="fs-18">Check Calls Monitoring</h5>
                             <small>Filter by status: Pending | Missed | Completed</small>
@@ -227,8 +187,47 @@
                     </div>
                 </div>
 
-            </div>
-            <div class="row">
+                <div class="col-xxl-6 col-12 col-xl-6 d-flex">
+                    <div class="card flex-fill">
+                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                            <h5 class="mb-2">Today Shifts (Live)</h5>
+                        </div>
+                        <div class="card-body p-0">
+                            <div class="table-responsive">
+                                <table class="table table-nowrap mb-0">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>TIME</th>
+                                            <th>PERSON</th>
+                                            <th>IN</th>
+                                            <th>BREAK</th>
+                                            <th>OUT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($shifts as $shift)
+                                            <tr>
+                                                <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
+                                                </td>
+                                                <td>{{ $shift->shift?->staff?->fore_name }}
+                                                    {{ $shift->shift?->staff?->sur_name }}</td>
+                                                <td>X</td>
+                                                <td>{{ $shift->break_time }}
+                                                </td>
+                                                <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
+                                                </td>
+                                            </tr>
+                                        @endforeach
+
+
+
+                                    </tbody>
+                                </table>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
                     <div class="card flex-fill">
                         <div class="card-header">
@@ -379,10 +378,8 @@
                                 </div>
                             </div>
                         </div>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class=" col-12 d-flex">
+             
+                    <div class=" col-6 d-flex">
                         <div class="card mt-4">
                             <div class="card-header">
                                 <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
