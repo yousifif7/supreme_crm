@@ -188,9 +188,9 @@
                     @csrf
                     <div class="mb-3">
                         <label for="user_id" class="form-label">Select User</label>
-                        <select class="form-select" name="users_id[]" id="user_id" required>
+                        <select class="form-select user_select" name="users_id[]" id="user_id" required>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                <option value="{{ $user->id }}">{{ $user->first_name }} {{ $user->last_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -220,9 +220,9 @@
 
                     <div class="mb-3">
                         <label for="group_users" class="form-label">Select Users</label>
-                        <select class="form-select" name="users_id[]" id="group_users" multiple required>
+                        <select class="form-select group-user" name="users_id[]" id="group_users" multiple required>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->name }}</option>
+                                <option value="{{ $user->id }}">{{ $user->first_name }} {{ $user->last_name }}</option>
                             @endforeach
                         </select>
                         <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple users.</small>
@@ -252,6 +252,12 @@
 <script src="https://cdn.jsdelivr.net/npm/emoji-mart@5.6.0/dist/browser.min.js"></script>
  <script>
             $(document).ready(function() {
+                 $(".user_select").select2({
+            dropdownParent: $("#oneToOneModal")
+        });
+                    $(".group-user").select2({
+            dropdownParent: $("#groupChatModal")
+        });
                 $('#profile_picture').on('change', function() {
                     const fileInput = this;
                     if (fileInput.files && fileInput.files[0]) {
