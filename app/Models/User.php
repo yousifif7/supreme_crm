@@ -61,6 +61,11 @@ class User extends Authenticatable
         ];
     }
 
+     public function site()
+    {
+        return $this->hasMany(Site::class,'client_id');
+    }
+
     public function deviceLogs()
     {
         return $this->hasMany(DeviceLog::class);
@@ -139,7 +144,7 @@ class User extends Authenticatable
         return $this->profile_picture ? '/uploads/profile_pics/' . $this->profile_picture : 'uploads/no.png';
     }
 
-    
+
     public function fileUrl($file_name, $preview_only = false)
     {
         $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];

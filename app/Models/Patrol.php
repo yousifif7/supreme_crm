@@ -14,7 +14,7 @@ class Patrol extends Model
 
     public function shift()
     {
-        return $this->belongsTo(Shift::class);
+        return $this->belongsTo(ShiftDate::class);
     }
 
     public function checkpoints()

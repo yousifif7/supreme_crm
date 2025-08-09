@@ -264,7 +264,7 @@ class ShiftApiController extends Controller
 
     public function getPatrolRoutes($shift_id)
     {
-        $shift = Shift::with('patrols.checkpoints')->findOrFail($shift_id);
+        $shift = ShiftDate::with('patrols.checkpoints')->findOrFail($shift_id);
 
         $patrols = $shift->patrols->map(function ($patrol) {
             return [
