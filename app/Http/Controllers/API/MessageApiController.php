@@ -74,7 +74,6 @@ class MessageApiController extends Controller
         $req->validate([
             'conversation_id' => 'required|exists:conversations,id',
             'message' => 'required_without:media_file|string',
-            'message_type' => 'required|in:text,image,video,file',
             'media_file' => 'nullable|string',
         ]);
 
@@ -82,7 +81,6 @@ class MessageApiController extends Controller
             'conversation_id' => $req->conversation_id,
             'sender_id' => Auth::id(),
             'message' => $req->message,
-            'type' => $req->message_type,
             'media_url' => $req->media_file ? $this->storeBase64Media($req->media_file) : null,
         ]);
 
