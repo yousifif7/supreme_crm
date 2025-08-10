@@ -1010,13 +1010,10 @@ class ShiftController extends Controller
 
 
         // 3. ✅ Proceed to assign if checks pass (update without boot event and store logs manually)
-        // $shiftDate->staff_id = $staff->id;
-        // $shiftDate->is_assign = 1;
-        // $shiftDate->save();
-        $shiftDate->forceFill([
-            'staff_id'  => $staff->user_id, // employee id
-            'is_assign' => 1,
-        ]);
+        $shiftDate->staff_id = $staff->user_id;
+        $shiftDate->is_assign = 1;
+        $shiftDate->save();
+  
 
 
 $staffName = trim(
