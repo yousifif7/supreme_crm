@@ -1018,7 +1018,9 @@ class ShiftController extends Controller
         ])-
 
 
-        $staffName = $shiftDate?->staff?->first_name . ' ' . $shiftDate?->staff?->last_name;
+$staffName = trim(
+    ($shiftDate?->staff?->first_name ?? '') . ' ' . ($shiftDate?->staff?->last_name ?? '')
+);
 
         $shiftDate->logs()->create([
             'user_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
