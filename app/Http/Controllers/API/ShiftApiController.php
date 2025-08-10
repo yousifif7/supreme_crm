@@ -3,10 +3,11 @@
 namespace App\Http\Controllers\API;
 
 use Notify;
+use Carbon\Carbon;
 use App\Models\Shift;
-use App\Models\ShiftDate;
 use App\Models\Patrol;
 use App\Models\Employee;
+use App\Models\ShiftDate;
 use App\Models\BookingAlarm;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
@@ -155,6 +156,7 @@ class ShiftApiController extends Controller
 
         $user = Auth::user();
 
+        $formattedTimestamp = Carbon::parse($request->timestamp)->format('Y-m-d H:i:s');
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
             'shift_id' => $shift_id,
@@ -163,7 +165,7 @@ class ShiftApiController extends Controller
             'latitude' => $request->location['latitude'],
             'longitude' => $request->location['longitude'],
             'address' => $request->location['address'],
-            'timestamp' => $request->timestamp,
+            'timestamp' => $formattedTimestamp,
         ]);
 
         return response()->json([

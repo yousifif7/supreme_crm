@@ -57,7 +57,7 @@ class MessageApiController extends Controller
         $msgs = $messages->map(fn($m) => [
             'id' => $m->id,
             'sender_id' => $m->sender_id,
-            'sender_name' => $m->sender->name,
+            'sender_name' => trim(($m->sender->first_name ?? '') . ' ' . ($m->sender->last_name ?? '')),
             'message' => $m->message,
             'message_type' => $m->type,
             'media_url' => $m->media_url,
@@ -81,7 +81,7 @@ class MessageApiController extends Controller
             'conversation_id' => $req->conversation_id,
             'sender_id' => Auth::id(),
             'message' => $req->message,
-            'media_url' => $req->media_file ? $this->storeBase64Media($req->media_file) : null,
+            'media_file' => $req->media_file ? $this->storeBase64Media($req->media_file) : null,
         ]);
 
         // Optionally broadcast via real-time etc.
