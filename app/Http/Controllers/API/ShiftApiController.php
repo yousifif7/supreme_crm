@@ -24,7 +24,7 @@ class ShiftApiController extends Controller
     // 10. Get Upcoming Shifts
     public function getUpcomingShifts(Request $request)
     {
-        $employee = Employee::where('user_id',Auth::id())->first();
+        $employee = Employee::where('user_id', Auth::id())->first();
 
         $limit = $request->query('limit', 10);
 
@@ -32,7 +32,7 @@ class ShiftApiController extends Controller
             ->where('shift_date', '>=', now()->toDateString())
             ->orderBy('shift_date')
             ->paginate($limit);
-            
+
 
         $transformed = $shiftDates->getCollection()->transform(function ($shiftDate) {
             return [
@@ -70,7 +70,7 @@ class ShiftApiController extends Controller
             'reason' => 'required_if:response,decline|string|nullable',
         ]);
 
-        $employee = Employee::where('user_id',Auth::id())->first();
+        $employee = Employee::where('user_id', Auth::id())->first();
 
         $shift = ShiftDate::where('id', $shift_id)
             ->where('staff_id', $employee->id)
@@ -104,7 +104,7 @@ class ShiftApiController extends Controller
             'status' => 'pending',
         ]);
 
-        $employee = Employee::where('user_id',Auth::id())->first();
+        $employee = Employee::where('user_id', Auth::id())->first();
         Notify::toDashboard(
             $employee->id,
             'alert',
@@ -129,7 +129,7 @@ class ShiftApiController extends Controller
             'acknowledgment_timestamp' => 'required|date',
         ]);
 
-        $employee = Employee::where('user_id',Auth::id())->first();
+        $employee = Employee::where('user_id', Auth::id())->first();
 
         $shift = Shift::where('id', $shift_id)
             ->where('staff_id', $employee->id)
@@ -210,53 +210,125 @@ class ShiftApiController extends Controller
 
     public function bookOn(Request $request, $shift_id)
     {
-        $user = Auth::user(); // Get the authenticated user
+        $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
 
         if (!$employee) {
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
+
+        // Check if employee already has ANY booked on shift
+        $existingBooking = ShiftBooking::where('user_id', $user->id)
+            ->where('type', 'book_on')
+            ->first();
+
+        if ($existingBooking) {
+            return response()->json([
+                'message' => 'You already have a booked on shift (Shift ID: ' . $existingBooking->shift_id . ').'
+            ], 409);
+        }
+
+        // Find the ShiftDate for this shift
+        $shiftDate = ShiftDate::where('shift_id', $shift_id)->first();
+        if (!$shiftDate) {
+            return response()->json(['message' => 'Shift not found.'], 404);
+        }
+
+        // Update shift status
+        $shiftDate->status = 'booked_on';
+        $shiftDate->save();
+
+        // Create notification
         Notification::create([
-            'user_id' => 1,
-            'employee_id' => $employee->id,
+            'user_id' => 1, // Probably admin
+            'employee_id' => null,
             'type' => 'alert',
-            'title' => 'Shift booked on ',
-            'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'title' => 'Shift booked on',
+            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
             'read' => false,
         ]);
 
-        // Send push notification to employee/device
+        // Create notification for guard
+        Notification::create([
+            'user_id' => Auth::id(), 
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Shift booked on',
+            'message' => 'You have booked on shift (ID: ' . $shiftDate->shift_id . ' ends at ' . $shiftDate->shift->end_shift,
+            'read' => false,
+        ]);
+
+        // Push notification
         send_push_notification(
             $user->id,
-            'Shift booked on ',
+            'Shift booked on',
             'Your shift has been successfully booked on.',
             ['shift_id' => $shift_id]
         );
 
+        // Create shift booking record
         return $this->bookOnOff($request, $shift_id, 'book_on');
     }
 
     public function bookOff(Request $request, $shift_id)
     {
-        $user = Auth::user(); // Get the authenticated user
+        $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
 
         if (!$employee) {
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
+
+        // Check if this employee has booked ON for this shift
+        $existingBooking = ShiftBooking::where('user_id', $user->id)
+            ->where('shift_id', $shift_id)
+            ->where('type', 'book_on')
+            ->first();
+
+        if (!$existingBooking) {
+            return response()->json([
+                'message' => 'You have not booked on for this shift, so you cannot book off.'
+            ], 400);
+        }
+
+        // Update shift date status
+        $shiftDate = ShiftDate::where('shift_id', $shift_id)->first();
+        if ($shiftDate) {
+            $shiftDate->status = 'booked_off';
+            $shiftDate->save();
+        }
+
+
+        //Mark booking off in ShiftBooking table
+        ShiftBooking::create([
+            'user_id' => $user->id,
+            'shift_id' => $shift_id,
+            'type' => 'book_off',
+            'timestamp' => now(),
+            'face_verification_result' => 'not_required', // or whatever default
+        ]);
+
+        // Log a notification to dashboadrd
         Notification::create([
             'user_id' => 1,
-            'employee_id' => $employee->id,
+            'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked off',
-            'message' => 'by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name,
+            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
             'read' => false,
         ]);
 
-        // Optionally fetch the shift if you need more details
-        $shift = Shift::findOrFail($shift_id);
+        // Log a notification to guard
+        Notification::create([
+            'user_id' => Auth::id(),
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Shift booked off',
+            'message' => 'You booked off your shift',
+            'read' => false,
+        ]);
 
-        // Send push notification to employee/device
+        // Push notification to employee
         send_push_notification(
             $user->id,
             'Shift booked off',
@@ -264,8 +336,14 @@ class ShiftApiController extends Controller
             ['shift_id' => $shift_id]
         );
 
-        return $this->bookOnOff($request, $shift_id, 'book_off');
+        // Remove or close the "book_on" record to free them up
+        $existingBooking->delete();
+
+        return response()->json([
+            'message' => 'Shift booked off successfully.'
+        ]);
     }
+
 
     public function getPatrolRoutes($shift_id)
     {
