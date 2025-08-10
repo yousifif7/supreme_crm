@@ -219,7 +219,7 @@ class ShiftApiController extends Controller
 
         //Check if employee has booked on shift
         $bookedShift = ShiftBooking::where('employee_id',$employee->id)
-        ->where('type','book_on')->firstOrFail();
+        ->where('type','book_on')->first();
 
         if ($bookedShift) {
             return response()->json(['message' => 'You already have booked on shift. ' . $bookedShift->shift->id], 404);
