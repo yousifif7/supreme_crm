@@ -1015,7 +1015,7 @@ class ShiftController extends Controller
         $shiftDate->forceFill([
             'staff_id'  => $staff->id, // employee id
             'is_assign' => 1,
-        ])-
+        ]);
 
 
 $staffName = trim(
