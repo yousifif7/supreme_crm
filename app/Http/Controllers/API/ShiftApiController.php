@@ -216,6 +216,14 @@ class ShiftApiController extends Controller
         if (!$employee) {
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
+
+        //Check if employee has booked on shift
+        $bookedShift = ShiftBooking::where('employee_id',$employee->id)
+        ->where('type','book_on')->firstOrFail();
+
+        if ($bookedShift) {
+            return response()->json(['message' => 'You already have booked on shift. ' . $bookedShift->shift->id], 404);
+        }
         Notification::create([
             'user_id' => 1,
             'employee_id' => $employee->id,
