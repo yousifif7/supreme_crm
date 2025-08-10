@@ -248,6 +248,16 @@ class ShiftApiController extends Controller
             'read' => false,
         ]);
 
+        // Create notification for guard
+        Notification::create([
+            'user_id' => Auth::id(), 
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Shift booked on',
+            'message' => 'You have booked on shift (ID: ' . $shiftDate->shift_id . ' ends at ' . $shiftDate->shift->end_shift,
+            'read' => false,
+        ]);
+
         // Push notification
         send_push_notification(
             $user->id,
@@ -288,13 +298,33 @@ class ShiftApiController extends Controller
             $shiftDate->save();
         }
 
-        // Log a notification
+
+        //Mark booking off in ShiftBooking table
+        ShiftBooking::create([
+            'user_id' => $user->id,
+            'shift_id' => $shift_id,
+            'type' => 'book_off',
+            'timestamp' => now(),
+            'face_verification_result' => 'not_required', // or whatever default
+        ]);
+
+        // Log a notification to dashboadrd
         Notification::create([
-            'user_id' => 1, // probably admin
+            'user_id' => 1,
             'employee_id' => $employee->id,
             'type' => 'alert',
             'title' => 'Shift booked off',
             'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
+            'read' => false,
+        ]);
+
+        // Log a notification to guard
+        Notification::create([
+            'user_id' => Auth::id(),
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Shift booked off',
+            'message' => 'You booked off your shift',
             'read' => false,
         ]);
 
@@ -305,15 +335,6 @@ class ShiftApiController extends Controller
             'Your shift has been successfully booked off.',
             ['shift_id' => $shift_id]
         );
-
-        //Mark booking off in ShiftBooking table
-        ShiftBooking::create([
-            'user_id' => $user->id,
-            'shift_id' => $shift_id,
-            'type' => 'book_off',
-            'timestamp' => now(),
-            'face_verification_result' => 'not_required', // or whatever default
-        ]);
 
         // Remove or close the "book_on" record to free them up
         $existingBooking->delete();
