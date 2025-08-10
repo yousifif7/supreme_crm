@@ -57,7 +57,7 @@ class MessageApiController extends Controller
         $msgs = $messages->map(fn($m) => [
             'id' => $m->id,
             'sender_id' => $m->sender_id,
-            'sender_name' => trim(($m->sender->first_name ?? '') . ' ' . ($m->sender->last_name ?? '')),
+            'sender_name' => trim(($m->sender->name ?? ''). ' '. ($m->sender->first_name ?? '') . ' ' . ($m->sender->last_name ?? '')),
             'message' => $m->message,
             'message_type' => $m->type,
             'media_url' => $m->media_url,

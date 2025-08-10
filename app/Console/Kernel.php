@@ -15,7 +15,7 @@ class Kernel extends ConsoleKernel
     protected function schedule(Schedule $schedule): void
     {
         // Example: schedule your custom command here
-        $schedule->command('shifts:process-notifications')->everyFiveMinutes();
+        $schedule->command('shifts:process-notifications')->everyFiveMinute();
     }
 
     protected function commands(): void
