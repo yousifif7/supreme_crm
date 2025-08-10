@@ -26,7 +26,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -37,7 +37,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
         // $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
@@ -48,7 +48,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.worker_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -59,7 +59,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.site_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -70,7 +70,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -221,7 +221,7 @@ class ShiftController extends Controller
                 // ✅ Check SIA license expiry only if staff exists
                 if ($staffId) {
                     $staff = \App\Models\Employee::find($staffId);
-                   
+
 
 
                     $selectedDays = array_map('trim', explode(',', $dayString));
@@ -254,9 +254,7 @@ class ShiftController extends Controller
                     // Check if adding new shift exceeds weekly limit
                     $maxWeeklyHours = $staff->hour_per_week ?? 40;
 
-                            applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $fromDate);
-
-
+                    applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $fromDate);
                 }
             });
 
@@ -472,24 +470,24 @@ class ShiftController extends Controller
         $query = \App\Models\ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff']);
 
 
-        $from_shift=$request->from_shift;
-        $to_shift=$request->to_shift;
+        $from_shift = $request->from_shift;
+        $to_shift = $request->to_shift;
 
 
-$query->whereHas('shift', function ($q) use($request) {
+        $query->whereHas('shift', function ($q) use ($request) {
 
-        if ($request->filled('site')) {
-            $q->where('site_id', $request->site);
-        }
+            if ($request->filled('site')) {
+                $q->where('site_id', $request->site);
+            }
 
-        if ($request->filled('staff')) {
-            $q->where('staff_id', $request->staff);
-        }
+            if ($request->filled('staff')) {
+                $q->where('staff_id', $request->staff);
+            }
 
-        if ($request->filled('client_id')) {
-            $q->whereTime('client_id', '>=', $request->client_id);
-        }
-    });
+            if ($request->filled('client_id')) {
+                $q->whereTime('client_id', '>=', $request->client_id);
+            }
+        });
 
         if ($request->filled('status')) {
             $query->where('is_assign', $request->status);
@@ -499,7 +497,7 @@ $query->whereHas('shift', function ($q) use($request) {
             $query->whereTime('start_time', '>=', $request->start_time);
         }
 
-        
+
 
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);
@@ -512,11 +510,11 @@ $query->whereHas('shift', function ($q) use($request) {
         if ($request->filled('created_at')) {
             $query->whereDate('created_at', $request->created_at);
         }
-if (!empty($from_shift) && !empty($to_shift)) {
-    $query->whereBetween('shift_date', [$from_shift, $to_shift]);
-}
+        if (!empty($from_shift) && !empty($to_shift)) {
+            $query->whereBetween('shift_date', [$from_shift, $to_shift]);
+        }
 
-$shiftDates=$query->get();
+        $shiftDates = $query->get();
         $events = [];
 
         // Status color map
@@ -967,7 +965,7 @@ $shiftDates=$query->get();
             ], 422);
         }
 
-       
+
 
         if ($staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
             Notify::toDashboard(
@@ -1014,11 +1012,11 @@ $shiftDates=$query->get();
         // $shiftDate->staff_id = $staff->id;
         // $shiftDate->is_assign = 1;
         // $shiftDate->save();
-        $shiftDate->withoutEvents(function () use ($shiftDate, $staff) {
-            $shiftDate->staff_id = $staff->id;
-            $shiftDate->is_assign = 1;
-            $shiftDate->save();
-        });
+        $shiftDate->forceFill([
+            'staff_id'  => $staff->id, // employee id
+            'is_assign' => 1,
+        ])-
+
 
         $staffName = $shiftDate?->staff?->first_name . ' ' . $shiftDate?->staff?->last_name;
 
@@ -1054,24 +1052,24 @@ $shiftDates=$query->get();
     {
         $query = ShiftDate::with(['shift', 'staff']);
 
-        $from_shift=$request->from_shift;
-        $to_shift=$request->to_shift;
+        $from_shift = $request->from_shift;
+        $to_shift = $request->to_shift;
 
 
-$query->whereHas('shift', function ($q) use($request) {
+        $query->whereHas('shift', function ($q) use ($request) {
 
-        if ($request->filled('site')) {
-            $q->where('site_id', $request->site);
-        }
+            if ($request->filled('site')) {
+                $q->where('site_id', $request->site);
+            }
 
-        if ($request->filled('staff')) {
-            $q->where('staff_id', $request->staff);
-        }
+            if ($request->filled('staff')) {
+                $q->where('staff_id', $request->staff);
+            }
 
-        if ($request->filled('client_id')) {
-            $q->whereTime('client_id', '>=', $request->client_id);
-        }
-    });
+            if ($request->filled('client_id')) {
+                $q->whereTime('client_id', '>=', $request->client_id);
+            }
+        });
 
         if ($request->filled('status')) {
             $query->where('is_assign', $request->status);
@@ -1081,7 +1079,7 @@ $query->whereHas('shift', function ($q) use($request) {
             $query->whereTime('start_time', '>=', $request->start_time);
         }
 
-        
+
 
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);
