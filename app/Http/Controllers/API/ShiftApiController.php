@@ -241,7 +241,7 @@ class ShiftApiController extends Controller
         // Create notification
         Notification::create([
             'user_id' => 1, // Probably admin
-            'employee_id' => $employee->id,
+            'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked on',
             'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
@@ -311,7 +311,7 @@ class ShiftApiController extends Controller
         // Log a notification to dashboadrd
         Notification::create([
             'user_id' => 1,
-            'employee_id' => $employee->id,
+            'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked off',
             'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
