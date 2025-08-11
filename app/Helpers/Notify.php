@@ -32,8 +32,8 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
 {
     $entityClass = get_class($entity);
     $restrictions = \App\Models\Restriction::where('entity_type', $entityClass)
-                                           ->where('is_active', true)
-                                           ->get();
+        ->where('is_active', true)
+        ->get();
 
     $missingDocuments = [];
 
@@ -80,7 +80,7 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                     $isShiftInActiveTerm = \App\Models\EmployeeTerm::where('employee_id', $entity->id)
                         ->where(function ($query) use ($shiftDate) {
                             $query->where('from_date', '<=', $shiftDate)
-                                  ->where('to_date', '>=', $shiftDate);
+                                ->where('to_date', '>=', $shiftDate);
                         })
                         ->exists();
 
@@ -105,13 +105,16 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
 
 
 if (!function_exists('send_push_notification')) {
-    function send_push_notification($employeeId, $title, $message, $data = [])
+    function send_push_notification($userId, $title, $message, $data = [])
     {
-        // Fetch the device token for the given employee
-        $device = \App\Models\DeviceToken::where('employee_id', $employeeId)->first();
+        // Fetch all device tokens for the given user
+        $devices = \App\Models\DeviceToken::where('user_id', $userId)
+            ->whereNotNull('push_token')
+            ->pluck('push_token')
+            ->toArray();
 
-        if (!$device || empty($device->push_token)) {
-            \Log::info("No device token found for employee ID: {$employeeId}");
+        if (empty($devices)) {
+            \Log::info("No device tokens found for user ID: {$userId}");
             return false;
         }
 
@@ -122,20 +125,17 @@ if (!function_exists('send_push_notification')) {
 
             $expo->setAccessToken('wz2xtEKGkvW7qTc_uUVVaefX-M2E1vilwavavQzw');
 
-            // Subscribe the device to a topic (in this case, employee ID is used)
-            $expo->subscribe($employeeId, $device->push_token);
-
-            // Send the notification
-            $expo->notify([$employeeId], [
+            // Send the notification directly to all device tokens
+            $expo->notify($devices, [
                 'title' => $title,
                 'body' => $message,
                 'sound' => 'default',
                 'data' => $data,
             ]);
 
-            // Save to database
+            // Save notification in DB for tracking
             \App\Models\Notification::create([
-                'employee_id' => $employeeId,
+                'user_id' => $userId,
                 'title' => $title,
                 'message' => $message,
                 'data' => $data,
@@ -147,16 +147,18 @@ if (!function_exists('send_push_notification')) {
             return true;
 
         } catch (\Throwable $e) {
-            \Log::error("Push notification error for employee ID {$employeeId}: {$e->getMessage()}");
+            \Log::error("Push notification error for user ID {$userId}: {$e->getMessage()}");
             return false;
         }
     }
 }
 
 
+
+
 class Notify
 {
-    public static function toDashboard($employeeId, $type, $title, $message, $action_url=false)
+    public static function toDashboard($employeeId, $type, $title, $message, $action_url = false)
     {
         // Assuming user ID 1 is the dashboard user
         Notification::create([

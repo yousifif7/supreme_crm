@@ -65,8 +65,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
     Route::post('/shifts/{shift_id}/acknowledge-documents', [ShiftApiController::class, 'acknowledgeDocuments']);
 
-    Route::post('/shifts/{shift_id}/book-on', [ShiftApiController::class, 'bookOn']);
-    Route::post('/shifts/{shift_id}/book-off', [ShiftApiController::class, 'bookOff']);
+    Route::post('/shifts/{shiftDate_id}/book-on', [ShiftApiController::class, 'bookOn']);
+    Route::post('/shifts/{shiftDate_id}/book-off', [ShiftApiController::class, 'bookOff']);
 
     Route::get('/alarms/booking', [ShiftApiController::class, 'getBookingAlarms']);
     Route::post('/alarms/{alarm_id}/acknowledge', [ShiftApiController::class, 'acknowledgeAlarm']);

@@ -17,6 +17,6 @@ class ShiftBooking extends Model
     }
 
     public function shift() {
-        return $this->belongsTo(Shift::class);
+        return $this->belongsTo(ShiftDate::class ,'shift_id');
     }
 }

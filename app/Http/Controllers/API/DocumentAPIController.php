@@ -112,7 +112,8 @@ class DocumentAPIController extends Controller
                     'days_remaining' => Carbon::parse($doc->expiry_date)->diffInDays(now()),
                 ];
             });
-
+        
+            
         foreach ($expiringSoon as $exp) {
             send_push_notification(
                 $exp->user_id,
