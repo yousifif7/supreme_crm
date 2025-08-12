@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use App\Models\EmergencyContacts;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
 
@@ -21,8 +22,8 @@ class ProfileAPIController extends Controller
         if (! $user->profile) {
             if (! $user->profile) {
                 $user->profile()->create([
-                    'first_name' => '',
-                    'last_name' => '',
+                    'first_name' => $user->first_name,
+                    'last_name' => $user->first_name,
                     'phone' => '',
                     'address' => '',
                     'emergency_contact' => [],
@@ -37,8 +38,8 @@ class ProfileAPIController extends Controller
         return response()->json([
             'id' => $user->id,
             'email' => $user->email,
-            'first_name' => $profile->first_name,
-            'last_name' => $profile->last_name,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
             'phone' => $profile->phone,
             'address' => $profile->address,
             'emergency_contact' => $profile->emergencyContact ?? null,

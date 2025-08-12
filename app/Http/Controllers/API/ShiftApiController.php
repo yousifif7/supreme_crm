@@ -31,6 +31,7 @@ class ShiftApiController extends Controller
 
         $shiftDates = ShiftDate::with('shift')
             ->where('shift_date', '>=', now()->toDateString())
+            ->where('staff_id', $employee->id)
             ->orderBy('shift_date')
             ->paginate($limit);
 
@@ -79,14 +80,39 @@ class ShiftApiController extends Controller
 
         $shift = ShiftDate::where('id', $shift_id)
             ->where('staff_id', $employee->id)
-            ->firstOrFail();
+            ->first();
 
-        $shift->status = $request->response === 'accept' ? 2 : 5;
-        $shift->decline_reason = $request->reason ?? null;
-        $shift->save();
+        if (!$shift) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shift_id . ') Not on your upcoming shifts list!',
+            ]);
+        }
+
+        // check if shift status is dispatched
+        if ($shift->is_assign == 1) {
+            if ($request->response == 'accept') {
+                $shift->is_assign = 2; //accept shift
+                $shift->save();
+
+                return response()->json([
+                    'message' => 'Shift date Accepted successfully!',
+                ]);
+            } elseif ($request->response == 'decline') {
+                $shift->is_assign = 5; //reject shift
+                // $shift->reason = $request->reason ?? null;
+                $shift->save();
+                return response()->json([
+                    'message' => 'Shift date Declined successfully!',
+                ]);
+            }
+
+            return response()->json([
+                'message' => 'Unaccepted response (' . $request->response . ') You can only accept / decline',
+            ]);
+        }
 
         return response()->json([
-            'message' => 'Shift ' . $shift->status,
+            'message' => 'Could not change shift status ',
         ]);
     }
 
@@ -163,8 +189,18 @@ class ShiftApiController extends Controller
         $formattedTimestamp = Carbon::parse($request->timestamp)->format('Y-m-d H:i:s');
 
         // Correct: fetch by shiftdate primary key
-        $shiftDate = ShiftDate::findOrFail($shiftDate_id);
+        $shiftDate = ShiftDate::find($shiftDate_id);
+        if (!$shiftDate) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
+            ]);
+        }
 
+        if ($shiftDate->is_assign !== 2) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted, You can not book on or off a shift untill it is accepted!',
+            ]);
+        }
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
             'shift_id' => $shiftDate->id, // store shift_date_id, not main shift_id
@@ -237,7 +273,7 @@ class ShiftApiController extends Controller
 
         // Correct: find by ShiftDate ID
         $shiftDate = ShiftDate::find($shiftDate_id);
-        if(!$shiftDate){
+        if (!$shiftDate) {
             return response()->json([
                 'message' => 'Trying to book on unavailable shift (ShiftDate ID: ' . $shiftDate_id . ').'
             ], 409);
@@ -245,6 +281,7 @@ class ShiftApiController extends Controller
 
         // Update status
         $shiftDate->status = 'booked_on';
+        $shiftDate->is_assign = 3; //shift started
         $shiftDate->save();
 
         // Notifications
@@ -291,8 +328,8 @@ class ShiftApiController extends Controller
             ->where('type', 'book_on')
             ->first();
 
-                    $shiftDate = ShiftDate::find($shiftDate_id);
-        if(!$shiftDate){
+        $shiftDate = ShiftDate::find($shiftDate_id);
+        if (!$shiftDate) {
             return response()->json([
                 'message' => 'Trying to book off unavailable shift (ShiftDate ID: ' . $shiftDate_id . ').'
             ], 409);
@@ -308,6 +345,7 @@ class ShiftApiController extends Controller
 
         if ($shiftDate) {
             $shiftDate->status = 'booked_off';
+            $shiftDate->is_assign = 4; //shift ended
             $shiftDate->save();
         }
 
