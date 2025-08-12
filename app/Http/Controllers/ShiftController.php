@@ -1013,9 +1013,9 @@ class ShiftController extends Controller
         // $shiftDate->is_assign = 1;
         // $shiftDate->save();
         $shiftDate->forceFill([
-            'staff_id'  => $staff->id, // employee id
+            'staff_id'  => $staffId, // employee id
             'is_assign' => 1,
-        ])-
+        ])->save();
 
 
         $staffName = $shiftDate?->staff?->first_name . ' ' . $shiftDate?->staff?->last_name;
