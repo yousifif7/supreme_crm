@@ -889,7 +889,7 @@ class ShiftController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'shift_id' => 'required|exists:shift_dates,id',
-            'staff_id' => 'required|exists:employees,id',
+            'staff_id' => 'required|exists:users,id',
         ]);
 
         if ($validator->fails()) {
@@ -910,6 +910,7 @@ class ShiftController extends Controller
         ];
 
         $staffId = $request->staff_id;
+        $staffUser=Employee::where('user_id',$staffId)->first();
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift = Shift::findOrFail($shiftDate->shift_id);
 
@@ -924,7 +925,7 @@ class ShiftController extends Controller
         $newShiftHours = 0;
         try {
             $newShiftHours = $this->calculateTotalWorkingHours(
-                $staffId,
+                $staffUser->id,
                 $from,
                 $to,
                 $start,
@@ -940,7 +941,7 @@ class ShiftController extends Controller
         }
 
 
-        $staff = \App\Models\Employee::findOrFail($staffId);
+        $staff = \App\Models\Employee::findOrFail($staffUser->id);
 
         // 1. ✅ Check if staff has an overlapping shift at this time
         $overlap = \App\Models\ShiftDate::where('staff_id', $staff->id)
@@ -1009,16 +1010,18 @@ class ShiftController extends Controller
 
 
         // 3. ✅ Proceed to assign if checks pass (update without boot event and store logs manually)
-        // $shiftDate->staff_id = $staff->id;
-        // $shiftDate->is_assign = 1;
-        // $shiftDate->save();
-        $shiftDate->forceFill([
-            'staff_id'  => $staff->id, // employee id
-            'is_assign' => 1,
-        ])->save();
+
+        $shiftDate->staff_id = $staff->user_id;
+        $shiftDate->is_assign = 1;
+        $shiftDate->save();
+  
 
 
-        $staffName = $shiftDate?->staff?->first_name . ' ' . $shiftDate?->staff?->last_name;
+$staffName = trim(
+    (isset($shiftDate->staff->first_name) ? $shiftDate->staff->first_name : '') . ' ' .
+    (isset($shiftDate->staff->last_name) ? $shiftDate->staff->last_name : '')
+);
+
 
         $shiftDate->logs()->create([
             'user_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
