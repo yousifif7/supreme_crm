@@ -195,6 +195,11 @@ class ShiftApiController extends Controller
                 'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
             ]);
         }
+        if ($shiftDate->is_assign !== 3) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') has been already booked on',
+            ]);
+        }
 
         if ($shiftDate->is_assign !== 2) {
             return response()->json([
