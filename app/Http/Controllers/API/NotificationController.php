@@ -32,7 +32,7 @@ class NotificationController extends Controller
         }
 
         // Start notifications query, filtered by employee_id
-        $query = Notification::where('employee_id', $employee->id);
+        $query = Notification::where('employee_id', auth::id());
 
         // Optional filters
         if ($request->filled('type')) {
@@ -86,7 +86,7 @@ class NotificationController extends Controller
 
         DeviceToken::updateOrCreate(
             [
-                'employee_id' => $employee->id,
+                'employee_id' => auth::id(),
                 'push_token' => $request->push_token
             ],
             [

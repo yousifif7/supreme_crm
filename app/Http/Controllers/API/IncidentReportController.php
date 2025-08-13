@@ -79,7 +79,7 @@ class IncidentReportController extends Controller
         $user = Auth::user(); // Get the authenticated user
         $employee = Employee::where('user_id', $user->id)->first();
         Notify::toDashboard(
-            $employee->id,
+            auth::id(),
             'alert',
             'Incident report',
             'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name. ' In shift NO. #'. $request->shift_id,
