@@ -195,17 +195,7 @@ class ShiftApiController extends Controller
                 'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
             ]);
         }
-        if ($shiftDate->is_assign == 3 && $type=='booked_on') {
-            return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') has been already booked on',
-            ]);
-        }
-
-        if ($shiftDate->is_assign !== 2) {
-            return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted, You can not book on or off a shift untill it is accepted!',
-            ]);
-        }
+       
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
             'shift_id' => $shiftDate->id, // store shift_date_id, not main shift_id
@@ -282,6 +272,18 @@ class ShiftApiController extends Controller
             return response()->json([
                 'message' => 'Trying to book on unavailable shift (ShiftDate ID: ' . $shiftDate_id . ').'
             ], 409);
+        }
+
+         if ($shiftDate->is_assign == 3 && $type=='booked_on') {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') has been already booked on',
+            ]);
+        }
+
+        if ($shiftDate->is_assign !== 2) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted, You can not book on or off a shift untill it is accepted!',
+            ]);
         }
 
         // Update status
