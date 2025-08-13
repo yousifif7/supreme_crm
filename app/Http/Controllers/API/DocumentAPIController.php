@@ -56,7 +56,7 @@ class DocumentAPIController extends Controller
             ]);
 
             Notify::toDashboard(
-                $employee->id,
+                auth::id(),
                 'alert',
                 'Document Uploaded',
                 'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,

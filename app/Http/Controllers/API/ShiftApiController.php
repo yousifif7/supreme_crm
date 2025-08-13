@@ -31,7 +31,7 @@ class ShiftApiController extends Controller
 
         $shiftDates = ShiftDate::with('shift')
             ->where('shift_date', '>=', now()->toDateString())
-            ->where('staff_id', $employee->id)
+            ->where('staff_id', auth::id())
             ->orderBy('shift_date')
             ->paginate($limit);
 
@@ -79,7 +79,7 @@ class ShiftApiController extends Controller
         $employee = Employee::where('user_id', Auth::id())->first();
 
         $shift = ShiftDate::where('id', $shift_id)
-            ->where('staff_id', $employee->id)
+            ->where('staff_id', auth::id())
             ->first();
 
         if (!$shift) {
@@ -137,7 +137,7 @@ class ShiftApiController extends Controller
 
         $employee = Employee::where('user_id', Auth::id())->first();
         Notify::toDashboard(
-            $employee->id,
+            auth::id(),
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
@@ -163,7 +163,7 @@ class ShiftApiController extends Controller
         $employee = Employee::where('user_id', Auth::id())->first();
 
         $shift = Shift::where('id', $shift_id)
-            ->where('staff_id', $employee->id)
+            ->where('staff_id', auth::id())
             ->firstOrFail();
 
         $shift->update([
@@ -296,7 +296,7 @@ class ShiftApiController extends Controller
 
         Notification::create([
             'user_id' => $user->id,
-            'employee_id' => $employee->id,
+            'employee_id' => auth::id(),
             'type' => 'alert',
             'title' => 'Shift booked on',
             'message' => 'You have booked on shift (ID: ' . $shiftDate->id . ') ends at ' . $shiftDate->shift->end_shift,
@@ -369,7 +369,7 @@ class ShiftApiController extends Controller
 
         Notification::create([
             'user_id' => $user->id,
-            'employee_id' => $employee->id,
+            'employee_id' => auth::id(),
             'type' => 'alert',
             'title' => 'Shift booked off',
             'message' => 'You booked off your shift',

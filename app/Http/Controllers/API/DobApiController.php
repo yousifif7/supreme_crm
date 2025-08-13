@@ -28,7 +28,7 @@ class DobApiController extends Controller
         $user = Auth::user(); // Get the authenticated user
         $employee = Employee::where('user_id', $user->id)->first();
         $entry = DobEntry::create([
-            'user_id' => $employee->id,
+            'user_id' => auth::id(),
             'shift_id' => $data['shift_id'],
             'entry_type' => $data['entry_type'],
             'title' => $data['title'],
@@ -53,7 +53,7 @@ class DobApiController extends Controller
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
         Notify::toDashboard(
-            $employee->id,
+            auth::id(),
             'alert',
             'DOB Uploaded',
             'DOB uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
