@@ -23,7 +23,23 @@ class DocumentAPIController extends Controller
             'description' => 'nullable|string',
         ]);
 
-        $filePath = $request->file('file')->store('documents', 'public');
+// Get the uploaded file
+$file = $request->file('file');
+
+// Define the destination path inside the public folder
+$destinationPath = public_path('documents'); // public/documents
+
+// Ensure the directory exists
+if (!file_exists($destinationPath)) {
+    mkdir($destinationPath, 0755, true);
+}
+
+// Move the file to the public folder
+$fileName = time() . '_' . $file->getClientOriginalName();
+$file->move($destinationPath, $fileName);
+
+// Full path (for saving in DB, if needed)
+$filePath = 'documents/' . $fileName;
 
         $document = Document::create([
             'user_id' => $request->user()->id,

@@ -1070,7 +1070,7 @@
                     if (fileName) {
                         hasDocs = true;
                         // Adjust folder path as needed for your setup
-                        const url = `${baseUrl}/uploads/${field}/${fileName}`;
+                        const url = `${baseUrl}/documents/${fileName}`;
                         documentHtml += `<div class="mb-1">
                     <strong>${label}:</strong> 
                     <a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary ms-1">View</a>
