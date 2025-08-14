@@ -159,6 +159,9 @@
                             <ul style="display: {{ request()->is('incident_report.*') || request()->is('restrictions.*') || request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
                                 <li class="{{ request()->is('invoices*') ? 'active' : '' }}"><a href="{{ route('invoices.index') }}"><i
                                             class="ti ti-file-invoice"></i>Invoices & Payments</a></li>
+
+                                            <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a href="{{ route('documents.report') }}"><i
+                                            class="ti ti-file-invoice"></i>Document Report</a></li>
                                 {{--<li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
                                 </li>
                                 <li><a href="#"><i class="ti ti-door-exit"></i>Holiday Mgt.</a>

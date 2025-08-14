@@ -674,32 +674,54 @@
             const bounds = new google.maps.LatLngBounds();
             const locations = @json($locations);
 
-            locations.forEach(loc => {
-                const position = { lat: parseFloat(loc.latitude), lng: parseFloat(loc.longitude) };
-                const username = loc.user ? loc.user.name : 'Unknown';
+         locations.forEach(loc => {
+    const position = { lat: parseFloat(loc.latitude), lng: parseFloat(loc.longitude) };
+    const username = loc.user ? loc.user.name : 'Unknown';
+    const formattedTime = formatAMPM(loc.timestamp);
 
-                const marker = new google.maps.Marker({
-                    position,
-                    map,
-                    title: `User: ${username} | Accuracy: ${loc.accuracy}`,
-                });
+    const marker = new google.maps.Marker({
+        position,
+        map,
+        title: `User: ${username} | Accuracy: ${loc.accuracy}`,
+        label: {
+            text: username,
+            color: "red",
+            fontSize: "12px",
+            fontWeight: "bold",
+        },
+        icon: {
+            url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+            labelOrigin: new google.maps.Point(15, -10)
+        }
+    });
 
-                const infoWindow = new google.maps.InfoWindow({
-                    content: `<p><strong>User:</strong> ${username}<br>
-                              <strong>Accuracy:</strong> ${loc.accuracy} meters<br>
-                              <strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}<br>
-                              <strong>Timestamp:</strong> ${loc.timestamp}</p>`,
-                });
+    const infoWindow = new google.maps.InfoWindow({
+        content: `<p><strong>User:</strong> ${username}<br>
+                  <strong>Accuracy:</strong> ${loc.accuracy} meters<br>
+                  <strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}<br>
+                  <strong>Time:</strong> ${formattedTime}</p>`,
+    });
 
-                marker.addListener("click", () => {
-                    infoWindow.open(map, marker);
-                });
+    marker.addListener("click", () => {
+        infoWindow.open(map, marker);
+    });
 
-                bounds.extend(position);
-            });
+    bounds.extend(position);
+});
+
 
             map.fitBounds(bounds);
         }
+        function formatAMPM(dateString) {
+    const date = new Date(dateString);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const formattedHours = hours % 12 || 12; // Convert 0 to 12
+    const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+    return `${formattedHours}:${formattedMinutes} ${ampm}`;
+}
+
     </script>
 
     <!-- Google Maps JS API -->

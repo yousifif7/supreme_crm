@@ -28,6 +28,7 @@ use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
 use App\Http\Controllers\IncidentReportController;
+use App\Http\Controllers\DocumentController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -38,20 +39,23 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 
-Route::get('chat',[ChatController::class,'index']);
-Route::get('load/conversations', [ChatController::class, 'getConversations']);
-Route::post('/conversations', [ChatController::class, 'createConversation'])->name('conversations');
+Route::group(['middleware' => ['auth']], function() {
+    // Chat routes
+    Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
 
-
-Route::post('/conversations/{conversationId}/messages', [ChatController::class, 'sendMessage']);
-Route::get('/conversations/{conversationId}/messages', [ChatController::class, 'getMessages']);
-
-
-Route::get('/conversations/{conversationId}/members', [ChatController::class, 'viewMembers']);
-
-Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
-
-Route::post('/create-one-to-one-conversation', [ChatController::class, 'createOneToOneConversation']);
+    Route::get('/chat', [ChatController::class, 'index'])->name('chat.index');
+    Route::post('/conversations', [ChatController::class, 'createConversation'])->name('conversations');
+    Route::get('/load/conversations', [ChatController::class, 'getConversations'])->name('load.conversations');
+    Route::get('/conversations/{conversationId}/messages', [ChatController::class, 'getMessages'])->name('conversations.messages');
+    Route::post('/conversations/{conversationId}/send-messages', [ChatController::class, 'sendMessage'])->name('conversations.sendMessage');
+    Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage'])->name('messages.delete');
+    Route::get('/conversations/{conversationId}/members', [ChatController::class, 'viewMembers'])->name('conversations.members');
+    Route::post('/conversations/{conversationId}/pin', [ChatController::class, 'togglePin'])->name('conversations.togglePin');
+    Route::post('/create-one-to-one-conversation', [ChatController::class, 'createOneToOneConversation'])->name('create.one.to.one');
+    Route::post('/conversations/{conversationId}/typing', [ChatController::class, 'userTyping'])->name('conversations.typing');
+    Route::post('/conversations/{conversationId}/mark-as-read', [ChatController::class, 'markMessagesAsRead'])->name('conversations.markAsRead');
+    Route::get('/conversations/{conversationId}/media', [ChatController::class, 'getConversationMedia'])->name('conversations.media');
+});
 
 Route::middleware('auth')->group(function () {
     Route::post('/logout', function () {
@@ -59,6 +63,8 @@ Route::middleware('auth')->group(function () {
         return redirect('/login');
     })->name('logout');
 
+
+Route::get('documents/report',[DocumentController::class,'report'])->name('documents.report');
 
     Route::get('incident_report',[IncidentReportController::class,'index'])->name('incident_report.index');
      Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
@@ -124,7 +130,10 @@ Route::middleware('auth')->group(function () {
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
 
     Route::get('/generateinvoice/{id}', [InvoiceController::class, 'edit'])->name('invoices.edit');
-    Route::post('/generateinvoice/{id}', [InvoiceController::class, 'store'])->name('invoices.store');
+    Route::post('/generateinvoice/{id}', [InvoiceController::class, 'generateClientInvoice'])->name('invoices.store');
+
+        Route::post('/generateinvoice-sub/{id}', [InvoiceController::class, 'generateSubcontractorInvoice'])->name('invoices.sub');
+
     Route::get('/invoices/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::delete('/deleteinvoice/{id}', [InvoiceController::class, 'delete'])->name('invoices.delete');
     Route::post('/invoices/bulk-delete', [InvoiceController::class, 'bulkDelete'])->name('invoices.bulkDelete');
@@ -132,7 +141,9 @@ Route::middleware('auth')->group(function () {
 
     /** Begin: Payroll Controller  */
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
-    Route::post('/generatepayroll/{id}', [PayrollController::class, 'store'])->name('payroll.store');
+    Route::post('/generatepayroll/{id}', [InvoiceController::class, 'generateSecurityStaffInvoice'])->name('payroll.store');
+        Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
+
     Route::get('/payrolls/{id}', [PayrollController::class, 'show'])->name('payrolls.show');
     Route::delete('/deletepayroll/{id}', [PayrollController::class, 'delete'])->name('payrolls.delete');
     Route::post('/payrolls/bulk-delete', [PayrollController::class, 'bulkDelete'])->name('payrolls.bulkDelete');

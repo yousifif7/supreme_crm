@@ -6,32 +6,34 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
-    public function up(): void
+
+    public function up()
     {
         Schema::create('invoices', function (Blueprint $table) {
             $table->id();
-            $table->string('invoice_no')->nullable();
-            $table->string('invoice_title')->nullable();
-            $table->unsignedBigInteger('client_id')->nullable();
-            $table->unsignedBigInteger('site_group_id')->nullable();
-            $table->date('invoice_date')->nullable();
-            $table->date('due_date')->nullable();
-            $table->decimal('total_shift_hours', 8, 2)->nullable();
-            $table->decimal('net_amount', 8, 2)->nullable();
-            $table->decimal('gross_amount', 8, 2)->nullable();
-            $table->decimal('billable_expenses', 8, 2)->nullable();
-            $table->decimal('paid_amount', 8, 2)->nullable();
-            $table->decimal('due_amount', 8, 2)->nullable();
-            $table->date('payment_date')->nullable();
-            $table->boolean('payment_agreed')->default(0);
-            $table->text('payment_note')->nullable();
-            $table->text('description')->nullable();
+            $table->string('invoice_number')->unique();
+            $table->string('type')->default('client'); // client, subcontractor, security_staff
+            $table->foreignId('client_id')->nullable()->constrained('users');
+            $table->foreignId('subcontractor_id')->nullable()->constrained('users');
+            $table->foreignId('security_staff_id')->nullable()->constrained('users');
+            $table->foreignId('site_id')->nullable()->constrained();
+            $table->date('issue_date');
+            $table->date('due_date');
+            $table->date('date_from');
+            $table->date('date_to');
+            $table->decimal('total_amount', 10, 2);
+            $table->decimal('tax_amount', 10, 2)->default(0);
+            $table->string('status')->default('draft'); // draft, sent, paid, overdue
             $table->text('notes')->nullable();
+            $table->text('payment_note')->nullable();
+            $table->decimal('rate_per_hour', 10, 2)->nullable();
+            $table->decimal('total_shift_hours', 10, 2)->nullable();
+            $table->decimal('total_duration_hours', 10, 2)->nullable();
+            $table->decimal('total_break_hours', 10, 2)->nullable();
+            $table->decimal('total_deductions_hours', 10, 2)->nullable();
+            $table->decimal('gross_amount', 10, 2)->nullable();
+            $table->decimal('net_amount', 10, 2)->nullable();
             $table->timestamps();
-            $table->softDeletes();
         });
     }
 

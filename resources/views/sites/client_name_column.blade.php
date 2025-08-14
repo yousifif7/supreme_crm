@@ -2,7 +2,7 @@
     <div class="ms-2">
         <h6 class="fw-medium">
             <a onclick="viewSiteDetail({{ $site->id }})">
-                {{ $site->client?->client_name ?? 'N/A' }}
+                {{ $site->client?->first_name ?? 'N/A' }}
             </a>
         </h6>
     </div>

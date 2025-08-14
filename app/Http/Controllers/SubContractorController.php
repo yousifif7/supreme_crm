@@ -14,7 +14,7 @@ class SubContractorController extends Controller
 {
     public function index(SubcontractorsDataTable $dataTable)
     {
-        return $dataTable->render('employees.sub_contractors');
+        return $dataTable->render('subcontractors.index');
     }
     public function store(Request $request)
     {

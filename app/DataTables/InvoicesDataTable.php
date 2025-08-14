@@ -28,12 +28,18 @@ class InvoicesDataTable extends DataTable
             ->addColumn('invoice_no', function ($row) {
                 return '<div class="d-flex align-items-center file-name-icon">
                             <div class="ms-2">
-                                <h6 class="fw-medium"><a href="' . ($row->client_id ? route('invoices.show', $row->id) : route('payrolls.show', $row->id)) . '">' . $row->invoice_no . '</a></h6>
+                                <h6 class="fw-medium"><a href="' . (route('invoices.show', $row->id)) . '">' . $row->invoice_number . '</a></h6>
                             </div>
                         </div>';
             })
+            ->addColumn('invoice_title', function ($row) {
+                return $row->client ? $row->client->first_name : '';
+            })
+            ->addColumn('invoice_date', function ($row) {
+                return $row->created_at ? $row->created_at->format('Y-m-d') : '';
+            })
             ->addColumn('client_name', function ($row) {
-                return $row->client ? $row->client->client_name : '';
+                return $row->client ? $row->client->first_name : '';
             })
             ->addColumn('site_name', function ($row) {
                 return $row->site ? $row->site->site_name : '';
@@ -46,7 +52,7 @@ class InvoicesDataTable extends DataTable
             })
             ->filterColumn('client_name', function($query, $keyword) {
                 $query->whereHas('client', function($q) use ($keyword) {
-                    $q->where('client_name', 'like', "%{$keyword}%");
+                    $q->where('first_name', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('site_name', function($query, $keyword) {
@@ -113,8 +119,7 @@ class InvoicesDataTable extends DataTable
             Column::make('due_date')->title('Due Date'),
             Column::make('total_shift_hours')->title('Total Shift Hours'),
             Column::make('net_amount')->title('Net Amount'),
-            Column::make('paid_amount')->title('Paid Amount'),
-            Column::make('payment_date')->title('Payment Date')
+
         ];
     }
 
