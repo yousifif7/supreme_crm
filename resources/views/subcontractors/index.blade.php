@@ -127,6 +127,14 @@
         </div>
         <!-- /Add Subcontractor Success -->
 
+
+ @include('subcontractors.invoice_model')
+        <!-- Edit Client -->
+          @include('subcontractors.create')
+        <!-- /Add Employee -->
+      @include('subcontractors.edit')
+
+
         <!-- Delete Modal -->
         <div class="modal fade" id="delete_modal">
             <div class="modal-dialog modal-dialog-centered">
@@ -255,7 +263,58 @@
                     }
                 });
             });
+             $('#generate_invoice-form').on('submit', function(e) {
+                e.preventDefault();
+
+                $("[id^='invoiceerror_']").text('');
+                let form = $(this)[0];
+                let formData = new FormData(form);
+                let submitButton = $('#generateinvoice'); // Your submit button should have this ID
+
+                // Get the client ID from a hidden input field
+                let clientId = $('#invoice_client_id').val();
+
+                // Disable button and show loading
+                submitButton.prop('disabled', true).html('Updating...');
+
+                $.ajax({
+                    url: `${baseUrl}/generateinvoice-sub/${clientId}`,
+                    method: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                    },
+                    success: function(response) {
+                        closeBsModal('#generate_invoice');
+                        toast_success('Invoice Created Successfully!');
+                        reloadDatatable('#clients-table');
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+
+                            $.each(errors, function(key, value) {
+                                $('#invoiceerror_' + key).text(value[0]);
+                            });
+                        } else {
+                            toast_danger('An error occurred. Please try again.');
+                        }
+                    },
+                    complete: function() {
+                        // Re-enable button after response
+                        submitButton.prop('disabled', false).html('Generate');
+                    }
+                });
+            });
         });
+
+ function generateInvoice(record_id) {
+           $('#invoice_client_id').val(record_id);
+                    $('#generate_invoice').modal('show');
+              
+        }
 
         function editSubcontractor(record_id) {
             $.get(`${baseUrl}/editsubcontractor/${record_id}`, function(data) {

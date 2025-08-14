@@ -13,163 +13,76 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Carbon\CarbonPeriod;
 use Carbon\Carbon;
+use App\Http\Requests\GenerateInvoiceRequest;
+use App\Services\InvoiceService;
+use App\Models\User;
+
 
 class InvoiceController extends Controller
 {
+
+    protected $invoiceService;
+
+    public function __construct(InvoiceService $invoiceService)
+    {
+        $this->invoiceService = $invoiceService;
+    }
+
+    public function generateClientInvoice(GenerateInvoiceRequest $request)
+    {
+        $invoice = $this->invoiceService->generateClientInvoice(
+            $request->client_id,
+            $request->site_id,
+            $request->date_from,
+            $request->date_to,
+            $request->due_date,
+            $request->notes
+        );
+
+        return response()->json([
+            'message' => 'Client invoice generated successfully',
+            'invoice' => $invoice->load('items'),
+        ]);
+    }
+
+    public function generateSubcontractorInvoice(GenerateInvoiceRequest $request)
+    {
+        $invoice = $this->invoiceService->generateSubcontractorInvoice(
+            $request->client_id,
+            $request->date_from,
+            $request->date_to,
+            $request->due_date,
+            $request->notes
+        );
+
+        return response()->json([
+            'message' => 'Subcontractor invoice generated successfully',
+            'invoice' => $invoice->load('items'),
+        ]);
+    }
+
+    public function generateSecurityStaffInvoice(GenerateInvoiceRequest $request)
+    {
+        $invoice = $this->invoiceService->generateSecurityStaffInvoice(
+            $request->employee_id,
+            $request->date_from,
+            $request->date_to,
+            $request->due_date,
+            $request->notes
+        );
+
+        return response()->json([
+            'message' => 'Security staff invoice generated successfully',
+            'invoice' => $invoice->load('items'),
+        ]);
+    }
+
     public function index(InvoicesDataTable $dataTable)
     {
         return $dataTable->render('invoices.index');
     }
 
-    public function store(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'client_id'     => 'required|string|max:255',
-            'client_name'     => 'required|string|max:255',
-            'notes'         => 'required|string|max:355',
-            'site_id' => 'required',
-            'due_date'   => 'required|date',
-            'date_from'   => 'required|date',
-            'date_to'     => 'required|date|after_or_equal:date_from',
-        ]);
-
-        if ($validator->fails()) {
-            if ($request->ajax()) {
-                return response()->json(['errors' => $validator->errors()], 422);
-            } else {
-                return redirect()->back()->withErrors($validator)->withInput();
-            }
-        }
-
-        $newStart = Carbon::parse($request->date_from);
-        $newEnd = Carbon::parse($request->date_to);
-
-        // Check for overlap
-        $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
-                $query->whereBetween('date_from', [$newStart, $newEnd])
-                      ->orWhereBetween('date_to', [$newStart, $newEnd])
-                      ->orWhere(function ($query) use ($newStart, $newEnd) {
-                          $query->where('date_from', '<=', $newStart)
-                                ->where('date_to', '>=', $newEnd);
-                      });
-            })
-            ->where('client_id', $request->client_id)
-            ->where('site_group_id', $request->site_id)
-            ->exists();
-
-        if ($overlap) {
-            if ($request->ajax()) {
-                return response()->json(['errors' => ['date_from' => ['An invoice already exists for this date range.']]], 422);
-            } else {
-                return redirect()->back()->withErrors(['date_from' => ['An invoice already exists for this date range.']])->withInput();
-            }
-        }
-
-        $data = $validator->validated();
-
-        // $client = Client::find($request->get('client_id'));
-                    $shift = Shift::where('client_id', $data['client_id'])->where('site_id', $data['site_id'])->first();
- if (empty($shift)) {
-            if ($request->ajax()) {
-                return response()->json(['errors' => ['site_id' => ['Shift data not found against that site.']]], 422);
-            } else {
-                return redirect()->back()->withErrors(['site_id' => ['Shift data not found against that site.']])->withInput();
-            }
-        }
-
-        $invoiceData = [
-            'client_id' => $data['client_id'],
-            'site_group_id' => $data['site_id'],
-            'notes' => $data['notes'],
-            'due_date' => $data['due_date'],
-            'date_from' => $data['date_from'],
-            'date_to' => $data['date_to'],
-            'invoice_date' => Carbon::now(),
-            'invoice_title' => "Invoice of ".$data['client_name']." for ".$data['date_from']." - ".$data['date_to'],
-        ];
-
-        $invoice = Invoice::create($invoiceData);
-
-        if($invoice)
-        {
-            $client = Client::findOrFail($invoice->client_id);
-
-            $startDate = Carbon::parse($invoice->date_from);
-            $endDate = Carbon::parse($invoice->date_to);
-
-            $startTime = $shift->start_shift;
-            $endTime = $shift->end_shift;
-            $breakMinutesPerDay = $shift->{'break-mins_shift'};
-
-            $string = $shift->days;
-            // Step 1: Decode the JSON string into PHP array
-            $shiftDays = $array = json_decode($string, true);
-            // Step 2: Explode the first string element into individual days
-            $daysAllowed = explode(',', $array[0]);
-
-            $totalHours = 0;
-            $totalBreaks = 0;
-            $totalBookOnHours = 0;
-            $totalBookOffHours = 0;
-
-            // Create a period from start to end date
-            // $period = CarbonPeriod::create($startDate, $endDate);
-            $shiftDates = ShiftDate::where('shift_id',$shift->id)->whereBetween('shift_date', [$startDate, $endDate])->orderBy('id')->get();
-            foreach ($shiftDates as $shiftDate) {
-
-                $date = Carbon::parse($shiftDate->shift_date);
-                // $date = Carbon::parse($shiftDate->shift_date);
-                $startTime = $shiftDate->start_time;
-                $endTime = $shiftDate->end_time;
-                if (in_array($date->format('D'), $daysAllowed)) {
-                    $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $startTime);
-                    $endDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $endTime);
-
-                    if ($endDateTime->lessThan($startDateTime)) {
-                        // If end time is before start time (e.g. overnight shift), add one day
-                        $endDateTime->addDay();
-                    }
-
-                    $totalBreaks += $breakMinutesPerDay / 60;
-                    $durationInMinutes = $startDateTime->diffInMinutes($endDateTime) - $breakMinutesPerDay;
-                    $totalHours += $durationInMinutes / 60;
-
-                    // if($shiftDate->absentee_start_time)
-                    // {
-                    //     $bookonTime = $shiftDate->absentee_start_time;
-                    //     $bookOnDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookonTime);
-
-                    //     $bookonDurationInMinutes = $durationInMinutes - $bookOnDateTime->diffInMinutes($endDateTime);
-                    //     $totalBookOnHours += $bookonDurationInMinutes / 60;
-                    // }
-
-                    // if($shiftDate->absentee_end_time)
-                    // {
-                    //     $bookoffTime = $shiftDate->absentee_end_time;
-                    //     $bookOffDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookoffTime);
-
-                    //     $bookoffDurationInMinutes = $durationInMinutes - $startDateTime->diffInMinutes($bookOffDateTime);
-                    //     $totalBookOffHours += $bookoffDurationInMinutes / 60;
-                    // }
-
-                }
-            }
-
-            $totalDeductions = ($totalBookOnHours * $client->office_rate) + ($totalBookOffHours * $client->office_rate);
-
-            $invoice->update([
-                'payment_note' => $client->payment_terms,
-                'rate_per_hour' => $client->office_rate,
-                'total_shift_hours' => $totalHours-$totalBreaks-$totalBookOnHours-$totalBookOffHours,
-                'total_duration_hours' => $totalHours,
-                'total_break_hours' => $totalBreaks,
-                'total_deductions_hours' => $totalBreaks+$totalBookOnHours+$totalBookOffHours,
-                'gross_amount' => ($totalHours-$totalBreaks) * $client->office_rate,
-                'net_amount' => (($totalHours-$totalBreaks) * $client->office_rate) - $totalDeductions,
-            ]);
-        }
-        return response()->json(['message' => 'Invoice created successfully']);
-    }
+  
 
     public function update(Request $request, $id)
     {
@@ -178,85 +91,46 @@ class InvoiceController extends Controller
 
     public function edit($id)
     {
-        $client = Client::with('site')->find($id);
+        $client = User::with('site')->find($id);
         $sites = $client->site;
         return response()->json(['client' => $client, 'sites' => $sites]);
     }
 
-    public function show($id)
-    {
-        $invoice = Invoice::findOrFail($id);
-        // $invoices = Invoice::orderBy('id', 'desc')->paginate(15);
-        $client = Client::findOrFail($invoice->client_id);
-        $site = Site::where('id', $invoice->site_group_id)->where('client_id', $client->id)->first();
-        $shift = Shift::where('client_id', $client->id)->where('site_id', $site->id)->first();
+   // In your InvoiceController
+public function show(Invoice $invoice,$id)
+{
+    $invoice=Invoice::where('id',$id)->first();
+    $invoice->load([
+        'client',
+        'subcontractor',
+        'securityStaff',
+        'site',
+        'items',
+        'items.securityStaff',
+        'items.site'
+    ]);
 
-        $startDate = Carbon::parse($invoice->date_from);
-        $endDate = Carbon::parse($invoice->date_to);
-
-        $startTime = $shift->start_shift??'';
-        $endTime = $shift->end_shift??'';
-        $breakMinutesPerDay = $shift->{'break-mins_shift'}??'';
-
-        $string = $shift->days??'';
-        // Step 1: Decode the JSON string into PHP array
-        $shiftDays = $array = json_decode($string, true);
-        // Step 2: Explode the first string element into individual days
-        $daysAllowed = explode(',', $array[0]);
-
-        $totalHours = 0;
-        $totalBreaks = 0;
-        $totalBookOnHours = 0;
-        $totalBookOffHours = 0;
-
-        // Create a period from start to end date
-        // $period = CarbonPeriod::create($startDate, $endDate);
-        $shiftDates = ShiftDate::where('shift_id',$shift->id)->whereBetween('shift_date', [$startDate, $endDate])->orderBy('id')->get();
-        foreach ($shiftDates as $shiftDate) {
-
-            $date = Carbon::parse($shiftDate->shift_date);
-            // $date = Carbon::parse($shiftDate->shift_date);
-            $startTime = $shiftDate->start_time;
-            $endTime = $shiftDate->end_time;
-            if (in_array($date->format('D'), $daysAllowed)) {
-                $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $startTime);
-                $endDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $endTime);
-
-                if ($endDateTime->lessThan($startDateTime)) {
-                    // If end time is before start time (e.g. overnight shift), add one day
-                    $endDateTime->addDay();
-                }
-
-                $durationInMinutes = $startDateTime->diffInMinutes($endDateTime) - $breakMinutesPerDay;
-                // $totalHours += $durationInMinutes / 60;
-                // $totalBreaks += $breakMinutesPerDay / 60;
-
-                if($shiftDate->absentee_start_time)
-                {
-                    $bookonTime = $shiftDate->absentee_start_time;
-                    $bookOnDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookonTime);
-
-                    $bookonDurationInMinutes = $bookOnDateTime->diffInMinutes($endDateTime) - $durationInMinutes;
-                    $totalBookOnHours += $bookonDurationInMinutes / 60;
-                }
-
-                if($shiftDate->absentee_end_time)
-                {
-                    $bookoffTime = $shiftDate->absentee_end_time;
-                    $bookOffDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookoffTime);
-
-                    $bookoffDurationInMinutes = $startDateTime->diffInMinutes($bookOffDateTime) - $durationInMinutes;
-                    $totalBookOffHours += $bookoffDurationInMinutes / 60;
-                }
-
-            }
-        }
-
-        $totalHours = $invoice->total_duration_hours;
-        $totalBreaks = $invoice->total_break_hours;
-
-        return view('invoices.show', compact('invoice', 'client', 'site', 'shift', 'totalHours', 'totalBreaks', 'totalBookOnHours' , 'totalBookOffHours', 'shiftDays'));
+    // Calculate totals from items if not already set
+    if (!$invoice->total_shift_hours) {
+        $invoice->total_shift_hours = $invoice->items->sum('hours');
+        $invoice->total_break_hours = $invoice->items->sum('break_hours');
+        $invoice->total_deductions_hours = $invoice->items->sum(function($item) {
+            return $item->break_hours + $item->book_on_hours + $item->book_off_hours;
+        });
+        $invoice->gross_amount = $invoice->items->sum('amount');
+        $invoice->net_amount = $invoice->items->sum('amount'); // Adjust if you have deductions
     }
+
+    return view('invoices.show', [
+        'invoice' => $invoice,
+        'totalHours' => $invoice->items->sum(function($item) {
+            return $item->hours + $item->break_hours + $item->book_on_hours + $item->book_off_hours;
+        }),
+        'totalBreaks' => $invoice->items->sum('break_hours'),
+        'totalBookOnHours' => $invoice->items->sum('book_on_hours'),
+        'totalBookOffHours' => $invoice->items->sum('book_off_hours'),
+    ]);
+}
 
     public function delete($id)
     {

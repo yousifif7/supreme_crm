@@ -274,7 +274,7 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
-         if ($shiftDate->is_assign == 3 && $type=='booked_on') {
+         if ($shiftDate->is_assign == 3 && $type=='book_on') {
             return response()->json([
                 'message' => 'Shift date (ID: ' . $shiftDate_id . ') has been already booked on',
             ]);

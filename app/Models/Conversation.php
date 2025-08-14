@@ -10,12 +10,11 @@ class Conversation extends Model
     protected $fillable = [
         'type', 'name','icon_path'
     ];
-    public function participants()
-    {
-        return $this->belongsToMany(User::class)
-            ->withPivot('unread_count')
-            ->withTimestamps();
-    }
+  public function participants()
+{
+    return $this->belongsToMany(User::class, 'conversation_user')
+        ->withTimestamps();
+}
 
     public function messages()
     {
