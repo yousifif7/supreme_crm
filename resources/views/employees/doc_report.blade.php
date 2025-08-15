@@ -186,9 +186,9 @@
                                             @endphp
                                             
                                             @if($daysRemaining > 0)
-                                                <span class="badge bg-success">{{ $daysRemaining }} days</span>
+                                                <span class="badge bg-success">{{ round($daysRemaining,0) }} days</span>
                                             @else
-                                                <span class="badge bg-danger">Expired {{ abs($daysRemaining) }} days ago</span>
+                                                <span class="badge bg-danger">Expired {{ round($daysRemaining,0) }} days ago</span>
                                             @endif
                                         @else
                                             N/A
