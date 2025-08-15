@@ -90,15 +90,7 @@
                         </select>
                     </div>
                     
-                    <div class="col-md-2">
-                        <label for="department_id" class="form-label">Department</label>
-                        <select name="department_id" id="department_id" class="form-select">
-                            <option value="">All Departments</option>
-                            @foreach($departments as $department)
-                                <option value="{{ $department->id }}" {{ $departmentId == $department->id ? 'selected' : '' }}>{{ $department->name }}</option>
-                            @endforeach
-                        </select>
-                    </div>
+                  
                     
                     <div class="col-md-2">
                         <label for="status" class="form-label">Employee Status</label>
@@ -135,7 +127,6 @@
                             <tr>
                                 <th>ID</th>
                                 <th>Name</th>
-                                <th>Department</th>
                                 <th>Status</th>
                                 <th>Document Status</th>
                                 <th>Expiry Date</th>
@@ -148,7 +139,6 @@
                                 <tr>
                                     <td>{{ $employee->id }}</td>
                                     <td>{{ $employee->fore_name }} {{ $employee->sur_name }}</td>
-                                    <td>{{ $employee->department->name ?? 'N/A' }}</td>
                                     <td>
                                         <span class="badge bg-{{ $employee->status == 'active' ? 'success' : 'danger' }}">
                                             {{ ucfirst($employee->status) }}
