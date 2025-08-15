@@ -122,7 +122,8 @@
                 <div class="alert alert-warning">No employees match the current filters.</div>
             @else
                 <div class="table-responsive">
-                    <table class="table table-striped">
+                   <table id="employeeTable" class="table table-striped">
+
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -211,6 +212,29 @@
      
       
     </div>
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+
+<!-- jQuery -->
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+<!-- DataTables JS -->
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+$(document).ready(function() {
+    $('#employeeTable').DataTable({
+        pageLength: 10, // default rows per page
+        ordering: true, // enable sorting
+        searching: true, // enable search
+        lengthMenu: [5, 10, 25, 50], // page size options
+        language: {
+            search: "_INPUT_",
+            searchPlaceholder: "Search employees..."
+        }
+    });
+});
+</script>
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
