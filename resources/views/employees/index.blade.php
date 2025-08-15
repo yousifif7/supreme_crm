@@ -100,6 +100,7 @@
                     <form method="POST" id="generate_payroll-form">
                         @csrf
                         <input type="hidden" name="employee_id" id="payroll_employee_id">
+                        <input type="hidden" name="type" value="security_staff">
                         <div class="tab-content" id="myTabContentPayroll">
                             <div class="tab-pane fade show active" id="payroll-basic-info" role="tabpanel"
                                 aria-labelledby="info-tab" tabindex="0">
@@ -119,7 +120,15 @@
                                                     </div>
 
                                                   
-
+  <div class="mb-3">
+                                                        <label class="form-label">Employee Site <span
+                                                                class="text-danger">*</span></label>
+                                                        <select class="form-select" name="site_id" id="payroll_site_id">
+                                                            <option value="">-- choose --</option>
+                                                        </select>
+                                                        <span class="text-danger form-error"
+                                                            id="payrollerror_site_id"></span>
+                                                    </div>
                                                 </div>
 
                                                 <div class="col-md-6">
@@ -1132,6 +1141,18 @@
             });
         }
     </script>
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+    // Get hash from URL (without the '#' symbol)
+    let hashId = window.location.hash.substring(1);
+    // If the hash is a number, call the function
+    if (hashId && !isNaN(hashId)) {
+        viewEmployeeDetail(hashId);
+    }
+});
+
+
+</script>
 
     {!! $dataTable->scripts() !!}
 @endsection

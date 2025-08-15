@@ -75,7 +75,7 @@
                                             class="ti ti-users-group text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1 fs-16 ">Pending Review</p>
+                                    <p class="fw-medium text-truncate mb-1 fs-16 ">Assinged Shifts</p>
                                     <h5 class="fs-18">{{ $review }}</h5>
                                 </div>
                             </div>

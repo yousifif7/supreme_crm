@@ -60,23 +60,59 @@
                 <div class="card-body">
                     
 <form method="GET" action="{{ route('documents.report') }}">
-    <div class="row">
-        <div class="col-md-3">
-            <label>Start Date:</label>
-    <input type="date" class="form-control" name="start_date" value="{{ $startDate }}">
-    
-    
-        </div>
-        <div class="col-md-3">
-            <label>End Date:</label>
-    <input type="date" class="form-control" name="end_date" value="{{ $endDate }}">
-    
-        </div>
-        <div class="col-md-3">
-                <button type="submit" class="btn btn-primary">Filter</button>
-
-        </div>
-    </div>
+   <div class="row">
+                    <div class="col-md-3">
+                        <label for="document_field" class="form-label">Document Type</label>
+                        <select name="document_field" id="document_field" class="form-select">
+                            <option value="">Select Document</option>
+                            @foreach($documentFields as $field => $label)
+                                <option value="{{ $field }}" {{ $documentField == $field ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="upload_status" class="form-label">Upload Status</label>
+                        <select name="upload_status" id="upload_status" class="form-select">
+                            <option value="">Any</option>
+                            <option value="uploaded" {{ $uploadStatus == 'uploaded' ? 'selected' : '' }}>Uploaded</option>
+                            <option value="missing" {{ $uploadStatus == 'missing' ? 'selected' : '' }}>Missing</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="expiry_status" class="form-label">Expiry Status</label>
+                        <select name="expiry_status" id="expiry_status" class="form-select" 
+                            {{ !$documentField || !array_key_exists($documentField, $expiryFields) || $uploadStatus == 'missing' ? 'disabled' : '' }}>
+                            <option value="">Any</option>
+                            <option value="valid" {{ $expiryStatus == 'valid' ? 'selected' : '' }}>Valid</option>
+                            <option value="expired" {{ $expiryStatus == 'expired' ? 'selected' : '' }}>Expired</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="department_id" class="form-label">Department</label>
+                        <select name="department_id" id="department_id" class="form-select">
+                            <option value="">All Departments</option>
+                            @foreach($departments as $department)
+                                <option value="{{ $department->id }}" {{ $departmentId == $department->id ? 'selected' : '' }}>{{ $department->name }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-2">
+                        <label for="status" class="form-label">Employee Status</label>
+                        <select name="status" id="status" class="form-select">
+                            <option value="">All Statuses</option>
+                            <option value="active" {{ $status == 'active' ? 'selected' : '' }}>Active</option>
+                            <option value="inactive" {{ $status == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                        </select>
+                    </div>
+                    
+                    <div class="col-md-1 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
 </form>
                 </div>
             </div>
@@ -88,81 +124,124 @@
 
 
 
-
-@if($documents->count())
-    <table class="table">
-        <thead>
-            <tr>
-                <th>#</th>
-                <th>Employee</th>
-                <th>Document Type</th>
-                <th>Description</th>
-                <th>Status</th>
-                <th>Expiry Date</th>
-                <th>Uploaded At</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach($documents as $index => $doc)
-                <tr>
-                    <td>{{ $index + 1 }}</td>
-                    <td>{{ $doc->user->name ?? 'N/A' }}</td>
-                    <td>{{ $doc->document_type }}</td>
-                    <td>{{ $doc->description }}</td>
-                    <td>{{ ucfirst($doc->status) }}</td>
-                    <td>{{ $doc->expiry_date }}</td>
-                    <td>{{ $doc->created_at->format('Y-m-d') }}</td>
-                </tr>
-            @endforeach
-        </tbody>
-    </table>
-@else
-    <p>No documents found.</p>
-@endif
-
+  @if(!$hasFilters)
+                <div class="alert alert-info">Please apply filters to view results.</div>
+            @elseif($employees->isEmpty())
+                <div class="alert alert-warning">No employees match the current filters.</div>
+            @else
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Department</th>
+                                <th>Status</th>
+                                <th>Document Status</th>
+                                <th>Expiry Date</th>
+                                <th>Days Remaining</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach($employees as $employee)
+                                <tr>
+                                    <td>{{ $employee->id }}</td>
+                                    <td>{{ $employee->fore_name }} {{ $employee->sur_name }}</td>
+                                    <td>{{ $employee->department->name ?? 'N/A' }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ $employee->status == 'active' ? 'success' : 'danger' }}">
+                                            {{ ucfirst($employee->status) }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        @if($documentField)
+                                            @if($employee->{$documentField})
+                                                <span class="badge bg-success">Uploaded</span>
+                                            @else
+                                                <span class="badge bg-danger">Missing</span>
+                                            @endif
+                                        @else
+                                            @php
+                                                $uploadedCount = 0;
+                                                foreach($documentFields as $field => $label) {
+                                                    if($employee->{$field}) $uploadedCount++;
+                                                }
+                                            @endphp
+                                            <span class="badge bg-{{ $uploadedCount > 0 ? 'success' : 'danger' }}">
+                                                {{ $uploadedCount }}/{{ count($documentFields) }} documents
+                                            </span>
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($documentField && array_key_exists($documentField, $expiryFields) && $employee->{$documentField})
+                                            @php
+                                                $expiryField = $expiryFields[$documentField];
+                                                $expiryDate = $employee->{$expiryField};
+                                            @endphp
+                                            @if($expiryDate)
+                                                {{ \Carbon\Carbon::parse($expiryDate)->format('d/m/Y') }}
+                                            @else
+                                                N/A
+                                            @endif
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                    <td>
+                                        @if($documentField && array_key_exists($documentField, $expiryFields) && $employee->{$documentField} && $expiryDate)
+                                            @php
+                                                $daysRemaining = now()->diffInDays(\Carbon\Carbon::parse($expiryDate), false);
+                                            @endphp
+                                            
+                                            @if($daysRemaining > 0)
+                                                <span class="badge bg-success">{{ $daysRemaining }} days</span>
+                                            @else
+                                                <span class="badge bg-danger">Expired {{ abs($daysRemaining) }} days ago</span>
+                                            @endif
+                                        @else
+                                            N/A
+                                        @endif
+                                    </td>
+                                    <td>
+                                        <a href="{{ url('employees#'.$employee->id) }}" class="btn btn-sm btn-primary">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                            @endforeach
+                        </tbody>
+                    </table>
+                </div>
+            @endif
                     </div>
                 </div>
             </div>
         </div>
-
-
-        <!-- /Generate Employee Payroll-->
-
-        <!-- Edit Employee -->
-     
-        <!-- /Edit Employee -->
-
-        <!-- Add Employee Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('employees') }}" class="btn btn-dark w-100">Back to
-                                            List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <!-- /Add employee Success -->
-
-        <!-- Delete Modal -->
      
       
     </div>
 
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const documentFieldSelect = document.getElementById('document_field');
+        const uploadStatusSelect = document.getElementById('upload_status');
+        const expiryStatusSelect = document.getElementById('expiry_status');
 
+        function updateExpiryStatusDisabledState() {
+            const selectedField = documentFieldSelect.value;
+            const uploadStatus = uploadStatusSelect.value;
+            
+            if (selectedField && @json(array_keys($expiryFields)).includes(selectedField) && uploadStatus !== 'missing') {
+                expiryStatusSelect.disabled = false;
+            } else {
+                expiryStatusSelect.disabled = true;
+                expiryStatusSelect.value = '';
+            }
+        }
+
+        documentFieldSelect.addEventListener('change', updateExpiryStatusDisabledState);
+        uploadStatusSelect.addEventListener('change', updateExpiryStatusDisabledState);
+    });
+</script>
 @endsection

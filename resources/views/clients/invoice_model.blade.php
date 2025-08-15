@@ -19,14 +19,7 @@
                                         <div class="shift-group">
                                             <div class="row">
                                                 <div class="col-md-6">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Client Name <span
-                                                                class="text-danger">*</span></label>
-                                                        <input type="text" name="client_name" id="invoice_client_name" readonly style="background: #eee;"
-                                                            class="form-control" placeholder="Enter Client Name">
-                                                        <span class="text-danger form-error"
-                                                            id="invoiceerror_client_name"></span>
-                                                    </div>
+                                                    
 
                                                     <div class="mb-3">
                                                         <label class="form-label">Client Site <span

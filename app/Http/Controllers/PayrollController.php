@@ -171,7 +171,14 @@ class PayrollController extends Controller
     public function edit($id)
     {
         $employee = Employee::find($id);
-        $sites = Shift::select('id','site_id')->with('site:id,site_name')->where('staff_id', $employee->id)->get();
+$sites = Shift::select('id', 'site_id')
+    ->with([
+        'site:id,site_name',
+        'shiftDates' => function ($query) use ($employee) {
+            $query->where('staff_id', $employee->user_id);
+        }
+    ])
+    ->get();
         return response()->json(['employee' => $employee, 'sites' => $sites]);        
     }
 
