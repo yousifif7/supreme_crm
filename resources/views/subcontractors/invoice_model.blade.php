@@ -2,7 +2,7 @@
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
-                        <h4 class="modal-title">Generate Client Invoice</h4>
+                        <h4 class="modal-title">Generate SubContractor Invoice</h4>
                         <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
                             aria-label="Close">
                             <i class="ti ti-x"></i>

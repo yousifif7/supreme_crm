@@ -30,6 +30,31 @@ class InvoiceController extends Controller
 
     public function generateClientInvoice(GenerateInvoiceRequest $request)
     {
+           $newStart = Carbon::parse($request->date_from);
+        $newEnd = Carbon::parse($request->date_to);
+
+        // Check for overlap
+        $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
+                $query->whereBetween('date_from', [$newStart, $newEnd])
+                      ->orWhereBetween('date_to', [$newStart, $newEnd])
+                      ->orWhere(function ($query) use ($newStart, $newEnd) {
+                          $query->where('date_from', '<=', $newStart)
+                                ->where('date_to', '>=', $newEnd);
+                      });
+            })
+            ->where('client_id', $request->client_id)
+            ->where('site_id', $request->site_id)
+            ->exists();
+
+        if ($overlap) {
+            if ($request->ajax()) {
+                return response()->json(['errors' => ['date_from' => ['An invoice already exists for this date range.']]], 422);
+            } else {
+                return redirect()->back()->withErrors(['date_from' => ['An invoice already exists for this date range.']])->withInput();
+            }
+        }
+
+
         $invoice = $this->invoiceService->generateClientInvoice(
             $request->client_id,
             $request->site_id,
@@ -65,6 +90,7 @@ class InvoiceController extends Controller
     {
         $invoice = $this->invoiceService->generateSecurityStaffInvoice(
             $request->employee_id,
+            $request->site_id,
             $request->date_from,
             $request->date_to,
             $request->due_date,

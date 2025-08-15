@@ -8,12 +8,12 @@ use App\Models\Shift;
 use App\Models\ShiftDate;
 use App\Models\User;
 use Carbon\Carbon;
-
+use App\Models\Client;
 class InvoiceService
 {
     public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null)
     {
-        $client = User::findOrFail($clientId);
+        $client = Client::where('user_id',$clientId)->first();
         $shift = Shift::where('client_id', $clientId)
             ->where('site_id', $siteId)
             ->firstOrFail();
@@ -76,13 +76,19 @@ class InvoiceService
         $subcontractor = User::findOrFail($subcontractorId);
         
         // Get all shifts managed by this subcontractor
-        $shifts = Shift::whereHas('staff', function($q) use ($subcontractorId) {
-                $q->where('subcontractor_id', $subcontractorId);
-            })
-            ->with(['shiftDates' => function($q) use ($dateFrom, $dateTo) {
-                $q->whereBetween('shift_date', [$dateFrom, $dateTo]);
-            }])
-            ->get();
+      $shifts = Shift::with([
+    'shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId) {
+        $q->when($subcontractorId, function ($query) use ($subcontractorId) {
+            $query->whereHas('staff.employee', function ($q) use ($subcontractorId) {
+                $q->where('subcontractor', $subcontractorId);
+            });
+        });
+
+        $q->whereBetween('shift_date', [$dateFrom, $dateTo]);
+    }
+])->get();
+
+
 
         $invoiceItems = [];
         $totalHours = 0;
@@ -90,9 +96,7 @@ class InvoiceService
 
         foreach ($shifts as $shift) {
             foreach ($shift->shiftDates as $shiftDate) {
-                $hourlyRate = $shiftDate->staff->hourlyRates()
-                    ->where('site_id', $shift->site_id)
-                    ->first()->rate;
+                $hourlyRate = $shiftDate->shift->po_rate??0;
 
                 $item = $this->processShiftDate($shiftDate, $hourlyRate);
                 $invoiceItems[] = $item;
@@ -124,23 +128,23 @@ class InvoiceService
         return $invoice;
     }
 
-    public function generateSecurityStaffInvoice($staffId, $dateFrom, $dateTo, $dueDate, $notes = null)
+    public function generateSecurityStaffInvoice($staffId,$site_id, $dateFrom, $dateTo, $dueDate, $notes = null)
     {
         $staff = User::findOrFail($staffId);
         
-        $shiftDates = ShiftDate::where('staff_id', $staffId)
-            ->whereBetween('shift_date', [$dateFrom, $dateTo])
+        $shiftDates = ShiftDate::where('staff_id', $staffId) ->whereHas('shift', function ($query) use ($site_id) {
+        $query->where('site_id', $site_id);
+    })->whereBetween('shift_date', [$dateFrom, $dateTo])
             ->with('shift.site')
             ->get();
+
 
         $invoiceItems = [];
         $totalHours = 0;
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            $hourlyRate = $staff->hourlyRates()
-                ->where('site_id', $shiftDate->shift->site_id)
-                ->first()->rate;
+            $hourlyRate = $shiftDate->shift->po_rate??0;
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -154,6 +158,7 @@ class InvoiceService
             'security_staff_id' => $staffId,
             'subcontractor_id' => $staff->subcontractor_id,
             'issue_date' => now(),
+            'site_id'=>$site_id,
             'due_date' => empty($dueDate)?now():$dueDate,
             'date_from' => $dateFrom,
             'date_to' => empty($dateTo)?now():$dateTo,

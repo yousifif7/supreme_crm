@@ -21,7 +21,7 @@ class Shift extends Model
     }
     public function staff()
     {
-        return $this->belongsTo(User::class, 'staff_id');
+        return $this->belongsTo(User::class, 'staff_id')->with('subcontractor');
     }
     public function subcontractor()
     {

@@ -169,7 +169,7 @@
                                     <tr>
                                         <td>{{ $item->date }}</td>
                                         <td>{{ $item->securityStaff->name ?? 'N/A' }}</td>
-                                        <td>{{ $item->site->name ?? 'N/A' }}</td>
+                                        <td>{{ $item->site->site_name ?? 'N/A' }}</td>
                                         <td class="text-end">{{ number_format($item->hours, 2) }}</td>
                                         <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
                                         <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>

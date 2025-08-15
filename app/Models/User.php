@@ -97,6 +97,11 @@ class User extends Authenticatable
         return $this->belongsTo(User::class);
     }
 
+    public function subcontractor(){
+
+         return $this->belongsTo(Subcontractor::class,'id','user_id');
+    }
+
     public function locations()
     {
         return $this->hasMany(Location::class);

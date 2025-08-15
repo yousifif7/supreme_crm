@@ -1,9 +1,9 @@
 <?php
 
-// app/Http/Requests/GenerateInvoiceRequest.php
 namespace App\Http\Requests;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
 class GenerateInvoiceRequest extends FormRequest
 {
@@ -19,6 +19,11 @@ class GenerateInvoiceRequest extends FormRequest
             'date_to' => 'required|date|after_or_equal:date_from',
             'due_date' => 'nullable|date|after_or_equal:date_to',
             'notes' => 'nullable|string|max:500',
+
+            // Conditional requirement for site_id
+            'site_id' => Rule::requiredIf(function () {
+                return in_array($this->input('type'), ['security_staff', 'client']);
+            }),
         ];
     }
 
@@ -27,6 +32,7 @@ class GenerateInvoiceRequest extends FormRequest
         return [
             'date_to.after_or_equal' => 'The end date must be after or equal to the start date.',
             'due_date.after_or_equal' => 'The due date must be after or equal to the end date.',
+            'site_id.required' => 'The site field is required when type is security staff or client.',
         ];
     }
 }
