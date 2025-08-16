@@ -130,6 +130,11 @@ class Employee extends Model
         return $this->hasMany(EmployeeTerm::class, 'employee_id');
     }
 
+      public function subcontractorDetails()
+    {
+        return $this->belongsTo(User::class, 'subcontractor');
+    }
+
     public function profilePictureUrl()
     {
         return $this->profile_picture ? '/uploads/profile_pics/' . $this->profile_picture : 'uploads/no.png';

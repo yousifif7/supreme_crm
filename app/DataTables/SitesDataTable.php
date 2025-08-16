@@ -48,7 +48,7 @@ class SitesDataTable extends DataTable
             })
             ->filterColumn('client_name', function($query, $keyword) {
                 $query->whereHas('client', function($q) use ($keyword) {
-                    $q->where('client_name', 'like', "%{$keyword}%");
+                    $q->where('first_name', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('address', function($query, $keyword) {

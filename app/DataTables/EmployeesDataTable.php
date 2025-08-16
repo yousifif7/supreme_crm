@@ -61,7 +61,7 @@ class EmployeesDataTable extends DataTable
                 return $user->created_at?->format('Y-m-d');
             })
             ->editColumn('subcontractor', function ($employee) {
-                return $employee->subcontractor;
+                return $employee->subcontractorDetails->first_name??'N/A';
             })
             ->filterColumn('name', function($query, $keyword) {
                 $query->where('fore_name', 'like', "%{$keyword}%")
