@@ -23,25 +23,25 @@ class MessageApiController extends Controller
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
-        $convos = $user->conversations()->with(['participants.user', 'latestMessage.sender'])->get();
+    $convos = $user->conversations()->with(['participants', 'latestMessage.sender'])->get();
 
-        $list = $convos->map(fn($c) => [
-            'id' => $c->id,
-            'type' => $c->type,
-            'name' => $c->name,
-            'participants' => $c->participants->map(fn($p) => [
-                'user_id' => $p->user_id,
-                'name' => $p->user ? $p->user->name : 'Unknown',
-                'role' => $p->user ? $p->user->role : null,
-            ]),
-            'last_message' => $c->latestMessage ? [
-                'message' => $c->latestMessage->message,
-                'timestamp' => $c->latestMessage->created_at->toDateTimeString(),
-                'sender_name' => $c->latestMessage->sender ? $c->latestMessage->sender->name : 'Unknown',
-            ] : null,
-            'unread_count' => optional($c->participants->first(fn($p) => $p->user_id == $user->id))->unread_count ?? 0,
-        ]);
-
+    $list = $convos->map(fn($c) => [
+        'id' => $c->id,
+        'type' => $c->type,
+        'name' => $c->name,
+        'participants' => $c->participants->map(fn($p) => [
+            'user_id' => $p->id,  
+            'name' => $p->name,
+            'role' => $p->getRoleNames()->first(),
+        ]),
+        'last_message' => $c->latestMessage ? [
+            'message' => $c->latestMessage->message,
+            'timestamp' => $c->latestMessage->created_at->toDateTimeString(),
+            'sender_name' => $c->latestMessage->sender?->name ?? 'Unknown',
+        ] : null,
+        'unread_count' => $c->participants
+            ->firstWhere('id', $user->id)?->pivot->unread_count ?? 0,  
+    ]);
         return response()->json(['conversations' => $list]);
     }
 
