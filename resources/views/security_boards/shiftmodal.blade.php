@@ -38,10 +38,10 @@
                                                         class="text-danger">*</span></label>
                                                 <select name="site_id[]" class="form-select" id="siteSelect">
                                                     <option value="">--choose--</option>
-                                                    {{--@foreach ($sites as $site)
+                                                    {{-- @foreach ($sites as $site)
                                                         <option value="{{ $site->id }}">
                                                             {{ $site->site_name }}</option>
-                                                    @endforeach--}}
+                                                    @endforeach --}}
                                                 </select>
                                                 <span class="text-danger form-error error_site_id"></span>
                                             </div>
@@ -61,7 +61,9 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
-                                                <input type="time" name="start_shift[]" class="form-control time-input" lang="en-GB" value="{{ old('start_shift.0') }}">
+                                                <input type="time" name="start_shift[]"
+                                                    class="form-control time-input" lang="en-GB"
+                                                    value="{{ old('start_shift.0') }}">
 
                                                 <span class="text-danger form-error error_start_shift"></span>
                                             </div>
@@ -70,7 +72,8 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">End <span class="text-danger">*</span></label>
-                                                <input  type="time" name="end_shift[]" class="form-control time-input" lang="en-GB" placeholder="HH:MM">
+                                                <input type="time" name="end_shift[]" class="form-control time-input"
+                                                    lang="en-GB" placeholder="HH:MM">
                                                 <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
@@ -208,7 +211,8 @@
                                                     <option value="">--choose--</option>
                                                     @foreach ($subcontractors as $subcontractor)
                                                         <option value="{{ $subcontractor->id }}">
-                                                            {{ $subcontractor->first_name }} {{ $subcontractor->last_name }}</option>
+                                                            {{ $subcontractor->first_name }}
+                                                            {{ $subcontractor->last_name }}</option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error"
@@ -291,14 +295,14 @@
                                                         location check </label>
                                                 </div>
 
-                                                <div class="checkpoint-section" id="checkpoint-section0">
-                                                    <h5>Checkpoints</h5>
-                                                    <div class="checkpoint-rows">
-                                                        <!-- Dynamic rows will be added here -->
-                                                    </div>
-                                                    <button type="button" data-shift-group="0" class="btn btn-sm btn-primary my-3 addCheckpointRow">+ Add Checkpoint</button>
+                                                <div class="checkcall-section" id="checkcall-section0">
+                                                    <h5>Check Calls</h5>
+                                                    <div class="checkcall-rows"><!-- rows go here --></div>
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-primary my-3 addCheckCallRow">
+                                                        + Add Check Call
+                                                    </button>
                                                 </div>
-
                                                 <div class="clear-fix"></div>
                                                 <div class="col-md-12 text-end">
                                                     <button type="button"

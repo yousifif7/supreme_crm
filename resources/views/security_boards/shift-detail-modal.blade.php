@@ -332,6 +332,7 @@
                 <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
+                            <th>Name</th>
                             <th>Staff</th>
                             <th>Time</th>
                             <th>Status</th>
@@ -348,6 +349,7 @@
                                     collect();
                             @endphp
                             <tr>
+                                <td>{{ $checkcall?->name }}</td>
                                 <td>{{ $employee?->fore_name }} {{ $employee?->sur_name }}</td>
                                 <td>{{ $checkcall->scheduled_time }}</td>
                                 <td>
@@ -371,7 +373,7 @@
                                 </td>
                                 <td>
                                     <button class="btn btn-sm btn-primary edit-checkcall-btn"
-                                        data-id="{{ $checkcall->id }}" data-name="{{ $checkcall->checkpoint_name }}"
+                                        data-id="{{ $checkcall->id }}" data-name="{{ $checkcall->name }}"
                                         data-time="{{ $checkcall->scheduled_time }}"
                                         data-status="{{ $checkcall->status }}"> <!-- Add this -->
                                         Edit

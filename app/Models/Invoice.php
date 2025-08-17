@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Invoice extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use LogsChanges;
     protected $fillable = ['invoice_no', 'client_id', 'employee_id', 'due_date', 'notes', 'invoice_title', 'date_from', 'date_to', 'invoice_date', 'site_group_id', 'total_shift_hours', 'total_duration_hours', 'total_deductions_hours', 'gross_amount', 'net_amount', 'payment_note', 'rate_per_hour', 'total_break_hours'];
 
     public function client()

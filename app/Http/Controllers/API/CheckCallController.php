@@ -48,8 +48,11 @@ class CheckCallController extends Controller
             }
         }
 
+        $employee= Employee::where('user_id',Auth::id())->first();
+
         $checkCall->update([
             'status' => 'completed',
+            'employee_id' => $employee->id,
         ]);
 
         return response()->json(['message' => 'Check call completed']);
@@ -96,7 +99,7 @@ public function update(Request $request, $id)
     $checkcall = CheckCall::findOrFail($id);
 
     $validated = $request->validate([
-        // 'checkpoint_name' => 'required|string',
+        'name' => 'required|string',
         'scheduled_time' => 'required|date',
         'status' => 'required|in:pending,completed,missed',
     ]);
