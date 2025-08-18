@@ -15,7 +15,7 @@ class DobApiController extends Controller
     public function store(Request $req)
     {
         $data = $req->validate([
-            'shift_id' => 'required|exists:shifts,id',
+            'shift_id' => 'required|exists:shift_dates,id',
             'entry_type' => 'required|in:incident,observation,maintenance,visitor,other',
             'title' => 'required|string',
             'description' => 'required|string',

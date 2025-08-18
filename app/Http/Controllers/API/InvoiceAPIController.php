@@ -2,8 +2,13 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
+use Carbon\Carbon;
 use App\Models\Shift;
 use App\Models\Invoice;
+use App\Models\Employee;
+use App\Models\ShiftDate;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\InvoiceReview;
 use App\Http\Controllers\Controller;
@@ -19,7 +24,7 @@ class InvoiceAPIController extends Controller
             'invoiced' => 'nullable|boolean',
         ]);
 
-        $query = Shift::where('user_id', Auth::id())
+        $query = ShiftDate::where('staff_id', Auth::id())
             ->whereBetween('date', [$request->date_from, $request->date_to]);
 
         if ($request->has('invoiced')) {
@@ -45,28 +50,51 @@ class InvoiceAPIController extends Controller
     {
         $validated = $request->validate([
             'shift_ids' => 'required|array',
-            'invoice_period.start_date' => 'required|date',
-            'invoice_period.end_date' => 'required|date|after_or_equal:invoice_period.start_date',
+            'invoice_period.date_from' => 'required|date',
+            'invoice_period.date_to' => 'required|date|after_or_equal:invoice_period.date_from',
             'total_amount' => 'required|numeric',
             'notes' => 'nullable|string'
         ]);
 
         $invoice = Invoice::create([
-            'user_id' => Auth::id(),
-            'start_date' => $validated['invoice_period']['start_date'],
-            'end_date' => $validated['invoice_period']['end_date'],
+            'security_staff_id' => Auth::id(),
+            'date_from' => $validated['invoice_period']['date_from'],
+            'date_to' => $validated['invoice_period']['date_to'],
             'total_amount' => $validated['total_amount'],
             'notes' => $validated['notes'] ?? null,
             'status' => 'submitted',
-            'submitted_at' => now()
+            'type' => 'security_staff',
+            'issue_date' => Carbon::now(),
+            'due_date' => now()->addDays(30), // default to 30 days from today
+            // 'total_amount' => 0.00,
+            'tax_amount' => 0.00,
         ]);
 
-        Shift::whereIn('id', $validated['shift_ids'])
-            ->where('user_id', Auth::id())
+        $shift=ShiftDate::whereIn('id', $validated['shift_ids'])
+            ->where('staff_id', Auth::id())
             ->update([
                 'invoice_id' => $invoice->id,
                 'invoiced' => true
             ]);
+
+        $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Invoice submitted',
+            'Invoice submitted by ' . $employee->fore_name . ' ' . $employee->sur_name,
+            '#'
+        );
+
+        Notification::create([
+            'user_id' => $user->id,
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Invoice submitted',
+            'message' => $employee->fore_name . ' You have submitted Invoice (ID: '. $invoice->invoice_number . ')',
+            'read' => false,
+        ]);
 
         return response()->json([
             'invoice_id' => $invoice->id,
@@ -84,7 +112,7 @@ class InvoiceAPIController extends Controller
         ]);
 
         $query = Invoice::with('adminReview')
-            ->where('user_id', Auth::id());
+            ->where('security_staff_id ', Auth::id());
 
         if ($request->status) {
             $query->where('status', $request->status);

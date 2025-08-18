@@ -12,13 +12,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('shift_dates', function (Blueprint $table) {
-            $table->enum('status', [
-                'booked_on',
-                'booked_off',
-                'pending',
-                'accepted',
-                'declined'
-            ])->default('pending')->nullable();
+            $table->boolean('invoiced')->default(false);
+            $table->foreignId('invoice_id')->nullable()->constrained()->onDelete('set null');
         });
     }
 

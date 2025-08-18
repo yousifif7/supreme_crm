@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Invoice extends Model
 {
     use LogsChanges;
-    protected $fillable = ['invoice_no', 'client_id', 'employee_id', 'due_date', 'notes', 'invoice_title', 'date_from', 'date_to', 'invoice_date', 'site_group_id', 'total_shift_hours', 'total_duration_hours', 'total_deductions_hours', 'gross_amount', 'net_amount', 'payment_note', 'rate_per_hour', 'total_break_hours'];
+    protected $fillable = ['invoice_number', 'client_id', 'security_staff_id ', 'due_date', 'notes','total_amount', 'invoice_title', 'date_from', 'date_to', 'invoice_date', 'site_group_id', 'total_shift_hours', 'total_duration_hours', 'total_deductions_hours', 'gross_amount', 'net_amount', 'payment_note', 'rate_per_hour', 'total_break_hours'];
 
     public function client()
     {
@@ -33,8 +33,8 @@ class Invoice extends Model
         static::creating(function ($invoice) {
             // Generate invoice number
             $latestInvoice = Invoice::latest('id')->first();
-            $nextInvoiceNumber = $latestInvoice ? intval(substr($latestInvoice->invoice_no, 4)) + 1 : 1;
-            $invoice->invoice_no = 'INV-' . str_pad($nextInvoiceNumber, 5, '0', STR_PAD_LEFT);
+            $nextInvoiceNumber = $latestInvoice ? intval(substr($latestInvoice->invoice_number, 4)) + 1 : 1;
+            $invoice->invoice_number = 'INV-' . str_pad($nextInvoiceNumber, 5, '0', STR_PAD_LEFT);
         });
     }
 
@@ -43,9 +43,9 @@ class Invoice extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function shifts()
+    public function shiftdates()
     {
-        return $this->hasMany(Shift::class);
+        return $this->hasMany(ShiftDate::class);
     }
 
     public function adminReview()

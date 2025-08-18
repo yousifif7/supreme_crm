@@ -36,7 +36,4 @@ class Shift extends Model
         return $this->hasMany(CheckCall::class);
     }
 
-   
-
-
 }

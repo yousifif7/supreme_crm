@@ -4,8 +4,9 @@ use App\Models\User;
 use ExponentPhpSDK\Expo;
 use App\Models\DeviceToken;
 use App\Models\Notification;
-use ExponentPhpSDK\Repositories\ExpoFileDriver;
 use ExponentPhpSDK\ExpoRegistrar;
+use Illuminate\Support\Facades\Http;
+use ExponentPhpSDK\Repositories\ExpoFileDriver;
 
 if (!function_exists('notify_users')) {
     function notify_users($title, $message, $type = 'notification', $action_url = null, $data = [], $users = null)
@@ -114,45 +115,76 @@ if (!function_exists('send_push_notification')) {
             ->toArray();
 
         if (empty($devices)) {
-            \Log::info("No device tokens found for user ID: {$userId}");
+            Log::info("Push Notification: No device tokens found for user ID {$userId}");
             return false;
         }
 
-        try {
-            $driver = new \ExponentPhpSDK\Repositories\ExpoFileDriver();
-            $registrar = new \ExponentPhpSDK\ExpoRegistrar($driver);
-            $expo = new \ExponentPhpSDK\Expo($registrar);
+        Log::info("Push Notification: Found tokens for user {$userId}", $devices);
 
-            $expo->setAccessToken('wz2xtEKGkvW7qTc_uUVVaefX-M2E1vilwavavQzw');
-
-            // Send the notification directly to all device tokens
-            $expo->notify($devices, [
+        foreach ($devices as $token) {
+            $payload = [
+                'to' => $token,
+                'sound' => 'default',
                 'title' => $title,
                 'body' => $message,
-                'sound' => 'default',
                 'data' => $data,
+            ];
+
+            Log::info("Push Notification: Sending payload to Expo", [
+                'user_id' => $userId,
+                'token'   => $token,
+                'payload' => $payload
             ]);
 
-            // Save notification in DB for tracking
+            try {
+                $response = Http::post('https://exp.host/--/api/v2/push/send', $payload);
+
+                if ($response->successful()) {
+                    Log::info("Push Notification: Successfully sent", [
+                        'user_id' => $userId,
+                        'token'   => $token,
+                        'response' => $response->json()
+                    ]);
+                } else {
+                    Log::error("Push Notification: Expo returned error", [
+                        'user_id' => $userId,
+                        'token'   => $token,
+                        'status'  => $response->status(),
+                        'body'    => $response->body()
+                    ]);
+                }
+            } catch (\Throwable $e) {
+                Log::error("Push Notification: Exception while sending", [
+                    'user_id' => $userId,
+                    'token'   => $token,
+                    'error'   => $e->getMessage()
+                ]);
+            }
+        }
+
+        // Save notification in DB for tracking
+        try {
             \App\Models\Notification::create([
                 'user_id' => $userId,
-                'title' => $title,
+                'title'   => $title,
                 'message' => $message,
-                'data' => $data,
-                'type' => $data['type'] ?? 'notification',
-                'read' => false,
+                'data'    => $data,
+                'type'    => $data['type'] ?? 'notification',
+                'read'    => false,
                 'action_url' => $data['action_url'] ?? null,
             ]);
 
-            return true;
-
+            Log::info("Push Notification: Notification saved in DB for user {$userId}");
         } catch (\Throwable $e) {
-            \Log::error("Push notification error for user ID {$userId}: {$e->getMessage()}");
-            return false;
+            Log::error("Push Notification: Failed to save DB record", [
+                'user_id' => $userId,
+                'error'   => $e->getMessage()
+            ]);
         }
+
+        return true;
     }
 }
-
 
 
 
