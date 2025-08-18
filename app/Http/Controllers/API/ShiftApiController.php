@@ -175,7 +175,7 @@ class ShiftApiController extends Controller
 
         $employee = Employee::where('user_id', Auth::id())->first();
 
-        $shift = ShiftDate::where('id', $shift_id)
+        $shift = Shift::where('id', $shift_id)
             ->where('staff_id', Auth::id())
             ->firstOrFail();
 
