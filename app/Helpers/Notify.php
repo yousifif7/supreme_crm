@@ -105,85 +105,84 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
 }
 
 
-if (!function_exists('send_push_notification')) {
-    function send_push_notification($userId, $title, $message, $data = [])
-    {
-        // Fetch all device tokens for the given user
-        $devices = \App\Models\DeviceToken::where('user_id', $userId)
-            ->whereNotNull('push_token')
-            ->pluck('push_token')
-            ->toArray();
+function send_push_notification($userId, $title, $message, $data = [])
+{
+    $devices = \App\Models\DeviceToken::where('user_id', $userId)
+        ->whereNotNull('push_token')
+        ->pluck('push_token')
+        ->toArray();
 
-        if (empty($devices)) {
-            Log::info("Push Notification: No device tokens found for user ID {$userId}");
-            return false;
-        }
+    if (empty($devices)) {
+        \Log::info("No device tokens found for user ID: {$userId}");
+        return false;
+    }
 
-        Log::info("Push Notification: Found tokens for user {$userId}", $devices);
+    foreach ($devices as $token) {
+        $payload = [
+            "to" => $token,
+            "sound" => "default",
+            "title" => $title,
+            "body" => $message,
+            "data" => $data,
+        ];
 
-        foreach ($devices as $token) {
-            $payload = [
-                'to' => $token,
-                'sound' => 'default',
-                'title' => $title,
-                'body' => $message,
-                'data' => $data,
-            ];
+        \Log::info("Push Notification: Sending payload to Expo", [
+            "user_id" => $userId,
+            "token"   => $token,
+            "payload" => $payload
+        ]);
 
-            Log::info("Push Notification: Sending payload to Expo", [
-                'user_id' => $userId,
-                'token'   => $token,
-                'payload' => $payload
+        try {
+            $ch = curl_init("https://exp.host/--/api/v2/push/send");
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Content-Type: application/json",
+                "Accept: application/json",
+                "Authorization: Bearer " . env("EXPO_ACCESS_TOKEN") 
             ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
-            try {
-                $response = Http::post('https://exp.host/--/api/v2/push/send', $payload);
+            $response = curl_exec($ch);
+            $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
 
-                if ($response->successful()) {
-                    Log::info("Push Notification: Successfully sent", [
-                        'user_id' => $userId,
-                        'token'   => $token,
-                        'response' => $response->json()
-                    ]);
-                } else {
-                    Log::error("Push Notification: Expo returned error", [
-                        'user_id' => $userId,
-                        'token'   => $token,
-                        'status'  => $response->status(),
-                        'body'    => $response->body()
-                    ]);
-                }
-            } catch (\Throwable $e) {
-                Log::error("Push Notification: Exception while sending", [
-                    'user_id' => $userId,
-                    'token'   => $token,
-                    'error'   => $e->getMessage()
+            if ($status !== 200) {
+                \Log::error("Push Notification: Expo returned error", [
+                    "user_id" => $userId,
+                    "token"   => $token,
+                    "status"  => $status,
+                    "body"    => $response
+                ]);
+            } else {
+                \Log::info("Push Notification: Successfully sent", [
+                    "user_id" => $userId,
+                    "token"   => $token,
+                    "response" => json_decode($response, true)
                 ]);
             }
-        }
 
-        // Save notification in DB for tracking
-        try {
+            // Save in DB
             \App\Models\Notification::create([
                 'user_id' => $userId,
-                'title'   => $title,
+                'title' => $title,
                 'message' => $message,
-                'data'    => $data,
-                'type'    => $data['type'] ?? 'notification',
-                'read'    => false,
+                'data' => $data,
+                'type' => $data['type'] ?? 'notification',
+                'read' => false,
                 'action_url' => $data['action_url'] ?? null,
             ]);
 
-            Log::info("Push Notification: Notification saved in DB for user {$userId}");
         } catch (\Throwable $e) {
-            Log::error("Push Notification: Failed to save DB record", [
-                'user_id' => $userId,
-                'error'   => $e->getMessage()
+            \Log::error("Push Notification: Exception while sending", [
+                "user_id" => $userId,
+                "token"   => $token,
+                "error"   => $e->getMessage()
             ]);
         }
-
-        return true;
     }
+
+    return true;
 }
 
 

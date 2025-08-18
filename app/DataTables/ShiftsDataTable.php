@@ -68,8 +68,8 @@ class ShiftsDataTable extends DataTable
             })
             ->filterColumn('staff_name', function($query, $keyword) {
                 $query->whereHas('staff', function($q) use ($keyword) {
-                    $q->where('fore_name', 'like', "%{$keyword}%")
-                      ->orWhere('sur_name', 'like', "%{$keyword}%");
+                    $q->where('first_name', 'like', "%{$keyword}%")
+                      ->orWhere('last_name', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('shift_date', function($query, $keyword) {

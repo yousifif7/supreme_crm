@@ -159,7 +159,6 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
 
 
 
-
     /** Begin: Shift Controller */
     Route::get('/shifts', [ShiftController::class, 'index'])->name('shifts.index');
     Route::get('/scheduling', [ShiftController::class, 'scheduling'])->name('shifts.scheduling');
