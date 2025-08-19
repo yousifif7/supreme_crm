@@ -32,7 +32,6 @@ class ShiftApiController extends Controller
         $shiftDates = ShiftDate::with('shift')
             ->where('shift_date', '>=', now()->toDateString())
             ->where('staff_id', auth::id())
-            ->where('staff_id', Auth::id())
             ->orderBy('shift_date')
             ->paginate($limit);
 
