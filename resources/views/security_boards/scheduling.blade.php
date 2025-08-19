@@ -60,316 +60,317 @@
 
             </div>
 
-            @section('filter')
+        @section('filter')
             <button type="button" class="add_btn btn btn-white" data-bs-toggle="modal" data-bs-target="#filterModal">
                 Filter
             </button>
             @include('security_boards.shifts.shift_filter_options')
-            @endsection
-            
-            @include('security_boards.shiftfilter')
+        @endsection
 
-            {{-- @include('security_boards.partials.shifts_table') --}}
-            <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
+        @include('security_boards.shiftfilter')
 
-                <!-- Calendar Sidebar -->
-                <div class="col-xxl-3 col-xl-3" style="padding-right: 0px !important; padding-left: 0px !important;">
-                    <div class="card">
-                        <div class="card-body p-3">
-                            <div class="border-bottom pb-2 mb-4">
-                                <div class="datepic"></div>
-                            </div>
+        {{-- @include('security_boards.partials.shifts_table') --}}
+        <div class="row" style="padding-right: 0px !important; padding-left: 0px !important;">
 
-                            <!-- Event -->
-                            @include('security_boards.event_colors')
-                            <!-- /Event -->
-
-
-
+            <!-- Calendar Sidebar -->
+            <div class="col-xxl-3 col-xl-3" style="padding-right: 0px !important; padding-left: 0px !important;">
+                <div class="card">
+                    <div class="card-body p-3">
+                        <div class="border-bottom pb-2 mb-4">
+                            <div class="datepic"></div>
                         </div>
-                    </div>
 
-                </div>
-                <!-- /Calendar Sidebar -->
+                        <!-- Event -->
+                        @include('security_boards.event_colors')
+                        <!-- /Event -->
 
-                <div class="col-xxl-9 col-xl-9 theiaStickySidebar">
-                    <div class="card border-0">
-                        <div class="card-body">
-                            <div id="calendar"></div>
-                        </div>
+
+
                     </div>
                 </div>
 
             </div>
-            <!-- Calendar View -->
+            <!-- /Calendar Sidebar -->
 
-            <!-- Add Rota -->
-
-            <!-- Add shift -->
-            @include('security_boards.shiftmodal');
-
-                  @include('security_boards.edit');
-
-      <!-- /Breadcrumb -->
-        </div>
-
-        <!-- Add Shift Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-
-                            </p>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
-                                    </div>
-
-                                </div>
-                            </div>
-                        </div>
+            <div class="col-xxl-9 col-xl-9 theiaStickySidebar">
+                <div class="card border-0">
+                    <div class="card-body">
+                        <div id="calendar"></div>
                     </div>
                 </div>
             </div>
+
         </div>
-        <!-- Assign Shift Modal -->
-        @include('security_boards.assign-shift-modal')
+        <!-- Calendar View -->
+
+        <!-- Add Rota -->
+
+        <!-- Add shift -->
+        @include('security_boards.shiftmodal');
+
+        @include('security_boards.edit');
+
+        <!-- /Breadcrumb -->
     </div>
 
+    <!-- Add Shift Success -->
+    <div class="modal fade" id="success_modal" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <div class="text-center p-3">
+                        <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
+                                class="ti ti-check fs-24"></i></span>
+                        <h5 class="mb-2" id="success_message"></h5>
 
-    <!-- /Page Wrapper -->
+                        </p>
+                        <div>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
+                                </div>
+
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Assign Shift Modal -->
+    @include('security_boards.assign-shift-modal')
+</div>
+
+
+<!-- /Page Wrapper -->
 @endsection
 @section('scripts')
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            function initDaySelector(shiftGroup) {
-                const dayBoxes = shiftGroup.querySelectorAll('.day-box');
-                const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function initDaySelector(shiftGroup) {
+            const dayBoxes = shiftGroup.querySelectorAll('.day-box');
+            const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
 
-                dayBoxes.forEach(box => {
-                    box.addEventListener('click', () => {
-                        box.classList.toggle('selected');
-                        const selected = Array.from(shiftGroup.querySelectorAll(
-                                '.day-box.selected'))
-                            .map(el => el.getAttribute('data-day'));
+            dayBoxes.forEach(box => {
+                box.addEventListener('click', () => {
+                    box.classList.toggle('selected');
+                    const selected = Array.from(shiftGroup.querySelectorAll(
+                            '.day-box.selected'))
+                        .map(el => el.getAttribute('data-day'));
 
-                        hiddenInput.value = selected.join(',');
-                    });
+                    hiddenInput.value = selected.join(',');
                 });
-            }
+            });
+        }
 
-            function bindEvents() {
-                // Add Shift Button
-                document.querySelectorAll('.addShiftGroup').forEach(btn => {
-                    btn.onclick = function() {
-                        const wrapper = document.querySelector('.shift-wrapper');
-                        const lastGroup = wrapper.querySelector('.shift-group:last-of-type');
-                        const clone = lastGroup.cloneNode(true);
+        function bindEvents() {
+            // Add Shift Button
+            document.querySelectorAll('.addShiftGroup').forEach(btn => {
+                btn.onclick = function() {
+                    const wrapper = document.querySelector('.shift-wrapper');
+                    const lastGroup = wrapper.querySelector('.shift-group:last-of-type');
+                    const clone = lastGroup.cloneNode(true);
 
-                        // Reset values in clone
-                        clone.querySelectorAll('input, select').forEach(el => {
-                            if (el.type === 'checkbox') {
-                                el.checked = false;
-                            } else {
-                                el.value = '';
-                            }
-                        });
-
-                        // Reset day selection
-                        clone.querySelectorAll('.day-box').forEach(box => box.classList.remove(
-                            'selected'));
-                        clone.querySelector('input[name="days[]"]').value = '';
-
-                        // Update data-shift-group attribute
-                        const allShiftGroups = wrapper.querySelectorAll('.shift-group');
-                        const newShiftGroupIndex = allShiftGroups.length;
-                        const checkpointBtn = clone.querySelector('.addCheckpointRow');
-                        if (checkpointBtn) {
-                            checkpointBtn.setAttribute('data-shift-group', newShiftGroupIndex);
-                        }
-                        const checkpointSection = clone.querySelector('.checkpoint-section');
-                        if (checkpointSection) {
-                            checkpointSection.setAttribute('id',
-                                `checkpoint-section${newShiftGroupIndex}`);
-                        }
-
-                        // Clear checkpoint rows
-                        const checkpointRows = clone.querySelector('.checkpoint-rows');
-                        if (checkpointRows) {
-                            checkpointRows.innerHTML = '';
-                        }
-
-                        wrapper.appendChild(clone);
-
-                        // Re-init new shift group logic
-                        initDaySelector(clone);
-                        bindEvents();
-                    };
-                });
-
-                // Remove Shift Button
-                document.querySelectorAll('.remove-shift').forEach(btn => {
-                    btn.onclick = function() {
-                        const shiftGroups = document.querySelectorAll('.shift-wrapper .shift-group');
-                        if (shiftGroups.length > 1) {
-                            btn.closest('.shift-group').remove();
+                    // Reset values in clone
+                    clone.querySelectorAll('input, select').forEach(el => {
+                        if (el.type === 'checkbox') {
+                            el.checked = false;
                         } else {
-                            toast_danger('You must have at least one shift.');
+                            el.value = '';
                         }
-                    };
-                });
-            }
+                    });
 
-            // Initialize for first shift-group
-            document.querySelectorAll('.shift-group').forEach(group => initDaySelector(group));
+                    // Reset day selection
+                    clone.querySelectorAll('.day-box').forEach(box => box.classList.remove(
+                        'selected'));
+                    clone.querySelector('input[name="days[]"]').value = '';
 
-            // Initial binding
-            bindEvents();
-        });
+                    // Update data-shift-group attribute
+                    const allShiftGroups = wrapper.querySelectorAll('.shift-group');
+                    const newShiftGroupIndex = allShiftGroups.length;
+                    const checkpointBtn = clone.querySelector('.addCheckpointRow');
+                    if (checkpointBtn) {
+                        checkpointBtn.setAttribute('data-shift-group', newShiftGroupIndex);
+                    }
+                    const checkpointSection = clone.querySelector('.checkpoint-section');
+                    if (checkpointSection) {
+                        checkpointSection.setAttribute('id',
+                            `checkpoint-section${newShiftGroupIndex}`);
+                    }
 
-        let checkIndex = 0;
+                    // Clear checkpoint rows
+                    const checkpointRows = clone.querySelector('.checkpoint-rows');
+                    if (checkpointRows) {
+                        checkpointRows.innerHTML = '';
+                    }
 
-        function addCheckpointRow($parentRow, groupIndex = 0) {
-            checkIndex++;
+                    wrapper.appendChild(clone);
 
-            const checkpointRow = `
-                <div class="row checkpoint-row mb-3 align-items-center" data-index="${checkIndex}">
-                    <div class="col-md-3"><label>Checkpoint Name</label>
-                        <input type="text" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_name]" class="form-control">
+                    // Re-init new shift group logic
+                    initDaySelector(clone);
+                    bindEvents();
+                };
+            });
+
+            // Remove Shift Button
+            document.querySelectorAll('.remove-shift').forEach(btn => {
+                btn.onclick = function() {
+                    const shiftGroups = document.querySelectorAll('.shift-wrapper .shift-group');
+                    if (shiftGroups.length > 1) {
+                        btn.closest('.shift-group').remove();
+                    } else {
+                        toast_danger('You must have at least one shift.');
+                    }
+                };
+            });
+        }
+
+        // Initialize for first shift-group
+        document.querySelectorAll('.shift-group').forEach(group => initDaySelector(group));
+
+        // Initial binding
+        bindEvents();
+    });
+
+    let checkIndex = 0;
+
+    function addCheckCallRow($parentRow) {
+        checkIndex++;
+        const row = `
+                <div class="row checkcall-row mb-3 align-items-center" data-index="${checkIndex}">
+                    <div class="col-md-3">
+                        <label>Check Call Name</label>
+                        <input type="text" name="checkcalls[${checkIndex}][name]" class="form-control">
                     </div>
                     <div class="col-md-3">
-                        <label>Time</label>
-                        <input type="time" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_time]" class="form-control">
+                        <label>Scheduled Time</label>
+                        <input type="time" name="checkcalls[${checkIndex}][scheduled_time]" class="form-control">
                     </div>
                     <div class="col-md-3">
-                        <button type="button" class="btn btn-danger btn-sm removeCheckpointRow">Remove</button>
+                        <button type="button" class="btn btn-danger btn-sm removeCheckCallRow">Remove</button>
                     </div>
                 </div>
             `;
+        $parentRow.append(row);
+    }
 
-            $parentRow.append(checkpointRow);
-            // $('#checkpoint-rows').append(checkpointRow);
-        }
-
-        $(document).on('click', '.addCheckpointRow', function() {
-            var groupIndex = $(this).data('shift-group');
-            var $parentRow = $(this).parents(`#checkpoint-section${groupIndex}`).find('.checkpoint-rows');
-            addCheckpointRow($parentRow, groupIndex);
+    $(document).ready(function() {
+        $(document).on('click', '.addCheckCallRow', function() {
+            console.log("Add Check Call clicked ✅");
+            var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
+            addCheckCallRow($parentRow);
         });
-        $(document).on('click', '.removeCheckpointRow', function() {
-            $(this).closest('.checkpoint-row').remove();
+
+        $(document).on('click', '.removeCheckCallRow', function() {
+            $(this).closest('.checkcall-row').remove();
         });
-    </script>
-    <script>
-        $(document).ready(function() {
-            $('#add_shift-form').on('submit', function(e) {
-                e.preventDefault();
-                $("[id^='error_']").text('');
-                let form = $(this)[0];
-                let formData = new FormData(form);
-                let submitButton = $('#saveshift'); // Add an ID to your submit button
+    });
+</script>
+<script>
+    $(document).ready(function() {
+        $('#add_shift-form').on('submit', function(e) {
+            e.preventDefault();
+            $("[id^='error_']").text('');
+            let form = $(this)[0];
+            let formData = new FormData(form);
+            let submitButton = $('#saveshift'); // Add an ID to your submit button
 
-                // Disable button and show loading
-                submitButton.prop('disabled', true).html('Saving...');
+            // Disable button and show loading
+            submitButton.prop('disabled', true).html('Saving...');
 
-                $.ajax({
-                    url: $(this).attr('action'),
-                    method: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    headers: {
-                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                    },
-                    success: function(response) {
-                        closeBsModal('#add_shift');
-                        $('#success_message').html('Shift Added Successfully')
-                        $('#success_modal').modal('show');
-                    },
-                    error: function(xhr) {
-                        console.log("Status:", xhr.status);
-                        console.log("Response:", xhr.responseText); // Helpful for debugging
+            $.ajax({
+                url: $(this).attr('action'),
+                method: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                },
+                success: function(response) {
+                    closeBsModal('#add_shift');
+                    $('#success_message').html('Shift Added Successfully')
+                    $('#success_modal').modal('show');
+                },
+                error: function(xhr) {
+                    console.log("Status:", xhr.status);
+                    console.log("Response:", xhr.responseText); // Helpful for debugging
 
-                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                            let errors = xhr.responseJSON.errors;
-                            let responseIndex = xhr.responseJSON.index;
-                            $.each(errors, function(key, value) {
-                                if ($('#error_' + key).length)
-                                    $('#error_' + key).text(value[0]);
+                    if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                        let errors = xhr.responseJSON.errors;
+                        let responseIndex = xhr.responseJSON.index;
+                        $.each(errors, function(key, value) {
+                            if ($('#error_' + key).length)
+                                $('#error_' + key).text(value[0]);
 
-                                if ($('.error_' + key).length)
-                                    $('.error_' + key).eq(responseIndex).text(value[0]);
-                            });
-                        } else if (xhr.responseJSON?.error) {
-                            toast_danger(xhr.responseJSON.error); //
-                        } else {
-                            toast_danger('An unexpected error occurred. Please try again.');
-                        }
-                    },
-                    complete: function() {
-                        // Re-enable button after response
-                        submitButton.prop('disabled', false).html('Save');
+                            if ($('.error_' + key).length)
+                                $('.error_' + key).eq(responseIndex).text(value[0]);
+                        });
+                    } else if (xhr.responseJSON?.error) {
+                        toast_danger(xhr.responseJSON.error); //
+                    } else {
+                        toast_danger('An unexpected error occurred. Please try again.');
                     }
-                });
+                },
+                complete: function() {
+                    // Re-enable button after response
+                    submitButton.prop('disabled', false).html('Save');
+                }
             });
         });
-    </script>
-    <script>
-        let calendar;
+    });
+</script>
+<script>
+    let calendar;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const calendarEl = document.getElementById('calendar');
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
 
-            const headerToolbarOptions = window.innerWidth < 900 ? {
-                left: 'prev today next',
-                center: 'title',
-                right: 'dayGridDay'
-            } : {
-                left: 'prev today next',
-                center: 'title',
-                right: 'dayGridMonth,dayGridWeek,dayGridDay'
-            };
+        const headerToolbarOptions = window.innerWidth < 900 ? {
+            left: 'prev today next',
+            center: 'title',
+            right: 'dayGridDay'
+        } : {
+            left: 'prev today next',
+            center: 'title',
+            right: 'dayGridMonth,dayGridWeek,dayGridDay'
+        };
 
-            const colorMap = {
-                'bg-dark-blue': '#5489C4',
-                'bg-lighter': '#D6D4CE',
-                'bg-dark-green': '#69CF83',
-                'bg-light-yellow': '#FAD66B',
-                'bg-light-blue': '#80BFFF',
-                'bg-purple1': '#9F87F5',
-                'bg-red': '#F55B7C',
-                'bg-primary11': '#FFFF5E',
-                'bg-orange': '#F5B25F',
-                'bg-secondary': '#6c757d'
-            };
+        const colorMap = {
+            'bg-dark-blue': '#5489C4',
+            'bg-lighter': '#D6D4CE',
+            'bg-dark-green': '#69CF83',
+            'bg-light-yellow': '#FAD66B',
+            'bg-light-blue': '#80BFFF',
+            'bg-purple1': '#9F87F5',
+            'bg-red': '#F55B7C',
+            'bg-primary11': '#FFFF5E',
+            'bg-orange': '#F5B25F',
+            'bg-secondary': '#6c757d'
+        };
 
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: window.innerWidth < 900 ? 'dayGridDay' : 'dayGridWeek',
-                initialDate: new Date().toISOString().split('T')[0],
-                headerToolbar: headerToolbarOptions,
-                events: `${baseUrl}/api/shifts`,
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: window.innerWidth < 900 ? 'dayGridDay' : 'dayGridWeek',
+            initialDate: new Date().toISOString().split('T')[0],
+            headerToolbar: headerToolbarOptions,
+            events: `${baseUrl}/api/shifts`,
 
-               
-                eventContent: function(info) {
-                    console.log(info)
-                    const event = info.event;
-                    const props = event.extendedProps;
-                    const container = document.createElement('div');
-                    const bgClass = event.classNames?.[0] || 'bg-secondary';
 
-                    container.className = `_schedule-box-container ${bgClass}`;
-                    container.style.marginBottom = '5px';
+            eventContent: function(info) {
+                console.log(info)
+                const event = info.event;
+                const props = event.extendedProps;
+                const container = document.createElement('div');
+                const bgClass = event.classNames?.[0] || 'bg-secondary';
 
-                    container.style.backgroundColor = colorMap[bgClass] || colorMap['bg-secondary'];
+                container.className = `_schedule-box-container ${bgClass}`;
+                container.style.marginBottom = '5px';
 
-                    if (props.urgent) container.classList.add('urgent-event');
+                container.style.backgroundColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                    container.innerHTML = `
+                if (props.urgent) container.classList.add('urgent-event');
+
+                container.innerHTML = `
                     <div class="_schedule-box-row">
                         <div class="_schedule-box-text _schedule-box-time">
                             ${props.shift_time}
@@ -386,155 +387,156 @@
                     </div>
                 `;
 
-                    return {
-                        domNodes: [container]
-                    };
-                }, eventClick: function(info) {
-                    const button = document.createElement('button');
-                    button.setAttribute('data-toggle', 'ajax-modal');
-                    button.setAttribute('data-title', 'Rota Detail');
-                    button.setAttribute('data-size', 'modal-xl');
-                    button.setAttribute('data-width', '80%');
-                    button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
-                    button.style.display = 'none';
-                    document.body.appendChild(button);
-                    button.click();
-                }
-            });
-
-            function updateCalendarView() {
-                if (window.innerWidth < 900) {
-                    calendar.changeView('dayGridDay');
-                } else {
-                    calendar.changeView('dayGridWeek');
-                }
+                return {
+                    domNodes: [container]
+                };
+            },
+            eventClick: function(info) {
+                const button = document.createElement('button');
+                button.setAttribute('data-toggle', 'ajax-modal');
+                button.setAttribute('data-title', 'Rota Detail');
+                button.setAttribute('data-size', 'modal-xl');
+                button.setAttribute('data-width', '80%');
+                button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
+                button.style.display = 'none';
+                document.body.appendChild(button);
+                button.click();
             }
+        });
 
-            window.addEventListener('resize', updateCalendarView);
-            calendar.render();
-            updateCalendarView();
+        function updateCalendarView() {
+            if (window.innerWidth < 900) {
+                calendar.changeView('dayGridDay');
+            } else {
+                calendar.changeView('dayGridWeek');
+            }
+        }
 
-            $('#calendarSearch').on('input', function() {
-                const searchText = $(this).val().toLowerCase();
-                calendar.batchRendering(() => {
-                    calendar.getEvents().forEach(event => {
-                        const matches = event.title.toLowerCase().includes(searchText) ||
-                            (event.extendedProps.location && event.extendedProps.location
-                                .toLowerCase().includes(searchText));
-                        event.setProp('display', matches ? 'auto' : 'none');
-                    });
+        window.addEventListener('resize', updateCalendarView);
+        calendar.render();
+        updateCalendarView();
+
+        $('#calendarSearch').on('input', function() {
+            const searchText = $(this).val().toLowerCase();
+            calendar.batchRendering(() => {
+                calendar.getEvents().forEach(event => {
+                    const matches = event.title.toLowerCase().includes(searchText) ||
+                        (event.extendedProps.location && event.extendedProps.location
+                            .toLowerCase().includes(searchText));
+                    event.setProp('display', matches ? 'auto' : 'none');
                 });
             });
+        });
 
-            const sidebarEl = document.querySelector('.datepic');
-            if (sidebarEl) {
-                const sidebarCal = document.createElement('div');
-                sidebarEl.appendChild(sidebarCal);
+        const sidebarEl = document.querySelector('.datepic');
+        if (sidebarEl) {
+            const sidebarCal = document.createElement('div');
+            sidebarEl.appendChild(sidebarCal);
 
-                new FullCalendar.Calendar(sidebarCal, {
-                    initialView: 'dayGridMonth',
-                    headerToolbar: {
-                        left: 'prev',
-                        center: 'title',
-                        right: 'next'
-                    },
-                    selectable: true,
-                    dateClick: function(info) {
-                        calendar.gotoDate(info.dateStr);
-                    },
-                    height: 'auto',
-                    initialDate: new Date().toISOString().split('T')[0],
-                }).render();
+            new FullCalendar.Calendar(sidebarCal, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev',
+                    center: 'title',
+                    right: 'next'
+                },
+                selectable: true,
+                dateClick: function(info) {
+                    calendar.gotoDate(info.dateStr);
+                },
+                height: 'auto',
+                initialDate: new Date().toISOString().split('T')[0],
+            }).render();
+        }
+
+        // UPDATED FILTER HANDLER
+
+        document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const form = e.target;
+            const formData = new FormData(form);
+            const params = new URLSearchParams();
+
+            for (const [key, value] of formData.entries()) {
+                if (value) {
+                    params.append(key, value);
+                }
             }
 
-            // UPDATED FILTER HANDLER
-           
-           document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
-    e.preventDefault();
+            const filteredUrl = `${baseUrl}/api/shifts?${params.toString()}`;
 
-    const form = e.target;
-    const formData = new FormData(form);
-    const params = new URLSearchParams();
+            calendar.removeAllEvents();
+            calendar.setOption('events', filteredUrl);
+            calendar.refetchEvents();
 
-    for (const [key, value] of formData.entries()) {
-        if (value) {
-            params.append(key, value);
-        }
-    }
-
-    const filteredUrl = `${baseUrl}/api/shifts?${params.toString()}`;
-
-    calendar.removeAllEvents();
-    calendar.setOption('events', filteredUrl);
-    calendar.refetchEvents();
-
-    const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
-    modal.hide(); // Hide modal after applying filters
-});
-
+            const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
+            modal.hide(); // Hide modal after applying filters
         });
-    </script>
 
-    <script>
-        document.querySelectorAll('.numeric-input').forEach(function(input) {
-            input.addEventListener('input', function() {
-                this.value = this.value.replace(/[^0-9.]/g, '');
-                const parts = this.value.split('.');
-                if (parts.length > 2) {
-                    this.value = parts[0] + '.' + parts[1];
+    });
+</script>
+
+<script>
+    document.querySelectorAll('.numeric-input').forEach(function(input) {
+        input.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9.]/g, '');
+            const parts = this.value.split('.');
+            if (parts.length > 2) {
+                this.value = parts[0] + '.' + parts[1];
+            }
+        });
+    });
+</script>
+
+<script type="text/javascript">
+    $(document).on("change", "#clientSelect", function() {
+        var $this = $(this);
+        const clientId = $(this).val();
+        if (!clientId) return;
+
+        var $siteSelect = $('#siteSelect');
+        $siteSelect.html('<option value="">--choose--</option>');
+
+        $.ajax({
+            url: `${baseUrl}/api/client/${clientId}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+                if (data.sites && data.sites.length > 0) {
+                    $.each(data.sites, function(index, site) {
+                        $siteSelect.append('<option value="' + site.id + '">' + site
+                            .site_name + '</option>');
+                    });
+                } else {
+                    $siteSelect.append('<option value="">No sites found</option>');
                 }
-            });
+            },
+            error: function(xhr, status, error) {
+                console.error('Fetch error:', error);
+            }
         });
-    </script>
+    });
 
-    <script type="text/javascript">
-        $(document).on("change", "#clientSelect", function() {
-            var $this = $(this);
-            const clientId = $(this).val();
-            if (!clientId) return;
+    $(document).on("change", "#StaffSelect", function() {
+        var $this = $(this);
+        const staffId = $(this).val();
+        if (!staffId) return;
 
-            var $siteSelect = $('#siteSelect');
-            $siteSelect.html('<option value="">--choose--</option>');
-
-            $.ajax({
-                url: `${baseUrl}/api/client/${clientId}`,
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
-                    if (data.sites && data.sites.length > 0) {
-                        $.each(data.sites, function(index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site
-                                .site_name + '</option>');
-                        });
-                    } else {
-                        $siteSelect.append('<option value="">No sites found</option>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Fetch error:', error);
-                }
-            });
+        $.ajax({
+            url: `${baseUrl}/api/staff/${staffId}`,
+            method: 'GET',
+            dataType: 'json',
+            success: function(data) {
+                $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                    '');
+            },
+            error: function(xhr, status, error) {
+                console.error('Fetch error:', error);
+            }
         });
-
-        $(document).on("change", "#StaffSelect", function() {
-            var $this = $(this);
-            const staffId = $(this).val();
-            if (!staffId) return;
-
-            $.ajax({
-                url: `${baseUrl}/api/staff/${staffId}`,
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
-                        '');
-                },
-                error: function(xhr, status, error) {
-                    console.error('Fetch error:', error);
-                }
-            });
-        });
-    </script>
+    });
+</script>
 
 @endsection

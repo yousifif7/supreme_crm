@@ -274,22 +274,28 @@ class ShiftController extends Controller
                 $data['is_assign'] = 1;
             }
 
-            $shift = Shift::create($data);
+            $shiftData = [
+                'client_id' => $data['client_id'][0] ?? null,
+                'site_id'   => $data['site_id'][0] ?? null,
+                'start_shift' => $data['start_shift'][0] ?? null,
+                'end_shift'   => $data['end_shift'][0] ?? null,
+                'staff_id'    => $data['staff_id'][0] ?? null,
+                // add other scalar fields as needed
+            ];
 
-            if (isset($data['checkpoints']) && $data['checkpoints']) {
-                foreach ($data['checkpoints'] as $checkpoint) {
-                    // foreach ($checkpoints as $checkpoint)
-                    // {
-                    \App\Models\ShiftCheckpoint::create([
-                        'shift_id' => $shift->id,
-                        'staff_id' => $shift->staff_id ?? null,
-                        'checkpoint_name' => $checkpoint['checkpoint_name'],
-                        'checkpoint_time' => $checkpoint['checkpoint_time'],
-                    ]);
-                    // }
-                }
+            // After creating $shift
+            $shift = Shift::create($shiftData);
+
+            $checkcalls = $request->checkcalls ?? []; // directly from request
+            $scheduled = $checkcall['scheduled_time'] ?? null;
+            foreach ($checkcalls as $checkcall) {
+                CheckCall::create([
+                    'shift_id'       => $shift->id,
+                    'staff_id'       => $shift->staff_id ?? null,
+                    'name'           => $checkcall['name'] ?? null,
+                    'scheduled_time' => $scheduled ? \Carbon\Carbon::today()->format('Y-m-d') . ' ' . $scheduled : null,
+                ]);
             }
-
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
             $selectedDays = array_map('trim', explode(',', $dayString));
 
@@ -910,7 +916,7 @@ class ShiftController extends Controller
         ];
 
         $staffId = $request->staff_id;
-        $staffUser=Employee::where('user_id',$staffId)->first();
+        $staffUser = Employee::where('user_id', $staffId)->first();
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift = Shift::findOrFail($shiftDate->shift_id);
 
@@ -1014,13 +1020,13 @@ class ShiftController extends Controller
         $shiftDate->staff_id = $staff->user_id;
         $shiftDate->is_assign = 1;
         $shiftDate->save();
-  
 
 
-$staffName = trim(
-    (isset($shiftDate->staff->first_name) ? $shiftDate->staff->first_name : '') . ' ' .
-    (isset($shiftDate->staff->last_name) ? $shiftDate->staff->last_name : '')
-);
+
+        $staffName = trim(
+            (isset($shiftDate->staff->first_name) ? $shiftDate->staff->first_name : '') . ' ' .
+                (isset($shiftDate->staff->last_name) ? $shiftDate->staff->last_name : '')
+        );
 
 
         $shiftDate->logs()->create([

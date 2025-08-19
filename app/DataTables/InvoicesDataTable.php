@@ -112,14 +112,14 @@ class InvoicesDataTable extends DataTable
             Column::computed('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
             Column::make('invoice_no')->title('Invoice No')->addClass('ps-0'),
-            Column::make('invoice_title')->title('Invoice Title'),
             Column::make('client_name')->title('Client Name'),
             Column::make('site_name')->title('Site Name'),
-            Column::make('invoice_date')->title('Invoice Date'),
+            Column::make('issue_date')->title('Issue Date'),
             Column::make('due_date')->title('Due Date'),
             Column::make('total_shift_hours')->title('Total Shift Hours'),
             Column::make('net_amount')->title('Net Amount'),
 
+            Column::make('total_amount')->title('Total Amount'),
         ];
     }
 

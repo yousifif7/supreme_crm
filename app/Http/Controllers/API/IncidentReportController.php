@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use Notify;
 use App\Models\Employee;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\IncidentMedia;
 use App\Models\IncidentPerson;
@@ -17,7 +18,7 @@ class IncidentReportController extends Controller
     public function store(Request $request)
     {
         $data = $request->validate([
-            'shift_id' => 'required|exists:shifts,id',
+            'shift_id' => 'required|exists:shift_dates,id',
             'category' => 'required|in:theft,assault,fire,medical,property_damage,suspicious_activity,other',
             'severity' => 'required|in:low,medium,high,critical',
             'title' => 'required|string',
@@ -79,12 +80,22 @@ class IncidentReportController extends Controller
         $user = Auth::user(); // Get the authenticated user
         $employee = Employee::where('user_id', $user->id)->first();
         Notify::toDashboard(
-            auth::id(),
+            null,
             'alert',
             'Incident report',
-            'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name. ' In shift NO. #'. $request->shift_id,
+            'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name . ' In shift NO. #' . $request->shift_id,
             '#'
         );
+
+        Notification::create([
+            'user_id' => $user->id,
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Incident report',
+            'message' => $employee->fore_name .' You have submitted Incident report',
+            'read' => false,
+        ]);
+
 
         return response()->json([
             'message' => 'Incident report created',

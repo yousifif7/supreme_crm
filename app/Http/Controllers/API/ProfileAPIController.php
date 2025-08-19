@@ -38,8 +38,8 @@ class ProfileAPIController extends Controller
         return response()->json([
             'id' => $user->id,
             'email' => $user->email,
-            'first_name' => $user->first_name,
-            'last_name' => $user->last_name,
+            'first_name' => $profile->first_name,
+            'last_name' => $profile->last_name,
             'phone' => $profile->phone,
             'address' => $profile->address,
             'emergency_contact' => $profile->emergencyContact ?? null,
@@ -49,7 +49,6 @@ class ProfileAPIController extends Controller
             'updated_at' => $profile->updated_at,
         ]);
     }
-
 
     public function updateProfile(Request $request)
     {
@@ -69,16 +68,18 @@ class ProfileAPIController extends Controller
 
         $profile = $request->user()->profile;
 
-        $profile->update($request->only(['first_name', 'last_name', 'phone', 'address']));
+        // Ensure fillable is set in Profile model
+        $profile->fill($request->only(['first_name', 'last_name', 'phone', 'address']));
+        $profile->save();
 
         // Emergency Contact
-        $emergency = $profile->emergencyContact ?: new EmergencyContacts(['profile_id' => $profile->id]);
+        $emergency = $profile->emergencyContact ?: new EmergencyContacts();
         $emergency->fill($request->input('emergency_contact', []));
         $emergency->profile_id = $profile->id;
         $emergency->save();
 
         // Bank Details
-        $bank = $profile->bankDetail ?: new BankDetails(['profile_id' => $profile->id]);
+        $bank = $profile->bankDetail ?: new BankDetails();
         $bank->fill($request->input('bank_details', []));
         $bank->profile_id = $profile->id;
         $bank->save();
