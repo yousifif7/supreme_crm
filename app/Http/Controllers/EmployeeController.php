@@ -47,7 +47,7 @@ class EmployeeController extends Controller
             'visa_type' => 'nullable',
             'visa_expiry' => 'nullable',
             'place_work' => 'nullable',
-            'hour_per_week' => 'nullable',
+            'hour_per_ek' => 'nullable',
             'passport_no' => 'nullable',
             'passport_expiry' => 'nullable',
             'address_group' => 'nullable',

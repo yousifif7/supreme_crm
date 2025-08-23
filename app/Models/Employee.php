@@ -180,4 +180,10 @@ class Employee extends Model
     {
         return $this->hasMany(LeaveRequest::class);
     }
+
+    public function invoices(){
+
+        return $this->hasMany(Invoice::class);
+    }
+
 }

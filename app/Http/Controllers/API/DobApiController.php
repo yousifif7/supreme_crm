@@ -6,6 +6,7 @@ use Notify;
 use App\Models\DobEntry;
 use App\Models\DobMedia;
 use App\Models\Employee;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -53,12 +54,27 @@ class DobApiController extends Controller
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
         Notify::toDashboard(
-            $employee->id,
+            null,
             'alert',
             'DOB Uploaded',
             'DOB uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
             '/employee'
         );
+
+        Notify::toDashboard(
+            $employee->id,
+            'alert',
+            'DOB Uploaded',
+            'You have submitted DOB file',
+            '/employee'
+        );
+
+            send_push_notification(
+                $user->id,
+                'You uploaded a document',
+                'Your Document has been uploaded succesfully.',
+                ['employee' => $employee->id],
+            );
 
         return response()->json([
             'entry_id' => $entry->id,

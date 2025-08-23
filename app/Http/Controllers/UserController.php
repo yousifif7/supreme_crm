@@ -179,9 +179,35 @@ class UserController extends Controller
 
             $shift->update(['unassigned_shift_notified' => true]);
         }
- $locations = Location::with('user:id,name')  // Eager load only id & name
-        ->get(['id', 'user_id', 'latitude', 'longitude', 'accuracy', 'on_duty', 'timestamp']);
-        return view('dashboard', compact('siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
+
+    $locations = Location::with([
+            'user:id,name',
+            'user.employee:id,user_id,service_type',
+        ])
+        ->whereNotNull('user_id')
+        ->whereHas('user')            // only locations with a valid user
+        ->whereHas('user.employee')   // only users that have an employee row
+        ->get()
+        ->map(function ($l) {
+            return [
+                'id' => $l->id,
+                'user_id' => $l->user_id,
+                'latitude' => (float) $l->latitude,
+                'longitude' => (float) $l->longitude,
+                'accuracy' => $l->accuracy,
+                'on_duty' => (bool) $l->on_duty,
+                'timestamp' => optional($l->created_at)->toDateTimeString(),
+                'user' => [
+                    'id' => optional($l->user)->id,
+                    'name' => optional($l->user)->name ?? 'Unknown',
+                ],
+                // THIS is the key bit the front-end needs:
+                'service_type_id' => optional(optional($l->user)->employee)->service_type, // e.g. 1..8
+            ];
+        });
+        
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+        return view('dashboard', compact('apiKey','siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
     }
 
     public function index(UsersDataTable $dataTable)

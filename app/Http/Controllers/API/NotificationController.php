@@ -84,16 +84,17 @@ class NotificationController extends Controller
         // }
 
         $employee = Employee::where('user_id',Auth::id())->first();
-
+        
+        DeviceToken::where('push_token', $request->push_token)->delete();
+        
         DeviceToken::updateOrCreate(
+            ['user_id' => Auth::id()],
             [
-                'user_id' => Auth::id(),
-                'push_token' => $request->push_token
-            ],
-            [
-                'platform' => $request->platform
+                'push_token' => $request->push_token,
+                'platform'   => $request->platform
             ]
         );
+
 
         return response()->json(['message' => 'Device registered']);
     }

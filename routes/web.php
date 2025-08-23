@@ -16,18 +16,19 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\SubContractorController;
+use App\Http\Controllers\IncidentReportController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\IncidentReportController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -38,7 +39,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 
-Route::get('chat',[ChatController::class,'index']);
+Route::get('chat', [ChatController::class, 'index']);
 Route::get('load/conversations', [ChatController::class, 'getConversations']);
 Route::post('/conversations', [ChatController::class, 'createConversation'])->name('conversations');
 
@@ -60,8 +61,8 @@ Route::middleware('auth')->group(function () {
     })->name('logout');
 
 
-    Route::get('incident_report',[IncidentReportController::class,'index'])->name('incident_report.index');
-     Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
+    Route::get('incident_report', [IncidentReportController::class, 'index'])->name('incident_report.index');
+    Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
     Route::get('/incident_report/export/pdf', [ExportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
 
 
@@ -131,8 +132,11 @@ Route::middleware('auth')->group(function () {
     /** End: Invoice Controller */
 
     /** Begin: Payroll Controller  */
+    Route::get('/payrolls', [PayrollController::class, 'index'])->name('payrolls.index');
+
+
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
-    Route::post('/generatepayroll/{id}', [PayrollController::class, 'store'])->name('payroll.store');
+    Route::post('/generatepayroll', [PayrollController::class, 'store'])->name('payroll.store');
     Route::get('/payrolls/{id}', [PayrollController::class, 'show'])->name('payrolls.show');
     Route::delete('/deletepayroll/{id}', [PayrollController::class, 'delete'])->name('payrolls.delete');
     Route::post('/payrolls/bulk-delete', [PayrollController::class, 'bulkDelete'])->name('payrolls.bulkDelete');
@@ -155,7 +159,7 @@ Route::middleware('auth')->group(function () {
 
 
     Route::get('settings/restrictions', [SettingController::class, 'index'])->name('restrictions.index');
-Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
+    Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
 
 
 
@@ -178,7 +182,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
-    
+
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
 
@@ -192,7 +196,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
     Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
 
-    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); 
+    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats');
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
 
     /** Begin: Holiday Controller */
@@ -276,6 +280,9 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::delete('/deletedocument/{id}', [DocumentationUploadController::class, 'delete'])->name('documents.delete');
     Route::post('/updatedocument/{id}', [DocumentationUploadController::class, 'update'])->name('documents.update');
     Route::post('/documents/bulk-delete', [DocumentationUploadController::class, 'bulkDelete'])->name('documents.bulkDelete');
+
+    Route::get('documents/report',[DocumentController::class,'report'])->name('documents.report');
+
     //** End: documentation upload controller */
 
     /** Begin: alert and remainder controller */
@@ -286,6 +293,10 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/updatereminder/{id}', [AlertReminderController::class, 'update'])->name('reminders.update');
     Route::post('/reminders/bulk-delete', [AlertReminderController::class, 'bulkDelete'])->name('reminders.bulkDelete');
     //** End: alert and remainder controller */
+
+
+    Route::get('/vehicle_management', [VehicleController::class, 'management'])
+        ->name('vehicle.management');
 });
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
@@ -343,4 +354,16 @@ require __DIR__ . '/auth.php';
 //         ->update(['read' => true]);
 
 //     return 'done';
+// });
+
+
+// Route::get('/push',function(){
+// send_push_notification(
+//     135,
+//     'Test',
+//     'Test notification content.',
+//     ['user_id' => Auth::id()] // ✅ must be object/array
+// );
+
+//         return 'success';
 // });

@@ -56,12 +56,21 @@ class DocumentAPIController extends Controller
             ]);
 
             Notify::toDashboard(
-                $employee->id,
+                null,
                 'alert',
                 'Document Uploaded',
                 'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
                 '/employee'
             );
+
+            Notify::toDashboard(
+                $employee->id,
+                'alert',
+                'Document Uploaded',
+                'You have uploaded a file',
+                '/employee'
+            );
+            
             // Send push notification to employee/device
             send_push_notification(
                 $user->id,
@@ -116,7 +125,7 @@ class DocumentAPIController extends Controller
             
         foreach ($expiringSoon as $exp) {
             send_push_notification(
-                $exp->user_id,
+                Auth::id(),
                 'Document expiry alert',
                 'Your document is about to expire.',
                 ['document_id' => $exp->id]

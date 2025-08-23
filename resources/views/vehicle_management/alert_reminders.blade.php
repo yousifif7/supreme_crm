@@ -1,6 +1,4 @@
-@extends('layouts.app')
-@section('title', 'CRM - Alert & Reminders')
-@section('contents')
+
     <!-- Page Wrapper -->
     <div class="page-wrapper">
         <div class="content">
@@ -315,8 +313,6 @@
             </div>
         </div>
         <!-- /Page Wrapper -->
-    @endsection
-    @section('scripts')
         <script>
             $(document).ready(function() {
                 // Add Reminder
@@ -480,4 +476,3 @@
             });
         </script>
         {!! $dataTable->scripts() !!}
-    @endsection

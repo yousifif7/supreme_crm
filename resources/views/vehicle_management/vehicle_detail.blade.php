@@ -1,6 +1,4 @@
-@extends('layouts.app')
-@section('title', 'CRM - Vehicle Details')
-@section('contents')
+
     <!-- Page Wrapper -->
     <div class="page-wrapper">
         <div class="content">
@@ -74,7 +72,7 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
+                        {!! $dataTable->table(['class' => 'table table-bordered table-hover'], true) !!}
                     </div>
                 </div>
             </div>
@@ -427,8 +425,6 @@
         </div>
     </div>
     <!-- /Page Wrapper -->
-@endsection
-@section('scripts')
     <script>
         $(document).ready(function() {
             $('#add_vehicle-form').on('submit', function(e) {
@@ -601,4 +597,3 @@
         });
     </script>
     {!! $dataTable->scripts() !!}
-@endsection

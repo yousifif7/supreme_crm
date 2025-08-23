@@ -2,30 +2,32 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\InvoicesDataTable;
-use App\Models\Client;
-use App\Models\EmployeeType;
-use App\Models\Invoice;
-use App\Models\Site;
-use App\Models\Shift;
-use App\Models\ShiftDate;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Carbon\CarbonPeriod;
 use Carbon\Carbon;
+use App\Models\Site;
+use App\Models\User;
+use App\Models\Shift;
+use App\Models\Client;
+use App\Models\Invoice;
+use Carbon\CarbonPeriod;
+use App\Models\ShiftDate;
+use App\Models\EmployeeType;
+use Illuminate\Http\Request;
+use App\DataTables\InvoicesDataTable;
+use Illuminate\Support\Facades\Validator;
 
 class InvoiceController extends Controller
 {
     public function index(InvoicesDataTable $dataTable)
     {
-        return $dataTable->render('invoices.index');
+        $clients = User::role('client')->get();
+        $sites = Site::all();
+        return $dataTable->render('invoices.index', compact('clients', 'sites'));
     }
 
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'client_id'     => 'required|string|max:255',
-            'client_name'     => 'required|string|max:255',
             'notes'         => 'required|string|max:355',
             'site_id' => 'required',
             'due_date'   => 'required|date',
@@ -46,15 +48,15 @@ class InvoiceController extends Controller
 
         // Check for overlap
         $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
-                $query->whereBetween('date_from', [$newStart, $newEnd])
-                      ->orWhereBetween('date_to', [$newStart, $newEnd])
-                      ->orWhere(function ($query) use ($newStart, $newEnd) {
-                          $query->where('date_from', '<=', $newStart)
-                                ->where('date_to', '>=', $newEnd);
-                      });
-            })
+            $query->whereBetween('date_from', [$newStart, $newEnd])
+                ->orWhereBetween('date_to', [$newStart, $newEnd])
+                ->orWhere(function ($query) use ($newStart, $newEnd) {
+                    $query->where('date_from', '<=', $newStart)
+                        ->where('date_to', '>=', $newEnd);
+                });
+        })
             ->where('client_id', $request->client_id)
-            ->where('site_group_id', $request->site_id)
+            ->where('site_id', $request->site_id)
             ->exists();
 
         if ($overlap) {
@@ -68,8 +70,8 @@ class InvoiceController extends Controller
         $data = $validator->validated();
 
         // $client = Client::find($request->get('client_id'));
-                    $shift = Shift::where('client_id', $data['client_id'])->where('site_id', $data['site_id'])->first();
- if (empty($shift)) {
+        $shift = Shift::where('client_id', $data['client_id'])->where('site_id', $data['site_id'])->first();
+        if (empty($shift)) {
             if ($request->ajax()) {
                 return response()->json(['errors' => ['site_id' => ['Shift data not found against that site.']]], 422);
             } else {
@@ -79,20 +81,19 @@ class InvoiceController extends Controller
 
         $invoiceData = [
             'client_id' => $data['client_id'],
-            'site_group_id' => $data['site_id'],
+            'site_id' => $data['site_id'],
             'notes' => $data['notes'],
             'due_date' => $data['due_date'],
             'date_from' => $data['date_from'],
             'date_to' => $data['date_to'],
-            'invoice_date' => Carbon::now(),
-            'invoice_title' => "Invoice of ".$data['client_name']." for ".$data['date_from']." - ".$data['date_to'],
+            'issue_date' => Carbon::now(),
+            // 'invoice_title' => "Invoice of ".$data['client_name']." for ".$data['date_from']." - ".$data['date_to'],
         ];
 
         $invoice = Invoice::create($invoiceData);
 
-        if($invoice)
-        {
-            $client = Client::findOrFail($invoice->client_id);
+        if ($invoice) {
+            $client = User::role('client')->where('id', $invoice->client_id)->first();
 
             $startDate = Carbon::parse($invoice->date_from);
             $endDate = Carbon::parse($invoice->date_to);
@@ -102,10 +103,12 @@ class InvoiceController extends Controller
             $breakMinutesPerDay = $shift->{'break-mins_shift'};
 
             $string = $shift->days;
-            // Step 1: Decode the JSON string into PHP array
-            $shiftDays = $array = json_decode($string, true);
-            // Step 2: Explode the first string element into individual days
-            $daysAllowed = explode(',', $array[0]);
+            $shiftDays = json_decode($string, true);
+            $daysAllowed = [];
+
+            if ($shiftDays && isset($shiftDays[0])) {
+                $daysAllowed = explode(',', $shiftDays[0]);
+            }
 
             $totalHours = 0;
             $totalBreaks = 0;
@@ -113,8 +116,7 @@ class InvoiceController extends Controller
             $totalBookOffHours = 0;
 
             // Create a period from start to end date
-            // $period = CarbonPeriod::create($startDate, $endDate);
-            $shiftDates = ShiftDate::where('shift_id',$shift->id)->whereBetween('shift_date', [$startDate, $endDate])->orderBy('id')->get();
+            $shiftDates = ShiftDate::where('shift_id', $shift->id)->whereBetween('shift_date', [$startDate, $endDate])->orderBy('id')->get();
             foreach ($shiftDates as $shiftDate) {
 
                 $date = Carbon::parse($shiftDate->shift_date);
@@ -133,25 +135,6 @@ class InvoiceController extends Controller
                     $totalBreaks += $breakMinutesPerDay / 60;
                     $durationInMinutes = $startDateTime->diffInMinutes($endDateTime) - $breakMinutesPerDay;
                     $totalHours += $durationInMinutes / 60;
-
-                    // if($shiftDate->absentee_start_time)
-                    // {
-                    //     $bookonTime = $shiftDate->absentee_start_time;
-                    //     $bookOnDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookonTime);
-
-                    //     $bookonDurationInMinutes = $durationInMinutes - $bookOnDateTime->diffInMinutes($endDateTime);
-                    //     $totalBookOnHours += $bookonDurationInMinutes / 60;
-                    // }
-
-                    // if($shiftDate->absentee_end_time)
-                    // {
-                    //     $bookoffTime = $shiftDate->absentee_end_time;
-                    //     $bookOffDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookoffTime);
-
-                    //     $bookoffDurationInMinutes = $durationInMinutes - $startDateTime->diffInMinutes($bookOffDateTime);
-                    //     $totalBookOffHours += $bookoffDurationInMinutes / 60;
-                    // }
-
                 }
             }
 
@@ -160,21 +143,18 @@ class InvoiceController extends Controller
             $invoice->update([
                 'payment_note' => $client->payment_terms,
                 'rate_per_hour' => $client->office_rate,
-                'total_shift_hours' => $totalHours-$totalBreaks-$totalBookOnHours-$totalBookOffHours,
+                'total_shift_hours' => $totalHours - $totalBreaks - $totalBookOnHours - $totalBookOffHours,
                 'total_duration_hours' => $totalHours,
                 'total_break_hours' => $totalBreaks,
-                'total_deductions_hours' => $totalBreaks+$totalBookOnHours+$totalBookOffHours,
-                'gross_amount' => ($totalHours-$totalBreaks) * $client->office_rate,
-                'net_amount' => (($totalHours-$totalBreaks) * $client->office_rate) - $totalDeductions,
+                'total_deductions_hours' => $totalBreaks + $totalBookOnHours + $totalBookOffHours,
+                'gross_amount' => ($totalHours - $totalBreaks) * $client->office_rate,
+                'net_amount' => (($totalHours - $totalBreaks) * $client->office_rate) - $totalDeductions,
             ]);
         }
         return response()->json(['message' => 'Invoice created successfully']);
     }
 
-    public function update(Request $request, $id)
-    {
-
-    }
+    public function update(Request $request, $id) {}
 
     public function edit($id)
     {
@@ -194,11 +174,11 @@ class InvoiceController extends Controller
         $startDate = Carbon::parse($invoice->date_from);
         $endDate = Carbon::parse($invoice->date_to);
 
-        $startTime = $shift->start_shift??'';
-        $endTime = $shift->end_shift??'';
-        $breakMinutesPerDay = $shift->{'break-mins_shift'}??'';
+        $startTime = $shift->start_shift ?? '';
+        $endTime = $shift->end_shift ?? '';
+        $breakMinutesPerDay = $shift->{'break-mins_shift'} ?? '';
 
-        $string = $shift->days??'';
+        $string = $shift->days ?? '';
         // Step 1: Decode the JSON string into PHP array
         $shiftDays = $array = json_decode($string, true);
         // Step 2: Explode the first string element into individual days
@@ -211,7 +191,7 @@ class InvoiceController extends Controller
 
         // Create a period from start to end date
         // $period = CarbonPeriod::create($startDate, $endDate);
-        $shiftDates = ShiftDate::where('shift_id',$shift->id)->whereBetween('shift_date', [$startDate, $endDate])->orderBy('id')->get();
+        $shiftDates = ShiftDate::where('shift_id', $shift->id)->whereBetween('shift_date', [$startDate, $endDate])->orderBy('id')->get();
         foreach ($shiftDates as $shiftDate) {
 
             $date = Carbon::parse($shiftDate->shift_date);
@@ -231,8 +211,7 @@ class InvoiceController extends Controller
                 // $totalHours += $durationInMinutes / 60;
                 // $totalBreaks += $breakMinutesPerDay / 60;
 
-                if($shiftDate->absentee_start_time)
-                {
+                if ($shiftDate->absentee_start_time) {
                     $bookonTime = $shiftDate->absentee_start_time;
                     $bookOnDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookonTime);
 
@@ -240,22 +219,20 @@ class InvoiceController extends Controller
                     $totalBookOnHours += $bookonDurationInMinutes / 60;
                 }
 
-                if($shiftDate->absentee_end_time)
-                {
+                if ($shiftDate->absentee_end_time) {
                     $bookoffTime = $shiftDate->absentee_end_time;
                     $bookOffDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $bookoffTime);
 
                     $bookoffDurationInMinutes = $startDateTime->diffInMinutes($bookOffDateTime) - $durationInMinutes;
                     $totalBookOffHours += $bookoffDurationInMinutes / 60;
                 }
-
             }
         }
 
         $totalHours = $invoice->total_duration_hours;
         $totalBreaks = $invoice->total_break_hours;
 
-        return view('invoices.show', compact('invoice', 'client', 'site', 'shift', 'totalHours', 'totalBreaks', 'totalBookOnHours' , 'totalBookOffHours', 'shiftDays'));
+        return view('invoices.show', compact('invoice', 'client', 'site', 'shift', 'totalHours', 'totalBreaks', 'totalBookOnHours', 'totalBookOffHours', 'shiftDays'));
     }
 
     public function delete($id)

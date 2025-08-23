@@ -274,17 +274,13 @@ class ShiftController extends Controller
                 $data['is_assign'] = 1;
             }
 
-            $shiftData = [
-                'client_id' => $data['client_id'][0] ?? null,
-                'site_id'   => $data['site_id'][0] ?? null,
-                'start_shift' => $data['start_shift'][0] ?? null,
-                'end_shift'   => $data['end_shift'][0] ?? null,
-                'staff_id'    => $data['staff_id'][0] ?? null,
-                // add other scalar fields as needed
-            ];
-
-            // After creating $shift
-            $shift = Shift::create($shiftData);
+            $shift = Shift::create([
+                'client_id'   => $request->client_id[$i],
+                'site_id'     => $request->site_id[$i],
+                'staff_id'    => $request->staff_id[$i] ?? null,
+                'start_shift' => $request->start_shift[$i],
+                'end_shift'   => $request->end_shift[$i],
+            ]);
 
             $checkcalls = $request->checkcalls ?? []; // directly from request
             $scheduled = $checkcall['scheduled_time'] ?? null;
@@ -553,11 +549,13 @@ class ShiftController extends Controller
             $hours = floor($sd->total_hours);
             $minutes = round(($sd->total_hours - $hours) * 60);
 
+            $shiftclient = User::find($shift->client_id);
+
             $total_hour = sprintf('%02d hr %02d min', $hours, $minutes);
             $book_on = $sd->shift_date . ", at  " . $sd->absentee_start_time;
             $book_off = $sd->shift_date . ", at " . $sd->absentee_end_time;
             $events[] = [
-                'title' => $shift->client->first_name ?? 'Unknown Client',
+                'title' => $shiftclient->first_name ?? 'Unknown Client',
                 'start' => $sd->shift_date . 'T' . $sd->start_time,
                 'end' => $sd->shift_date . 'T' . $sd->end_time,
                 'location' => $shift->site->site_name ?? 'Unknown Site',
@@ -1019,8 +1017,15 @@ class ShiftController extends Controller
 
         $shiftDate->staff_id = $staff->user_id;
         $shiftDate->is_assign = 1;
+        $shiftDate->status = 'pending';
         $shiftDate->save();
 
+        send_push_notification(
+            $staff->user_id,
+            'Shift assigned',
+            'An admin assigned a shift for you, You have to respond!',
+            ['shiftDate' => $shiftDate],
+        );
 
 
         $staffName = trim(
@@ -1087,8 +1092,6 @@ class ShiftController extends Controller
         if ($request->filled('start_time')) {
             $query->whereTime('start_time', '>=', $request->start_time);
         }
-
-
 
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);

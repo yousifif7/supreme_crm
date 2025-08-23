@@ -412,7 +412,7 @@
                     <input type="hidden" name="id" id="checkcall_id">
                     <div class="mb-3">
                         <label>Name</label>
-                        <input type="text" class="form-control" name="checkpoint_name" id="checkpoint_name"
+                        <input type="text" class="form-control" name="name" id="checkpoint_name"
                             required>
                     </div>
                     <div class="mb-3">
