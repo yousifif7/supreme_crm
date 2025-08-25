@@ -49,7 +49,7 @@ class ProcessShiftNotifications extends Command
                 'alarm',
                 'Missed Book On',
                 "Guard {$guardName} did not book on for shift No. {$shift->id} at {$shift->start_shift} on {$shift->from_shift}.",
-                "scheduling?{$shift->id}"
+                "scheduling?shift_date_id={$shift->id}"
             );
 
             if ($employee) {
@@ -81,7 +81,7 @@ class ProcessShiftNotifications extends Command
                 'alarm',
                 'Missed Book Off',
                 "Guard {$guardName} did not book off for shift No. {$shift->id} at {$shift->end_shift} on {$shift->to_shift}.",
-                "scheduling?{$shift->id}"
+                "scheduling?shift_date_id={$shift->id}"
             );
 
             if ($employee) {
@@ -110,7 +110,7 @@ class ProcessShiftNotifications extends Command
                 'alarm',
                 'Unassigned Shift',
                 "Shift {$shift->id} at {$shift->start_shift} on {$shift->from_shift} is starting soon and is unassigned.",
-                "scheduling?{$shift->id}"
+                "scheduling?shift_date_id={$shift->id}"
             );
 
             $shift->update(['unassigned_shift_notified' => true]);

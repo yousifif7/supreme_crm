@@ -144,7 +144,7 @@ class ShiftApiController extends Controller
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            'leaves'
+            '/leaves'
         );
 
         Notification::create([
@@ -309,8 +309,9 @@ class ShiftApiController extends Controller
             'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked on',
-            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
+            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name. ' Booked on shift (ID: '.$shiftDate->id .' starting at '.$shiftDate->start_time,
             'read' => false,
+            'action_url' =>"/scheduling?shift_date_id=$shiftDate->id"
         ]);
 
         Notification::create([
@@ -382,9 +383,11 @@ class ShiftApiController extends Controller
             'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked off',
-            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
+            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name. ' Booked off shift (ID: '.$shiftDate->id .' ending at '.$shiftDate->end_time,
             'read' => false,
+            'action_url' =>"/scheduling?shift_date_id=$shiftDate->id"
         ]);
+
 
         Notification::create([
             'user_id' => $user->id,

@@ -453,6 +453,9 @@ class EmployeeController extends Controller
     public function delete($id)
     {
         $employee = Employee::findOrFail($id);
+        $empUser= User::role('security_staff')->find($employee->user_id);
+
+        $empUser->delete();
         $employee->delete();
 
         return response()->json(['success' => true]);

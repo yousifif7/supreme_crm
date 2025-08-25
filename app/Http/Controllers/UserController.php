@@ -132,7 +132,8 @@ class UserController extends Controller
                 $employee->id,
                 'alarm',
                 'Missed Book On',
-                "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}."
+                "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}.",
+                "employees?$employee->id"
             );
 
             // ✅ Mark as notified
@@ -155,7 +156,8 @@ class UserController extends Controller
                 $employee->id,
                 'alarm',
                 'Missed Book Off',
-                "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}."
+                "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}.",
+                "/scheduling"
             );
 
             $shift->update(['missed_book_off_notified' => true]);
@@ -174,7 +176,8 @@ class UserController extends Controller
                 null,
                 'alarm',
                 'Unassigned Shift',
-                "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned."
+                "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned.",
+                "/scheduling?shift_date_id=$shift->id"
             );
 
             $shift->update(['unassigned_shift_notified' => true]);

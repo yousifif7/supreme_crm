@@ -60,7 +60,7 @@ class DocumentAPIController extends Controller
                 'alert',
                 'Document Uploaded',
                 'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
-                '/employee'
+                '/employees'
             );
 
             Notify::toDashboard(
@@ -68,7 +68,7 @@ class DocumentAPIController extends Controller
                 'alert',
                 'Document Uploaded',
                 'You have uploaded a file',
-                '/employee'
+                '/employees'
             );
             
             // Send push notification to employee/device

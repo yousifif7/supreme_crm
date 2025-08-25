@@ -144,13 +144,13 @@
                         <li class="submenu">
                             <a href="javascript:void(0);"
                                 class="{{ request()->is('documents*') || request()->is('invoices') ? 'subdrop' : '' }}">
-                                <i class="ti ti-file-invoice"></i>
+                                <i class="fa fa-file"></i>
                                 <span>Reports</span>
                                 <span class="menu-arrow"></span>
                             </a>
                             <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
                                 <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a href="{{ route('documents.report') }}"><i
-                                            class="ti ti-file-invoice"></i>Document Report</a></li>
+                                            class="fa-solid fa-file-import"></i>Document Report</a></li>
 
                                 <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
                                     <a href="{{ route('incident_report.index') }}">
@@ -162,7 +162,7 @@
 
                         <li class="{{ request()->is('invoices*') ? 'active' : '' }}">
                             <a href="{{ route('invoices.index') }}">
-                                <i class="ti ti-file-invoice"></i>
+                                <i class="fa fa-file-invoice-dollar"></i>
                                 <span>Invoices</span>
                             </a>
                         </li>
@@ -184,8 +184,15 @@
 
                         <li class="{{ request()->is('restrictions*') ? 'active' : '' }}">
                             <a href="{{ route('restrictions.index') }}">
-                                <i class="ti ti-door-exit"></i>
+                                <i class="fa fa-house-lock"></i>
                                 <span>Restrictions </span>
+                            </a>
+                        </li>
+
+                        <li class="{{ request()->is('materials*') ? 'active' : '' }}">
+                            <a href="{{ url('materials') }}">
+                                <i class="fa fa-phone"></i>
+                                <span>HR</span>
                             </a>
                         </li>
 

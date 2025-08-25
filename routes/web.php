@@ -19,6 +19,7 @@ use App\Http\Controllers\VehicleController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\EmployeeLeaveController;
@@ -298,6 +299,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/vehicle_management', [VehicleController::class, 'management'])
         ->name('vehicle.management');
 });
+
+Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');
+Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterialsPdf'])->name('materials.export.pdf');
+
+Route::post('/materials', [TrainingController::class, 'store'])->name('materials.store');
+Route::get('/materials', [TrainingController::class, 'matsView'])->name('materials.index');
+
+Route::post('/materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
+Route::post('/material/delete', [TrainingController::class, 'delete'])->name('material.delete');
+// Update material (if needed)
+Route::put('materials/{id}', [TrainingController::class, 'update'])->name('materials.update');
+// Delete single material
+Route::delete('materials/{id}', [TrainingController::class, 'destroy'])->name('materials.destroy');
+// Bulk delete
+Route::post('materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
+Route::get('materials/{id}', [TrainingController::class, 'show'])->name('materials.show');
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
