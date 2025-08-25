@@ -383,6 +383,12 @@
                                         data-id="{{ $checkcall->id }}">
                                         Delete
                                     </button>
+                                    @if ($checkcall->status == 'completed' && $employee?->user_id)
+                                        <a href="{{ route('user.map', ['userId' => $employee->user_id]) }}"
+                                            target="_blank" class="btn btn-info btn-sm">
+                                            View Map
+                                        </a>
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -412,8 +418,7 @@
                     <input type="hidden" name="id" id="checkcall_id">
                     <div class="mb-3">
                         <label>Name</label>
-                        <input type="text" class="form-control" name="name" id="checkpoint_name"
-                            required>
+                        <input type="text" class="form-control" name="name" id="checkpoint_name" required>
                     </div>
                     <div class="mb-3">
                         <label>Scheduled Time</label>
@@ -438,6 +443,10 @@
 </div>
 
 
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+@php
+    $apiKey = env('GOOGLE_MAPS_API_KEY');
+@endphp
 <script>
     $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
         e.preventDefault();
@@ -538,6 +547,7 @@
             }
         });
     });
+
 </script>
 
 <style>

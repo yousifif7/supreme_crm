@@ -93,8 +93,7 @@ class TrainingController extends Controller
             'pdf_url' => $path,
         ]);
 
-
-       return response()->json(['success' => true,'message' =>'Material created successfully']);
+       return back()->with('message','Material created successfully');
     }
 
     public function exportMaterialsPdf()

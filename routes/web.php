@@ -316,6 +316,12 @@ Route::delete('materials/{id}', [TrainingController::class, 'destroy'])->name('m
 Route::post('materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
 Route::get('materials/{id}', [TrainingController::class, 'show'])->name('materials.show');
 
+// web.php
+Route::get('/user-map/{userId}', [CheckCallController::class, 'showUserMap'])
+    ->name('user.map');
+Route::get('/locations/latest/{userId}', [CheckCallController::class, 'getLatestLocations']);
+
+
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
 
