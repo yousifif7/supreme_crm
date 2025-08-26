@@ -2,11 +2,16 @@
 
 namespace App\Http\Controllers\API;
 
-use App\Http\Controllers\Controller;
-use App\Models\TrainingMaterial;
-use App\Models\TrainingAcknowledgement;
 use Illuminate\Http\Request;
+use App\Exports\InvoiceExport;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\MaterialsExport;
+use App\Models\TrainingMaterial;
+use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use App\DataTables\MaterialDataTable;
+use App\Models\TrainingAcknowledgement;
 
 class TrainingController extends Controller
 {
@@ -36,6 +41,12 @@ class TrainingController extends Controller
         return response()->json(['materials' => $response]);
     }
 
+    public function matsView(MaterialDataTable $dataTable)
+    {
+        $materials = TrainingMaterial::all();
+        return $dataTable->render('hr.index', compact('materials'));
+    }
+
     public function acknowledge(Request $request, $id)
     {
         $request->validate([
@@ -57,5 +68,86 @@ class TrainingController extends Controller
         );
 
         return response()->json(['message' => 'Acknowledged successfully.']);
+    }
+
+    public function store(Request $request)
+    {
+        $request->validate([
+            'title' => 'required',
+            'description' => 'required',
+            'pdf_url' => 'nullable|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048',
+            'type' => 'required',
+            'expiry_date' => 'required|date',
+        ]);
+
+        $path = null;
+        if ($request->hasFile('pdf_url')) {
+            $path = $request->file('pdf_url')->store('materials', 'public');
+        }
+
+        TrainingMaterial::create([
+            'title' => $request->title,
+            'description' => $request->description,
+            'type' => $request->type,
+            'expiry_date' => $request->expiry_date,
+            'pdf_url' => $path,
+        ]);
+
+       return back()->with('message','Material created successfully');
+    }
+
+    public function exportMaterialsPdf()
+    {
+        $materials = TrainingMaterial::all();
+        $pdf = Pdf::loadView('hr.materials_pdf', compact('materials'));
+        return $pdf->download('materials.pdf');
+    }
+
+    public function exportMaterialsExcel()
+    {
+        return Excel::download(new MaterialsExport, 'materials.xlsx');
+    }
+
+    public function show(TrainingMaterial $material)
+    {
+        return response()->json($material);
+    }
+
+public function update(Request $request, $id) {
+        $material = TrainingMaterial::findOrFail($id);
+        $request->validate([
+            'title' => 'required',
+            'description' => 'required',
+            'pdf_url' => 'nullable|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048',
+            'material_type' => 'required',
+            'expiry_date' => 'required|date',
+        ]);
+
+        if ($request->hasFile('pdf_url')) {
+            $material->pdf_url = $request->file('pdf_url')->store('materials', 'public');
+        }
+
+        $material->update([
+            'title' => $request->title,
+            'description' => $request->description,
+            'material_type' => $request->material_type,
+            'expiry_date' => $request->expiry_date,
+        ]);
+
+        return response()->json(['success' => true]);
+    }
+
+    // Delete single material
+    public function destroy($id) {
+        $material = TrainingMaterial::findOrFail($id);
+        $material->delete();
+        return response()->json(['success' => true]);
+    }
+
+    // Bulk delete
+    public function bulkDelete(Request $request) {
+        $ids = $request->ids;
+        TrainingMaterial::whereIn('id', $ids)->delete();
+        return response()->json(['success' => true,'message' => 'Material deleted succesfully']);
     }
 }

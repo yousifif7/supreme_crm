@@ -186,37 +186,39 @@
             bindEvents();
         });
 
-        let checkIndex = 0;
-        function addCheckpointRow($parentRow, groupIndex = 0) {
-            checkIndex++;
+    let checkIndex = 0;
 
-            const checkpointRow = `
-                <div class="row checkpoint-row mb-3 align-items-center" data-index="${checkIndex}">
-                    <div class="col-md-3"><label>Checkpoint Name</label>
-                        <input type="text" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_name]" class="form-control">
+    function addCheckCallRow($parentRow) {
+        checkIndex++;
+        const row = `
+                <div class="row checkcall-row mb-3 align-items-center" data-index="${checkIndex}">
+                    <div class="col-md-3">
+                        <label>Check Call Name</label>
+                        <input type="text" name="checkcalls[${checkIndex}][name]" class="form-control">
                     </div>
                     <div class="col-md-3">
-                        <label>Time</label>
-                        <input type="time" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_time]" class="form-control">
+                        <label>Scheduled Time</label>
+                        <input type="time" name="checkcalls[${checkIndex}][scheduled_time]" class="form-control">
                     </div>
                     <div class="col-md-3">
-                        <button type="button" class="btn btn-danger btn-sm removeCheckpointRow">Remove</button>
+                        <button type="button" class="btn btn-danger btn-sm removeCheckCallRow">Remove</button>
                     </div>
                 </div>
             `;
+        $parentRow.append(row);
+    }
 
-            $parentRow.append(checkpointRow);
-            // $('#checkpoint-rows').append(checkpointRow);
-        }
+    $(document).ready(function() {
+        $(document).on('click', '.addCheckCallRow', function() {
+            console.log("Add Check Call clicked ✅");
+            var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
+            addCheckCallRow($parentRow);
+        });
 
-        $(document).on('click', '.addCheckpointRow', function() {
-            var groupIndex = $(this).data('shift-group');
-            var $parentRow = $(this).parents(`#checkpoint-section${groupIndex}`).find('.checkpoint-rows');
-            addCheckpointRow($parentRow, groupIndex);
+        $(document).on('click', '.removeCheckCallRow', function() {
+            $(this).closest('.checkcall-row').remove();
         });
-        $(document).on('click', '.removeCheckpointRow', function() {
-            $(this).closest('.checkpoint-row').remove();
-        });
+    });
         
     </script>
     <script>

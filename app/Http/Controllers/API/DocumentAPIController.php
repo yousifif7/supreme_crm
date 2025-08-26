@@ -73,11 +73,21 @@ $filePath = 'documents/' . $fileName;
 
             Notify::toDashboard(
                 auth::id(),
+
                 'alert',
                 'Document Uploaded',
                 'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
-                '/employee'
+                '/employees'
             );
+
+            Notify::toDashboard(
+                $employee->id,
+                'alert',
+                'Document Uploaded',
+                'You have uploaded a file',
+                '/employees'
+            );
+            
             // Send push notification to employee/device
             send_push_notification(
                 $user->id,
@@ -132,7 +142,7 @@ $filePath = 'documents/' . $fileName;
             
         foreach ($expiringSoon as $exp) {
             send_push_notification(
-                $exp->user_id,
+                Auth::id(),
                 'Document expiry alert',
                 'Your document is about to expire.',
                 ['document_id' => $exp->id]

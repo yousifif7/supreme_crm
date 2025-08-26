@@ -2,13 +2,37 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\VehiclesDataTable;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
+use App\DataTables\VehiclesDataTable;
 use Illuminate\Support\Facades\Validator;
+use App\DataTables\AlertRemindersDataTable;
+use App\DataTables\VehicleCompliancesDataTable;
+use App\DataTables\VehicleMaintenancesDataTable;
+use App\DataTables\DocumentationUploadsDataTable;
+use App\DataTables\RoadworthinessChecksDataTable;
 
 class VehicleController extends Controller
 {
+
+    public function management(
+        VehiclesDataTable $vehicleDetailTable,
+        VehicleCompliancesDataTable $vehicleComplianceTable,
+        VehicleMaintenancesDataTable $vehicleMaintenanceTable,
+        RoadworthinessChecksDataTable $roadworthinessTable,
+        DocumentationUploadsDataTable $documentationTable,
+        AlertRemindersDataTable $alertTable
+    ) {
+        return view('vehicle_management.mainindex', compact(
+            'vehicleDetailTable',
+            'vehicleComplianceTable',
+            'vehicleMaintenanceTable',
+            'roadworthinessTable',
+            'documentationTable',
+            'alertTable'
+        ));
+    }
+
     public function vehicle_details(VehiclesDataTable $dataTable)
     {
         return $dataTable->render('vehicle_management/vehicle_detail');

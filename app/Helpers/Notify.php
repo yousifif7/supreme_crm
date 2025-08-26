@@ -123,7 +123,7 @@ function send_push_notification($userId, $title, $message, $data = [])
             "sound" => "default",
             "title" => $title,
             "body" => $message,
-            "data" => $data,
+            "data" => json_decode(json_encode($data), true), // always object
         ];
 
         \Log::info("Push Notification: Sending payload to Expo", [
@@ -139,7 +139,7 @@ function send_push_notification($userId, $title, $message, $data = [])
             curl_setopt($ch, CURLOPT_HTTPHEADER, [
                 "Content-Type: application/json",
                 "Accept: application/json",
-                "Authorization: Bearer " . env("EXPO_ACCESS_TOKEN") 
+                "Authorization: Bearer " . env("EXPO_ACCESS_TOKEN"),
             ]);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
@@ -164,12 +164,12 @@ function send_push_notification($userId, $title, $message, $data = [])
 
             // Save in DB
             \App\Models\Notification::create([
-                'user_id' => $userId,
-                'title' => $title,
-                'message' => $message,
-                'data' => $data,
-                'type' => $data['type'] ?? 'notification',
-                'read' => false,
+                'user_id'    => $userId,
+                'title'      => $title,
+                'message'    => $message,
+                'data'       => json_encode($data), // store as JSON
+                'type'       => $data['type'] ?? 'notification',
+                'read'       => false,
                 'action_url' => $data['action_url'] ?? null,
             ]);
 

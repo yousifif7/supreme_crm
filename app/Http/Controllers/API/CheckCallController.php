@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\API;
 
+use Carbon\Carbon;
 use App\Models\Employee;
+use App\Models\Location;
 use App\Models\CheckCall;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\CheckCallMedia;
 use App\Http\Controllers\Controller;
+use Illuminate\Auth\Events\Validated;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -25,7 +29,7 @@ class CheckCallController extends Controller
     // 18. Complete Check Call (App-based)
     public function completeCheckCall(Request $request, $id)
     {
-        $request->validate([
+        $validated = $request->validate([
             'media_files' => 'array',
             'media_files.*' => 'string',
             'location.latitude' => 'required|numeric',
@@ -48,11 +52,29 @@ class CheckCallController extends Controller
             }
         }
 
-        $employee= Employee::where('user_id',Auth::id())->first();
+        $employee = Employee::where('user_id', Auth::id())->first();
 
         $checkCall->update([
             'status' => 'completed',
             'employee_id' => $employee->id,
+        ]);
+
+        Location::create([
+            'user_id' => Auth::id(),
+            'latitude' => $validated['location']['latitude'],
+            'longitude' => $validated['location']['longitude'],
+            'accuracy' => 100,
+            'on_duty' => 1,
+        ]);
+
+        Notification::create([
+            'user_id' => 1,
+            'employee_id' => null,
+            'type' => 'alert',
+            'title' => 'Checkcall completed',
+            'message' => 'Guard ' . $employee->fore_name . ' ' . $employee->sur_name . ' Completed checkcall ' . $checkCall->name,
+            'read' => false,
+            'action_url' => "/scheduling"
         ]);
 
         return response()->json(['message' => 'Check call completed']);
@@ -76,7 +98,7 @@ class CheckCallController extends Controller
     {
         $user = Auth::user();
         $alarms = CheckCall::whereHas('shift', function ($query) use ($user) {
-            $query->where('staff_id',  Employee::where('user_id',$user->id)->first());
+            $query->where('staff_id',  Employee::where('user_id', $user->id)->first());
         })
             ->where('status', 'pending')
             ->where('scheduled_time', '<', now())
@@ -94,24 +116,46 @@ class CheckCallController extends Controller
         ]);
     }
 
-public function update(Request $request, $id)
-{
-    $checkcall = CheckCall::findOrFail($id);
+    public function update(Request $request, $id)
+    {
+        $checkcall = CheckCall::findOrFail($id);
 
-    $validated = $request->validate([
-        'name' => 'required|string',
-        'scheduled_time' => 'required|date',
-        'status' => 'required|in:pending,completed,missed',
-    ]);
+        $validated = $request->validate([
+            'name' => 'string',
+            'scheduled_time' => 'date',
+            'status' => 'in:pending,completed,missed',
+        ]);
 
-    $checkcall->update($validated);
+        $checkcall->update([
+            'name' => $request->name,
+            'scheduled_time' => $request->scheduled_time,
+            'status' => $request->status,
+        ]);
 
-    return response()->json(['message' => 'Check call updated successfully']);
-}
+        return response()->json(['message' => 'Check call updated successfully']);
+    }
 
     public function destroy($id)
     {
         CheckCall::findOrFail($id)->delete();
         return response()->json(['success' => true]);
+    }
+
+    public function showUserMap($userId)
+    {
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+        return view('map', compact('userId', 'apiKey'));
+    }
+
+    public function getLatestLocations($userId)
+    {
+        $oneHourAgo = Carbon::now()->subHour();
+
+        $locations = Location::where('user_id', $userId)
+            ->where('created_at', '>=', $oneHourAgo)
+            ->orderBy('created_at', 'asc')
+            ->get(['latitude', 'longitude', 'created_at']);
+
+        return response()->json($locations);
     }
 }

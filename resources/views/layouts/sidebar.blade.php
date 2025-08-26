@@ -16,7 +16,7 @@
             <ul>
                 <li>
                     <ul>
-                        
+
                         <li class="{{ request()->is('dashboard*') ? 'active' : '' }}">
                             <a href="{{ url('dashboard') }}">
                                 <i class="ti ti-layout-dashboard"></i>
@@ -26,12 +26,14 @@
 
                         @can('Read Security Board')
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ request()->is('scheduling') || request()->is('worker_calendar') || request()->is('site_calendar') || request()->is('today_rota') || request()->is('shifts') ? 'subdrop' : '' }}">
+                                <a href="javascript:void(0);"
+                                    class="{{ request()->is('scheduling') || request()->is('worker_calendar') || request()->is('site_calendar') || request()->is('today_rota') || request()->is('shifts') ? 'subdrop' : '' }}">
                                     <i class="ti ti-shield-half-filled"></i>
-                                    <span>Security Board</span>
+                                    <span>Roster</span>
                                     <span class="menu-arrow"></span>
                                 </a>
-                                <ul style="display: {{ request()->is('scheduling') || request()->is('worker_calendar') || request()->is('site_calendar') || request()->is('today_rota') || request()->is('shifts') ? 'block' : 'none' }};">
+                                <ul
+                                    style="display: {{ request()->is('scheduling') || request()->is('worker_calendar') || request()->is('site_calendar') || request()->is('today_rota') || request()->is('shifts') ? 'block' : 'none' }};">
                                     <li class="{{ request()->is('scheduling') ? 'active' : '' }}">
                                         <a href="{{ url('scheduling') }}">
                                             <i class="ti ti-calendar-plus"></i>Scheduling </a>
@@ -58,12 +60,14 @@
 
                         @can('Read User Management')
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ request()->is('users') || request()->is('roles') ? 'subdrop' : '' }}">
+                                <a href="javascript:void(0);"
+                                    class="{{ request()->is('users') || request()->is('roles') ? 'subdrop' : '' }}">
                                     <i class="ti ti-users"></i>
                                     <span>User Management</span>
                                     <span class="menu-arrow"></span>
                                 </a>
-                                <ul style="display: {{ request()->is('users') || request()->is('roles') ? 'block' : 'none' }};">
+                                <ul
+                                    style="display: {{ request()->is('users') || request()->is('roles') ? 'block' : 'none' }};">
                                     <li class="{{ request()->is('users') ? 'active' : '' }}">
                                         <a href="{{ route('users.index') }}">
                                             <i class="ti ti-users"></i>All Users </a>
@@ -78,12 +82,14 @@
 
                         @can('Read Clients')
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ request()->is('clients') || request()->is('sites') ? 'subdrop' : '' }}">
+                                <a href="javascript:void(0);"
+                                    class="{{ request()->is('clients') || request()->is('sites') ? 'subdrop' : '' }}">
                                     <i class="ti ti-heartbeat"></i>
                                     <span>Clients</span>
                                     <span class="menu-arrow"></span>
                                 </a>
-                                <ul style="display: {{ request()->is('clients') || request()->is('sites') ? 'block' : 'none' }};">
+                                <ul
+                                    style="display: {{ request()->is('clients') || request()->is('sites') ? 'block' : 'none' }};">
                                     <li class="{{ request()->is('clients') ? 'active' : '' }}">
                                         <a href="{{ url('clients') }}">
                                             <i class="ti ti-heartbeat"></i>Clients </a>
@@ -98,12 +104,14 @@
 
                         @can('Read Security Staff')
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ request()->is('employees') || request()->is('subcontractors') ? 'subdrop' : '' }}">
+                                <a href="javascript:void(0);"
+                                    class="{{ request()->is('employees') || request()->is('subcontractors') ? 'subdrop' : '' }}">
                                     <i class="ti ti-heartbeat"></i>
                                     <span>Security Staffs</span>
                                     <span class="menu-arrow"></span>
                                 </a>
-                                <ul style="display: {{ request()->is('employees') || request()->is('subcontractors') ? 'block' : 'none' }};">
+                                <ul
+                                    style="display: {{ request()->is('employees') || request()->is('subcontractors') ? 'block' : 'none' }};">
                                     <li class="{{ request()->is('employees') ? 'active' : '' }}">
                                         <a href="{{ url('employees') }}">
                                             <i class="ti ti-users"></i>Staffs </a>
@@ -118,89 +126,96 @@
 
                         @can('Read Vehicle Management')
                             <li class="submenu">
-                                <a href="javascript:void(0);" class="{{ request()->is('vehicle_details') || request()->is('vehicle_compliances') || request()->is('vehicle_maintenances') || request()->is('roadworthiness_check') || request()->is('documentation_uploads') || request()->is('alert_reminders') ? 'subdrop' : '' }}">
+                                <a href="javascript:void(0);"
+                                    class="{{ request()->is('vehicle_management') ? 'subdrop' : '' }}">
                                     <i class="ti ti-search"></i>
                                     <span>Vehicle Management</span>
                                     <span class="menu-arrow"></span>
                                 </a>
-                                <ul style="display: {{ request()->is('vehicle_details') || request()->is('vehicle_compliances') || request()->is('vehicle_maintenances') || request()->is('roadworthiness_check') || request()->is('documentation_uploads') || request()->is('alert_reminders') ? 'block' : 'none' }};">
-                                    <li class="{{ request()->is('vehicle_details') ? 'active' : '' }}">
-                                        <a href="{{ url('vehicle_details') }}">
-                                            <i class="ti ti-reorder"></i>Vehicle Details </a>
-                                    </li>
-                                    <li class="{{ request()->is('vehicle_compliances') ? 'active' : '' }}">
-                                        <a href="{{ url('vehicle_compliances') }}">
-                                            <i class="ti ti-waterpolo"></i>Legal & Compliance Documents </a>
-                                    </li>
-                                    <li class="{{ request()->is('vehicle_maintenances') ? 'active' : '' }}">
-                                        <a href="{{ url('vehicle_maintenances') }}">
-                                            <i class="ti ti-waterpolo"></i>Service & Maintenance </a>
-                                    </li>
-                                    <li class="{{ request()->is('roadworthiness_check') ? 'active' : '' }}">
-                                        <a href="{{ url('roadworthiness_check') }}">
-                                            <i class="ti ti-waterpolo"></i>Roadworthiness Checks </a>
-                                    </li>
-                                    <li class="{{ request()->is('documentation_uploads') ? 'active' : '' }}">
-                                        <a href="{{ url('documentation_uploads') }}">
-                                            <i class="ti ti-waterpolo"></i>Documentation Uploads </a>
-                                    </li>
-                                    <li class="{{ request()->is('alert_reminders') ? 'active' : '' }}">
-                                        <a href="{{ url('alert_reminders') }}">
-                                            <i class="ti ti-waterpolo"></i>Alerts & Reminders </a>
+                                <ul style="display: {{ request()->is('vehicle_management') ? 'block' : 'none' }};">
+                                    <li class="{{ request()->is('vehicle_management') ? 'active' : '' }}">
+                                        <a href="{{ route('vehicle.management') }}">
+                                            <i class="ti ti-reorder"></i>Vehicle Managment </a>
                                     </li>
                                 </ul>
                             </li>
                         @endcan
+
                         <li class="submenu">
-                            <a href="javascript:void(0);" class="{{ request()->is('invoices*') ? 'subdrop' : '' }}">
-                                <i class="ti ti-tool"></i><span>Tools</span>
+                            <a href="javascript:void(0);"
+                                class="{{ request()->is('documents*') || request()->is('invoices') ? 'subdrop' : '' }}">
+                                <i class="fa fa-file"></i>
+                                <span>Reports</span>
                                 <span class="menu-arrow"></span>
                             </a>
-                            <ul style="display: {{ request()->is('incident_report.*') || request()->is('restrictions.*') || request()->is('leaves.*') || request()->is('invoices.*') ? 'block' : 'none' }};">
-                                <li class="{{ request()->is('invoices*') ? 'active' : '' }}"><a href="{{ route('invoices.index') }}"><i
-                                            class="ti ti-file-invoice"></i>Invoices & Payments</a></li>
 
-                                            <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a href="{{ route('documents.report') }}"><i
-                                            class="ti ti-file-invoice"></i>Document Report</a></li>
-                                {{--<li><a href="#"><i class="ti ti-cash-register"></i>Pay Mgt.</a>
-                                </li>
-                                <li><a href="#"><i class="ti ti-door-exit"></i>Holiday Mgt.</a>
-                                </li>--}}
-                                <li class="{{ request()->is('leaves') ? 'active' : '' }}">
-                                    <a href="{{ route('leaves.index') }}">
-                                        <i class="ti ti-door-exit"></i>Holiday Mgt. </a>
-                                </li>
-                                
-                                <li class="{{ request()->is('incident_report') ? 'active' : '' }}"><a href="{{ route('incident_report.index') }}"><i class="ti ti-checkup-list"></i>Incident Report</a>
-                                </li>
+                            <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
+                                <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a href="{{ route('documents.report') }}"><i
+                                            class="fa-solid fa-file-import"></i>Document Report</a></li>
 
-                                 <li class="{{ request()->is('restrictions') ? 'active' : '' }}">
-                                    <a href="{{ route('restrictions.index') }}">
-                                        <i class="ti ti-door-exit"></i>Restictions</a>
+                                <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
+                                    <a href="{{ route('incident_report.index') }}">
+                                        <i class="ti ti-checkup-list"></i>Incident report
+                                    </a>
                                 </li>
-                                {{--<li><a href="#"><i class="ti ti-calendar-stats"></i>Timesheet Report</a></li>
-                                <li><a href="#"><i class="ti ti-checkup-list"></i>RIO Report</a>
-                                </li>--}}
                             </ul>
                         </li>
-                          <li class="{{ request()->is('chat*') ? 'active' : '' }}">
+
+                        <li class="{{ request()->is('invoices*') ? 'active' : '' }}">
+                            <a href="{{ route('invoices.index') }}">
+                                <i class="fa fa-file-invoice-dollar"></i>
+                                <span>Invoices</span>
+                            </a>
+                        </li>
+
+                        <li class="{{ request()->is('payrolls*') ? 'active' : '' }}">
+                            <a href="{{ route('payrolls.index') }}">
+                                <i class="ti ti-file-invoice"></i>
+                                <span>Payrolls</span>
+                            </a>
+                        </li>
+
+
+                        <li class="{{ request()->is('leaves*') ? 'active' : '' }}">
+                            <a href="{{ route('leaves.index') }}">
+                                <i class="ti ti-door-exit"></i>
+                                <span>Holiday Mgt. </span>
+                            </a>
+                        </li>
+
+                        <li class="{{ request()->is('restrictions*') ? 'active' : '' }}">
+                            <a href="{{ route('restrictions.index') }}">
+                                <i class="fa fa-house-lock"></i>
+                                <span>Restrictions </span>
+                            </a>
+                        </li>
+
+                        <li class="{{ request()->is('materials*') ? 'active' : '' }}">
+                            <a href="{{ url('materials') }}">
+                                <i class="fa fa-phone"></i>
+                                <span>HR</span>
+                            </a>
+                        </li>
+
+                        <li class="{{ request()->is('chat*') ? 'active' : '' }}">
                             <a href="{{ url('chat') }}">
                                 <i class="bi bi-chat"></i>
                                 <span>My Chats</span>
                             </a>
                         </li>
-                        <li >
+                        <li>
                             <!-- Logout Link -->
-<a href="{{ route('logout') }}" 
-   onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
-    <i class="ti ti-logout"></i>
-    <span>Logout</span>
-</a>
+                            <a href="{{ route('logout') }}"
+                                onclick="event.preventDefault(); document.getElementById('logout-form').submit();">
+                                <i class="ti ti-logout"></i>
+                                <span>Logout</span>
+                            </a>
 
-<!-- Logout Form -->
-<form id="logout-form" action="{{ route('logout') }}" method="POST" style="display: none;">
-    @csrf
-</form>
+                            <!-- Logout Form -->
+                            <form id="logout-form" action="{{ route('logout') }}" method="POST"
+                                style="display: none;">
+                                @csrf
+                            </form>
 
                         </li>
                     </ul>

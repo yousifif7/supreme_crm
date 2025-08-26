@@ -15,6 +15,7 @@ return new class extends Migration
             $table->id();
             $table->string('title');
             $table->enum('type', ['training', 'policy', 'sop', 'bulletin']);
+            $table->string('description')->nullable();
             $table->string('content_url')->nullable();
             $table->string('pdf_url')->nullable();
             $table->boolean('required')->default(false);

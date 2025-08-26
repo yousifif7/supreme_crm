@@ -136,7 +136,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->prefix('invoices')->group(function () {
     Route::get('/shift-history', [InvoiceAPIController::class, 'shiftHistory']);
     Route::post('/', [InvoiceAPIController::class, 'submitInvoice']);
-    Route::get('/', [InvoiceAPIController::class, 'getInvoices']);
+    Route::get('/', [InvoiceAPIController::class, 'getPayrolls']);
     Route::post('{invoice}/confirm-revision', [InvoiceAPIController::class, 'confirmRevision']);
 });
 

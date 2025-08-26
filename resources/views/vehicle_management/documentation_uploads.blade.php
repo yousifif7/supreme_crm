@@ -1,6 +1,4 @@
-@extends('layouts.app')
-@section('title', 'CRM - Vehicle Documentation Upload ')
-@section('contents')
+
     <!-- Page Wrapper -->
     <div class="page-wrapper">
         <div class="content">
@@ -316,8 +314,6 @@
             </div>
         </div>
         <!-- /Page Wrapper -->
-    @endsection
-    @section('scripts')
         <script>
             $(document).ready(function() {
                 // Add Documentation
@@ -479,4 +475,4 @@
             });
         </script>
         {!! $dataTable->scripts() !!}
-    @endsection
+

@@ -398,7 +398,40 @@
                 });
             });
         });
+$(document).on("change", "#invoice_client_name", function() {
+    var $this = $(this);
+    const clientId = $(this).val();
+    if (!clientId) return;
 
+    var $siteSelect = $('#invoice_site_id');
+    $siteSelect.html('<option value="">--choose--</option>');
+
+    $.ajax({
+        url: `${baseUrl}/api/client/${clientId}`, // your existing API
+        method: 'GET',
+        dataType: 'json',
+        success: function(data) {
+            // If you have office_rate in form, you can fill it like before
+            $this.parents('.shift-group').find('.siteRate').val(data.client?.office_rate || '');
+
+            if (data.sites && data.sites.length > 0) {
+                $.each(data.sites, function(index, site) {
+                    $siteSelect.append(
+                        '<option value="' + site.id + '">' + site.site_name + '</option>'
+                    );
+                });
+            } else {
+                $siteSelect.append('<option value="">No sites found</option>');
+            }
+        },
+        error: function(xhr, status, error) {
+            console.error('Fetch error:', error);
+        }
+    });
+
+    // also update hidden client_id field
+    $('#invoice_client_id').val(clientId);
+});
         function generateInvoice(record_id) {
             $.get(`${baseUrl}/generateinvoice/` + record_id, function(data) {
                 if (data.client) {

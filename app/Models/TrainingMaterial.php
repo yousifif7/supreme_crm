@@ -11,6 +11,7 @@ class TrainingMaterial extends Model
     protected $fillable = [
     'title',
     'type',
+    'description',
     'content_url',
     'pdf_url',
     'required',

@@ -2,37 +2,41 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Client;
-use App\Models\EmployeeType;
-use App\Models\Invoice;
+use Carbon\Carbon;
 use App\Models\Site;
 use App\Models\Shift;
+use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Employee;
-use App\Models\ShiftDate;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use Carbon\CarbonPeriod;
-use Carbon\Carbon;
+use App\Models\ShiftDate;
+use App\Models\EmployeeType;
+use Illuminate\Http\Request;
+use App\DataTables\PayrollsDataTable;
+use Illuminate\Support\Facades\Validator;
 
 class PayrollController extends Controller
 {
-    public function index()
+    public function index(PayrollsDataTable $dataTable)
     {
-        $payrolls = Invoice::with(['employee','site'])->orderBy('id', 'desc')->paginate(15);
-        return view('payrolls.index', compact('payrolls'));
+        return $dataTable->render('invoices.payrolls');
     }
     
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'employee_id'     => 'required|string|max:255',
-            'employee_name'     => 'required|string|max:255',
+            'security_staff_id'     => 'required|string|max:255',
             'notes'         => 'required|string|max:355',
             'site_id' => 'required',
             'date_from'   => 'required|date',
             'date_to'     => 'required|date|after_or_equal:date_from',
         ]);
 
+        $request->validate([
+            'total_amount' => 'nullable',
+            'due_date' => 'nullable',
+            'net_amount' => 'nullable'
+        ]);
         if ($validator->fails()) {
             if ($request->ajax()) {
                 return response()->json(['errors' => $validator->errors()], 422);
@@ -53,8 +57,8 @@ class PayrollController extends Controller
                                 ->where('date_to', '>=', $newEnd);
                       });
             })
-            ->where('employee_id', $request->employee_id)
-            ->where('site_group_id', $request->site_id)
+            ->where('security_staff_id', $request->security_staff_id)
+            ->where('site_id', $request->site_id)
             ->exists();
 
         if ($overlap) {
@@ -67,22 +71,26 @@ class PayrollController extends Controller
 
         $data = $validator->validated();
 
+        $staff= Employee::find($request->security_staff_id);
+        
         $payrollData = [
-            'employee_id' => $data['employee_id'],
-            'site_group_id' => $data['site_id'],
+            'security_staff_id' => $data['security_staff_id'],
+            'site_id' => $data['site_id'],
+            'employee_name' => $staff->fore_name. ' '. $staff->sure_name,
             'notes' => $data['notes'],
             'date_from' => $data['date_from'],
             'date_to' => $data['date_to'],
-            'invoice_date' => Carbon::now(),
-            'invoice_title' => "Payroll of ".$data['employee_name']." for ".$data['date_from']." - ".$data['date_to'],
+            'issue_date' => Carbon::now(),
+            'due_date' => Carbon::now()->addDays(15),
+            // 'invoice_title' => "Payroll of ".$staff->fore_name. ' '. $staff->sure_name." for ".$data['date_from']." - ".$data['date_to'],
         ];
 
         $payroll = Invoice::create($payrollData);
 
         if($payroll)
         {
-            $employee = Employee::findOrFail($payroll->employee_id);
-            $shift = Shift::where('staff_id', $payroll->employee_id)->where('site_id', $payroll->site_group_id)->first();
+            $employee = $payroll->employee;
+            $shift = Shift::where('staff_id', $payroll->security_staff_id)->where('site_id', $payroll->site_id)->first();
 
             $startDate = Carbon::parse($payroll->date_from);
             $endDate = Carbon::parse($payroll->date_to);
@@ -92,10 +100,12 @@ class PayrollController extends Controller
             $breakMinutesPerDay = $shift->{'break-mins_shift'};
 
             $string = $shift->days;
-            // Step 1: Decode the JSON string into PHP array
-            $shiftDays = $array = json_decode($string, true);
-            // Step 2: Explode the first string element into individual days
-            $daysAllowed = explode(',', $array[0]);
+            $shiftDays = json_decode($string, true);
+            $daysAllowed = [];
+
+            if ($shiftDays && isset($shiftDays[0])) {
+                $daysAllowed = explode(',', $shiftDays[0]);
+            }
 
             $totalHours = 0;
             $totalBreaks = 0;

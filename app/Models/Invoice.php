@@ -35,9 +35,6 @@ class Invoice extends Model
     ];
 
     // Relationships
-    use LogsChanges;
-    protected $fillable = ['invoice_number', 'client_id', 'security_staff_id ', 'due_date', 'notes','total_amount', 'invoice_title', 'date_from', 'date_to', 'invoice_date', 'site_group_id', 'total_shift_hours', 'total_duration_hours', 'total_deductions_hours', 'gross_amount', 'net_amount', 'payment_note', 'rate_per_hour', 'total_break_hours'];
-
     public function client()
     {
         return $this->belongsTo(User::class, 'client_id');
@@ -85,32 +82,22 @@ class Invoice extends Model
         parent::boot();
 
         static::creating(function ($invoice) {
-            // Generate invoice number
-            $latestInvoice = Invoice::latest('id')->first();
-            $nextInvoiceNumber = $latestInvoice ? intval(substr($latestInvoice->invoice_no, 4)) + 1 : 1;
-            $invoice->invoice_no = 'INV-' . str_pad($nextInvoiceNumber, 5, '0', STR_PAD_LEFT);
+            $invoice->invoice_number = static::generateInvoiceNumber($invoice->type);
         });
     }
 
-    public function user()
+    public static function generateInvoiceNumber($type = 'client')
     {
-        return $this->belongsTo(User::class);
-    }
+        $prefix = match($type) {
+            'client' => 'CLI-INV',
+            'subcontractor' => 'SUB-INV',
+            'security_staff' => 'STAFF-INV',
+            default => 'INV'
+        };
 
-    public function shifts()
-    {
-        return $this->hasMany(Shift::class);
+        $latest = static::where('type', $type)->latest()->first();
+        $number = $latest ? (int) substr($latest->invoice_number, -6) + 1 : 1;
+        
+        return $prefix . '-' . date('Ymd') . '-' . str_pad($number, 6, '0', STR_PAD_LEFT);
     }
-
-    public function adminReview()
-    {
-        return $this->hasOne(InvoiceReview::class);
-    }
-
-    protected $casts = [
-    'start_date' => 'datetime',
-    'end_date' => 'datetime',
-    'submitted_at' => 'datetime',
-    'paid_at' => 'datetime',
-];
 }

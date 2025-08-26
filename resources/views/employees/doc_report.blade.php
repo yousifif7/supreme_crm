@@ -258,4 +258,5 @@ $(document).ready(function() {
         uploadStatusSelect.addEventListener('change', updateExpiryStatusDisabledState);
     });
 </script>
+
 @endsection

@@ -16,12 +16,15 @@ use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\SubContractorController;
+use App\Http\Controllers\IncidentReportController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
@@ -57,6 +60,7 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/conversations/{conversationId}/media', [ChatController::class, 'getConversationMedia'])->name('conversations.media');
 });
 
+
 Route::middleware('auth')->group(function () {
     Route::post('/logout', function () {
         Auth::logout();
@@ -68,6 +72,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
 
     Route::get('incident_report',[IncidentReportController::class,'index'])->name('incident_report.index');
      Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
+
     Route::get('/incident_report/export/pdf', [ExportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
 
 
@@ -140,9 +145,13 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
     /** End: Invoice Controller */
 
     /** Begin: Payroll Controller  */
+    Route::get('/payrolls', [PayrollController::class, 'index'])->name('payrolls.index');
+
+
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
     Route::post('/generatepayroll/{id}', [InvoiceController::class, 'generateSecurityStaffInvoice'])->name('payroll.store');
         Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
+
 
     Route::get('/payrolls/{id}', [PayrollController::class, 'show'])->name('payrolls.show');
     Route::delete('/deletepayroll/{id}', [PayrollController::class, 'delete'])->name('payrolls.delete');
@@ -166,7 +175,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
 
 
     Route::get('settings/restrictions', [SettingController::class, 'index'])->name('restrictions.index');
-Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
+    Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
 
 
 
@@ -189,7 +198,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
-    
+
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
 
@@ -203,7 +212,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
     Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
 
-    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); 
+    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats');
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
 
     /** Begin: Holiday Controller */
@@ -287,6 +296,9 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::delete('/deletedocument/{id}', [DocumentationUploadController::class, 'delete'])->name('documents.delete');
     Route::post('/updatedocument/{id}', [DocumentationUploadController::class, 'update'])->name('documents.update');
     Route::post('/documents/bulk-delete', [DocumentationUploadController::class, 'bulkDelete'])->name('documents.bulkDelete');
+
+    Route::get('documents/report',[DocumentController::class,'report'])->name('documents.report');
+
     //** End: documentation upload controller */
 
     /** Begin: alert and remainder controller */
@@ -297,7 +309,33 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/updatereminder/{id}', [AlertReminderController::class, 'update'])->name('reminders.update');
     Route::post('/reminders/bulk-delete', [AlertReminderController::class, 'bulkDelete'])->name('reminders.bulkDelete');
     //** End: alert and remainder controller */
+
+
+    Route::get('/vehicle_management', [VehicleController::class, 'management'])
+        ->name('vehicle.management');
 });
+
+Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');
+Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterialsPdf'])->name('materials.export.pdf');
+
+Route::post('/materials', [TrainingController::class, 'store'])->name('materials.store');
+Route::get('/materials', [TrainingController::class, 'matsView'])->name('materials.index');
+
+Route::post('/materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
+Route::post('/material/delete', [TrainingController::class, 'delete'])->name('material.delete');
+// Update material (if needed)
+Route::put('materials/{id}', [TrainingController::class, 'update'])->name('materials.update');
+// Delete single material
+Route::delete('materials/{id}', [TrainingController::class, 'destroy'])->name('materials.destroy');
+// Bulk delete
+Route::post('materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
+Route::get('materials/{id}', [TrainingController::class, 'show'])->name('materials.show');
+
+// web.php
+Route::get('/user-map/{userId}', [CheckCallController::class, 'showUserMap'])
+    ->name('user.map');
+Route::get('/locations/latest/{userId}', [CheckCallController::class, 'getLatestLocations']);
+
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
@@ -354,4 +392,16 @@ require __DIR__ . '/auth.php';
 //         ->update(['read' => true]);
 
 //     return 'done';
+// });
+
+
+// Route::get('/push',function(){
+// send_push_notification(
+//     135,
+//     'Test',
+//     'Test notification content.',
+//     ['user_id' => Auth::id()] // ✅ must be object/array
+// );
+
+//         return 'success';
 // });

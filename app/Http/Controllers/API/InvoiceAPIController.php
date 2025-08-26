@@ -103,7 +103,7 @@ class InvoiceAPIController extends Controller
         ]);
     }
 
-    public function getInvoices(Request $request)
+    public function getPayrolls(Request $request)
     {
         $request->validate([
             'status' => 'nullable|in:submitted,under_review,approved,paid',

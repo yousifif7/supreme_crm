@@ -414,6 +414,30 @@
 
         window.addEventListener('resize', updateCalendarView);
         calendar.render();
+        
+        // After calendar.render();
+const params = new URLSearchParams(window.location.search);
+
+if (params.has('shift_date_id')) {
+    const targetId = params.get('shift_date_id');
+
+    // Wait until events are loaded from API
+    calendar.on('eventsSet', function(events) {
+        const targetEvent = events.find(e => e.extendedProps.sd_id == targetId);
+        if (targetEvent) {
+            // Reuse the same eventClick logic
+            const button = document.createElement('button');
+            button.setAttribute('data-toggle', 'ajax-modal');
+            button.setAttribute('data-title', 'Rota Detail');
+            button.setAttribute('data-size', 'modal-xl');
+            button.setAttribute('data-width', '80%');
+            button.setAttribute('data-href', `shifts/${targetEvent.extendedProps.sd_id}`);
+            button.style.display = 'none';
+            document.body.appendChild(button);
+            button.click();
+        }
+    });
+}
         updateCalendarView();
 
         $('#calendarSearch').on('input', function() {
