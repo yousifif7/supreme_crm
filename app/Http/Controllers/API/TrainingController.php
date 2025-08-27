@@ -69,32 +69,34 @@ class TrainingController extends Controller
 
         return response()->json(['message' => 'Acknowledged successfully.']);
     }
+public function store(Request $request)
+{
+    $validated = $request->validate([
+        'title' => 'required|string|max:255',
+        'description' => 'required|string',
+        'pdf_url' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048', // max 2MB
+        'type' => 'required|string',
+        'expiry_date' => 'required|date',
+    ]);
 
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required',
-            'description' => 'required',
-            'pdf_url' => 'nullable|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048',
-            'type' => 'required',
-            'expiry_date' => 'required|date',
-        ]);
+    $filePath = null;
 
-        $path = null;
-        if ($request->hasFile('pdf_url')) {
-            $path = $request->file('pdf_url')->store('materials', 'public');
-        }
+    $filePath = null;
 
-        TrainingMaterial::create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'type' => $request->type,
-            'expiry_date' => $request->expiry_date,
-            'pdf_url' => $path,
-        ]);
-
-       return back()->with('message','Material created successfully');
+    if ($request->hasFile('pdf_url')) {
+        $filePath = $request->file('pdf_url')->store('materials', 'public');
     }
+
+    TrainingMaterial::create([
+        'title' => $validated['title'],
+        'description' => $validated['description'],
+        'type' => $validated['type'],
+        'expiry_date' => $validated['expiry_date'],
+        'pdf_url' => $filePath, // ✅ correct variable
+    ]);
+
+    return back()->with('message', 'Material created successfully');
+}
 
     public function exportMaterialsPdf()
     {
@@ -113,41 +115,49 @@ class TrainingController extends Controller
         return response()->json($material);
     }
 
-public function update(Request $request, $id) {
+    public function update(Request $request, $id)
+    {
         $material = TrainingMaterial::findOrFail($id);
-        $request->validate([
-            'title' => 'required',
-            'description' => 'required',
-            'pdf_url' => 'nullable|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048',
-            'material_type' => 'required',
+
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'pdf_url' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048', // max 2MB
+            'material_type' => 'required|string',
             'expiry_date' => 'required|date',
         ]);
 
-        if ($request->hasFile('pdf_url')) {
-            $material->pdf_url = $request->file('pdf_url')->store('materials', 'public');
-        }
+        // Save file if uploaded
+    $filePath = null;
 
-        $material->update([
-            'title' => $request->title,
-            'description' => $request->description,
-            'material_type' => $request->material_type,
-            'expiry_date' => $request->expiry_date,
-        ]);
+    if ($request->hasFile('pdf_url')) {
+        $filePath = $request->file('pdf_url')->store('materials', 'public');
+    }
+
+    TrainingMaterial::create([
+        'title' => $validated['title'],
+        'description' => $validated['description'],
+        'type' => $validated['type'],
+        'expiry_date' => $validated['expiry_date'],
+        'pdf_url' => $filePath, // ✅ correct variable
+    ]);
 
         return response()->json(['success' => true]);
     }
 
     // Delete single material
-    public function destroy($id) {
+    public function destroy($id)
+    {
         $material = TrainingMaterial::findOrFail($id);
         $material->delete();
         return response()->json(['success' => true]);
     }
 
     // Bulk delete
-    public function bulkDelete(Request $request) {
+    public function bulkDelete(Request $request)
+    {
         $ids = $request->ids;
         TrainingMaterial::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true,'message' => 'Material deleted succesfully']);
+        return response()->json(['success' => true, 'message' => 'Material deleted succesfully']);
     }
 }

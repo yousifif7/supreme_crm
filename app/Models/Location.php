@@ -13,6 +13,7 @@ class Location extends Model
         'accuracy',
         'timestamp',
         'on_duty',
+        'shiftdate_id'
     ];
 
     protected $casts = [
@@ -26,5 +27,10 @@ class Location extends Model
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function shiftdate()
+    {
+        return $this->belongsTo(shiftDate::class,'shiftdate_id');
     }
 }

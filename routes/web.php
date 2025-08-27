@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\ShiftDate;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
@@ -63,8 +64,8 @@ Route::middleware('auth')->group(function () {
 
 
     Route::get('incident_report', [IncidentReportController::class, 'index'])->name('incident_report.index');
-    Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
-    Route::get('/incident_report/export/pdf', [ExportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
+    Route::get('/incident_report/export/excel', [IncidentReportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
+    Route::get('/incident_report/export/pdf', [IncidentReportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
 
 
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
@@ -187,7 +188,7 @@ Route::middleware('auth')->group(function () {
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
 
-    Route::get('/shift/{id}', [ShiftController::class, 'modal']);
+Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
 
     Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');
 
@@ -303,8 +304,8 @@ Route::middleware('auth')->group(function () {
 Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');
 Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterialsPdf'])->name('materials.export.pdf');
 
-Route::post('/materials', [TrainingController::class, 'store'])->name('materials.store');
-Route::get('/materials', [TrainingController::class, 'matsView'])->name('materials.index');
+Route::post('/hr', [TrainingController::class, 'store'])->name('materials.store');
+Route::get('/hr', [TrainingController::class, 'matsView'])->name('materials.index');
 
 Route::post('/materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
 Route::post('/material/delete', [TrainingController::class, 'delete'])->name('material.delete');
@@ -317,10 +318,7 @@ Route::post('materials/bulk-delete', [TrainingController::class, 'bulkDelete'])-
 Route::get('materials/{id}', [TrainingController::class, 'show'])->name('materials.show');
 
 // web.php
-Route::get('/user-map/{userId}', [CheckCallController::class, 'showUserMap'])
-    ->name('user.map');
-Route::get('/locations/latest/{userId}', [CheckCallController::class, 'getLatestLocations']);
-
+Route::get('/shift/{shiftId}/map', [ShiftController::class, 'map'])->name('shift.map');
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
@@ -368,6 +366,14 @@ Route::middleware('auth')->group(function () {
     Route::post('/notifications/mark-selected-read/', [NotificationController::class, 'markSelectedRead'])->name('notifications.markSelectedRead');
 });
 
+
+
+Route::prefix('incidents')->group(function () {
+    Route::get('/', [IncidentReportController::class, 'index'])->name('incidents.index'); // datatable page
+    Route::get('/{id}', [IncidentReportController::class, 'show'])->name('incidents.show'); // show details
+    Route::get('/{id}/edit', [IncidentReportController::class, 'edit'])->name('incidents.edit'); // edit page/modal
+    Route::delete('/{id}', [IncidentReportController::class, 'destroy'])->name('incidents.destroy'); // delete
+});
 
 require __DIR__ . '/auth.php';
 

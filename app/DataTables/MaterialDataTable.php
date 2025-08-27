@@ -18,7 +18,7 @@ public function dataTable($query): EloquentDataTable
         })
         ->addColumn('pdf_url', function ($row) {
             if ($row->pdf_url) {
-                return '<a href="'.asset('storage/'.$row->pdf_url).'" target="_blank"><i class="ti ti-download"></i></a>';
+                return '<a href="'.asset($row->pdf_url).'" target="_blank"><i class="ti ti-download"></i></a>';
             }
             return '—';
         })

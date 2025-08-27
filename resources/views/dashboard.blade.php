@@ -3,26 +3,27 @@
 
 @section('styles')
 
-<style>
-  .user-label {
-    position: absolute;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 14px;
-    font-weight: 600;
-    color: #000;
-    padding: 2px 6px;
-    border-radius: 6px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-    pointer-events: none;
-  }
-  .user-icon {
-    width: 28px;
-    height: 28px;
-    display: inline-block;
-  }
-</style>
+    <style>
+        .user-label {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #000;
+            padding: 2px 6px;
+            border-radius: 6px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+            pointer-events: none;
+        }
+
+        .user-icon {
+            width: 28px;
+            height: 28px;
+            display: inline-block;
+        }
+    </style>
 
 @endsection
 
@@ -50,8 +51,10 @@
                                             class="ti ti-users text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1 fs-16">Total Security Staff</p>
-                                    <h5 class="fs-18">{{ $staffs->count() }}</h5>
+                                    <a href="/employees">
+                                        <p class="fw-medium text-truncate mb-1 fs-16">Total Security Staff</p>
+                                        <h5 class="fs-18">{{ $staffs->count() }}</h5>
+                                    </a>
                                 </div>
                             </div>
 
@@ -67,8 +70,10 @@
                                             class="ti ti-heartbeat text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1 fs-16">Total Clients</p>
-                                    <h5 class="fs-18">{{ $clients->count() }}</h5>
+                                    <a href="/clients">
+                                        <p class="fw-medium text-truncate mb-1 fs-16">Total Clients</p>
+                                        <h5 class="fs-18">{{ $clients->count() }}</h5>
+                                    </a>
                                 </div>
                             </div>
 
@@ -84,8 +89,10 @@
                                             class="ti ti-stairs-up text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1 fs-16">No of Invoice Sent</p>
-                                    <h5 class="fs-18">{{ $invoices->count() }}</h5>
+                                    <a href="/invoices">
+                                        <p class="fw-medium text-truncate mb-1 fs-16">No of Invoice Sent</p>
+                                        <h5 class="fs-18">{{ $invoices->count() }}</h5>
+                                    </a>
                                 </div>
                             </div>
 
@@ -101,11 +108,12 @@
                                             class="ti ti-users-group text-white fs-20"></i></span>
                                 </div>
                                 <div class="ms-3">
-                                    <p class="fw-medium text-truncate mb-1 fs-16 ">Pending Review</p>
-                                    <h5 class="fs-18">{{ $review }}</h5>
+                                    <a href="/shifts">
+                                        <p class="fw-medium text-truncate mb-1 fs-16 ">Assigned shifts</p>
+                                        <h5 class="fs-18">{{ $review }}</h5>
+                                    </a>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
@@ -117,9 +125,6 @@
                             <div class="card-title">Live Tracking</div>
                         </div>
                         <div class="card-body">
-                            <div>
-                                <button class="btn btn-success" id="toggleHeatmap">Toggle Heatmap</button>
-                            </div>
                             <div id="map" style="height: 700px; width: 100%; margin-top: 20px;"></div>
                         </div>
                     </div>
@@ -268,22 +273,13 @@
                                     use Carbon\Carbon;
                                     use App\Models\ShiftDate;
 
-                                    $allShifts = ShiftDate::all();
-
                                     $today = Carbon::today();
                                     $inThreeDays = Carbon::today()->addDays(3);
 
-                                    $upcomingShifts = $allShifts->filter(function ($allShifts) use (
-                                        $today,
-                                        $inThreeDays,
-                                    ) {
-                                        if (!$allShifts->from_shift) {
-                                            return false;
-                                        }
-
-                                        $shiftDate = Carbon::parse($allShifts->from_shift);
-                                        return $shiftDate->between($today, $inThreeDays);
-                                    });
+                                    $upcomingShifts = ShiftDate::whereDate('shift_date', '>=', $today)
+                                        ->whereDate('shift_date', '<=', $inThreeDays)
+                                        ->with('staff') // eager load staff if you want to access it
+                                        ->get();
                                 @endphp
 
                                 <table class="table table-nowrap mb-0">
@@ -298,22 +294,19 @@
                                     </thead>
                                     <tbody>
                                         @forelse ($upcomingShifts as $shift)
-                                            @php
-                                                $from = \Carbon\Carbon::parse($shift->from_shift);
-                                                $start = \Carbon\Carbon::parse($shift->start_shift);
-                                                $end = \Carbon\Carbon::parse($shift->end_shift);
-                                            @endphp
+                                        @php
+                                        $employee= App\Models\User::role('security_staff')->where('id',$shift->staff_id)->first();
+                                        @endphp
                                             <tr class="text-center">
-                                                <td>{{ $from->format('D, M j') }}</td>
-                                                <td>{{ $shift->staff?->fore_name }} {{ $shift->staff?->sur_name }}
-                                                </td>
-                                                <td>{{ $start->format('h:i A') }}</td>
-                                                <td>{{ $shift->break_time }}</td>
-                                                <td>{{ $end->format('h:i A') }}</td>
+                                                <td>{{ Carbon::parse($shift->shift_date)->format('D, M j') }}</td>
+                                                <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                                <td>{{ Carbon::parse($shift->start_time)->format('h:i A') }}</td>
+                                                <td>{{ $shift->break_time ?? '-' }}</td>
+                                                <td>{{ Carbon::parse($shift->end_time)->format('h:i A') }}</td>
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td colspan="5" class="text-center">No upcoming shifts in next 3
+                                                <td colspan="5" class="text-center">No upcoming shifts in the next 3
                                                     days.</td>
                                             </tr>
                                         @endforelse
@@ -592,10 +585,22 @@
                 })
                 .then(data => {
                     if (data.success) {
-                        alert('Status updated!');
-                        location.reload(); // Optional: reload or update DOM
+                        // ✅ Find the row for this check call
+                        const row = document.querySelector(`button[onclick="updateStatus(${id}, 'completed')"]`)
+                            ?.closest('tr');
+                        if (row) {
+                            // Update the Status column (4th column, index 3)
+                            row.cells[3].textContent = status.charAt(0).toUpperCase() + status.slice(1);
+
+                            // Remove Completed/Missed buttons if needed
+                            const actionBtns = row.querySelectorAll('button.btn-success, button.btn-danger');
+                            actionBtns.forEach(btn => btn.remove());
+                        }
+
+                        // Optional: show a notification
+                        alert('Status successfully updated!');
                     } else {
-                        alert('Failed to update status');
+                        alert('Failed to update status.');
                     }
                 })
                 .catch(error => {
@@ -693,171 +698,139 @@
 
 
 
-<script>
-const locations = @json($locations ?? []);
-// id -> icon path
-const iconByServiceId = {
-  1: '/guard_icons/alarm_response.svg',
-  2: '/guard_icons/doghandlers.svg',
-  3: '/guard_icons/event_staff.svg',
-  4: '/guard_icons/key_holding.svg',
-  5: '/guard_icons/mobile_patrol.svg',
-  6: '/guard_icons/static_guard.svg',
-  7: '/guard_icons/fire_warden.svg',
-  8: '/guard_icons/close_protection.svg',
-};
-// id -> human name
-const nameByServiceId = {
-  1: 'Alarm Response',
-  2: 'Doghandlers',
-  3: 'Event Staff',
-  4: 'Keyholding',
-  5: 'Mobile Petrol',
-  6: 'Static Guards',
-  7: 'Fire Warden',
-  8: 'Close Protection',
-};
+    <script>
+        const locations = @json($locations ?? []);
 
-let map;
-let heatmap;
-let allHeatPoints = [];
-let userMarkers = [];
-let markerLabels = [];
-let currentInfoWindow = null;
+        const iconByServiceId = {
+            1: '/guard_icons/alarm_response.svg',
+            2: '/guard_icons/doghandlers.svg',
+            3: '/guard_icons/event_staff.svg',
+            4: '/guard_icons/key_holding.svg',
+            5: '/guard_icons/mobile_patrol.svg',
+            6: '/guard_icons/static_guard.svg',
+            7: '/guard_icons/fire_warden.svg',
+            8: '/guard_icons/close_protection.svg',
+        };
 
-function initMap() {
-  map = new google.maps.Map(document.getElementById("map"), {
-    zoom: 4,
-    center: { lat: 0, lng: 0 },
-  });
+        const nameByServiceId = {
+            1: 'Alarm Response',
+            2: 'Doghandlers',
+            3: 'Event Staff',
+            4: 'Keyholding',
+            5: 'Mobile Patrol',
+            6: 'Static Guards',
+            7: 'Fire Warden',
+            8: 'Close Protection',
+        };
 
-  const bounds = new google.maps.LatLngBounds();
-  if (!locations.length) return;
+        let map;
+        let userMarkers = [];
+        let markerLabels = [];
+        let currentInfoWindow = null;
 
-  const locationsByUser = {};
-  // group by user
-  locations.forEach(loc => {
-    if (!loc.user_id || isNaN(parseFloat(loc.latitude)) || isNaN(parseFloat(loc.longitude))) return;
-    const latLng = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
-    (locationsByUser[loc.user_id] ||= []).push({ latLng, loc });
-  });
+        function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 4,
+                center: {
+                    lat: 0,
+                    lng: 0
+                },
+            });
 
-  Object.keys(locationsByUser).forEach(userId => {
-    const userLocations = locationsByUser[userId];
+            const bounds = new google.maps.LatLngBounds();
 
-    // sort by time to build heat trail
-    userLocations.sort((a, b) => new Date(a.loc.timestamp) - new Date(b.loc.timestamp));
+            locations.forEach(loc => {
+                if (!loc.user_id || isNaN(parseFloat(loc.latitude)) || isNaN(parseFloat(loc.longitude))) return;
 
-    // trail points
-    for (let i = 0; i < userLocations.length - 1; i++) {
-      const start = userLocations[i].latLng;
-      const end = userLocations[i + 1].latLng;
-      const steps = 30;
-      for (let s = 0; s <= steps; s++) {
-        const lat = start.lat() + (end.lat() - start.lat()) * (s / steps);
-        const lng = start.lng() + (end.lng() - start.lng()) * (s / steps);
-        allHeatPoints.push(new google.maps.LatLng(lat, lng));
-      }
-    }
+                const latLng = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
+                const username = `${loc.user.first_name} ${loc.user.last_name}` ?? 'Unknown';
+                const serviceTypeId = loc.service_type_id ?? 6; // default static guard
+                const iconUrl = iconByServiceId[serviceTypeId];
+                const serviceTypeName = nameByServiceId[serviceTypeId];
 
-    // markers + labels
-    userLocations.forEach(item => {
-      const l = item.loc;
-      const username = l.user?.name ?? 'Unknown';
-      const serviceTypeId = l.service_type_id ?? null;  // <— comes from backend now
-      const iconUrl = iconByServiceId[serviceTypeId] || iconByServiceId[6]; // default static guard
-      const serviceTypeName = nameByServiceId[serviceTypeId] || 'Static Guards';
+                // Marker
+                const marker = new google.maps.Marker({
+                    position: latLng,
+                    map,
+                    title: username,
+                    icon: {
+                        url: iconUrl,
+                        scaledSize: new google.maps.Size(50, 50), // adjust size
+                        scaledSize: new google.maps.Size(80, 80), // bigger icon
+                        origin: new google.maps.Point(0, 0),
+                        anchor: new google.maps.Point(30, 60) // bottom center for bigger icon
+                    }
+                });
 
-      const marker = new google.maps.Marker({
-        position: item.latLng,
-        map,
-        title: username,
-      });
-      marker.userId = userId;
+                // Label overlay
+                const labelDiv = document.createElement("div");
+                labelDiv.className = "user-label";
+                labelDiv.innerHTML = `<span style="margin-left:10px;">${username}</span>`; // padding
 
-      // label overlay
-      const labelDiv = document.createElement("div");
-      labelDiv.className = "user-label";
-      labelDiv.innerHTML = `
-        <img src="${iconUrl}" class="user-icon" alt="${serviceTypeName}">
-        <span>${username}</span>
-      `;
+                const label = new google.maps.OverlayView();
+                label.onAdd = function() {
+                    this.getPanes().overlayImage.appendChild(labelDiv);
+                };
+                label.draw = function() {
+                    const projection = this.getProjection();
+                    const pos = projection.fromLatLngToDivPixel(marker.getPosition());
+                    if (pos) {
+                        labelDiv.style.left = (pos.x) + "px";
+                        labelDiv.style.top = (pos.y - 40) + "px"; // above icon
+                    }
+                };
+                label.onRemove = function() {
+                    if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
+                };
+                label.setMap(map);
 
-      const label = new google.maps.OverlayView();
-      label.onAdd = function() {
-        this.getPanes().overlayImage.appendChild(labelDiv);
-      };
-      label.draw = function() {
-        const projection = this.getProjection();
-        const pos = projection.fromLatLngToDivPixel(marker.getPosition());
-        if (pos) {
-          labelDiv.style.left = (pos.x - labelDiv.offsetWidth / 2) + "px";
-          labelDiv.style.top = (pos.y - 36) + "px";
-        }
-      };
-      label.onRemove = function() {
-        if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
-      };
-      label.setMap(map);
-      markerLabels.push(label);
+                marker.addListener("click", () => {
+                    if (currentInfoWindow) currentInfoWindow.close();
 
-      marker.addListener("click", () => {
-        if (currentInfoWindow) currentInfoWindow.close();
-        // hide others while open
-        userMarkers.forEach(m => m.setMap(null));
-        markerLabels.forEach(lbl => lbl.setMap(null));
-
-        currentInfoWindow = new google.maps.InfoWindow({
-          content: `
-            <div style="min-width:220px">
-              <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                <img src="${iconUrl}" class="user-icon" alt="${serviceTypeName}">
-                <div>
-                  <div><strong>${username}</strong></div>
-                  <div style="font-size:12px;color:#444;">${serviceTypeName}</div>
-                </div>
-              </div>
-              <div style="font-size:12px;line-height:1.4;">
-                <div><strong>Accuracy:</strong> ${l.accuracy ?? 'N/A'} m</div>
-                <div><strong>On Duty:</strong> ${l.on_duty ? 'Yes' : 'No'}</div>
-                <div><strong>Timestamp:</strong> ${l.timestamp ?? ''}</div>
+                    currentInfoWindow = new google.maps.InfoWindow({
+                        content: `
+          <div style="min-width:220px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+              <img src="${iconUrl}" class="user-icon" alt="${serviceTypeName}" width="32" height="32">
+              <div>
+                <div><strong>${username}</strong></div>
+                <div style="font-size:12px;color:#444;">${serviceTypeName}</div>
               </div>
             </div>
-          `,
-          position: item.latLng,
-        });
-        currentInfoWindow.open(map);
+            <div style="font-size:12px;line-height:1.4;">
+              <div><strong>Accuracy:</strong> ${loc.accuracy ?? 'N/A'} m</div>
+              <div><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>
+              <div><strong>Timestamp:</strong> ${loc.timestamp ?? ''}</div>
+            </div>
+          </div>
+        `,
+                        position: latLng
+                    });
+                    currentInfoWindow.open(map);
 
-        currentInfoWindow.addListener("closeclick", () => {
-          userMarkers.forEach(m => m.setMap(map));
-          markerLabels.forEach(lbl => lbl.setMap(map));
-          currentInfoWindow = null;
-        });
-      });
+                    currentInfoWindow.addListener("closeclick", () => {
+                        currentInfoWindow = null;
+                    });
+                });
 
-      userMarkers.push(marker);
-      bounds.extend(item.latLng);
-    });
-  });
+                userMarkers.push(marker);
+                markerLabels.push(label);
+                bounds.extend(latLng);
+            });
 
-  heatmap = new google.maps.visualization.HeatmapLayer({
-    data: allHeatPoints,
-    radius: 15,
-    opacity: 0.8,
-    dissipating: true,
-    map,
-  });
+            map.fitBounds(bounds);
+        }
+    </script>
 
-  map.fitBounds(bounds);
-
-  const toggleBtn = document.getElementById("toggleHeatmap");
-  if (toggleBtn) {
-    toggleBtn.addEventListener("click", () => {
-      heatmap.setMap(heatmap.getMap() ? null : map);
-    });
-  }
-}
-</script>
+    <style>
+        .user-label {
+            position: absolute;
+            font-weight: bold;
+            color: red;
+            white-space: nowrap;
+            pointer-events: none;
+        }
+    </style>
 
 
     <!-- Google Maps JS API (with Visualization library for heatmap) -->

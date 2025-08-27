@@ -30,8 +30,9 @@ class ShiftApiController extends Controller
         $limit = $request->query('limit', 10);
 
         $shiftDates = ShiftDate::with('shift')
+        ->where('staff_id', Auth::id())
             ->where('shift_date', '>=', now()->toDateString())
-            ->where('staff_id', Auth::id())
+            ->orWhere('status','booked_on')
             ->orderBy('shift_date')
             ->paginate($limit);
 
@@ -168,6 +169,30 @@ class ShiftApiController extends Controller
         return response()->json([
             'message' => 'Leave request submitted',
             'leave_id' => $leave->id,
+        ]);
+    }
+
+    public function showLeaves(){
+        $leaves = LeaveRequest::where('user_id',Auth::id())->get()->paginate(10);
+
+            return response()->json([
+            'leaves' => $leaves->map(fn($l) => [
+                'id' => $l->id,
+                'type' => $l->type,
+                'status' => $l->status,
+                'reason' => $l->reason,
+                'start_date' => $l->start_date,
+                'end_date' => $l->end_date,
+                'location' => json_decode($l->location),
+                'timestamp' => $l->timestamp,
+                'created_at' => $l->created_at,
+                'updated_at' => $l->updated_at,
+            ]),
+            'pagination' => [
+                'current_page' => $leaves->currentPage(),
+                'total_pages' => $leaves->lastPage(),
+                'total' => $leaves->total(),
+            ]
         ]);
     }
 

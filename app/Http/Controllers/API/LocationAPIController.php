@@ -19,6 +19,7 @@ class LocationAPIController extends Controller
             'accuracy' => 'required|numeric',
             'timestamp' => 'required|date',
             'on_duty' => 'required|boolean',
+            'shiftdate_id' => 'nullable',
         ]);
 
         $location = Location::create([
@@ -28,6 +29,7 @@ class LocationAPIController extends Controller
             'accuracy' => $validated['accuracy'],
             'timestamp' => $validated['timestamp'],
             'on_duty' => $validated['on_duty'],
+            'shiftdate_id' => $validated['shift_id'],
         ]);
 
         return response()->json(['status' => 'success', 'location_id' => $location->id]);
