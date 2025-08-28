@@ -30,6 +30,8 @@ Route::get('/shifts-today', [ShiftController::class, 'getTodayShifts']);
 Route::get('/client/{id}', [ShiftController::class, 'getClient']);
 Route::get('/staff/{id}', [ShiftController::class, 'getStaff']);
 
+Route::get('/shift/{shiftId}/locations', [ShiftController::class, 'shiftLocations'])->name('shift.locations');
+
 //API routes for authentication api
 Route::prefix('auth')->group(function () {
     //Auth controller routes
@@ -63,6 +65,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/upcoming', [ShiftApiController::class, 'getUpcomingShifts']);
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
+    Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);
     Route::post('/shifts/{shift_id}/acknowledge-documents', [ShiftApiController::class, 'acknowledgeDocuments']);
 
     Route::post('/shifts/{shiftDate_id}/book-on', [ShiftApiController::class, 'bookOn']);
@@ -80,8 +83,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/{shift_id}/check-calls', [CheckCallController::class, 'getCheckCalls']);
     Route::post('/check-calls/{check_call_id}/complete', [CheckCallController::class, 'completeCheckCall']);
     Route::get('/alarms/check-calls', [CheckCallController::class, 'getCheckCallAlarms']);
+    Route::post('/check-calls/phone-complete', [CheckCallController::class, 'phoneComplete']);
+
 });
-Route::post('/check-calls/phone-complete', [CheckCallController::class, 'phoneComplete']);
 
 //Patrols api controller routes
 //Should be authenticated

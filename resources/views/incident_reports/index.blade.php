@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM - Client')
+@section('title', 'CRM - Incident Reports')
 @section('contents')
     <!-- Page Wrapper -->
     <div class="page-wrapper">
@@ -88,40 +88,102 @@
 
     </div>
 
+
+    <!-- View Modal -->
+<div class="modal fade" id="incidentModal" tabindex="-1" aria-labelledby="incidentModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="incidentModalLabel">Incident Details</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="incidentModalBody">
+        <!-- Incident details will be loaded here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteIncidentModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title">Delete Incident</h5></div>
+      <div class="modal-body">Are you sure you want to delete this incident?</div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="confirmDeleteIncidentBtn" type="button" class="btn btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
     <script>
 
-        let selectedId = null;
+let selectedIncidentId = null;
 
-        function deleteClient(record_id) {
-            selectedId = record_id;
-            $('#delete_modal').modal('show');
+// SHOW INCIDENT
+function showIncident(id) {
+    $.ajax({
+        url: '/incidents/' + id, // make sure your route exists
+        type: 'GET',
+        success: function(res) {
+            let html = `
+                <p><strong>Title:</strong> ${res.title}</p>
+                <p><strong>Category:</strong> ${res.category}</p>
+                <p><strong>Severity:</strong> ${res.severity}</p>
+                <p><strong>Description:</strong> ${res.description}</p>
+                <p><strong>Location:</strong> ${res.location.address}</p>
+                <p><strong>Police Notified:</strong> ${res.police_notified ? 'Yes' : 'No'}</p>
+                <p><strong>Files:</strong></p>
+                <ul>
+                    ${res.media.map(file => `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
+                </ul>
+            `;
+            $('#incidentModalBody').html(html);
+            $('#incidentModal').modal('show');
+        },
+        error: function(err) {
+            alert('Unable to fetch incident details.');
         }
+    });
+}
+// EDIT INCIDENT
+function editIncident(id) {
+    // Example: open edit page in new tab or same window
+    window.location.href = `/incidents/${id}/edit`; // Replace with your edit route
+}
 
-        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
-            if (selectedId !== null) {
-                $.ajax({
-                    url: `${baseUrl}/deleteclient/${selectedId}`,
-                    type: 'DELETE',
-                    headers: {
-                        'X-CSRF-TOKEN': '{{ csrf_token() }}'
-                    },
-                    success: function(response) {
-                        closeBsModal('#delete_modal');
-
-                        toast_success('Client Deleted Successfully!');
-                        reloadDatatable('#clients-table');
-                    },
-                    error: function(xhr) {
-                        closeBsModal('#delete_modal');
-                        toast_danger('Something went wrong. Please try again.');
-                    }
-                });
+// DELETE INCIDENT
+function deleteIncident(id) {
+    selectedIncidentId = id;
+    if(confirm('Are you sure you want to delete this incident?')) {
+        $.ajax({
+            url: `/incidents/${id}`, // Replace with your delete route
+            type: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}' // CSRF token
+            },
+            success: function(response) {
+                alert('Incident deleted successfully!');
+                $('#incident_reports-table').DataTable().ajax.reload(); // reload DataTable
+            },
+            error: function(xhr) {
+                alert('Failed to delete incident.');
             }
         });
+    }
+}
 
+// OPTIONAL: Close modal programmatically
+function closeIncidentModal() {
+    $('#incidentModal').modal('hide');
+}
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
             const selected = $('.dT-row-checkbox:checked').map(function() {

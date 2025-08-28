@@ -18,6 +18,7 @@ use App\Models\BookingAlarm;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\DataTables\UsersDataTable;
+use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
@@ -148,12 +149,15 @@ class UserController extends Controller
         }
 
     $locations = Location::with([
-            'user:id,name',
+            'user:id,first_name,last_name',
             'user.employee:id,user_id,service_type',
         ])
-        ->whereNotNull('user_id')
-        ->whereHas('user')            // only locations with a valid user
-        ->whereHas('user.employee')   // only users that have an employee row
+        ->whereIn('id', function ($query) {
+            $query->select(DB::raw('MAX(id)'))
+                ->from('locations')
+                ->whereNotNull('user_id')
+                ->groupBy('user_id');
+        })
         ->get()
         ->map(function ($l) {
             return [
@@ -166,13 +170,12 @@ class UserController extends Controller
                 'timestamp' => optional($l->created_at)->toDateTimeString(),
                 'user' => [
                     'id' => optional($l->user)->id,
-                    'name' => optional($l->user)->name ?? 'Unknown',
+                    'first_name' => optional($l->user)->first_name ?? 'Unknown',
+                    'last_name' => optional($l->user)->last_name ?? '',
                 ],
-                // THIS is the key bit the front-end needs:
-                'service_type_id' => optional(optional($l->user)->employee)->service_type, // e.g. 1..8
+                'service_type_id' => optional(optional($l->user)->employee)->service_type,
             ];
         });
-        
         $apiKey = env('GOOGLE_MAPS_API_KEY');
         return view('dashboard', compact('apiKey','siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
     }

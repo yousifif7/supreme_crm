@@ -6,12 +6,13 @@ use Carbon\Carbon;
 use App\Models\Employee;
 use App\Models\Location;
 use App\Models\CheckCall;
+use App\Models\ShiftDate;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\CheckCallMedia;
 use App\Http\Controllers\Controller;
-use Illuminate\Auth\Events\Validated;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Auth\Events\Validated;
 use Illuminate\Support\Facades\Storage;
 
 class CheckCallController extends Controller
@@ -40,17 +41,21 @@ class CheckCallController extends Controller
 
         $checkCall = CheckCall::findOrFail($id);
 
-        // Save media
-        if ($request->has('media_files')) {
-            foreach ($request->media_files as $base64) {
-                $filename = 'check_calls/' . uniqid() . '.jpg';
-                Storage::put($filename, base64_decode($base64));
-                CheckCallMedia::create([
-                    'check_call_id' => $checkCall->id,
-                    'file_path' => $filename,
-                ]);
-            }
-        }
+
+  // Save media
+if ($request->hasFile('media_file')) {
+    // Generate unique name
+    $filename = uniqid() . '.' . $request->file('media_file')->getClientOriginalExtension();
+
+    // Move file to public/check_calls
+    $request->file('media_file')->move(public_path('check_calls'), $filename);
+
+    // Save relative path in DB
+    CheckCallMedia::create([
+        'check_call_id' => $checkCall->id,
+        'file_path' => 'check_calls/' . $filename,
+    ]);
+}
 
         $employee = Employee::where('user_id', Auth::id())->first();
 
@@ -75,6 +80,14 @@ class CheckCallController extends Controller
             'message' => 'Guard ' . $employee->fore_name . ' ' . $employee->sur_name . ' Completed checkcall ' . $checkCall->name,
             'read' => false,
             'action_url' => "/scheduling"
+        ]);
+
+        Notification::create([
+            'user_id' => null,
+            'employee_id' => $employee->id,
+            'type' => 'alert',
+            'title' => 'Checkcall completed',
+            'message' => 'You have completed your check call successfully ',
         ]);
 
         return response()->json(['message' => 'Check call completed']);
@@ -139,23 +152,5 @@ class CheckCallController extends Controller
     {
         CheckCall::findOrFail($id)->delete();
         return response()->json(['success' => true]);
-    }
-
-    public function showUserMap($userId)
-    {
-        $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('map', compact('userId', 'apiKey'));
-    }
-
-    public function getLatestLocations($userId)
-    {
-        $oneHourAgo = Carbon::now()->subHour();
-
-        $locations = Location::where('user_id', $userId)
-            ->where('created_at', '>=', $oneHourAgo)
-            ->orderBy('created_at', 'asc')
-            ->get(['latitude', 'longitude', 'created_at']);
-
-        return response()->json($locations);
     }
 }

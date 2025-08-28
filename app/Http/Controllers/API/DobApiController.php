@@ -72,8 +72,8 @@ class DobApiController extends Controller
 
             send_push_notification(
                 $user->id,
-                'You uploaded a document',
-                'Your Document has been uploaded succesfully.',
+                'You uploaded a DOB',
+                'Your DOB has been uploaded succesfully.',
                 ['employee' => $employee->id],
             );
 
@@ -83,7 +83,7 @@ class DobApiController extends Controller
         ], 201);
     }
 
-    public function index(Request $req)
+    public function obindex(Request $req)
     {
         $q = DobEntry::with('media')
             ->where('user_id', Auth::id());

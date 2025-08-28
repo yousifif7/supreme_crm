@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
 use App\Models\Employee;
+use App\Models\Location;
 use Carbon\CarbonPeriod;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
@@ -1183,10 +1184,30 @@ class ShiftController extends Controller
         ]);
     }
 
-    // Opening shift modal via notifications
-    public function modal($id)
-    {
-        $shiftDate = Shift::findOrFail($id);
-        return redirect("/shifts");
-    }
+public function map($shiftId)
+{
+    $shift = ShiftDate::findOrFail($shiftId);
+
+    // staff_id is the user assigned to this shift
+    $userId = $shift->staff_id;
+
+    return view('map', compact('shift', 'userId'));
+}
+
+public function shiftLocations($shiftId)
+{
+    $shift = ShiftDate::findOrFail($shiftId);
+    $userId = $shift->staff_id;
+
+    // Combine shift date with start_time and end_time to get full datetime
+    $startDateTime = Carbon::parse($shift->shift_date . ' ' . $shift->start_time, 'Europe/London')->setTimezone('UTC');
+    $endDateTime   = Carbon::parse($shift->shift_date . ' ' . $shift->end_time, 'Europe/London')->setTimezone('UTC');
+
+    $locations = \App\Models\Location::
+    whereBetween('created_at', [$startDateTime, $endDateTime])
+        ->orderBy('created_at')
+        ->get(['latitude', 'longitude', 'created_at']);
+
+    return response()->json($locations);
+}
 }

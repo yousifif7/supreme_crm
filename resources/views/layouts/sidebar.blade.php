@@ -124,22 +124,12 @@
                             </li>
                         @endcan
 
-                        @can('Read Vehicle Management')
-                            <li class="submenu">
-                                <a href="javascript:void(0);"
-                                    class="{{ request()->is('vehicle_management') ? 'subdrop' : '' }}">
-                                    <i class="ti ti-search"></i>
-                                    <span>Vehicle Management</span>
-                                    <span class="menu-arrow"></span>
-                                </a>
-                                <ul style="display: {{ request()->is('vehicle_management') ? 'block' : 'none' }};">
-                                    <li class="{{ request()->is('vehicle_management') ? 'active' : '' }}">
-                                        <a href="{{ route('vehicle.management') }}">
-                                            <i class="ti ti-reorder"></i>Vehicle Managment </a>
-                                    </li>
-                                </ul>
-                            </li>
-                        @endcan
+                        <li class="{{ request()->is('vehicle_management*') ? 'active' : '' }}">
+                            <a href="{{ route('vehicle.management') }}">
+                                <i class="ti ti-reorder"></i>
+                                <span>Vehicle Management </span>
+                            </a>
+                        </li>
 
                         <li class="submenu">
                             <a href="javascript:void(0);"
@@ -150,7 +140,8 @@
                             </a>
 
                             <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
-                                <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a href="{{ route('documents.report') }}"><i
+                                <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a
+                                        href="{{ route('documents.report') }}"><i
                                             class="fa-solid fa-file-import"></i>Document Report</a></li>
 
                                 <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
@@ -190,8 +181,8 @@
                             </a>
                         </li>
 
-                        <li class="{{ request()->is('materials*') ? 'active' : '' }}">
-                            <a href="{{ url('materials') }}">
+                        <li class="{{ request()->is('hr*') ? 'active' : '' }}">
+                            <a href="{{ url('hr') }}">
                                 <i class="fa fa-phone"></i>
                                 <span>HR</span>
                             </a>

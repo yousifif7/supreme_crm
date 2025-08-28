@@ -5,10 +5,8 @@
                 role="tab" aria-controls="basic-info2" aria-selected="true">Rota Detail</button>
             <button class="nav-link" id="address-tab2" data-bs-toggle="tab" data-bs-target="#address2" type="button"
                 role="tab" aria-controls="address2" aria-selected="false">Office Validation</button>
-
             <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2" type="button"
                 role="tab" aria-controls="logs2" aria-selected="false">Logs</button>
-
             <button class="nav-link" id="checkcalls-tab2" data-bs-toggle="tab" data-bs-target="#checkcalls"
                 type="button" role="tab" aria-controls="checkcalls" aria-selected="false">Check Calls</button>
         </div>
@@ -23,7 +21,8 @@
             </div>
         </div>
     </div>
-
+    <input type="hidden" name="shift_id" value="{{ $shiftDate->id }}">
+    <input type="hidden" name="user_id" value="{{ $shiftDate->staff->id ?? '' }}">
 
     <div class="tab-content rota-detail_tab-content" id="myTabContent2">
         <div class="tab-pane fade show active" id="basic-info2" role="tabpanel" aria-labelledby="info-tab2">
@@ -160,6 +159,20 @@
                             </form>
                         </div>
                     </div>
+                    @if($shiftDate->staff_id)
+                        @php
+                        // $employee= App\Models\Employee::find($shiftDate->staff_id);
+                        $user= App\Models\User::role('security_staff')->where('id',$shiftDate->staff_id)->first();
+                        @endphp
+                    <div class="col-md-6 col-12">
+                        <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
+                            <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"
+                                class="btn btn-primary" target="_blank">
+                                View Heatmap
+                            </a>
+                        </div>
+                    </div>
+                    @endif
                 </div>
             </div>
         </div>
@@ -363,7 +376,7 @@
                                 </td>
                                 <td>
                                     @forelse ($checkCallMedia as $media)
-                                        <a href="{{ asset('storage/' . $media->file_path) }}" target="_blank"
+                                        <a href="{{ asset($media->file_path) }}" target="_blank"
                                             class="btn btn-sm btn-primary">
                                             View File
                                         </a><br>
@@ -383,12 +396,6 @@
                                         data-id="{{ $checkcall->id }}">
                                         Delete
                                     </button>
-                                    @if ($checkcall->status == 'completed' && $employee?->user_id)
-                                        <a href="{{ route('user.map', ['userId' => $employee->user_id]) }}"
-                                            target="_blank" class="btn btn-info btn-sm">
-                                            View Map
-                                        </a>
-                                    @endif
                                 </td>
                             </tr>
                         @endforeach
@@ -547,7 +554,6 @@
             }
         });
     });
-
 </script>
 
 <style>
@@ -663,3 +669,6 @@
         }
     }
 </style>
+
+<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"
+    async defer></script>
