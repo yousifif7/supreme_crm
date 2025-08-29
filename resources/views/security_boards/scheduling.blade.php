@@ -57,6 +57,7 @@
             background-color: #fff;
             border-right: 1px solid #dee2e6;
             display: flex;
+            font-style: bold;
             flex-direction: column;
             justify-content: center;
         }
@@ -762,7 +763,7 @@
                                     style="left: ${left}%; width: ${width}%;"
                                     data-shift-id="${shift.id}"
                                     title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
-                                    ${shift.title}<br>${shift.formatted_time}<br>${shift.client_name}<br>${shift.staff_name}
+                                    ${shift.title}<br>${shift.formatted_time}<br>${shift.duration}<br>${shift.staff_name}
                                 </div>
                             `);
 
