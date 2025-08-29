@@ -858,6 +858,7 @@
                             const container = document.createElement('div');
                             container.style.backgroundColor = bgColor;
                             container.style.padding = '5px';
+                            container.style.margin = '5px';
                             container.style.borderRadius = '6px';
                             container.style.fontSize = '12px';
                             container.style.color = (bgColor === '#F8F9FA') ? '#000' : '#000';

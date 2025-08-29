@@ -148,7 +148,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
 
 
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
-    Route::post('/generatepayroll/{id}', [InvoiceController::class, 'generateSecurityStaffInvoice'])->name('payroll.store');
+    Route::post('/generatepayroll', [PayrollController::class, 'store'])->name('payroll.store');
         Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
 
 

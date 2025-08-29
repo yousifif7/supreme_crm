@@ -20,14 +20,10 @@ class PayrollsDataTable extends DataTable
                 '<input type="checkbox" class="dT-row-checkbox" value="' . $row->id . '">'
             )
             ->addColumn('number', fn($row) => '')
-            ->addColumn('payroll_no', function ($row) {
-                return '<div class="d-flex align-items-center file-name-icon">
-                            <div class="ms-2">
-                                <h6 class="fw-medium"><a href="' . route('payrolls.show', $row->id) . '">' . $row->invoice_no . '</a></h6>
-                            </div>
-                        </div>';
-            })
-            ->addColumn('employee_name', fn($row) => $row->employee ? $row->employee->fore_name.' '. $row->employee->sur_name : '')
+->addColumn('payroll_no', function ($row) {
+    return '<a href="' . route('payrolls.show', $row->id) . '">' . $row->invoice_number . '</a>';
+})
+            ->addColumn('employee_name', fn($row) => $row->employee ? $row->employee->fore_name . ' ' . $row->employee->sur_name : '')
             ->addColumn('site_name', fn($row) => $row->site ? $row->site->site_name : '')
             ->addColumn('action', fn($row) => view('invoices.action', compact('row'))->render())
             ->rawColumns(['checkbox', 'number', 'payroll_no', 'action']);
@@ -81,7 +77,7 @@ class PayrollsDataTable extends DataTable
             Column::computed('number')->title('#')->width(30)
                 ->addClass('px-2')->orderable(false)->searchable(false),
 
-            Column::make('invoice_number')->title('Payroll No')->addClass('ps-0'),
+            Column::computed('payroll_no')->title('Payroll No')->addClass('ps-0'),
             Column::make('employee_name')->title('Employee Name'),
             Column::make('site_name')->title('Site Name'),
             Column::make('issue_date')->title('Issue Date'),

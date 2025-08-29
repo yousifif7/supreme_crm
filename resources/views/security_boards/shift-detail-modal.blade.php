@@ -85,8 +85,11 @@
                                     </span>
                                 </div>
                                 <div class="box">
+                                    @php
+                                    $client = App\Models\User::find($shiftDate->shift->client_id);
+                                    @endphp
                                     <h6>Customer</h6>
-                                    <span id="client_name">{{ $shiftDate->shift->client->client_name ?? '' }}</span>
+                                    <span id="client_name">{{ $client->name ?? '' }}</span>
                                 </div>
                                 <div class="box">
                                     <h6>Site Name</h6>

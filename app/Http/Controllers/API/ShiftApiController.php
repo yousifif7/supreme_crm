@@ -25,16 +25,13 @@ class ShiftApiController extends Controller
     // 10. Get Upcoming Shifts
     public function getUpcomingShifts(Request $request)
     {
-        // $employee = Employee::where('user_id', Auth::id())->first();
+        $employee = Employee::where('user_id', Auth::id())->first();
 
         $limit = $request->query('limit', 10);
 
         $shiftDates = ShiftDate::with('shift')
-            ->where('staff_id', Auth::id())
-            ->where(function ($query) {
-                $query->where('shift_date', '>=', now()->toDateString())
-                    ->orWhere('status', 'booked_on');
-            })
+            ->where('shift_date', '>=', now()->toDateString())
+            ->where('staff_id', auth::id())
             ->orderBy('shift_date')
             ->paginate($limit);
 
@@ -70,6 +67,8 @@ class ShiftApiController extends Controller
             ],
         ]);
     }
+
+    // 11. Accept/Decline Shift
     public function respondToShift(Request $request, $shift_id)
     {
         $request->validate([
@@ -80,7 +79,7 @@ class ShiftApiController extends Controller
         $employee = Employee::where('user_id', Auth::id())->first();
 
         $shift = ShiftDate::where('id', $shift_id)
-            ->where('staff_id', Auth::id())
+            ->where('staff_id', auth::id())
             ->first();
 
         if (!$shift) {
@@ -89,11 +88,9 @@ class ShiftApiController extends Controller
             ]);
         }
 
-
         // check if shift status is dispatched
         if ($shift->is_assign == 1) {
             if ($request->response == 'accept') {
-                $shift->status = 'accepted';
                 $shift->is_assign = 2; //accept shift
                 $shift->save();
 
@@ -101,7 +98,6 @@ class ShiftApiController extends Controller
                     'message' => 'Shift date Accepted successfully!',
                 ]);
             } elseif ($request->response == 'decline') {
-                $shift->status = 'declined';
                 $shift->is_assign = 5; //reject shift
                 // $shift->reason = $request->reason ?? null;
                 $shift->save();
@@ -141,28 +137,11 @@ class ShiftApiController extends Controller
 
         $employee = Employee::where('user_id', Auth::id())->first();
         Notify::toDashboard(
-            null,
+            auth::id(),
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            '/leaves'
-        );
-
-        Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => $employee->id,
-            'type' => 'alert',
-            'title' => 'Leave Request',
-            'message' => 'You have submiited a leave request',
-            'read' => false,
-        ]);
-
-
-        send_push_notification(
-            $employee->user_id,
-            'Leave request submitted',
-            'You have submitted a leave request.',
-            ['leave' => $leave],
+            'leaves'
         );
 
 
@@ -171,31 +150,31 @@ class ShiftApiController extends Controller
             'leave_id' => $leave->id,
         ]);
     }
-
+    
     public function showLeaves()
-    {
-        $leaves = LeaveRequest::where('user_id', Auth::id())->get()->paginate(10);
+{
+    $leaves = LeaveRequest::where('user_id', Auth::id())->paginate(10);
 
-        return response()->json([
-            'leaves' => $leaves->map(fn($l) => [
-                'id' => $l->id,
-                'type' => $l->type,
-                'status' => $l->status,
-                'reason' => $l->reason,
-                'start_date' => $l->start_date,
-                'end_date' => $l->end_date,
-                'location' => json_decode($l->location),
-                'timestamp' => $l->timestamp,
-                'created_at' => $l->created_at,
-                'updated_at' => $l->updated_at,
-            ]),
-            'pagination' => [
-                'current_page' => $leaves->currentPage(),
-                'total_pages' => $leaves->lastPage(),
-                'total' => $leaves->total(),
-            ]
-        ]);
-    }
+    return response()->json([
+        'leaves' => $leaves->map(fn($l) => [
+            'id' => $l->id,
+            'type' => $l->type,
+            'status' => $l->status,
+            'reason' => $l->reason,
+            'start_date' => $l->start_date,
+            'end_date' => $l->end_date,
+            'location' => json_decode($l->location),
+            'timestamp' => $l->timestamp,
+            'created_at' => $l->created_at,
+            'updated_at' => $l->updated_at,
+        ]),
+        'pagination' => [
+            'current_page' => $leaves->currentPage(),
+            'total_pages' => $leaves->lastPage(),
+            'total' => $leaves->total(),
+        ]
+    ]);
+}
 
     // 13. Acknowledge Shift Documents
     public function acknowledgeDocuments(Request $request, $shift_id)
@@ -208,8 +187,8 @@ class ShiftApiController extends Controller
 
         $employee = Employee::where('user_id', Auth::id())->first();
 
-        $shift = ShiftDate::where('id', $shift_id)
-            ->where('staff_id', Auth::id())
+        $shift = Shift::where('id', $shift_id)
+            ->where('staff_id', auth::id())
             ->firstOrFail();
 
         $shift->update([
@@ -236,7 +215,12 @@ class ShiftApiController extends Controller
 
         // Correct: fetch by shiftdate primary key
         $shiftDate = ShiftDate::find($shiftDate_id);
-
+        if (!$shiftDate) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
+            ]);
+        }
+       
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
             'shift_id' => $shiftDate->id, // store shift_date_id, not main shift_id
@@ -315,19 +299,22 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
-        if (!$shiftDate) {
+         if ($shiftDate->is_assign == 3 && $type=='book_on') {
             return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') has been already booked on',
             ]);
         }
 
-        if ($shiftDate->is_assign == 2) {
-            // Update status
-            $shiftDate->status = 'booked_on';
-            $shiftDate->is_assign = 3; //shift started
-            $shiftDate->save();
+        if ($shiftDate->is_assign !== 2) {
+            return response()->json([
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted, You can not book on or off a shift untill it is accepted!',
+            ]);
         }
 
+        // Update status
+        $shiftDate->status = 'booked_on';
+        $shiftDate->is_assign = 3; //shift started
+        $shiftDate->save();
 
         // Notifications
         Notification::create([
@@ -335,14 +322,13 @@ class ShiftApiController extends Controller
             'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked on',
-            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' Booked on shift (ID: ' . $shiftDate->id . ' starting at ' . $shiftDate->start_time,
+            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
             'read' => false,
-            'action_url' => "/scheduling?shift_date_id=$shiftDate->id"
         ]);
 
         Notification::create([
             'user_id' => $user->id,
-            'employee_id' => $employee->id,
+            'employee_id' => auth::id(),
             'type' => 'alert',
             'title' => 'Shift booked on',
             'message' => 'You have booked on shift (ID: ' . $shiftDate->id . ') ends at ' . $shiftDate->shift->end_shift,
@@ -409,15 +395,13 @@ class ShiftApiController extends Controller
             'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked off',
-            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' Booked off shift (ID: ' . $shiftDate->id . ' ending at ' . $shiftDate->end_time,
+            'message' => 'by ' . $user->first_name . ' ' . $user->last_name,
             'read' => false,
-            'action_url' => "/scheduling?shift_date_id=$shiftDate->id"
         ]);
-
 
         Notification::create([
             'user_id' => $user->id,
-            'employee_id' => $employee->id,
+            'employee_id' => auth::id(),
             'type' => 'alert',
             'title' => 'Shift booked off',
             'message' => 'You booked off your shift',
@@ -532,9 +516,9 @@ class ShiftApiController extends Controller
     {
         $user = Auth::user();
 
-        // Make sure we fetch the last booking by *created_at* (or actual column name)
+        // Get the most recent booking entry for this user
         $latestBooking = \App\Models\ShiftBooking::where('user_id', $user->id)
-            ->latest('created_at') // or ->orderBy('id', 'desc')
+            ->orderBy('timestamp', 'desc')
             ->first();
 
         if (!$latestBooking) {
@@ -546,21 +530,17 @@ class ShiftApiController extends Controller
         }
 
         if ($latestBooking->type === 'book_on') {
-            $shift = ShiftDate::find($latestBooking->shift_id);
-            $mainShift = $shift ? Shift::find($shift->shift_id) : null;
-
             return response()->json([
                 'status' => 'on-duty',
-                'shift_date_id' => $latestBooking->shift_id,
-                'shift_id' => $mainShift?->id,
-                'booked_on_at' => $latestBooking->created_at,
+                'shift_id' => $latestBooking->shift_id,
+                'booked_on_at' => $latestBooking->timestamp,
             ]);
         }
 
         return response()->json([
             'status' => 'off-duty',
             'shift_id' => null,
-            'booked_off_at' => $latestBooking->created_at,
+            'booked_off_at' => $latestBooking->timestamp,
         ]);
     }
 }

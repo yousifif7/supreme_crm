@@ -56,7 +56,7 @@
                 </div>
 
                 @php
-                    $staffs = App\Models\Employee::all();
+                    $staffs = App\Models\User::role('security_staff')->get();
                     $sites = App\Models\Site::all();
                 @endphp
 
@@ -68,7 +68,7 @@
                             <select name="security_staff_id" id="employee_id" class="form-select select2_assign_modal" required>
                                 <option value="">-- Choose Staff --</option>
                                 @foreach ($staffs as $staff)
-                                    <option value="{{ $staff->id }}">{{ $staff->fore_name }} {{ $staff->sur_name }}</option>
+                                    <option value="{{ $staff->id }}">{{ $staff->first_name }} {{ $staff->last_name }}</option>
                                 @endforeach
                             </select>
                             <span class="text-danger form-error" id="payrollerror_security_staff_id"></span>
@@ -76,7 +76,7 @@
 
                         <div class="mb-3">
                             <label for="site_id" class="form-label">Employee Site</label>
-                            <select name="site_id" id="site_id" class="form-select" required>
+                            <select name="site_id" id="payroll_site_id" class="form-select" required>
                                 <option value="">-- Choose Site --</option>
                                 {{-- @foreach ($sites as $site)
                                     <option value="{{ $site->id }}">{{ $site->site_name }}</option>
@@ -137,9 +137,6 @@
 @endsection
 
 @section('scripts')
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/js/select2.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0/dist/css/select2.min.css" rel="stylesheet" />
-
 <script>
 $(document).ready(function() {
     $('#btn-generate').on('click', function(e) {
@@ -182,7 +179,7 @@ $(document).ready(function() {
                             })
                         );
                     });
-                    $('#payroll_employee_name').val(`${data.employee.fore_name} ${data.employee.sur_name}`);
+                    $('#payroll_employee_name').val(`${data.employee.first_name} ${data.employee.last_name}`);
                     $('#generate_payroll').modal('show');
                 }
             });
@@ -198,15 +195,6 @@ $(document).ready(function() {
 </script>
 
 </script>
-
-<!-- Select2 CSS -->
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
-<!-- jQuery (needed for Select2) -->
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-
-<!-- Select2 JS -->
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 
 {!! $dataTable->scripts() !!}
 @endsection

@@ -472,13 +472,10 @@ class ShiftController extends Controller
     {
         $query = \App\Models\ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff']);
 
-
         $from_shift = $request->from_shift;
         $to_shift = $request->to_shift;
 
-
         $query->whereHas('shift', function ($q) use ($request) {
-
             if ($request->filled('site')) {
                 $q->where('site_id', $request->site);
             }
@@ -488,7 +485,7 @@ class ShiftController extends Controller
             }
 
             if ($request->filled('client_id')) {
-                $q->whereTime('client_id', '>=', $request->client_id);
+                $q->where('client_id', $request->client_id);
             }
         });
 
@@ -500,8 +497,6 @@ class ShiftController extends Controller
             $query->whereTime('start_time', '>=', $request->start_time);
         }
 
-
-
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);
         }
@@ -510,20 +505,27 @@ class ShiftController extends Controller
             $query->whereDate('created_at', $request->created_at);
         }
 
-        if ($request->filled('created_at')) {
-            $query->whereDate('created_at', $request->created_at);
-        }
         if (!empty($from_shift) && !empty($to_shift)) {
             $query->whereBetween('shift_date', [$from_shift, $to_shift]);
         }
 
         $shiftDates = $query->get();
-        $events = [];
+        
+        // Format data for Gantt chart
+        return $this->formatGanttData($shiftDates);
+    }
 
+    /**
+     * Format data for Gantt chart view
+     */
+    private function formatGanttData($shiftDates)
+    {
+        $ganttData = [];
+        
         // Status color map
         $statusColorMap = [
             0 => 'bg-dark-blue',     // Pending
-            1 => '#b9b7b4',       // Dispatched
+            1 => 'bg-lighter',       // Dispatched
             2 => 'bg-dark-green',    // Accepted
             3 => 'bg-light-yellow',  // Started
             4 => 'bg-light-blue',    // Ended
@@ -535,54 +537,55 @@ class ShiftController extends Controller
 
         foreach ($shiftDates as $sd) {
             $shift = $sd->shift;
-
             if (!$shift) continue;
 
             // Format shift time
             $startFormatted = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time)->format('h:i A');
             $endFormatted = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time)->format('h:i A');
-            $diffMinutes = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time)
-                ->diffInMinutes(\Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time)->copy()->addDay());
-            $diffHours = number_format($diffMinutes / 60, 2);
-            $total_hour = number_format($sd->total_hours, 2);
+            
+            // Calculate duration in hours
+            $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
+            $endTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
+            
+            // Handle overnight shifts
+            if ($endTime->lessThan($startTime)) {
+                $endTime->addDay();
+            }
+            
+            $durationHours = $startTime->diffInHours($endTime);
+            $durationMinutes = $startTime->diffInMinutes($endTime) % 60;
+            $durationFormatted = sprintf('%d hr %02d min', $durationHours, $durationMinutes);
+            
+            // Get staff name
+            $staffName = isset($sd->staff->first_name) ? 
+                $sd->staff->first_name . " " . $sd->staff->last_name : 
+                'Not Assigned';
 
-            // Split to hours and minutes
-            $hours = floor($sd->total_hours);
-            $minutes = round(($sd->total_hours - $hours) * 60);
-
-            $shiftclient = User::find($shift->client_id);
-
-            $total_hour = sprintf('%02d hr %02d min', $hours, $minutes);
-            $book_on = $sd->shift_date . ", at  " . $sd->absentee_start_time;
-            $book_off = $sd->shift_date . ", at " . $sd->absentee_end_time;
-            $events[] = [
-                'title' => $shiftclient->first_name ?? 'Unknown Client',
-                'start' => $sd->shift_date . 'T' . $sd->start_time,
-                'end' => $sd->shift_date . 'T' . $sd->end_time,
-                'location' => $shift->site->site_name ?? 'Unknown Site',
-                'urgent' => rand(0, 1) === 1,
-                'className' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
-                'site_name' => $shift->site->site_name ?? '',
-                'site_address' => $shift->site->address ?? '',
-                'shift_time' => "{$startFormatted} - {$endFormatted} ({$total_hour})",
-                'phone_number' => $sd->staff->contact ?? '',
-                'email' => $sd->staff->email ?? '',
-                'sia_number' => $sd->staff->sia_licence ?? '',
-                'sia_expiry' => $sd->staff->sia_expiry ?? '',
-                'profile_picture' => $sd->staff->profile_picture ?? '',
-                'name' =>  isset($sd->staff->first_name) ? $sd->staff->first_name . " " . $sd->staff->last_name : 'Not Assigned',
-                'subcontractor' => $sd->staff->subcontractor ?? '',
-                'client_name' => $shift->client->client_name ?? '',
-                'book_on' => $book_on,
-                'book_off' => $book_off,
-                'absentee_start_time' => $sd->absentee_start_time ?? null,
-                'absentee_end_time' => $sd->absentee_end_time ?? null,
-                'is_assigned' => $sd->is_assign == 0 ? false : true, // 🔸 Add this line
-                'sd_id' => $sd->id,
+            // Prepare Gantt data
+            $client = User::find($sd->shift->client_id);
+            $ganttData[] = [
+                'id' => $sd->id,
+                'site_id' => $shift->site_id ?? null,
+                'site_name' => $shift->site->site_name ?? 'Unknown Site',
+                'title' => $shift->title ?? 'Shift',
+                'start_date' => $sd->shift_date,
+                'end_date' => $sd->shift_date,
+                'start_time' => $sd->start_time,
+                'end_time' => $sd->end_time,
+                'formatted_time' => "{$startFormatted} - {$endFormatted} ({$durationFormatted})",
+                'staff_name' => $staffName,
+                'staff_id' => $sd->staff_id ?? null,
+                'client_name' => $client->name ?? 'Unknown Client',
+                'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
+                'status' => $sd->is_assign,
+                'is_assigned' => $sd->is_assign != 0,
+                'duration_hours' => $durationHours + ($durationMinutes / 60),
+                'start_datetime' => $sd->shift_date . 'T' . $sd->start_time,
+                'end_datetime' => $sd->shift_date . 'T' . $sd->end_time,
             ];
         }
 
-        return response()->json($events);
+        return response()->json(['data' => $ganttData]);
     }
 
 
@@ -644,7 +647,7 @@ class ShiftController extends Controller
                         ->where('shift_date', $shiftDate)
                         ->with('staff')
                         ->first();
-
+    
                     if (isset($sd->is_assign) && !empty($sd->staff_id)) {
                         $events[] = [
                             'title' => isset($sd->staff->first_name) ? $sd->staff->first_name . " " . $sd->staff->last_name : 'Unknown Staff',
@@ -890,7 +893,6 @@ class ShiftController extends Controller
             'shift' => $data,
         ]);
     }
-
     public function assign(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -901,82 +903,142 @@ class ShiftController extends Controller
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
+        // $request->validate([
+        //     'shift_id' => 'required|exists:shift_dates,id',
+        //     'staff_id' => 'required|exists:employees,id',
+        // ]);
 
-        $staffId   = $request->staff_id;
-        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        $documents = [
+            'sia_licence_file'           => 'SIA Licence File',
+            'passport_file'              => 'Passport File',
+            'proof_of_address_file'      => 'Proof of Address File',
+            'ni_letter_file'             => 'NI Letter File',
+            'first_aid_certificate_file' => 'First Aid Certificate File',
+            'act_certificate_file'       => 'ACT Certificate File',
+        ];
+
+        $staffId = $request->staff_id;
+        $staffUser=Employee::where('user_id',$staffId)->first();
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
-        $shift     = Shift::findOrFail($shiftDate->shift_id);
+        $shift = Shift::findOrFail($shiftDate->shift_id);
 
-        $start        = $shift->start_shift ?? null;
-        $end          = $shift->end_shift ?? null;
-        $from         = $shift->from_shift ?? null;
-        $to           = $shift->to_shift ?? null;
+        $start = $shift->start_shift ?? null;
+        $end = $shift->end_shift ?? null;
+        $from = $shift->from_shift ?? null;
+        $to = $shift->to_shift ?? null;
         $breakMinutes = $shift->{'break-mins_shift'} ?? null;
 
         $selectedDays = explode(',', trim($shift->days, '[]"'));
-
-        $newShiftHours = $this->calculateTotalWorkingHours(
-            $staffUser->id,
-            $from,
-            $to,
-            $start,
-            $end,
-            $breakMinutes,
-            $selectedDays,
-            'H:i:s'
-        );
-
-        $staff = Employee::findOrFail($staffUser->id);
-
-        // ✅ Apply restrictions
-
-        applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $shiftDate->shift_date);
-
-        // Stop execution if any restriction failed
-        if ($validator->errors()->any()) {
-            \Log::info('Restrictions failed', $validator->errors()->toArray());
-
+        // $newShiftHours = $this->calculateTotalWorkingHours($shift->staff_id, $from, $to, $start, $end, $breakMinutes, $selectedDays);
+        $newShiftHours = 0;
+        try {
+            $newShiftHours = $this->calculateTotalWorkingHours(
+                $staffUser->id,
+                $from,
+                $to,
+                $start,
+                $end,
+                $breakMinutes,
+                $selectedDays,
+                'H:i:s'
+            );
+        } catch (\Exception $e) {
             return response()->json([
-                'errors' => $validator->errors()
+                'error' => $e->getMessage()
             ], 422);
         }
-        // ✅ Overlapping check
-        $newStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
-        $newEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
 
-        if ($newEnd->lte($newStart)) {
-            $newEnd->addDay();
-        }
 
-        $overlap = ShiftDate::where('staff_id', $staff->user_id)
-            ->where(function ($query) use ($newStart, $newEnd) {
-                $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
-                    ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
+        $staff = \App\Models\Employee::findOrFail($staffUser->id);
+
+        // 1. ✅ Check if staff has an overlapping shift at this time
+        $overlap = \App\Models\ShiftDate::where('staff_id', $staff->id)
+            ->where('shift_date', $shiftDate->shift_date)
+            ->where(function ($query) use ($shiftDate) {
+                $query->where(function ($q) use ($shiftDate) {
+                    $q->where('start_time', '<', $shiftDate->end_time)
+                        ->where('end_time', '>', $shiftDate->start_time);
+                });
             })
             ->exists();
 
         if ($overlap) {
+            Notify::toDashboard(
+                $staff->id,
+                'alarm',
+                'Shift Conflict',
+                "Attempted to assign a shift to {$staff->first_name} {$staff->last_name} but there's an overlapping shift."
+            );
             return response()->json([
                 'error' => 'This staff already has a shift during this time.'
             ], 422);
         }
 
-        // ✅ Assign shift if passes all checks
+
+
+        if ($staff->passport_expiry && \Carbon\Carbon::parse($staff->passport_expiry)->lt(now())) {
+            Notify::toDashboard(
+                $staff->id,
+                'alert',
+                'Visa Expired',
+                "{$staff->first_name} {$staff->last_name}'s Visa is expired. Shift not assigned."
+            );
+            return response()->json([
+                'error' => 'This staff’s Passport is expired.'
+            ], 422);
+        }
+
+        $missingDocuments = [];
+
+        foreach ($documents as $key => $doc) {
+            if (empty($staff->$key)) {
+                $missingDocuments[] = $doc;
+            }
+        }
+
+
+        $fromDate = \Carbon\Carbon::parse($from);
+        $toDate = \Carbon\Carbon::parse($to);
+
+        // Get week start and end for that shift date
+        $weekStart = $fromDate->startOfWeek(Carbon::MONDAY);
+        $weekEnd = $toDate->endOfWeek(Carbon::SUNDAY);
+
+
+        // Fetch existing shifts for this staff in the same week
+        $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staffId)
+            ->whereBetween('shift_date', [$weekStart, $weekEnd])
+            ->sum('total_hours');
+
+        // Check if adding new shift exceeds weekly limit
+        $maxWeeklyHours = $staff->hour_per_week ?? 40;
+
+        applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $shiftDate->shift_date);
+
+
+
+        // 3. ✅ Proceed to assign if checks pass (update without boot event and store logs manually)
+
         $shiftDate->staff_id = $staff->user_id;
         $shiftDate->is_assign = 1;
-        $shiftDate->status = 'pending';
         $shiftDate->save();
+  
 
-        send_push_notification(
-            $staff->user_id,
-            'Shift assigned',
-            'An admin assigned a shift for you, You have to respond!',
-            ['shiftDate' => $shiftDate],
-        );
+
+$staffName = trim(
+    (isset($shiftDate->staff->first_name) ? $shiftDate->staff->first_name : '') . ' ' .
+    (isset($shiftDate->staff->last_name) ? $shiftDate->staff->last_name : '')
+);
+
+
+        $shiftDate->logs()->create([
+            'user_name' => auth()->user()->first_name . ' ' . auth()->user()->last_name,
+            'action' => "Updated Staff",
+            'description' => "Shift assigned to the Staff  $staffName",
+        ]);
 
         return response()->json(['message' => 'Shift assigned successfully']);
     }
-
 
     public function getClient($id)
     {
@@ -1027,6 +1089,8 @@ class ShiftController extends Controller
         if ($request->filled('start_time')) {
             $query->whereTime('start_time', '>=', $request->start_time);
         }
+
+
 
         if ($request->filled('end_time')) {
             $query->whereTime('end_time', '<=', $request->end_time);
@@ -1117,7 +1181,6 @@ class ShiftController extends Controller
             'comment' => $comment,
         ]);
     }
-
     public function map($shiftId)
     {
         $shift = ShiftDate::findOrFail($shiftId);

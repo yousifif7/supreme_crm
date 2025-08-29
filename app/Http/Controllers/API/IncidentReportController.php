@@ -4,7 +4,6 @@ namespace App\Http\Controllers\API;
 
 use Notify;
 use App\Models\Employee;
-use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\IncidentMedia;
 use App\Models\IncidentPerson;
@@ -15,109 +14,88 @@ use Illuminate\Support\Facades\Auth;
 class IncidentReportController extends Controller
 {
     //
-public function store(Request $request)
-{
-    $data = $request->validate([
-        'shift_id' => 'required|exists:shift_dates,id',
-        'category' => 'required|in:theft,assault,fire,medical,property_damage,suspicious_activity,other',
-        'severity' => 'required|in:low,medium,high,critical',
-        'title' => 'required|string',
-        'description' => 'required|string',
-        'pre_captured_media' => 'nullable|array',
-        'pre_captured_media.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
-        'live_media' => 'nullable|array',
-        'live_media.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
-        'location.latitude' => 'required|numeric',
-        'location.longitude' => 'required|numeric',
-        'location.address' => 'required|string',
-        'people_involved' => 'nullable|array',
-        'people_involved.*.name' => 'required|string',
-        'people_involved.*.role' => 'required|in:witness,victim,suspect,staff,visitor',
-        'people_involved.*.contact' => 'nullable|string',
-        'people_involved.*.description' => 'nullable|string',
-        'police_notified' => 'required|boolean',
-        'police_reference' => 'nullable|string',
-        'immediate_action_taken' => 'nullable|string',
-    ]);
+    public function store(Request $request)
+    {
+        $data = $request->validate([
+            'shift_id' => 'required|exists:shifts,id',
+            'category' => 'required|in:theft,assault,fire,medical,property_damage,suspicious_activity,other',
+            'severity' => 'required|in:low,medium,high,critical',
+            'title' => 'required|string',
+            'description' => 'required|string',
+            'pre_captured_media' => 'nullable|array',
+            'pre_captured_media.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:10240',
+            'live_media' => 'nullable|array',
+            'live_media.*' => 'file|mimes:jpg,jpeg,png,mp4,mov|max:10240', // adjust allowed types and max size
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
+            'location.address' => 'required|string',
+            'people_involved' => 'nullable|array',
+            'people_involved.*.name' => 'required|string',
+            'people_involved.*.role' => 'required|in:witness,victim,suspect,staff,visitor',
+            'people_involved.*.contact' => 'nullable|string',
+            'people_involved.*.description' => 'nullable|string',
+            'police_notified' => 'required|boolean',
+            'police_reference' => 'nullable|string',
+            'immediate_action_taken' => 'nullable|string',
+        ]);
 
-    $report = IncidentReport::create([
-        'user_id' => Auth::id(),
-        'shift_id' => $data['shift_id'],
-        'category' => $data['category'],
-        'severity' => $data['severity'],
-        'title' => $data['title'],
-        'description' => $data['description'],
-        'location' => json_encode($data['location']),
-        'police_notified' => $data['police_notified'],
-        'police_reference' => $data['police_reference'],
-        'immediate_action_taken' => $data['immediate_action_taken'],
-    ]);
+        $report = IncidentReport::create([
+            'user_id' => Auth::id(),
+            'shift_id' => $data['shift_id'],
+            'category' => $data['category'],
+            'severity' => $data['severity'],
+            'title' => $data['title'],
+            'description' => $data['description'],
+            'location' => json_encode($data['location']),
+            'police_notified' => $data['police_notified'],
+            'police_reference' => $data['police_reference'],
+            'immediate_action_taken' => $data['immediate_action_taken'],
+        ]);
 
-    // ✅ Handle pre_captured_media uploads
-    if ($request->hasFile('pre_captured_media')) {
-        foreach ($request->file('pre_captured_media') as $file) {
-            $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('incidents'), $filename);
-
-            IncidentMedia::create([
-                'incident_report_id' => $report->id,
-                'type' => 'pre_captured',
-                'file_url' => 'incidents/' . $filename,
-            ]);
-        }
-    }
-
-    // ✅ Handle live_media uploads
-    if ($request->hasFile('live_media')) {
-        foreach ($request->file('live_media') as $file) {
-            $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-            $file->move(public_path('incidents'), $filename);
-
+        foreach (($data['live_media'] ?? []) as $file) {
+            $path = $file->store('incidents/live', 'public');
             IncidentMedia::create([
                 'incident_report_id' => $report->id,
                 'type' => 'live',
-                'file_url' => 'incidents/' . $filename,
+                'file_url' => $path,
             ]);
         }
-    }
 
-    // ✅ People involved
-    foreach (($data['people_involved'] ?? []) as $person) {
-        IncidentPerson::create([
-            'incident_report_id' => $report->id,
-            'name' => $person['name'],
-            'role' => $person['role'],
-            'contact' => $person['contact'] ?? null,
-            'description' => $person['description'] ?? null,
+        foreach (($data['pre_captured_media'] ?? []) as $file) {
+            $path = $file->store('incidents/pre_captured', 'public');
+            IncidentMedia::create([
+                'incident_report_id' => $report->id,
+                'type' => 'pre_captured',
+                'file_url' => $path,
+            ]);
+        }
+        
+        foreach (($data['people_involved'] ?? []) as $person) {
+            IncidentPerson::create([
+                'incident_report_id' => $report->id,
+                'name' => $person['name'],
+                'role' => $person['role'],
+                'contact' => $person['contact'] ?? null,
+                'description' => $person['description'] ?? null,
+            ]);
+        }
+
+        $user = Auth::user(); // Get the authenticated user
+        $employee = Employee::where('user_id', $user->id)->first();
+        Notify::toDashboard(
+            auth::id(),
+            'alert',
+            'Incident report',
+            'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name . ' In shift NO. #' . $request->shift_id,
+            '#'
+        );
+
+        return response()->json([
+            'message' => 'Incident report created',
+            'incident_id' => $report->id
         ]);
     }
 
-    // ✅ Send notifications
-    $user = Auth::user(); 
-    $employee = Employee::where('user_id', $user->id)->first();
-
-    Notify::toDashboard(
-        null,
-        'alert',
-        'Incident report',
-        'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name . ' In shift NO. #' . $request->shift_id,
-        '#'
-    );
-
-    Notification::create([
-        'user_id' => $user->id,
-        'employee_id' => $employee->id,
-        'type' => 'alert',
-        'title' => 'Incident report',
-        'message' => $employee->fore_name . ' You have submitted an Incident report',
-        'read' => false,
-    ]);
-
-    return response()->json([
-        'message' => 'Incident report created',
-        'incident_id' => $report->id
-    ]);
-}
     public function index(Request $request)
     {
         $query = IncidentReport::with(['media', 'people'])
@@ -140,7 +118,7 @@ public function store(Request $request)
             ->where('user_id', Auth::id())
             ->firstOrFail();
 
-        // validate
+        // same validation as store
         $data = $request->validate([
             'shift_id' => 'required|exists:shifts,id',
             'category' => 'required|in:theft,assault,fire,medical,property_damage,suspicious_activity,other',
@@ -148,9 +126,7 @@ public function store(Request $request)
             'title' => 'required|string',
             'description' => 'required|string',
             'pre_captured_media' => 'nullable|array',
-            'pre_captured_media.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
             'live_media' => 'nullable|array',
-            'live_media.*' => 'nullable|file|mimes:jpg,jpeg,png,pdf,doc,docx|max:5120',
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'location.address' => 'required|string',
@@ -164,7 +140,6 @@ public function store(Request $request)
             'immediate_action_taken' => 'nullable|string',
         ]);
 
-        // update main report
         $report->update([
             'shift_id' => $data['shift_id'],
             'category' => $data['category'],
@@ -177,32 +152,21 @@ public function store(Request $request)
             'immediate_action_taken' => $data['immediate_action_taken'],
         ]);
 
-        // ✅ Handle pre_captured_media uploads
-        if ($request->hasFile('pre_captured_media')) {
-            foreach ($request->file('pre_captured_media') as $file) {
-                $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('incidents'), $filename);
-
-                IncidentMedia::create([
-                    'incident_report_id' => $report->id,
-                    'type' => 'pre_captured',
-                    'file_url' => 'incidents/' . $filename,
-                ]);
-            }
+        // Optionally add new media/people
+        foreach (($data['pre_captured_media'] ?? []) as $file) {
+            IncidentMedia::create([
+                'incident_report_id' => $report->id,
+                'type' => 'pre_captured',
+                'file_url' => $file,
+            ]);
         }
 
-        // ✅ Handle live_media uploads
-        if ($request->hasFile('live_media')) {
-            foreach ($request->file('live_media') as $file) {
-                $filename = uniqid() . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('incidents'), $filename);
-
-                IncidentMedia::create([
-                    'incident_report_id' => $report->id,
-                    'type' => 'live',
-                    'file_url' => 'incidents/' . $filename,
-                ]);
-            }
+        foreach (($data['live_media'] ?? []) as $file) {
+            IncidentMedia::create([
+                'incident_report_id' => $report->id,
+                'type' => 'live',
+                'file_url' => $file,
+            ]);
         }
 
         return response()->json(['message' => 'Incident updated']);
