@@ -39,6 +39,11 @@ class Invoice extends Model
     {
         return $this->belongsTo(User::class, 'client_id');
     }
+    
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class,'security_staff_id');
+    }
 
     public function subcontractor()
     {

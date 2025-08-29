@@ -29,47 +29,83 @@ class UserController extends Controller
 {
     public function dashboard()
 {
-    $today = Carbon::today();
+        $shifts = ShiftDate::where('shift_date', Carbon::today()->toDateString())->with('shift.staff')->get();
+        $invoices = Invoice::all();
+        $review = ShiftDate::where('is_assign', '1')->count();
+        $clients = Client::all();
+        $staffs = User::role('security_staff')->get();
 
-    $shifts = ShiftDate::where('shift_date', $today->toDateString())
-        ->with('shift.staff')
-        ->get();
+        $checkCalls = CheckCall::with(['shift.staff'])
+            ->whereIn('status', ['pending', 'missed', 'completed'])
+            ->orderBy('scheduled_time', 'asc')
+            ->limit(10)  // limit to recent 10 or whatever you want
+            ->get();
 
-    $invoices = Invoice::all();
-    $review = ShiftDate::where('is_assign', '1')->count();
-    $clients = Client::all();
-    $staffs = User::role('security_staff')->get();
+        $now = Carbon::now();
+        $bookingAlarms = BookingAlarm::with(['shift.staff']) // eager load shift & staff
+            ->orderBy('scheduled_time')
+            ->get()
+            ->map(function ($alarm) use ($now) {
+                // Determine status
+                if ($alarm->acknowledged) {
+                    $alarm->status = 'Submitted';
+                } elseif ($alarm->scheduled_time < $now) {
+                    $alarm->status = 'Missed';
+                } else {
+                    $alarm->status = 'Due';
+                }
 
-    $checkCalls = CheckCall::with(['shift.staff'])
-        ->whereIn('status', ['pending', 'missed', 'completed'])
-        ->orderBy('scheduled_time', 'asc')
-        ->limit(10)
-        ->get();
+                return $alarm;
+            });
 
-    $now = Carbon::now();
+        $today = Carbon::today();
 
-    $bookingAlarms = BookingAlarm::with(['shift.staff'])
-        ->orderBy('scheduled_time')
-        ->get()
-        ->map(function ($alarm) use ($now) {
-            if ($alarm->acknowledged) {
-                $alarm->status = 'Submitted';
-            } elseif ($alarm->scheduled_time < $now) {
-                $alarm->status = 'Missed';
-            } else {
-                $alarm->status = 'Due';
-            }
-            return $alarm;
-        });
+        $siaDocuments = Employee::whereNotNull('sia_licence')
+            ->whereDate('sia_expiry', '<', Carbon::today()->toDateString())
+            ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
+            ->paginate(5);
 
-    $siaDocuments = Employee::whereNotNull('sia_licence')
-        ->whereDate('sia_expiry', '<', $today->toDateString())
-        ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
-        ->paginate(5);
+        // Get the full datetime range for this week
+        $startOfThisWeek = Carbon::now()->startOfWeek()->startOfDay(); // Monday 00:00:00
+        $endOfThisWeek = Carbon::now()->endOfWeek()->endOfDay();       // Sunday 23:59:59
 
-    // Date ranges for this week & last week
-    $startOfThisWeek = Carbon::now()->startOfWeek()->startOfDay();
-    $endOfThisWeek = Carbon::now()->endOfWeek()->endOfDay();
+        // Get the full datetime range for last week
+        $startOfLastWeek = Carbon::now()->subWeek()->startOfWeek()->startOfDay();
+        $endOfLastWeek = Carbon::now()->subWeek()->endOfWeek()->endOfDay();
+
+        // Query clients
+        $clientsThisWeek = Client::whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
+        $clientsLastWeek = Client::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
+        // Query employees
+        $employeesThisWeek = Employee::whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
+        $employeesLastWeek = Employee::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
+        // Query invoices
+        $invoicesThisWeek = Invoice::whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
+        $invoicesLastWeek = Invoice::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
+        // Query review
+        $reviewThisWeek = ShiftDate::where('is_assign', '1')->whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
+        $reviewLastWeek = ShiftDate::where('is_assign', '1')->whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
+        // Calculate growth
+        if ($clientsLastWeek > 0) {
+            $growthPercentage = (($clientsThisWeek - $clientsLastWeek) / $clientsLastWeek) * 100;
+        } else {
+            $growthPercentage = $clientsThisWeek > 0 ? 100 : 0;
+        }
+
+        $clientgrowthPercentage = round($growthPercentage, 2);
+        if ($employeesLastWeek > 0) {
+            $employeegrowthPercentage = (($employeesThisWeek - $employeesLastWeek) / $employeesLastWeek) * 100;
+        } else {
+            $employeegrowthPercentage = $employeesThisWeek > 0 ? 100 : 0;
+        }
+        $employeerowthPercentage = round($employeegrowthPercentage, 2);
+
+        if ($invoicesLastWeek > 0) {
+            $invoicegrowthPercentage = (($invoicesThisWeek - $invoicesLastWeek) / $invoicesLastWeek) * 100;
+        } else {
+            $invoicegrowthPercentage = $invoicesThisWeek > 0 ? 100 : 0;
+        }
+        $invoicerowthPercentage = round($invoicegrowthPercentage, 2);
 
         if ($reviewLastWeek > 0) {
             $reviewgrowthPercentage = (($reviewThisWeek - $reviewLastWeek) / $reviewLastWeek) * 100;
@@ -77,6 +113,9 @@ class UserController extends Controller
             $reviewgrowthPercentage = $reviewThisWeek > 0 ? 100 : 0;
         }
         $reviewrowthPercentage = round($reviewgrowthPercentage, 2);
+
+        // Checking for missed shifts 
+        $now = now();
 
         // Checking for missed shifts 
         $now = now();

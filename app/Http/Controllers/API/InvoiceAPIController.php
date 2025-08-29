@@ -112,7 +112,7 @@ class InvoiceAPIController extends Controller
         ]);
 
         $query = Invoice::with('adminReview')
-            ->where('security_staff_id ', Auth::id());
+            ->where('security_staff_id', Auth::id());
 
         if ($request->status) {
             $query->where('status', $request->status);

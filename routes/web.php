@@ -31,8 +31,6 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\IncidentReportController;
-use App\Http\Controllers\DocumentController;
 
 Route::get('/', function () {
     return view('auth.login');

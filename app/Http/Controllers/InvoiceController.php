@@ -105,7 +105,9 @@ class InvoiceController extends Controller
 
     public function index(InvoicesDataTable $dataTable)
     {
-        return $dataTable->render('invoices.index');
+        $clients = User::role('client')->get();
+        $sites = Site::all();
+        return $dataTable->render('invoices.index', compact('clients', 'sites'));
     }
 
   

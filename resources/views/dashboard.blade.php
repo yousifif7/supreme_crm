@@ -239,11 +239,15 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($shifts as $shift)
+                                        @php
+                                            $employee = App\Models\User::role('security_staff')
+                                                ->where('id', $shift->staff_id)
+                                                ->first();
+                                        @endphp
                                         <tr>
                                             <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
                                             </td>
-                                            <td>{{ $shift->shift?->staff?->fore_name }}
-                                                {{ $shift->shift?->staff?->sur_name }}</td>
+                                            <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                             <td>X</td>
                                             <td>{{ $shift->break_time }}
                                             </td>
@@ -294,9 +298,11 @@
                                     </thead>
                                     <tbody>
                                         @forelse ($upcomingShifts as $shift)
-                                        @php
-                                        $employee= App\Models\User::role('security_staff')->where('id',$shift->staff_id)->first();
-                                        @endphp
+                                            @php
+                                                $employee = App\Models\User::role('security_staff')
+                                                    ->where('id', $shift->staff_id)
+                                                    ->first();
+                                            @endphp
                                             <tr class="text-center">
                                                 <td>{{ Carbon::parse($shift->shift_date)->format('D, M j') }}</td>
                                                 <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>

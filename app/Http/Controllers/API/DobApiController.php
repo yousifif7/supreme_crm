@@ -83,10 +83,11 @@ class DobApiController extends Controller
         ], 201);
     }
 
-    public function obindex(Request $req)
+    public function index(Request $req)
     {
+        $employee = Employee::where('user_id',Auth::id())->first();
         $q = DobEntry::with('media')
-            ->where('user_id', Auth::id());
+            ->where('user_id', $employee->id);
 
         if ($req->filled('shift_id')) {
             $q->where('shift_id', $req->shift_id);
