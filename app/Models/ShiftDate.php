@@ -72,9 +72,13 @@ class ShiftDate extends Model
     {
         return $this->hasMany(CheckCall::class,'shift_id');
     }
+
      public function patrols()
     {
         return $this->hasMany(Patrol::class,'shift_id');
     }
 
+    public function locations(){
+        return $this->hasMany(Location::class,'shiftdate_id');
+    }
 }

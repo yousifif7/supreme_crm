@@ -198,6 +198,9 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
 
+Route::get('/shift-dates/{shiftDate}/view', [ShiftController::class, 'view'])
+    ->name('shiftDates.view');
+    
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
 

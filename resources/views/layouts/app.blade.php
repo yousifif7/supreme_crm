@@ -53,11 +53,11 @@
     <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet" type="text/css">
-<style>
-* {
- font-family: 'Poppins', sans-serif;
-}
-</style>
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+    </style>
     <script type="text/javascript">
         const baseUrl = "{{ url('/') }}";
     </script>
@@ -190,7 +190,8 @@
                                         <form id="markAllForm" action="{{ route('notifications.markAllRead') }}"
                                             method="POST">
                                             @csrf
-                                            <button type="submit" class="text-primary fs-15 btn btn-link p-0">Mark All
+                                            <button type="submit" class="text-primary fs-15 btn btn-link p-0">Mark
+                                                All
                                                 as Read</button>
                                         </form>
                                         {{-- <a href="#" id="mark-all-read"
@@ -233,7 +234,8 @@
                                         </div>
                                         <br>
                                         <div class="text-center">
-                                            <button class="btn btn-outline-primary" type="submit">Mark selected as read</button>
+                                            <button class="btn btn-outline-primary" type="submit">Mark selected as
+                                                read</button>
                                         </div>
                                     </form>
 
@@ -455,8 +457,6 @@
         });
     </script>
     <script>
-
-
         // Handling notifications
         // Fetch unread notifications count & list (limit to 5 for dropdown)
         document.addEventListener('DOMContentLoaded', function() {
@@ -576,6 +576,46 @@
                 }
             });
         });
+
+        document.querySelectorAll('.notification-link').forEach(link => {
+            link.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const id = this.dataset.id;
+
+                try {
+                    const res = await fetch(`/api/notifications/${id}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content'),
+                        },
+                        credentials: 'include'
+                    });
+
+                    if (!res.ok) throw new Error('Failed to mark as read');
+
+                    // ✅ Update UI instantly
+                    const notifItem = this.closest('.notif-item');
+                    if (notifItem) {
+                        notifItem.classList.remove('unread');
+                        notifItem.classList.add('read');
+                    }
+
+                    const countElement = document.getElementById('notif-count');
+                    if (countElement) {
+                        countElement.textContent = Math.max(0, parseInt(countElement.textContent) - 1);
+                    }
+
+                    // ✅ Redirect after marking as read
+                    window.location.href = this.href;
+                } catch (err) {
+                    console.error('❌ Failed to mark as read:', err);
+                    window.location.href = this.href; // fallback redirect
+                }
+            });
+        });
     </script>
     @yield('scripts')
 
@@ -583,4 +623,3 @@
 </body>
 
 </html>
-

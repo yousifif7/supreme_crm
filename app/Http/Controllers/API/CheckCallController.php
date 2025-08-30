@@ -42,20 +42,20 @@ class CheckCallController extends Controller
         $checkCall = CheckCall::findOrFail($id);
 
 
-  // Save media
-if ($request->hasFile('media_file')) {
-    // Generate unique name
-    $filename = uniqid() . '.' . $request->file('media_file')->getClientOriginalExtension();
+        // Save media
+        if ($request->hasFile('media_file')) {
+            // Generate unique name
+            $filename = uniqid() . '.' . $request->file('media_file')->getClientOriginalExtension();
 
-    // Move file to public/check_calls
-    $request->file('media_file')->move(public_path('check_calls'), $filename);
+            // Move file to public/check_calls
+            $request->file('media_file')->move(public_path('check_calls'), $filename);
 
-    // Save relative path in DB
-    CheckCallMedia::create([
-        'check_call_id' => $checkCall->id,
-        'file_path' => 'check_calls/' . $filename,
-    ]);
-}
+            // Save relative path in DB
+            CheckCallMedia::create([
+                'check_call_id' => $checkCall->id,
+                'file_path' => 'check_calls/' . $filename,
+            ]);
+        }
 
         $employee = Employee::where('user_id', Auth::id())->first();
 
@@ -70,6 +70,7 @@ if ($request->hasFile('media_file')) {
             'longitude' => $validated['location']['longitude'],
             'accuracy' => 100,
             'on_duty' => 1,
+            'shiftdate_id' =>$checkCall->shift_id,
         ]);
 
         Notification::create([

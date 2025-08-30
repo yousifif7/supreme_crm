@@ -31,9 +31,6 @@ class Shift extends Model
     {
         return $this->hasMany(ShiftDate::class);
     }
-    public function checkCalls()
-    {
-        return $this->hasMany(CheckCall::class);
-    }
+
 
 }

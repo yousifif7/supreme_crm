@@ -144,22 +144,11 @@ class ShiftApiController extends Controller
         $employee = Employee::where('user_id', Auth::id())->first();
         Notify::toDashboard(
             auth::id(),
-
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            '/leaves'
+            "/leaves/$leave->id/view"
         );
-
-        Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => $employee->id,
-            'type' => 'alert',
-            'title' => 'Leave Request',
-            'message' => 'You have submiited a leave request',
-            'read' => false,
-        ]);
-
 
         send_push_notification(
             $employee->user_id,
@@ -362,7 +351,7 @@ class ShiftApiController extends Controller
             'title' => 'Shift booked on',
             'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' Booked on shift (ID: ' . $shiftDate->id . ' starting at ' . $shiftDate->start_time,
             'read' => false,
-            'action_url' => "/scheduling?shift_date_id=$shiftDate->id"
+            'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
 
         Notification::create([
@@ -436,17 +425,7 @@ class ShiftApiController extends Controller
             'title' => 'Shift booked off',
             'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' Booked off shift (ID: ' . $shiftDate->id . ' ending at ' . $shiftDate->end_time,
             'read' => false,
-            'action_url' => "/scheduling?shift_date_id=$shiftDate->id"
-        ]);
-
-
-        Notification::create([
-            'user_id' => $user->id,
-            'employee_id' => auth::id(),
-            'type' => 'alert',
-            'title' => 'Shift booked off',
-            'message' => 'You booked off your shift',
-            'read' => false,
+            'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
 
         send_push_notification(
@@ -557,35 +536,34 @@ class ShiftApiController extends Controller
     {
         $user = Auth::user();
 
-        // Make sure we fetch the last booking by *created_at* (or actual column name)
-        $latestBooking = \App\Models\ShiftBooking::where('user_id', $user->id)
-            ->latest('created_at') // or ->orderBy('id', 'desc')
+        // Get the latest shift bookings
+        $latestBooking = ShiftBooking::where('user_id', $user->id)
+            ->latest('created_at')
             ->first();
 
         if (!$latestBooking) {
             return response()->json([
                 'status' => 'off-duty',
+                'shift_date_id' => null,
                 'shift_id' => null,
                 'message' => 'No shift bookings found.'
             ]);
         }
 
-        if ($latestBooking->type === 'book_on') {
-            $shift = ShiftDate::find($latestBooking->shift_id);
-            $mainShift = $shift ? Shift::find($shift->shift_id) : null;
+        // Determine status based on latest booking type
+        $status = $latestBooking->type === 'book_on' ? 'on-duty' : 'off-duty';
 
-            return response()->json([
-                'status' => 'on-duty',
-                'shift_date_id' => $latestBooking->shift_id,
-                'shift_id' => $mainShift?->id,
-                'booked_on_at' => $latestBooking->created_at,
-            ]);
-        }
+        // Fetch shift info if available
+        $shiftDate = ShiftDate::find($latestBooking->shift_id);
+        $shift = $shiftDate ? Shift::find($shiftDate->shift_id) : null;
 
-        return response()->json([
-            'status' => 'off-duty',
-            'shift_id' => null,
-            'booked_off_at' => $latestBooking->created_at,
-        ]);
+        $response = [
+            'status' => $status,
+            'shift_date_id' => $shiftDate?->id,
+            'shift_id' => $shift?->id,
+            'booked_at' => $latestBooking->created_at,
+        ];
+
+        return response()->json($response);
     }
 }

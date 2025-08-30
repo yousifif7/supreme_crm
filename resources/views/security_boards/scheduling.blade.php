@@ -239,13 +239,13 @@
             </div>
 
             @include('security_boards.shiftfilter')
-            
+
             @include('security_boards.shifts.shift_filter_options')
 
 
             <div class="row">
                 <!-- Sidebar -->
-               
+
                 <!-- /Sidebar -->
 
                 <!-- Gantt Chart -->
@@ -290,7 +290,7 @@
                 </div>
                 <!-- /Gantt Chart -->
 
-                 <div class="col-xxl-12 col-xl-12">
+                <div class="col-xxl-12 col-xl-12">
                     <div class="card">
                         <div class="card-body p-3">
                             <div class="row">
@@ -379,8 +379,7 @@
             </div>
         </div>
 
-        <!-- Assign Shift Modal -->
-        @include('security_boards.assign-shift-modal')
+        
     </div>
     <!-- /Page Wrapper -->
 @endsection
@@ -612,7 +611,7 @@
                 // Show loading state
                 $('#ganttChart').html(
                     '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>'
-                    );
+                );
 
                 // Fetch all shifts data from API
                 $.ajax({
@@ -772,15 +771,8 @@
                             // Add click handler to bar
                             bar.on('click', function() {
                                 const shiftId = $(this).data('shift-id');
-                                // Open shift details modal
-                                const button = document.createElement('button');
-                                button.setAttribute('data-toggle', 'ajax-modal');
-                                button.setAttribute('data-title', 'Shift Detail');
-                                button.setAttribute('data-size', 'modal-lg');
-                                button.setAttribute('data-href', `shifts/${shiftId}`);
-                                button.style.display = 'none';
-                                document.body.appendChild(button);
-                                button.click();
+                                window.open(`${baseUrl}/shift-dates/${shiftId}/view`,
+                                    '_blank');
                             });
                         }
                     });

@@ -30,7 +30,7 @@ Route::get('/shifts-today', [ShiftController::class, 'getTodayShifts']);
 Route::get('/client/{id}', [ShiftController::class, 'getClient']);
 Route::get('/staff/{id}', [ShiftController::class, 'getStaff']);
 
-Route::get('/shift/{shiftId}/locations', [ShiftController::class, 'shiftLocations'])->name('shift.locations');
+Route::get('/shift/{shiftDateId}/locations', [ShiftController::class, 'shiftLocations'])->name('shift.locations');
 
 //API routes for authentication api
 Route::prefix('auth')->group(function () {

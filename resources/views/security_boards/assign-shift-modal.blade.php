@@ -1,3 +1,8 @@
+@php
+    $staffs = App\Models\User::role('security_staff')->get();
+@endphp
+
+<div id="assignShiftErrors" class="alert alert-danger d-none"></div>
 <div class="modal fade" id="assignShiftModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content shadow rounded-3">
@@ -32,32 +37,35 @@
 
 <script>
     $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
-            e.preventDefault();
-            $.ajax({
-                url: `${baseUrl}/assign-shift`,
-                type: 'POST',
-                data: $(this).serialize(),
-                success: function(response) {
-                    $('#success_message').html('Shift assigned successfully!');
-                    $('#assignShiftBtn').remove();
-                    closeBsModal('#assignShiftModal');
-                    closeBsModal('#globalModal');
-                    $('#success_modal').modal('show');
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON) {
-                        // Show specific validation error
-                        if (xhr.responseJSON.error) {
-                            toast_danger(xhr.responseJSON.error);
-                        } else if (xhr.responseJSON.errors) {
-                            // Multiple field errors
-                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            toast_danger(messages);
-                        }
-                    } else {
-                        toast_danger('An unexpected error occurred while assigning the shift.');
-                    }
+        e.preventDefault();
+
+        $.ajax({
+            url: `${baseUrl}/assign-shift`,
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(response) {
+                // On success, do nothing because normal redirect will handle it
+                location.reload();
+            },
+            error: function(xhr) {
+                $('#assignShiftErrors').addClass('d-none').empty();
+
+                if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                    let messages = Object.values(xhr.responseJSON.errors).flat();
+                    messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
+                    $('#assignShiftErrors').removeClass('d-none');
+                } else if (xhr.responseJSON?.error) {
+                    $('#assignShiftErrors').html(xhr.responseJSON.error).removeClass('d-none');
+                } else {
+                    $('#assignShiftErrors').html(
+                            'An unexpected error occurred while assigning the shift.')
+                        .removeClass('d-none');
                 }
-            });
+            }
         });
+    });
+</script>
+
+<script>
+
 </script>
