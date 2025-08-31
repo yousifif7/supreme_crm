@@ -246,11 +246,6 @@ class ShiftApiController extends Controller
             ]);
         }
 
-        if ($shiftDate->is_assign !== 2) {
-            return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted, You can not book on or off a shift untill it is accepted!',
-            ]);
-        }
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
             'shift_id' => $shiftDate->id, // store shift_date_id, not main shift_id
@@ -327,12 +322,6 @@ class ShiftApiController extends Controller
             return response()->json([
                 'message' => 'Trying to book on unavailable shift (ShiftDate ID: ' . $shiftDate_id . ').'
             ], 409);
-        }
-
-        if ($shiftDate->is_assign == 3) {
-            return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') has been already booked on',
-            ]);
         }
 
         if ($shiftDate->is_assign !== 2) {
@@ -548,11 +537,12 @@ class ShiftApiController extends Controller
     {
         $user = Auth::user();
 
-        // Get the latest shift bookings
+        // Get the latest shift booking
         $latestBooking = ShiftBooking::where('user_id', $user->id)
             ->latest('created_at')
             ->first();
 
+        // If no booking exists, default to off-duty
         if (!$latestBooking) {
             return response()->json([
                 'status' => 'off-duty',
@@ -562,28 +552,18 @@ class ShiftApiController extends Controller
             ]);
         }
 
-        // Determine status based on latest booking type
-        if ($latestBooking->status = 'book_on') {
-            $shiftdate = ShiftDate::find($latestBooking->shift_id);
-            return response()->json([
-                'status' => 'on-duty',
-                'shift_date_id' => $shiftdate->id,
-                'shift_id' => $shiftdate->shift_id,
-                'message' => 'No shift bookings found.'
-            ]);
-        }
-
-        // Fetch shift info if available
+        // Fetch related shift info safely
         $shiftDate = ShiftDate::find($latestBooking->shift_id);
         $shift = $shiftDate ? Shift::find($shiftDate->shift_id) : null;
 
-        $response = [
-            'status' => 'off-duty',
-            'shift_date_id' => null,
-            'shift_id' => null,
-            'message' => 'No shift bookings found.'
-        ];
+        // Determine duty status
+        $status = $latestBooking->type === 'book_on' ? 'on-duty' : 'off-duty';
 
-        return response()->json($response);
+        return response()->json([
+            'status'        => $status,
+            'shift_date_id' => $shiftDate?->id,
+            'shift_id'      => $shift?->id,
+            'message'       => 'Latest booking retrieved successfully.'
+        ]);
     }
 }

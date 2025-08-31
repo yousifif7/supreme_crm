@@ -275,7 +275,7 @@
                                             </div>
                                         </div>
 
-                                        {{-- <div class="col-md-12">
+                                        <div class="col-md-12">
                                             <div class="row">
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
@@ -310,7 +310,7 @@
 
                                                 </div>
                                             </div>
-                                        </div> --}}
+                                        </div>
 
                                         <div class="col-md-4 mb-3">
                                             <button type="button" class="btn btn-success btn-sm addShiftGroup">+
