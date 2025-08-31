@@ -162,20 +162,6 @@
                             </form>
                         </div>
                     </div>
-                    @if($shiftDate->staff_id)
-                        @php
-                        // $employee= App\Models\Employee::find($shiftDate->staff_id);
-                        $user= App\Models\User::role('security_staff')->where('id',$shiftDate->staff_id)->first();
-                        @endphp
-                    <div class="col-md-6 col-12">
-                        <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
-                            <a href="{{ route('shift.map', ['shiftDateId' => $shiftDate->id]) }}"
-                                class="btn btn-primary" target="_blank">
-                                View Heatmap
-                            </a>
-                        </div>
-                    </div>
-                    @endif
                 </div>
             </div>
         </div>
@@ -490,7 +476,7 @@ $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm
                 }
             });
         });
-        
+
     $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
         $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
         $('#assignShiftModal').modal('show');
