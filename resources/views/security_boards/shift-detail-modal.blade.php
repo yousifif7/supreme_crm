@@ -457,35 +457,40 @@
     $apiKey = env('GOOGLE_MAPS_API_KEY');
 @endphp
 <script>
-    $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
-        e.preventDefault();
-        var actionUrl = $(this).attr('action');
-        $.ajax({
-            url: `${actionUrl}`,
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(response) {
-                $('#success_message').html('Shift bookon updated successfully!');
-                closeBsModal('#eventModal');
-                $('#success_modal').modal('show');
-            },
-            error: function(xhr) {
-                if (xhr.status === 422 && xhr.responseJSON) {
-                    // Show specific validation error
-                    if (xhr.responseJSON.error) {
-                        toast_danger(xhr.responseJSON.error);
-                    } else if (xhr.responseJSON.errors) {
-                        // Multiple field errors
-                        let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                        toast_danger(messages);
-                    }
-                } else {
-                    toast_danger('An unexpected error occurred while assigning the shift.');
-                }
-            }
-        });
-    });
+$(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
+            e.preventDefault();
+            var actionUrl = $(this).attr('action');
 
+            $.ajax({
+                url: actionUrl,
+                type: 'POST',
+                data: $(this).serialize(),
+                dataType: 'json', // ensures proper parsing
+                success: function(response) {
+                    if (response.success) {
+                        // Use a toast or alert instead of hidden div
+                        toast_success(response
+                        .success); // create a toast_success function if you don't have one
+                        closeBsModal('#eventModal'); // close the modal AFTER showing toast
+                    } else {
+                        toast_danger('Unexpected response from server.');
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON) {
+                        if (xhr.responseJSON.error) {
+                            toast_danger(xhr.responseJSON.error);
+                        } else if (xhr.responseJSON.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            toast_danger(messages);
+                        }
+                    } else {
+                        toast_danger('An unexpected error occurred while assigning the shift.');
+                    }
+                }
+            });
+        });
+        
     $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
         $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
         $('#assignShiftModal').modal('show');

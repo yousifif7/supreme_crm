@@ -302,7 +302,7 @@
                                         </form>
                                     </div>
                                 </div>
-                                                                @if ($shiftDate->staff_id)
+                                @if ($shiftDate->staff_id)
                                     @php
                                         // $employee= App\Models\Employee::find($shiftDate->staff_id);
                                         $user = App\Models\User::role('security_staff')
@@ -614,22 +614,27 @@
         $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
             e.preventDefault();
             var actionUrl = $(this).attr('action');
+
             $.ajax({
-                url: `${actionUrl}`,
+                url: actionUrl,
                 type: 'POST',
                 data: $(this).serialize(),
+                dataType: 'json', // ensures proper parsing
                 success: function(response) {
-                    $('#success_message').html('Shift bookon updated successfully!');
-                    closeBsModal('#eventModal');
-                    $('#success_modal').modal('show');
+                    if (response.success) {
+                        // Use a toast or alert instead of hidden div
+                        toast_success(response
+                        .success); // create a toast_success function if you don't have one
+                        closeBsModal('#eventModal'); // close the modal AFTER showing toast
+                    } else {
+                        toast_danger('Unexpected response from server.');
+                    }
                 },
                 error: function(xhr) {
                     if (xhr.status === 422 && xhr.responseJSON) {
-                        // Show specific validation error
                         if (xhr.responseJSON.error) {
                             toast_danger(xhr.responseJSON.error);
                         } else if (xhr.responseJSON.errors) {
-                            // Multiple field errors
                             let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
                             toast_danger(messages);
                         }
@@ -726,6 +731,7 @@
                     // closeBsModal('#assignShiftModal');
                     // closeBsModal('#globalModal');
                     // $('#success_modal').modal('show');
+                    toast_success(response.success);
                     location.reload();
                 },
                 error: function(xhr) {

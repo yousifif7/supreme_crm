@@ -15,6 +15,7 @@ use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
+use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
 use App\DataTables\ShiftsDataTable;
@@ -461,20 +462,66 @@ class ShiftController extends Controller
     {
         $request->validate([
             'book_on_id' => 'required|exists:shift_dates,id',
-            'absentee_start_time' => 'required',
+            'absentee_start_time' => 'required|date_format:H:i',
         ]);
 
         $shiftDate = \App\Models\ShiftDate::find($request->input('book_on_id'));
 
         if ($shiftDate->staff_id) {
-            // $shiftDate->absentee_start = $shiftDate->shift_date;
-            $shiftDate->absentee_start_time = $request->input('absentee_start_time');
-            $shiftDate->update();
-            return response()->json(['message' => 'Shift bookon updated successfully']);
+            if ($shiftDate->is_assign == 2) {
+                $shiftDate->absentee_start_time = $request->input('absentee_start_time');
+                $shiftDate->status = 'booked_on';
+                $shiftDate->is_assign = 3;
+                $shiftDate->save();
+
+                // Create shift booking
+                ShiftBooking::create([
+                    'user_id' => $shiftDate->staff_id,
+                    'shift_id' => $shiftDate->id,
+                    'type' => 'book_on',
+                    'timestamp' => now(),
+                    'face_verification_result' => 'not_required',
+                ]);
+                // Notify staff
+                send_push_notification(
+                    $shiftDate->staff_id,
+                    'Shift assigned',
+                    'An admin booked you ON for shift (ID: ' . $shiftDate->id . ') starting at ' . $shiftDate->start_time,
+                    ['shiftDate' => $shiftDate],
+                );
+                return response()->json(['success' => 'Shift booked on successfully'], 200);
+            }
+
+            if ($shiftDate->is_assign == 3) {
+                return response()->json([
+                    'error' => 'The shift is already booked on!'
+                ], 422);
+            }
+            if ($shiftDate->is_assign == 4) {
+                return response()->json([
+                    'error' => 'The shift is booked Off and ended! You cannot book it on!'
+                ], 422);
+            }
+
+            if ($shiftDate->is_assign == 5) {
+                return response()->json([
+                    'error' => 'The shift is reject by guard, You cannot interact with it!'
+                ], 422);
+            }
+
+            return response()->json([
+                'error' => 'The shift is not accepted by staff, You cannot book it on.'
+            ], 422);
+        }
+
+        if ($shiftDate->staff_id !== $request->book_on_id) {
+            return response()->json([
+                'error' => 'This staff is not assigned to the shift.'
+            ], 422);
         }
 
         return response()->json([
-            'error' => 'This staff is not assigned to the shift.'
+            'error' => 'There is no staff assigned!.'
         ], 422);
     }
 
@@ -488,16 +535,52 @@ class ShiftController extends Controller
         $shiftDate = \App\Models\ShiftDate::find($request->input('book_off_id'));
 
         if ($shiftDate->staff_id) {
-            // $shiftDate->absentee_start = $shiftDate->shift_date;
-            $shiftDate->absentee_end_time = $request->input('absentee_end_time');
+            if ($shiftDate->is_assign == 3) {
+                $shiftDate->absentee_start_time = $request->input('absentee_start_time');
+                $shiftDate->status = 'booked_off';
+                $shiftDate->is_assign = 4;
+                $shiftDate->save();
 
-            $shiftDate->update();
+                // Create shift booking
+                ShiftBooking::create([
+                    'user_id' => $shiftDate->staff_id,
+                    'shift_id' => $shiftDate->id,
+                    'type' => 'book_off',
+                    'timestamp' => now(),
+                    'face_verification_result' => 'not_required',
+                ]);
+                // Notify staff
+                send_push_notification(
+                    $shiftDate->staff_id,
+                    'Shift assigned',
+                    'An admin booked you OFF for shift (ID: ' . $shiftDate->id . ') ending at ' . $shiftDate->end_time,
+                    ['shiftDate' => $shiftDate],
+                );
+                return response()->json(['success' => 'Shift booked off successfully'], 200);
+            }
+            if ($shiftDate->is_assign == 4) {
+                return response()->json([
+                    'error' => 'The shift is already booked Off!'
+                ], 422);
+            }
+            if ($shiftDate->is_assign == 5) {
+                return response()->json([
+                    'error' => 'The shift is reject by guard, You cannot interact with it!'
+                ], 422);
+            }
 
-            return response()->json(['message' => 'Shift bookoff updated successfully']);
+            return response()->json([
+                'error' => 'The shift is not Been booked ON by staff, You cannot book it off!'
+            ], 422);
+        }
+        if ($shiftDate->staff_id !== $request->book_off_id) {
+            return response()->json([
+                'error' => 'This staff is not assigned to the shift.'
+            ], 422);
         }
 
         return response()->json([
-            'error' => 'This staff is not assigned to the shift.'
+            'error' => 'There is no staff assigned!.'
         ], 422);
     }
 
@@ -1010,7 +1093,7 @@ class ShiftController extends Controller
             ['shiftDate' => $shiftDate],
         );
 
-        return back()->with('message', 'Shift assigned successfully');
+        return response()->json(['success' => 'Shift assigned successfully!'],200);
     }
 
 
