@@ -61,7 +61,7 @@ class CheckCallController extends Controller
 
         $checkCall->update([
             'status' => 'completed',
-            'employee_id' => $employee->id,
+            'employee_id' => Auth::id(),
         ]);
 
         Location::create([
@@ -80,7 +80,7 @@ class CheckCallController extends Controller
             'title' => 'Checkcall completed',
             'message' => 'Guard ' . $employee->fore_name . ' ' . $employee->sur_name . ' Completed checkcall ' . $checkCall->name,
             'read' => false,
-            'action_url' => "/scheduling"
+            'action_url' => "/shift-dates/$checkCall->shift_id/view"
         ]);
 
         Notification::create([

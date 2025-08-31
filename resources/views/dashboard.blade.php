@@ -157,14 +157,14 @@
                             <tbody>
                                 @forelse ($checkCalls as $checkCall)
                                     @php
-                                            $employee = App\Models\User::role('security_staff')
-                                                ->where('id', $checkCall->employee_id)
-                                                ->first();
+                                        $employee = App\Models\User::role('security_staff')
+                                            ->where('id', $checkCall->employee_id)
+                                            ->first();
                                     @endphp
                                     <tr>
                                         <td>{{ $checkCall->shift_id ?? 'N/A' }}</td>
                                         <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                        <td>{{$checkCall->name}}</td>
+                                        <td>{{ $checkCall->name }}</td>
                                         <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('Y-m-d H:i') }}
                                         </td>
                                         <td>{{ ucfirst($checkCall->status) }}</td>
@@ -229,10 +229,12 @@
                     <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                         <h5 class="mb-2">Today Shifts (Live)</h5>
                     </div>
+
+                    <!-- ✅ Scroll on card-body instead of table-responsive -->
                     <div class="card-body p-0">
-                        <div class="table-responsive">
+                        <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
                             <table class="table table-nowrap mb-0">
-                                <thead>
+                                <thead class="sticky-top bg-white">
                                     <tr class="text-center">
                                         <th>TIME</th>
                                         <th>PERSON</th>
@@ -241,6 +243,7 @@
                                         <th>OUT</th>
                                     </tr>
                                 </thead>
+
                                 <tbody>
                                     @foreach ($shifts as $shift)
                                         @php
@@ -249,22 +252,15 @@
                                                 ->first();
                                         @endphp
                                         <tr>
-                                            <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}
-                                            </td>
+                                            <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}</td>
                                             <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                             <td>X</td>
-                                            <td>{{ $shift->break_time }}
-                                            </td>
-                                            <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}
-                                            </td>
+                                            <td>{{ $shift->break_time }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}</td>
                                         </tr>
                                     @endforeach
-
-
-
                                 </tbody>
                             </table>
-
                         </div>
                     </div>
                 </div>
@@ -272,8 +268,8 @@
             <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
                 <div class="card flex-fill">
                     <div class="card-header">
-                        <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5 class="fs-18">Upcomming Shifts</h5>
+                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                            <h5 class="mb-2">Upcomming Shifts</h5>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -289,40 +285,41 @@
                                         ->with('staff') // eager load staff if you want to access it
                                         ->get();
                                 @endphp
-
-                                <table class="table table-nowrap mb-0">
-                                    <thead>
-                                        <tr class="text-center">
-                                            <th>DATE</th>
-                                            <th>PERSON</th>
-                                            <th>IN</th>
-                                            <th>BREAK</th>
-                                            <th>OUT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse ($upcomingShifts as $shift)
-                                            @php
-                                                $employee = App\Models\User::role('security_staff')
-                                                    ->where('id', $shift->staff_id)
-                                                    ->first();
-                                            @endphp
+                                <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
+                                    <table class="table table-nowrap mb-0">
+                                        <thead>
                                             <tr class="text-center">
-                                                <td>{{ Carbon::parse($shift->shift_date)->format('D, M j') }}</td>
-                                                <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                                <td>{{ Carbon::parse($shift->start_time)->format('h:i A') }}</td>
-                                                <td>{{ $shift->break_time ?? '-' }}</td>
-                                                <td>{{ Carbon::parse($shift->end_time)->format('h:i A') }}</td>
+                                                <th>DATE</th>
+                                                <th>PERSON</th>
+                                                <th>IN</th>
+                                                <th>BREAK</th>
+                                                <th>OUT</th>
                                             </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="5" class="text-center">No upcoming shifts in the next 3
-                                                    days.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-
+                                        </thead>
+                                        <tbody>
+                                            @forelse ($upcomingShifts as $shift)
+                                                @php
+                                                    $employee = App\Models\User::role('security_staff')
+                                                        ->where('id', $shift->staff_id)
+                                                        ->first();
+                                                @endphp
+                                                <tr class="text-center">
+                                                    <td>{{ Carbon::parse($shift->shift_date)->format('D, M j') }}</td>
+                                                    <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                                    <td>{{ Carbon::parse($shift->start_time)->format('h:i A') }}</td>
+                                                    <td>{{ $shift->break_time ?? '-' }}</td>
+                                                    <td>{{ Carbon::parse($shift->end_time)->format('h:i A') }}</td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="5" class="text-center">No upcoming shifts in the next
+                                                        3
+                                                        days.</td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         </div>
                     </div>

@@ -36,8 +36,8 @@ class UserController extends Controller
         $staffs = User::role('security_staff')->get();
 
         $checkCalls = CheckCall::whereIn('status', ['pending', 'missed', 'completed'])
-            ->orderBy('scheduled_time', 'asc')
-            ->limit(10)  // limit to recent 10 or whatever you want
+            ->orderBy('scheduled_time', 'desc')
+            ->limit(20)  // limit to recent 10 or whatever you want
             ->get();
 
         $now = Carbon::now();
