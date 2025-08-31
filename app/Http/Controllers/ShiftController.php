@@ -334,12 +334,25 @@ class ShiftController extends Controller
                         CheckCall::create([
                             'shift_id'       => $shiftDate->id,
                             // 'employee_id'    => $shiftDate->staff_id,
-                            'name'           => 'CheckCall ' . ($n + 1),
+                            'name'           => 'Auto CheckCall ' . ($n + 1),
                             'scheduled_time' => $date->format('Y-m-d') . ' ' . $checkTime->format('H:i'),
                             'status'         => 'pending',
                         ]);
                     }
-                    // dd($durationMinutes, $numberOfCheckCalls);
+
+                    // Manully added checkcalls
+                    if ($request->has('checkcalls') && is_array($request->checkcalls)) {
+                        foreach ($request->checkcalls as $checkcall) {
+                            if (!empty($checkcall['name']) && !empty($checkcall['scheduled_time'])) {
+                                CheckCall::create([
+                                    'shift_id'       => $shiftDate->id,
+                                    'name'           => $checkcall['name'],
+                                    'scheduled_time' => $date->format('Y-m-d') . ' ' . $checkcall['scheduled_time'],
+                                    'status'         => 'pending',
+                                ]);
+                            }
+                        }
+                    }
                 }
             }
         }

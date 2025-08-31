@@ -35,8 +35,7 @@ class UserController extends Controller
         $clients = Client::all();
         $staffs = User::role('security_staff')->get();
 
-        $checkCalls = CheckCall::with(['shift.staff'])
-            ->whereIn('status', ['pending', 'missed', 'completed'])
+        $checkCalls = CheckCall::whereIn('status', ['pending', 'missed', 'completed'])
             ->orderBy('scheduled_time', 'asc')
             ->limit(10)  // limit to recent 10 or whatever you want
             ->get();

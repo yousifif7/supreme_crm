@@ -146,6 +146,7 @@
                                 <tr>
                                     <th>Shift</th>
                                     <th>Staff</th>
+                                    <th>CheckCall name</th>
                                     <th>Scheduled Time</th>
                                     <th>Status</th>
                                     <th>Method</th>
@@ -156,11 +157,14 @@
                             <tbody>
                                 @forelse ($checkCalls as $checkCall)
                                     @php
-                                        $employee = App\Models\Employee::find($checkCall->employee_id);
+                                            $employee = App\Models\User::role('security_staff')
+                                                ->where('id', $checkCall->employee_id)
+                                                ->first();
                                     @endphp
                                     <tr>
-                                        <td>{{ $checkCall->shift->id ?? 'N/A' }}</td>
-                                        <td>{{ $employee?->fore_name }} {{ $employee?->sur_name }}</td>
+                                        <td>{{ $checkCall->shift_id ?? 'N/A' }}</td>
+                                        <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                        <td>{{$checkCall->name}}</td>
                                         <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('Y-m-d H:i') }}
                                         </td>
                                         <td>{{ ucfirst($checkCall->status) }}</td>

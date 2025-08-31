@@ -12,7 +12,7 @@ class CheckCall extends Model
         'shift_id', 'scheduled_time', 'status', 'method','employee_id','name'
     ];
 
-    public function shift()
+    public function shiftDate()
     {
         return $this->belongsTo(ShiftDate::class,'shift_id');
     }
