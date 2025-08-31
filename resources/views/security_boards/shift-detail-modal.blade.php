@@ -169,7 +169,7 @@
                         @endphp
                     <div class="col-md-6 col-12">
                         <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
-                            <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"
+                            <a href="{{ route('shift.map', ['shiftDateId' => $shiftDate->id]) }}"
                                 class="btn btn-primary" target="_blank">
                                 View Heatmap
                             </a>

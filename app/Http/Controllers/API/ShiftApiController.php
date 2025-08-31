@@ -82,7 +82,7 @@ class ShiftApiController extends Controller
         $employee = Employee::where('user_id', Auth::id())->first();
 
         $shift = ShiftDate::where('id', $shift_id)
-            ->where('staff_id', $employee->id)
+            ->where('staff_id', Auth::id())
             ->first();
 
         if (!$shift) {
@@ -147,7 +147,7 @@ class ShiftApiController extends Controller
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            "/leaves/$leave->id/view"
+            "/leaves"
         );
 
         send_push_notification(
@@ -166,26 +166,38 @@ class ShiftApiController extends Controller
 
     public function showLeaves()
     {
-        $leaves = LeaveRequest::where('user_id', Auth::id())->get()->paginate(10);
+        // Build query and paginate (no get() here)
+        $leaves = LeaveRequest::where('user_id', Auth::id())
+            ->latest('created_at')
+            ->paginate(10);
 
-        return response()->json([
-            'leaves' => $leaves->map(fn($l) => [
-                'id' => $l->id,
-                'type' => $l->type,
-                'status' => $l->status,
-                'reason' => $l->reason,
+        // Transform only the items in the paginator
+        $items = $leaves->getCollection()->map(function ($l) {
+            return [
+                'id'         => $l->id,
+                'type'       => $l->type,
+                'status'     => $l->status,
+                'reason'     => $l->reason,
                 'start_date' => $l->start_date,
-                'end_date' => $l->end_date,
-                'location' => json_decode($l->location),
-                'timestamp' => $l->timestamp,
+                'end_date'   => $l->end_date,
+                // If location is JSON in DB, decode; if it's already cast to array, keep it
+                'location'   => is_string($l->location) ? json_decode($l->location, true) : $l->location,
+                'timestamp'  => $l->timestamp,
                 'created_at' => $l->created_at,
                 'updated_at' => $l->updated_at,
-            ]),
+            ];
+        })->values();
+
+        return response()->json([
+            'leaves' => $items,
             'pagination' => [
                 'current_page' => $leaves->currentPage(),
-                'total_pages' => $leaves->lastPage(),
-                'total' => $leaves->total(),
-            ]
+                'per_page'     => $leaves->perPage(),
+                'total_pages'  => $leaves->lastPage(),
+                'total'        => $leaves->total(),
+                'from'         => $leaves->firstItem(),
+                'to'           => $leaves->lastItem(),
+            ],
         ]);
     }
 
@@ -551,17 +563,25 @@ class ShiftApiController extends Controller
         }
 
         // Determine status based on latest booking type
-        $status = $latestBooking->type === 'book_on' ? 'on-duty' : 'off-duty';
+        if ($latestBooking->status = 'book_on') {
+            $shiftdate = ShiftDate::find($latestBooking->shift_id);
+            return response()->json([
+                'status' => 'on-duty',
+                'shift_date_id' => $shiftdate->id,
+                'shift_id' => $shiftdate->shift_id,
+                'message' => 'No shift bookings found.'
+            ]);
+        }
 
         // Fetch shift info if available
         $shiftDate = ShiftDate::find($latestBooking->shift_id);
         $shift = $shiftDate ? Shift::find($shiftDate->shift_id) : null;
 
         $response = [
-            'status' => $status,
-            'shift_date_id' => $shiftDate?->id,
-            'shift_id' => $shift?->id,
-            'booked_at' => $latestBooking->created_at,
+            'status' => 'off-duty',
+            'shift_date_id' => null,
+            'shift_id' => null,
+            'message' => 'No shift bookings found.'
         ];
 
         return response()->json($response);
