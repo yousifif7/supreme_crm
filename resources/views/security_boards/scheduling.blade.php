@@ -358,28 +358,31 @@
         </div>
 
         <!-- Add Shift Success -->
-        <div class="modal fade" id="success_modal" role="dialog">
-            <div class="modal-dialog modal-dialog-centered modal-sm">
-                <div class="modal-content">
-                    <div class="modal-body">
-                        <div class="text-center p-3">
-                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3"><i
-                                    class="ti ti-check fs-24"></i></span>
-                            <h5 class="mb-2" id="success_message"></h5>
-                            <div>
-                                <div class="row g-2">
-                                    <div class="col-12">
-                                        <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
-                                    </div>
-                                </div>
-                            </div>
+<div class="modal fade" id="success_modal" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content">
+            <div class="modal-body">
+                <div class="text-center p-3">
+                    <span class="avatar avatar-lg avatar-rounded bg-success mb-3">
+                        <i class="ti ti-check fs-24"></i>
+                    </span>
+                    <h5 class="mb-2" id="success_message"></h5>
+                    <p>Choose which to perform!</p>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
+                        </div>
+                        <div class="col-12">
+                            <a id="latest_shift_link" href="#" class="btn btn-success w-100">Go to Latest Shift</a>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
+    </div>
+</div>
 
-        
+
     </div>
     <!-- /Page Wrapper -->
 @endsection
@@ -510,15 +513,15 @@
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
                 $("[id^='error_']").text('');
-                let form = $(this)[0];
+                let form = this;
                 let formData = new FormData(form);
-                let submitButton = $('#saveshift'); // Add an ID to your submit button
+                let submitButton = $('#saveshift');
 
                 // Disable button and show loading
                 submitButton.prop('disabled', true).html('Saving...');
 
                 $.ajax({
-                    url: $(this).attr('action'),
+                    url: $(form).attr('action'),
                     method: 'POST',
                     data: formData,
                     processData: false,
@@ -528,16 +531,21 @@
                     },
                     success: function(response) {
                         closeBsModal('#add_shift');
-                        $('#success_message').html('Shift Added Successfully')
+                        $('#success_message').html(response.message ??
+                            'Shift Added Successfully');
+                        if (response.redirect_url) {
+                            $('#latest_shift_link').attr('href', response.redirect_url);
+                        }
                         $('#success_modal').modal('show');
+
                     },
                     error: function(xhr) {
                         console.log("Status:", xhr.status);
-                        console.log("Response:", xhr.responseText); // Helpful for debugging
+                        console.log("Response:", xhr.responseText);
 
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             let errors = xhr.responseJSON.errors;
-                            let responseIndex = xhr.responseJSON.index;
+                            let responseIndex = xhr.responseJSON.index ?? 0;
                             $.each(errors, function(key, value) {
                                 if ($('#error_' + key).length)
                                     $('#error_' + key).text(value[0]);
@@ -546,13 +554,12 @@
                                     $('.error_' + key).eq(responseIndex).text(value[0]);
                             });
                         } else if (xhr.responseJSON?.error) {
-                            toast_danger(xhr.responseJSON.error); //
+                            toast_danger(xhr.responseJSON.error);
                         } else {
                             toast_danger('An unexpected error occurred. Please try again.');
                         }
                     },
                     complete: function() {
-                        // Re-enable button after response
                         submitButton.prop('disabled', false).html('Save');
                     }
                 });

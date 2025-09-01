@@ -287,6 +287,11 @@ class ShiftController extends Controller
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
             $selectedDays = array_map('trim', explode(',', $dayString));
 
+            // Convert full day names (Monday) → short (Mon)
+            $selectedDays = array_map(function ($day) {
+                return ucfirst(substr($day, 0, 3));
+            }, $selectedDays);
+
             $fromDate = Carbon::parse($request->from_shift[$i]);
             $toDate   = Carbon::parse($request->to_shift[$i]);
             $period   = CarbonPeriod::create($fromDate, $toDate);
@@ -358,7 +363,12 @@ class ShiftController extends Controller
             }
         }
 
-        return response()->json(['message' => 'All shifts created successfully']);
+        return response()->json([
+            'message' => 'Shifts created successfully!',
+            'redirect_url' => route('shiftDates.view', [
+                'shiftDate' => $shiftDate->id,   // must match the {shiftDate} route param
+            ])
+        ]);
     }
 
     public function edit($id)
@@ -1093,7 +1103,7 @@ class ShiftController extends Controller
             ['shiftDate' => $shiftDate],
         );
 
-        return response()->json(['success' => 'Shift assigned successfully!'],200);
+        return response()->json(['success' => 'Shift assigned successfully!'], 200);
     }
 
 

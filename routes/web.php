@@ -387,8 +387,11 @@ Route::middleware('auth')->group(function () {
 Route::prefix('incidents')->group(function () {
     Route::get('/', [IncidentReportController::class, 'index'])->name('incidents.index'); // datatable page
     Route::get('/{id}', [IncidentReportController::class, 'show'])->name('incidents.show'); // show details
-    Route::get('/{id}/edit', [IncidentReportController::class, 'edit'])->name('incidents.edit'); // edit page/modal
+    Route::get('/{id}/edit', [IncidentReportController::class, 'edit'])->name('incidents.edit');
+    Route::put('/{id}', [IncidentReportController::class, 'update'])->name('incidents.update');
+    Route::post('/', [IncidentReportController::class, 'store'])->name('incidents.store');
     Route::delete('/{id}', [IncidentReportController::class, 'destroy'])->name('incidents.destroy'); // delete
+    Route::post('bulkdelete', [IncidentReportController::class, 'bulkdelete'])->name('incidents.bulkdelete'); // delete
 });
 
 require __DIR__ . '/auth.php';

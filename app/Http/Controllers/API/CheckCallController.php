@@ -29,58 +29,90 @@ class CheckCallController extends Controller
 
     // 18. Complete Check Call (App-based)
     public function completeCheckCall(Request $request, $id)
-    {
-        $validated = $request->validate([
-            'media_files' => 'array',
-            'media_files.*' => 'string',
-            'location.latitude' => 'required|numeric',
-            'location.longitude' => 'required|numeric',
-            'notes' => 'nullable|string',
-            'timestamp' => 'required|date',
-        ]);
+{
+    $data = $request->validate([
+        'media_files' => 'nullable|array', // files or base64
+        'location.latitude' => 'required|numeric',
+        'location.longitude' => 'required|numeric',
+        'notes' => 'nullable|string',
+        'timestamp' => 'required|date',
+    ]);
 
-        $checkCall = CheckCall::findOrFail($id);
+    $checkCall = CheckCall::findOrFail($id);
+    $user = Auth::user();
+    $employee = Employee::where('user_id', $user->id)->first();
 
+    if (!$employee) {
+        return response()->json(['message' => 'No employee linked to this user.'], 404);
+    }
 
-        // Save media
-        if ($request->hasFile('media_file')) {
-            // Generate unique name
-            $filename = uniqid() . '.' . $request->file('media_file')->getClientOriginalExtension();
+    // Handle media files
+    foreach ($data['media_files'] ?? [] as $file) {
+        $filePath = null;
 
-            // Move file to public/check_calls
-            $request->file('media_file')->move(public_path('check_calls'), $filename);
-
-            // Save relative path in DB
-            CheckCallMedia::create([
-                'check_call_id' => $checkCall->id,
-                'file_path' => 'check_calls/' . $filename,
-            ]);
+        if ($file instanceof \Illuminate\Http\UploadedFile) {
+            $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+            $file->move(public_path('check_calls'), $filename);
+            $filePath = 'check_calls/' . $filename;
+        } elseif (is_string($file) && preg_match('/^data:/', $file)) {
+            $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
+            $extension = 'png';
+            if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
+                $mime = $matches[1];
+                $extMap = [
+                    'image/jpeg' => 'jpg',
+                    'image/png' => 'png',
+                    'image/gif' => 'gif',
+                    'video/mp4' => 'mp4',
+                    'video/avi' => 'avi',
+                    'application/pdf' => 'pdf'
+                ];
+                $extension = $extMap[$mime] ?? 'png';
+            }
+            if (!file_exists(public_path('check_calls'))) {
+                mkdir(public_path('check_calls'), 0755, true);
+            }
+            $filename = time() . '_' . uniqid() . '.' . $extension;
+            file_put_contents(public_path('check_calls/' . $filename), base64_decode($fileData));
+            $filePath = 'check_calls/' . $filename;
+        } else {
+            continue;
         }
 
-        $employee = Employee::where('user_id', Auth::id())->first();
-
-        $checkCall->update([
-            'status' => 'completed',
-            'employee_id' => Auth::id(),
+        CheckCallMedia::create([
+            'check_call_id' => $checkCall->id,
+            'file_path' => $filePath,
         ]);
+    }
 
-        Location::create([
-            'user_id' => Auth::id(),
-            'latitude' => $validated['location']['latitude'],
-            'longitude' => $validated['location']['longitude'],
-            'accuracy' => 100,
-            'on_duty' => 1,
-            'shiftdate_id' =>$checkCall->shift_id,
-        ]);
+    // Update check call
+    $checkCall->update([
+        'status' => 'completed',
+        'employee_id' => $user->id,
+        'notes' => $data['notes'] ?? null,
+        'completed_at' => $data['timestamp'],
+    ]);
 
+    // Store location
+    Location::create([
+        'user_id' => $user->id,
+        'latitude' => $data['location']['latitude'],
+        'longitude' => $data['location']['longitude'],
+        'accuracy' => 100,
+        'on_duty' => 1,
+        'shiftdate_id' => $checkCall->shift_id,
+    ]);
+
+    // Notifications (like store)
+    try {
         Notification::create([
             'user_id' => 1,
             'employee_id' => null,
             'type' => 'alert',
             'title' => 'Checkcall completed',
-            'message' => 'Guard ' . $employee->fore_name . ' ' . $employee->sur_name . ' Completed checkcall ' . $checkCall->name,
+            'message' => 'Guard ' . $employee->fore_name . ' ' . $employee->sur_name . ' completed checkcall ' . $checkCall->name,
             'read' => false,
-            'action_url' => "/shift-dates/$checkCall->shift_id/view"
+            'action_url' => "/shift-dates/{$checkCall->shift_id}/view"
         ]);
 
         Notification::create([
@@ -88,12 +120,17 @@ class CheckCallController extends Controller
             'employee_id' => $employee->id,
             'type' => 'alert',
             'title' => 'Checkcall completed',
-            'message' => 'You have completed your check call successfully ',
+            'message' => 'You have completed your check call successfully',
         ]);
-
-        return response()->json(['message' => 'Check call completed']);
+    } catch (\Exception $e) {
+        \Log::error('Notification failed: ' . $e->getMessage());
     }
 
+    return response()->json([
+        'message' => 'Check call completed successfully',
+        'check_call_id' => $checkCall->id
+    ], 200);
+}
     // 19. Complete Check Call (Phone-based)
     public function phoneComplete(Request $request)
     {

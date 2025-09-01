@@ -165,12 +165,11 @@ function send_push_notification($userId, $title, $message, $data = [])
             // Save in DB
             \App\Models\Notification::create([
                 'user_id'    => $userId,
+                'employee' => null,
+                'type' => 'alert',
                 'title'      => $title,
                 'message'    => $message,
-                'data'       => json_encode($data), // store as JSON
-                'type'       => $data['type'] ?? 'notification',
                 'read'       => false,
-                'action_url' => $data['action_url'] ?? null,
             ]);
 
         } catch (\Throwable $e) {

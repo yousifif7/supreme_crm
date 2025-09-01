@@ -55,7 +55,10 @@
 
                 <div class="me-2 mb-2 filter_area">
 
-                   
+                    <a href="#" class="add_btn btn btn-white d-inline-flex align-items-center" data-bs-toggle="modal"
+                        data-bs-target="#incidentCreateModal">
+                        <i class="ti ti-plus me-2"></i> Incident
+                    </a>
 
 
                     <!-- Search -->
@@ -90,50 +93,229 @@
 
 
     <!-- View Modal -->
-<div class="modal fade" id="incidentModal" tabindex="-1" aria-labelledby="incidentModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title" id="incidentModalLabel">Incident Details</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body" id="incidentModalBody">
-        <!-- Incident details will be loaded here -->
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-      </div>
+    <div class="modal fade" id="incidentModal" tabindex="-1" aria-labelledby="incidentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="incidentModalLabel">Incident Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="incidentModalBody">
+                    <!-- Incident details will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
 
-<!-- Delete Modal -->
-<div class="modal fade" id="deleteIncidentModal" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header"><h5 class="modal-title">Delete Incident</h5></div>
-      <div class="modal-body">Are you sure you want to delete this incident?</div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button id="confirmDeleteIncidentBtn" type="button" class="btn btn-danger">Delete</button>
-      </div>
+    <!-- Delete Modal -->
+    <div class="modal fade" id="deleteIncidentModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Incident</h5>
+                </div>
+                <div class="modal-body">Are you sure you want to delete this incident?</div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button id="confirmDeleteIncidentBtn" type="button" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
     </div>
-  </div>
-</div>
     <!-- /Page Wrapper -->
+
+
+    <!-- Edit Incident Modal -->
+    <div class="modal fade" id="incidentEditModal" tabindex="-1" aria-labelledby="incidentEditModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="incidentEditForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="incidentEditModalLabel">Edit Incident</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <div class="modal-body">
+                        <input type="hidden" id="incident_id" name="incident_id">
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title">
+                            <div class="text-danger" id="error_title"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category">
+                                <option value="">Select Category</option>
+                                <option value="theft">Theft</option>
+                                <option value="assault">Assault</option>
+                                <option value="fire">Fire</option>
+                                <option value="medical">Medical</option>
+                                <option value="property_damage">Property Damage</option>
+                                <option value="suspicious_activity">Suspicious Activity</option>
+                                <option value="other">Other</option>
+                            </select>
+                            <div class="text-danger" id="error_category"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="severity" class="form-label">Severity</label>
+                            <select class="form-select" id="severity" name="severity">
+                                <option value="">Select Severity</option>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                                <option value="critical">Critical</option>
+                            </select>
+                            <div class="text-danger" id="error_severity"></div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="4"></textarea>
+                            <div class="text-danger" id="error_description"></div>
+                        </div>
+
+                        <input type="hidden" name="police_notified" value="0">
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="police_notified" name="police_notified"
+                                value="1">
+                            <label class="form-check-label" for="police_notified">Police Notified</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Location</label>
+                            <div id="location_preview" class="border p-2">N/A</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Files</label>
+                            <ul id="files_preview" class="list-group"></ul>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Update Incident</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Create Incident Modal -->
+    <div class="modal fade" id="incidentCreateModal" tabindex="-1" aria-labelledby="incidentCreateModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title" id="incidentCreateModalLabel">Create New Incident</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <form id="createIncidentForm">
+                    <div class="modal-body">
+
+                        {{-- <div class="mb-3">
+                            <label for="shift_id" class="form-label">Shift</label>
+                            <select class="form-select" id="shift_id" name="shift_id" required>
+                                <option value="">-- Select Shift --</option>
+                                <!-- dynamically fill with shifts -->
+                            </select>
+                        </div> --}}
+
+                        <div class="mb-3">
+                            <label for="category" class="form-label">Category</label>
+                            <select class="form-select" id="category" name="category" required>
+                                <option value="">-- Select Category --</option>
+                                <option value="incident">Incident</option>
+                                <option value="observation">Observation</option>
+                                <option value="maintenance">Maintenance</option>
+                                <option value="visitor">Visitor</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="severity" class="form-label">Severity</label>
+                            <select class="form-select" id="severity" name="severity" required>
+                                <option value="">-- Select Severity --</option>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="title" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="description" class="form-label">Description</label>
+                            <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="latitude" class="form-label">Latitude</label>
+                                <input type="text" class="form-control" id="latitude" name="latitude">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="longitude" class="form-label">Longitude</label>
+                                <input type="text" class="form-control" id="longitude" name="longitude">
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="address" class="form-label">Address</label>
+                                <input type="text" class="form-control" id="address" name="address">
+                            </div>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="police_notified" name="police_notified">
+                            <label class="form-check-label" for="police_notified">Police Notified</label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="police_reference" class="form-label">Police Reference</label>
+                            <input type="text" class="form-control" id="police_reference" name="police_reference">
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="immediate_action_taken" class="form-label">Immediate Action Taken</label>
+                            <textarea class="form-control" id="immediate_action_taken" name="immediate_action_taken" rows="2"></textarea>
+                        </div>
+
+                    </div><!-- modal-body -->
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Create Incident</button>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 @section('scripts')
     <script>
+        let selectedIncidentId = null;
 
-let selectedIncidentId = null;
-
-// SHOW INCIDENT
-function showIncident(id) {
-    $.ajax({
-        url: '/incidents/' + id, // make sure your route exists
-        type: 'GET',
-        success: function(res) {
-            let html = `
+        // SHOW INCIDENT
+        function showIncident(id) {
+            $.ajax({
+                url: '/incidents/' + id, // make sure your route exists
+                type: 'GET',
+                success: function(res) {
+                    let html = `
                 <p><strong>Title:</strong> ${res.title}</p>
                 <p><strong>Category:</strong> ${res.category}</p>
                 <p><strong>Severity:</strong> ${res.severity}</p>
@@ -145,45 +327,109 @@ function showIncident(id) {
                     ${res.media.map(file => `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
                 </ul>
             `;
-            $('#incidentModalBody').html(html);
-            $('#incidentModal').modal('show');
-        },
-        error: function(err) {
-            alert('Unable to fetch incident details.');
+                    $('#incidentModalBody').html(html);
+                    $('#incidentModal').modal('show');
+                },
+                error: function(err) {
+                    alert('Unable to fetch incident details.');
+                }
+            });
         }
-    });
-}
-// EDIT INCIDENT
-function editIncident(id) {
-    // Example: open edit page in new tab or same window
-    window.location.href = `/incidents/${id}/edit`; // Replace with your edit route
-}
 
-// DELETE INCIDENT
-function deleteIncident(id) {
-    selectedIncidentId = id;
-    if(confirm('Are you sure you want to delete this incident?')) {
-        $.ajax({
-            url: `/incidents/${id}`, // Replace with your delete route
-            type: 'DELETE',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}' // CSRF token
-            },
-            success: function(response) {
-                alert('Incident deleted successfully!');
-                $('#incident_reports-table').DataTable().ajax.reload(); // reload DataTable
-            },
-            error: function(xhr) {
-                alert('Failed to delete incident.');
+        // EDIT INCIDENT
+        function editIncident(id) {
+            $.ajax({
+                url: '/incidents/' + id + '/edit',
+                type: 'GET',
+                success: function(res) {
+                    // Fill form fields
+                    $('#incident_id').val(res.id);
+                    $('#title').val(res.title);
+                    $('#category').val(res.category);
+                    $('#severity').val(res.severity);
+                    $('#description').val(res.description);
+                    $('#police_notified').prop('checked', res.police_notified);
+
+                    // Example if you want to preview location & files
+                    $('#location_preview').text(res.location?.address ?? 'N/A');
+                    let filesHtml = res.media.map(file =>
+                        `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`
+                    ).join('');
+                    $('#files_preview').html(filesHtml);
+
+                    $('#incidentEditModal').modal('show');
+
+                },
+                error: function() {
+                    alert('Unable to load incident for editing.');
+                }
+            });
+        }
+
+        $('#incidentEditForm').on('submit', function(e) {
+            e.preventDefault();
+
+            if (!$('#police_notified').is(':checked')) {
+                $('#police_notified').val(0);
+            } else {
+                $('#police_notified').val(1);
             }
-        });
-    }
-}
 
-// OPTIONAL: Close modal programmatically
-function closeIncidentModal() {
-    $('#incidentModal').modal('hide');
-}
+            let id = $('#incident_id').val();
+            let formData = $(this).serialize();
+
+            $.ajax({
+                url: '/incidents/' + id,
+                type: 'PUT',
+                data: formData,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(res) {
+                    $('#incidentEditModal').modal('hide');
+                    toast_success(res.message);
+                    // Optionally refresh incident list
+                    $('#incident_reports-table').DataTable().ajax.reload(); // reload DataTable
+
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422) {
+                        let errors = xhr.responseJSON.errors;
+                        $.each(errors, function(key, value) {
+                            $('#error_' + key).text(value[0]);
+                        });
+                    } else {
+                        toast_danger('Failed to update incident.');
+                    }
+                }
+            });
+        });
+
+        // DELETE INCIDENT
+        function deleteIncident(id) {
+            selectedIncidentId = id;
+            if (confirm('Are you sure you want to delete this incident?')) {
+                $.ajax({
+                    url: `/incidents/${id}`, // Replace with your delete route
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': '{{ csrf_token() }}' // CSRF token
+                    },
+                    success: function(response) {
+                        toast_success('Incident deleted successfully!');
+                        $('#incident_reports-table').DataTable().ajax.reload(); // reload DataTable
+                    },
+                    error: function(xhr) {
+                        alert('Failed to delete incident.');
+                    }
+                });
+            }
+        }
+
+        // OPTIONAL: Close modal programmatically
+        function closeIncidentModal() {
+            $('#incidentModal').modal('hide');
+        }
         // Bulk delete button
         $('#bulkDeleteBtn').on('click', function() {
             const selected = $('.dT-row-checkbox:checked').map(function() {
@@ -191,22 +437,23 @@ function closeIncidentModal() {
             }).get();
 
             if (selected.length === 0) {
-                toast_danger('Please select at least one client to delete.');
+                toast_danger('Please select at least one incident to delete.');
                 return;
             }
 
-            if (!confirm('Are you sure you want to delete the selected clients?')) return;
+            if (!confirm('Are you sure you want to delete the selected incidents?')) return;
 
             $.ajax({
-                url: '{{ route('clients.bulkDelete') }}',
+                url: '{{ route('incidents.bulkdelete') }}',
                 type: 'POST',
                 data: {
                     ids: selected,
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
-                    toast_success('Selected clients deleted successfully!');
-                    reloadDatatable('#clients-table');
+                    toast_success('Selected incidents deleted successfully!');
+                    $('#incident_reports-table').DataTable().ajax.reload(); // reload DataTable
+
                 },
                 error: function() {
                     toast_danger('Something went wrong during bulk delete.');
@@ -214,6 +461,46 @@ function closeIncidentModal() {
             });
         });
 
+
+        $(document).ready(function() {
+            $('#createIncidentForm').on('submit', function(e) {
+                e.preventDefault(); // stop page reload
+
+                // Ensure checkbox always sends 0 or 1
+                let policeNotified = $('#police_notified').is(':checked') ? 1 : 0;
+
+                $.ajax({
+                    url: '{{ route('incidents.store') }}', // <-- adjust to your Laravel route
+                    type: 'POST',
+                    data: {
+                        shift_id: $('#shift_id').val(),
+                        category: $('#category').val(),
+                        severity: $('#severity').val(),
+                        title: $('#title').val(),
+                        description: $('#description').val(),
+                        location: {
+                            latitude: $('#latitude').val(),
+                            longitude: $('#longitude').val(),
+                            address: $('#address').val()
+                        },
+                        police_notified: policeNotified,
+                        police_reference: $('#police_reference').val(),
+                        immediate_action_taken: $('#immediate_action_taken').val(),
+                        _token: $('meta[name="csrf-token"]').attr('content') // for Laravel
+                    },
+                    success: function(response) {
+                        toastr.success(response.message);
+                        $('#incidentCreateModal').modal('hide');
+                        $('#createIncidentForm')[0].reset();
+                        $('#incidentsTable').DataTable().ajax.reload(); // refresh datatable
+                    },
+                    error: function(xhr) {
+                        console.error(xhr.responseText);
+                        toastr.error('Failed to create incident');
+                    }
+                });
+            });
+        });
     </script>
     <script>
         document.querySelectorAll('.numeric-input').forEach(function(input) {

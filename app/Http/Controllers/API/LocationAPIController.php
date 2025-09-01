@@ -29,7 +29,7 @@ class LocationAPIController extends Controller
             'accuracy' => $validated['accuracy'],
             'timestamp' => $validated['timestamp'],
             'on_duty' => $validated['on_duty'],
-            'shiftdate_id' => $validated['shift_id'],
+            'shiftdate_id' => $validated['shiftdate_id'],
         ]);
 
         return response()->json(['status' => 'success', 'location_id' => $location->id]);

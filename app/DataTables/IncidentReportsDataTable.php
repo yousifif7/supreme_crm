@@ -25,6 +25,9 @@ class IncidentReportsDataTable extends DataTable
                     <a href="javascript:void(0)" class="me-2" onclick="showIncident(' . $row->id . ')">
                         <i class="ti ti-eye"></i>
                     </a>
+                    <a href="javascript:void(0)" class="me-2" onclick="editIncident(\'' . $row->id . '\')">
+    <i class="ti ti-pencil text-success"></i>
+</a>
                     <a href="javascript:void(0)" onclick="deleteIncident(' . $row->id . ')">
                         <i class="ti ti-trash text-danger"></i>
                     </a>
@@ -48,8 +51,8 @@ class IncidentReportsDataTable extends DataTable
             ->addColumn('files', function ($report) {
                 $html = '';
                 foreach ($report->media as $media) {
-                    $html .= '<a href="' . asset($media->file_url) . '" target="_blank" class="d-block mb-1">' 
-                              . basename($media->file_url) . '</a>';
+                    $html .= '<a href="' . asset($media->file_url) . '" target="_blank" class="d-block mb-1">'
+                        . basename($media->file_url) . '</a>';
                 }
                 return $html;
             })
