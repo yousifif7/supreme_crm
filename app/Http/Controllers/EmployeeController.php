@@ -24,9 +24,9 @@ class EmployeeController extends Controller
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
         $licenses = License::all();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
 
-        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses','subcontractors'));
+        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses', 'subcontractors'));
     }
 
     public function store(Request $request)
@@ -37,8 +37,8 @@ class EmployeeController extends Controller
             'sur_name' => 'required|string',
             'email' => 'required|email:dns|max:255|unique:users,email',
             'gender' => 'nullable|string',
-            'ni_number' => 'nullable|string',
-            'sia_licence' => 'nullable|string',
+            'ni_number' => 'nullable|string|unique:employees,ni_number',
+            'sia_licence' => 'nullable|string|unique:employees,sia_licence',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'entry_date' => 'nullable',
@@ -240,7 +240,7 @@ class EmployeeController extends Controller
         $validator = Validator::make($request->all(), [
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'required|email:dns|max:255',
+            'email' => 'required|email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
             'sia_licence' => 'nullable|string',
@@ -319,6 +319,7 @@ class EmployeeController extends Controller
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
+            'password' => 'required|string|min:6',   // Add password validation
         ]);
 
         if ($validator->fails()) {
@@ -329,7 +330,27 @@ class EmployeeController extends Controller
             }
         }
 
+
         $data = $validator->validated();
+
+        if ($request->email || $request->password) {
+            $employee = Employee::find($id);
+            $user = User::role('security_staff')->where('id', $employee->user_id)->first();
+
+            if ($user) {
+                if ($request->email) {
+                    $user->email = $request->email;
+                    $employee->email = $request->email;
+                }
+
+                if ($request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = Hash::make($request->password);
+                }
+
+                $user->save();
+            }
+        }
         // Handle profile picture update
         if ($request->hasFile('profile_picture')) {
             $image = $request->file('profile_picture');
@@ -453,7 +474,7 @@ class EmployeeController extends Controller
     public function delete($id)
     {
         $employee = Employee::findOrFail($id);
-        $empUser= User::role('security_staff')->find($employee->user_id);
+        $empUser = User::role('security_staff')->find($employee->user_id);
 
         $empUser->delete();
         $employee->delete();
