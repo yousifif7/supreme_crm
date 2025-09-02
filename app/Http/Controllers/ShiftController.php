@@ -384,64 +384,81 @@ class ShiftController extends Controller
         $shift = ShiftDate::findOrFail($id);
 
         $validator = Validator::make($request->all(), [
-            // 'client_id' => 'required|integer',
-            // 'site_id' => 'required|integer',
-            'status_id' => 'nullable|integer',
-            'staff_id' => 'nullable|integer',
+            'status_id'   => 'nullable|integer',
+            'staff_id'    => 'nullable|integer',
             'start_shift' => 'required',
-            'end_shift' => 'required',
-            'book_on' => 'nullable',
-            'book_off' => 'nullable',
-            // 'break-mins_shift' => 'nullable',
-            // 'number_shift' => 'nullable|integer|min:0',
-            // 'site_rate' => 'nullable|numeric',
-            // 'service_type_1' => 'nullable|string|max:255',
-            // 'service_type_2' => 'nullable|string|max:255',
-            'shift_date' => 'nullable|date',
-            // 'to_shift' => 'nullable|date|after_or_equal:from_shift',
-            // 'comments' => 'nullable|string|max:1000',
-            // 'days' => 'nullable',
-            // 'employee_rate' => 'nullable|numeric',
-            // 'po_number' => 'nullable|string|max:255',
-            // 'lost_time' => 'nullable|string|max:255',
-            // 'po_rate' => 'nullable|numeric',
-            // 'start' => 'nullable',
-            // 'end' => 'nullable',
-            // 'manager_1_id' => 'nullable|integer',
-            // 'manager_2_id' => 'nullable|integer',
-            // 'restrict_start_time' => 'nullable',
-            // 'enforce_picture_check' => 'nullable',
-            // 'restrict_location_check' => 'nullable',
+            'end_shift'   => 'required',
+            'book_on'     => 'nullable',
+            'book_off'    => 'nullable',
+            'shift_date'  => 'nullable|date',
         ]);
-
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-
         $data = $validator->validated();
         $data['absentee_start_time'] = $data['book_on'] ?? null;
-        $data['absentee_end_time'] = $data['book_off'] ?? null;
-        $data['start_time'] = $data['start_shift'];
-        $data['end_time'] = $data['end_shift'];
+        $data['absentee_end_time']   = $data['book_off'] ?? null;
+        $data['start_time']          = $data['start_shift'];
+        $data['end_time']            = $data['end_shift'];
 
-        if (strlen($data['start_shift']) === 5) { // e.g., "09:30"
+        if (strlen($data['start_shift']) === 5) {
             $data['start_shift'] .= ':00';
         }
-
         if (strlen($data['end_shift']) === 5) {
             $data['end_shift'] .= ':00';
         }
 
-        $data['total_hours'] = $this->calculateTotalHours($data['start_shift'], $data['end_shift'], 'H:i:s');
-
-        // $data['restrict_start_time'] = $request->has('restrict_start_time') ? 1 : 0;
-        // $data['enforce_picture_check'] = $request->has('enforce_picture_check') ? 1 : 0;
-        // $data['restrict_location_check'] = $request->has('restrict_location_check') ? 1 : 0;
-
+        $data['total_hours'] = $this->calculateTotalHours(
+            $data['start_shift'],
+            $data['end_shift'],
+            'H:i:s'
+        );
 
         $data['is_assign'] = $data['status_id'];
+
+        // ✅ Restrictions only if assigning to a staff member
+        if (!empty($data['staff_id'])) {
+            $staffUser = Employee::where('user_id', $data['staff_id'])->first();
+            if ($staffUser) {
+                $staff = Employee::findOrFail($staffUser->id);
+
+                // Calculate total hours for this shift
+                $newShiftHours = $data['total_hours'];
+
+                // Apply restrictions
+                applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $data['shift_date'] ?? $shift->shift_date);
+
+                if ($validator->errors()->any()) {
+                    return response()->json([
+                        'errors' => $validator->errors()
+                    ], 422);
+                }
+
+                // Overlapping check
+                $newStart = \Carbon\Carbon::parse(($data['shift_date'] ?? $shift->shift_date) . ' ' . $data['start_shift']);
+                $newEnd   = \Carbon\Carbon::parse(($data['shift_date'] ?? $shift->shift_date) . ' ' . $data['end_shift']);
+
+                if ($newEnd->lte($newStart)) {
+                    $newEnd->addDay();
+                }
+
+                $overlap = ShiftDate::where('staff_id', $staff->user_id)
+                    ->where('id', '!=', $shift->id) // ignore current shift
+                    ->where(function ($query) use ($newStart, $newEnd) {
+                        $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
+                            ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
+                    })
+                    ->exists();
+
+                if ($overlap) {
+                    return response()->json([
+                        'error' => 'This staff already has a shift during this time.'
+                    ], 422);
+                }
+            }
+        }
 
         $shift->update($data);
 
@@ -1045,6 +1062,7 @@ class ShiftController extends Controller
 
         $selectedDays = explode(',', trim($shift->days, '[]"'));
 
+        // ✅ Calculate new shift hours for this assignment
         $newShiftHours = $this->calculateTotalWorkingHours(
             $staffUser->id,
             $from,
@@ -1058,11 +1076,9 @@ class ShiftController extends Controller
 
         $staff = Employee::findOrFail($staffUser->id);
 
-        // ✅ Apply restrictions
-
+        // ✅ Apply all restrictions (including 40hr/20hr student visa rule)
         applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $shiftDate->shift_date);
 
-        // Stop execution if any restriction failed
         if ($validator->errors()->any()) {
             \Log::info('Restrictions failed', $validator->errors()->toArray());
 
@@ -1070,6 +1086,7 @@ class ShiftController extends Controller
                 'errors' => $validator->errors()
             ], 422);
         }
+
         // ✅ Overlapping check
         $newStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
         $newEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);

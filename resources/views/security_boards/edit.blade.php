@@ -172,7 +172,7 @@
         submitButton.prop('disabled', true).html('Updating...');
 
         $.ajax({
-            url: `${baseUrl}/updateshift/${shiftId}`, // OR use Laravel Blade: `{{ url('sites') }}/` + siteId
+            url: `${baseUrl}/updateshift/${shiftId}`,
             method: 'POST',
             data: formData,
             processData: false,
@@ -185,15 +185,20 @@
                 toast_success('Shift Updated Successfully!');
                 reloadDatatable('#shifts-table');
                 location.reload();
-
             },
             error: function(xhr) {
                 if (xhr.status === 422) {
                     let errors = xhr.responseJSON.errors;
 
+                    // Loop through errors and show near inputs
                     $.each(errors, function(key, value) {
                         $('#error_' + key).text(value[0]);
                     });
+
+                    // Also show the first error in a toast
+                    let firstError = Object.values(errors)[0][0];
+                    toast_danger(firstError);
+
                 } else {
                     toast_danger('An error occurred. Please try again.');
                 }
