@@ -24,6 +24,8 @@
     <table>
         <thead>
             <th>Staff Name</th>
+            <th>Client Name</th>
+            <th>Site </th>
             <th>shift Date</th>
             <th>Start Time</th>
             <th>End Time</th>
@@ -35,8 +37,14 @@
         </thead>
         <tbody>
             @foreach ($shifts as $item)
+            @php
+                $staff = App\Models\User::find($item->staff_id);
+                $client = App\Models\User::role('client')->where('id',$item->shift->client_id)->first();
+            @endphp
                 <tr>
-                    <td>{{ $item->staff->fore_name ?? 'N/A' }}</td>
+                    <td>{{ $staff->first_name ?? 'N/A' }} {{ $staff->last_name ?? '' }}</td>
+                    <td>{{ $client->name }}</td>
+                    <td>{{ $item->shift->site->site_name }}</td>
                     <td>{{ $item->shift_date }}</td>
                     <td>{{ $item->start_time }}</td>
                     <td>{{ $item->end_time }}</td>

@@ -119,6 +119,9 @@
     </style>
 @endsection
 @section('contents')
+@php
+    $staffs= App\Models\User::role('security_staff')->get();
+@endphp
 
     <div class="page-wrapper">
         <div class="content">
@@ -173,10 +176,9 @@
                                     <div class="upper-stats-box">
                                         <div class="profile-detail">
                                             <div class="avater">
-                                                <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}"
+                                                <img src="{{ $shiftDate->staff?->profile_picture ?? 'uploads/no.png' }}"
                                                     class="profile-avater profile_picture" id="profile_picture">
                                             </div>
-
 
                                             <div class="profile-details">
                                                 <h6 id="name">{{ $shiftDate->staff?->first_name ?? '' }}
@@ -191,7 +193,7 @@
                                                     <span id="email">{{ $shiftDate->staff?->email ?? '' }}</span>
                                                 </div>
                                                 <button id="assignShiftBtn" type="button"
-                                                    class="btn btn-danger mt-2 {{ $shiftDate->is_assign ? 'd-none' : '' }}">
+                                                    class="btn btn-danger mt-2 {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
                                                     Assign Shift
                                                 </button>
 
@@ -602,6 +604,7 @@
 
             <!-- Assign Shift Modal -->
             @include('security_boards.assign-shift-modal')
+            @include('security_boards.edit')
         </div>
 
     </div>
@@ -624,7 +627,7 @@
                     if (response.success) {
                         // Use a toast or alert instead of hidden div
                         toast_success(response
-                        .success); // create a toast_success function if you don't have one
+                            .success); // create a toast_success function if you don't have one
                         closeBsModal('#eventModal'); // close the modal AFTER showing toast
                     } else {
                         toast_danger('Unexpected response from server.');

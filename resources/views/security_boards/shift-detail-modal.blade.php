@@ -50,7 +50,7 @@
                                         <span id="email">{{ $shiftDate->staff?->email ?? '' }}</span>
                                     </div>
                                     <button id="assignShiftBtn" type="button"
-                                        class="btn btn-danger mt-2 {{ $shiftDate->is_assign ? 'd-none' : '' }}">
+                                        class="btn btn-danger mt-2 {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
                                         Assign Shift
                                     </button>
 
@@ -86,7 +86,7 @@
                                 </div>
                                 <div class="box">
                                     @php
-                                    $client = App\Models\User::find($shiftDate->shift->client_id);
+                                        $client = App\Models\User::find($shiftDate->shift->client_id);
                                     @endphp
                                     <h6>Customer</h6>
                                     <span id="client_name">{{ $client->name ?? '' }}</span>
@@ -443,39 +443,39 @@
     $apiKey = env('GOOGLE_MAPS_API_KEY');
 @endphp
 <script>
-$(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
-            e.preventDefault();
-            var actionUrl = $(this).attr('action');
+    $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
+        e.preventDefault();
+        var actionUrl = $(this).attr('action');
 
-            $.ajax({
-                url: actionUrl,
-                type: 'POST',
-                data: $(this).serialize(),
-                dataType: 'json', // ensures proper parsing
-                success: function(response) {
-                    if (response.success) {
-                        // Use a toast or alert instead of hidden div
-                        toast_success(response
+        $.ajax({
+            url: actionUrl,
+            type: 'POST',
+            data: $(this).serialize(),
+            dataType: 'json', // ensures proper parsing
+            success: function(response) {
+                if (response.success) {
+                    // Use a toast or alert instead of hidden div
+                    toast_success(response
                         .success); // create a toast_success function if you don't have one
-                        closeBsModal('#eventModal'); // close the modal AFTER showing toast
-                    } else {
-                        toast_danger('Unexpected response from server.');
-                    }
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON) {
-                        if (xhr.responseJSON.error) {
-                            toast_danger(xhr.responseJSON.error);
-                        } else if (xhr.responseJSON.errors) {
-                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            toast_danger(messages);
-                        }
-                    } else {
-                        toast_danger('An unexpected error occurred while assigning the shift.');
-                    }
+                    closeBsModal('#eventModal'); // close the modal AFTER showing toast
+                } else {
+                    toast_danger('Unexpected response from server.');
                 }
-            });
+            },
+            error: function(xhr) {
+                if (xhr.status === 422 && xhr.responseJSON) {
+                    if (xhr.responseJSON.error) {
+                        toast_danger(xhr.responseJSON.error);
+                    } else if (xhr.responseJSON.errors) {
+                        let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                        toast_danger(messages);
+                    }
+                } else {
+                    toast_danger('An unexpected error occurred while assigning the shift.');
+                }
+            }
         });
+    });
 
     $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
         $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});

@@ -2,15 +2,16 @@
 
 namespace App\Exports;
 
-use App\Models\ShiftDate;
 use Carbon\Carbon;
-use Maatwebsite\Excel\Concerns\FromCollection;
-use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\WithMapping;
+use App\Models\User;
+use App\Models\ShiftDate;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithMapping;
+use Maatwebsite\Excel\Concerns\WithHeadings;
+use Maatwebsite\Excel\Concerns\FromCollection;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 
 class ShiftDateExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
 {
@@ -63,12 +64,14 @@ class ShiftDateExport implements FromCollection, WithHeadings, WithMapping, With
 
         $date = Carbon::parse($shiftDate->shift_date);
 
+        $staff= User::find($shiftDate->staff_id);
+        $client= User::role('client')->where('id',$shiftDate->shift->client_id)->first();
         return [
             $counter,
             $date->format('d-M-Y'),
             $date->format('l'),
-            $shiftDate->staff ? trim($shiftDate->staff->fore_name . ' ' . $shiftDate->staff->sur_name) : '',
-            $shiftDate->shift->client->client_name ?? '',
+            $shiftDate->staff ? trim($staff->first_name . ' ' . $staff->last_name) : '',
+            $client->name ?? '',
             $shiftDate->shift->site->site_name ?? '',
             $shiftDate->shift->site->contact_number ?? '',
             Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i'),

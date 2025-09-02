@@ -358,29 +358,30 @@
         </div>
 
         <!-- Add Shift Success -->
-<div class="modal fade" id="success_modal" role="dialog">
-    <div class="modal-dialog modal-dialog-centered modal-sm">
-        <div class="modal-content">
-            <div class="modal-body">
-                <div class="text-center p-3">
-                    <span class="avatar avatar-lg avatar-rounded bg-success mb-3">
-                        <i class="ti ti-check fs-24"></i>
-                    </span>
-                    <h5 class="mb-2" id="success_message"></h5>
-                    <p>Choose which to perform!</p>
-                    <div class="row g-2">
-                        <div class="col-12">
-                            <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
-                        </div>
-                        <div class="col-12">
-                            <a id="latest_shift_link" href="#" class="btn btn-success w-100">Go to Latest Shift</a>
+        <div class="modal fade" id="success_modal" role="dialog">
+            <div class="modal-dialog modal-dialog-centered modal-sm">
+                <div class="modal-content">
+                    <div class="modal-body">
+                        <div class="text-center p-3">
+                            <span class="avatar avatar-lg avatar-rounded bg-success mb-3">
+                                <i class="ti ti-check fs-24"></i>
+                            </span>
+                            <h5 class="mb-2" id="success_message"></h5>
+                            <p>Choose which to perform!</p>
+                            <div class="row g-2">
+                                <div class="col-12">
+                                    <a href="{{ url('scheduling') }}" class="btn btn-dark w-100">Back to List</a>
+                                </div>
+                                <div class="col-12">
+                                    <a id="latest_shift_link" href="#" class="btn btn-success w-100">Go to Latest
+                                        Shift</a>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
 
     </div>
@@ -640,24 +641,31 @@
                 });
             }
 
-            function renderCurrentWeek() {
+            function renderCurrentWeek(filteredData = null) {
                 if (!allShiftsData || allShiftsData.length === 0) {
                     $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
                     return;
                 }
 
-                // Filter shifts for the current week
-                const weekShifts = allShiftsData.filter(shift => {
-                    const shiftDate = new Date(shift.start_date);
-                    return shiftDate >= currentWeekStart && shiftDate <= currentWeekEnd;
-                });
+                let shiftsToRender = filteredData || allShiftsData;
 
-                if (weekShifts.length === 0) {
-                    $('#ganttChart').html('<div class="gantt-empty">No shifts found for this week.</div>');
+                if (shiftsToRender.length === 0) {
+                    $('#ganttChart').html('<div class="gantt-empty">No shifts found for this selection.</div>');
                     return;
                 }
 
-                renderGanttChart(weekShifts, currentWeekStart, currentWeekEnd);
+                // Determine start and end dates for the chart
+                let startDate = currentWeekStart;
+                let endDate = currentWeekEnd;
+
+                // If using filtered data with a custom date range, override start/end
+                if (filteredData && filteredData.length > 0) {
+                    const dates = filteredData.map(s => new Date(s.start_date));
+                    startDate = new Date(Math.min(...dates));
+                    endDate = new Date(Math.max(...dates));
+                }
+
+                renderGanttChart(shiftsToRender, startDate, endDate);
             }
 
             function renderGanttChart(data, startDate, endDate) {
@@ -828,28 +836,49 @@
             }
 
             // UPDATED FILTER HANDLER
-
             document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
                 e.preventDefault();
 
                 const form = e.target;
                 const formData = new FormData(form);
-                const params = new URLSearchParams();
+                const filters = {};
 
                 for (const [key, value] of formData.entries()) {
-                    if (value) {
-                        params.append(key, value);
-                    }
+                    if (value) filters[key] = value;
                 }
 
-                const filteredUrl = `${baseUrl}/api/shifts?${params.toString()}`;
+                // Filter allShiftsData
+                const filteredShifts = allShiftsData.filter(shift => {
+                    // Staff filter
+                    if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
+                        return false;
 
-                calendar.removeAllEvents();
-                calendar.setOption('events', filteredUrl);
-                calendar.refetchEvents();
+                    // Client filter
+                    if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
+                            .client_id)) return false;
 
-                const modal = bootstrap.Modal.getInstance(document.getElementById('filterModal'));
-                modal.hide(); // Hide modal after applying filters
+                    // Site filter
+                    if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
+                    return false;
+
+                    // Status filter
+                    if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
+                        return false;
+
+                    // Date range filter
+                    const shiftStart = new Date(shift.start_date);
+                    if (filters.from_shift && shiftStart < new Date(filters.from_shift))
+                    return false;
+                    if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
+
+                    return true;
+                });
+
+                renderCurrentWeek(filteredShifts); // Render filtered shifts
+                const filterModalEl = document.getElementById('filterModal');
+                const filterModal = bootstrap.Modal.getInstance(filterModalEl) || new bootstrap.Modal(
+                    filterModalEl);
+                filterModal.hide();
             });
 
         });

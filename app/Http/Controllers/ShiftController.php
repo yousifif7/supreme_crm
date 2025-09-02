@@ -702,6 +702,7 @@ class ShiftController extends Controller
                 'duration' => "({$durationFormatted})",
                 'staff_name' => $staffName,
                 'staff_id' => $sd->staff_id ?? null,
+                'client_id' => $client->id ?? null,
                 'client_name' => $client->name ?? 'Unknown Client',
                 'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
                 'status' => $sd->is_assign,

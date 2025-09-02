@@ -33,7 +33,8 @@ class ShiftApiController extends Controller
             ->where('staff_id', Auth::id())
             ->where(function ($query) {
                 $query->where('shift_date', '>=', now()->toDateString())
-                    ->orWhere('status', 'booked_on');
+                    ->orWhere('status', 'booked_on')
+                    ->orWhere('is_assign', 3);
             })
             ->orderBy('shift_date')
             ->paginate($limit);
@@ -56,6 +57,8 @@ class ShiftApiController extends Controller
                 'supervisor_name' => $shiftDate->shift->supervisor_name,
                 'supervisor_contact' => $shiftDate->shift->supervisor_contact,
                 'status' => $shiftDate->status,
+                'started_at' => $shiftDate->absentee_start_time,
+                'ended_at' => $shiftDate->absentee_end_time,
                 'briefing_pdf' => optional($shiftDate->shift)->briefing_pdf_url,
                 'risk_assessment_pdf' => optional($shiftDate->shift)->risk_assessment_pdf_url,
             ];
@@ -106,6 +109,7 @@ class ShiftApiController extends Controller
                 $shift->status = 'declined';
                 $shift->is_assign = 5; //reject shift
                 // $shift->reason = $request->reason ?? null;
+                $shift->staff_id = null;
                 $shift->save();
                 return response()->json([
                     'message' => 'Shift date Declined successfully!',
@@ -340,6 +344,10 @@ class ShiftApiController extends Controller
             // Update status
             $shiftDate->status = 'booked_on';
             $shiftDate->is_assign = 3; //shift started
+
+            $timeOnly = date('H:i', strtotime($request->timestamps));
+
+            $shiftDate->absentee_start_time = $timeOnly;
             $shiftDate->save();
         }
 
@@ -407,6 +415,9 @@ class ShiftApiController extends Controller
         if ($shiftDate) {
             $shiftDate->status = 'booked_off';
             $shiftDate->is_assign = 4; //shift ended
+            $timeOnly = date('H:i', strtotime($request->timestamps));
+
+            $shiftDate->absentee_end_time = $timeOnly;
             $shiftDate->save();
         }
 
