@@ -163,15 +163,21 @@ function send_push_notification($userId, $title, $message, $data = [])
             }
 
             // Save in DB
-            \App\Models\Notification::create([
-                'user_id'    => $userId,
-                'employee' => null,
+            // \App\Models\Notification::create([
+            //     'user_id'    => $userId,
+            //     'employee' => null,
+            //     'type' => 'alert',
+            //     'title'      => $title,
+            //     'message'    => $message,
+            //     'read'       => false,
+            // ]);
+            Notification::create([
+                'user_id' => $userId,
+                'employee_id' => null,
                 'type' => 'alert',
-                'title'      => $title,
-                'message'    => $message,
-                'read'       => false,
+                'title' => $title,
+                'message' => $message,
             ]);
-
         } catch (\Throwable $e) {
             \Log::error("Push Notification: Exception while sending", [
                 "user_id" => $userId,

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use Notify;
 use Carbon\Carbon;
 use App\Models\Site;
+use App\Models\User;
 use App\Models\Shift;
 use App\Models\Patrol;
 use App\Models\Employee;
@@ -94,6 +95,7 @@ class ShiftApiController extends Controller
             ]);
         }
 
+        $user= User::find(Auth::id());
 
         // check if shift status is dispatched
         if ($shift->is_assign == 1) {
@@ -101,6 +103,16 @@ class ShiftApiController extends Controller
                 $shift->status = 'accepted';
                 $shift->is_assign = 2; //accept shift
                 $shift->save();
+
+                Notification::create([
+                    'user_id' => 1,
+                    'employee_id' => null,
+                    'type' => 'alert',
+                    'title' => 'Shift Accepted ',
+                    'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' has Accepted shift (ID: ' . $shift->id . ' starting at ' . $shift->start_time,
+                    'read' => false,
+                    'action_url' => "/shift-dates/$shift->id/view"
+                ]);
 
                 return response()->json([
                     'message' => 'Shift date Accepted successfully!',
@@ -111,6 +123,17 @@ class ShiftApiController extends Controller
                 // $shift->reason = $request->reason ?? null;
                 $shift->staff_id = null;
                 $shift->save();
+
+                Notification::create([
+                    'user_id' => 1,
+                    'employee_id' => null,
+                    'type' => 'alert',
+                    'title' => 'Shift Declined ',
+                    'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' has Declined shift (ID: ' . $shift->id . ' starting at ' . $shift->start_time,
+                    'read' => false,
+                    'action_url' => "/shift-dates/$shift->id/view"
+                ]);
+
                 return response()->json([
                     'message' => 'Shift date Declined successfully!',
                 ]);
@@ -153,6 +176,14 @@ class ShiftApiController extends Controller
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
             "/leaves"
         );
+
+        Notification::create([
+            'user_id' => 1,
+            'employee_id' => null,
+            'type' => 'alert',
+            'title' => 'Shift booked on',
+            'message' => 'You have submitted a leave request!',
+        ]);
 
         send_push_notification(
             $employee->user_id,

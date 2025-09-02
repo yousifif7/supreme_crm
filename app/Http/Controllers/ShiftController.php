@@ -457,6 +457,13 @@ class ShiftController extends Controller
                         'error' => 'This staff already has a shift during this time.'
                     ], 422);
                 }
+
+                send_push_notification(
+                    $staff->user_id,
+                    'Shift reassigned',
+                    'An admin reassigned a shift for you, You have to respond!',
+                    ['shift' => $shift],
+                );
             }
         }
 

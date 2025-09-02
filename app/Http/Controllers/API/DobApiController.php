@@ -100,7 +100,7 @@ class DobApiController extends Controller
         send_push_notification(
             $employee->user_id,
             'DOB uploaded',
-            'You have submitted a DOB succesffully.',
+            'You have submitted a DOB successfully.',
             ['entry' => $entry],
         );
 
