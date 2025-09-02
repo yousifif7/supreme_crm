@@ -65,7 +65,7 @@
                             <!-- /Event -->
 
 
-
+                            @include('security_boards.edit')
                         </div>
                     </div>
 
@@ -819,156 +819,134 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const calendarEl = document.getElementById('calendar');
+    const calendarEl = document.getElementById('calendar');
 
-            const colorMap = {
-                'bg-dark-blue': '#5489C4',
-                'bg-lighter': '#D6D4CE',
-                'bg-dark-green': '#69CF83',
-                'bg-light-yellow': '#FAD66B',
-                'bg-light-blue': '#80BFFF',
-                'bg-purple': '#9F87F5',
-                'bg-red': '#F55B7C',
-                'bg-primary11': '#FFFF5E',
-                'bg-orange': '#F5B25F',
-                'bg-secondary': '#6c757d'
-            };
+    const colorMap = {
+        'bg-dark-blue': '#5489C4',
+        'bg-lighter': '#D6D4CE',
+        'bg-dark-green': '#69CF83',
+        'bg-light-yellow': '#FAD66B',
+        'bg-light-blue': '#80BFFF',
+        'bg-purple': '#9F87F5',
+        'bg-red': '#F55B7C',
+        'bg-primary11': '#FFFF5E',
+        'bg-orange': '#F5B25F',
+        'bg-secondary': '#6c757d'
+    };
 
-            fetch(`${baseUrl}/api/shifts-today`)
-                .then(response => response.json())
-                .then(data => {
-                    const calendar = new FullCalendar.Calendar(calendarEl, {
-                        initialView: 'dayGridDay',
-                        initialDate: new Date().toISOString().split('T')[0],
-                        timeZone: 'local',
-                        eventDisplay: 'block',
-                        displayEventEnd: true,
+    fetch(`${baseUrl}/api/shifts-today`)
+        .then(response => response.json())
+        .then(data => {
+            const calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridDay',
+                initialDate: new Date().toISOString().split('T')[0],
+                timeZone: 'local',
+                eventDisplay: 'block',
+                displayEventEnd: true,
 
-                        headerToolbar: {
-                            left: '',
-                            center: 'title',
-                            right: ''
-                        },
+                headerToolbar: {
+                    left: '',
+                    center: 'title',
+                    right: ''
+                },
 
-                        events: data, // ✅ Today's shifts
+                events: data, // ✅ Today's shifts
 
-                        eventContent: function(info) {
-                            const event = info.event;
-                            const props = event.extendedProps;
+                eventContent: function(info) {
+                    const event = info.event;
+                    const props = event.extendedProps;
 
-                            const startTime = event.start?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) || '';
-                            const endTime = event.end?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) || '';
+                    const startTime = event.start?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '';
+                    const endTime = event.end?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '';
 
-                            const client = props.client || '';
-                            const site = props.site || '';
-                            const staff = props.staff || '';
+                    const client = props.client || '';
+                    const site = props.site || '';
+                    const staff = props.staff || '';
 
-                            const bgClass = event.classNames?.[0] || 'bg-secondary';
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+                    const bgClass = event.classNames?.[0] || 'bg-secondary';
+                    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                            const container = document.createElement('div');
-                            container.style.backgroundColor = bgColor;
-                            container.style.display = 'inline-block';
-                            container.style.width = 'fit-content';
-                            container.style.margin = '3px';
-                            container.style.padding = '6px 10px';
-                            container.style.borderRadius = '8px';
-                            container.style.color = (bgColor === '#F8F9FA') || (bgColor ===
-                                '#FFF9C4') || (bgColor === '#F8F9FA') ? '#000' : '#fff';
-                            container.style.boxSizing = 'border-box';
+                    const container = document.createElement('div');
+                    container.style.backgroundColor = bgColor;
+                    container.style.padding = '6px 10px';
+                    container.style.borderRadius = '8px';
+                    container.style.color = (bgColor === '#F8F9FA' || bgColor === '#FFF9C4') ? '#000' : '#fff';
+                    container.style.boxSizing = 'border-box';
+                    container.style.width = '100%'; // ✅ stack vertically
 
-                            container.innerHTML = `
+                    container.innerHTML = `
                         <b>${client}</b><br>
                         ${staff}<br>
                         ${site}<br>
                         ${startTime} - ${endTime}
                     `;
 
-                            return {
-                                domNodes: [container]
-                            };
-                        },
+                    return { domNodes: [container] };
+                },
 
-                        eventClick: function(info) {
-                            // create a button with data-toggle="ajax-modal" in body and click it
-                            const button = document.createElement('button');
-                            button.setAttribute('data-toggle', 'ajax-modal');
-                            button.setAttribute('data-title', 'Rota Detail');
-                            button.setAttribute('data-size', 'modal-xl');
-                            button.setAttribute('data-width', '80%');
-                            button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
-                            button.style.display = 'none';
-                            document.body.appendChild(button);
-                            button.click();
-                        },
+                eventClick: function(info) {
+                    const button = document.createElement('button');
+                    button.setAttribute('data-toggle', 'ajax-modal');
+                    button.setAttribute('data-title', 'Rota Detail');
+                    button.setAttribute('data-size', 'modal-xl');
+                    button.setAttribute('data-width', '80%');
+                    button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
+                    button.style.display = 'none';
+                    document.body.appendChild(button);
+                    button.click();
+                },
 
-                        eventDidMount: function(info) {
-                            info.el.style.backgroundColor = 'transparent';
-                            info.el.style.border = 'none';
-                            info.el.style.overflow = 'visible';
-                            info.el.style.display = 'flex';
-                            info.el.style.margin = '3px';
+                eventDidMount: function(info) {
+                    info.el.style.backgroundColor = 'transparent';
+                    info.el.style.border = 'none';
+                    info.el.style.overflow = 'visible';
+                    info.el.style.margin = '3px 0'; // small vertical spacing
+                }
+            });
 
-                            const parent = info.el.parentElement;
-                            if (parent) {
-                                parent.style.display = 'flex';
-                                parent.style.flexWrap = 'wrap';
-                                parent.style.alignItems = 'flex-start';
-                                parent.style.columnGap = '5px';
-                                parent.style.rowGap = '5px';
-                            }
+            calendar.render();
+
+            $('#calendarSearch').on('input', function() {
+                const searchText = $(this).val().toLowerCase();
+
+                calendar.batchRendering(() => {
+                    calendar.getEvents().forEach(event => {
+                        const matches = event.title.toLowerCase().includes(searchText) ||
+                                        (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
+
+                        if (matches) {
+                            event.setProp('display', 'auto');
+                        } else {
+                            event.setProp('display', 'none');
                         }
                     });
-
-                    calendar.render();
-
-                    $('#calendarSearch').on('input', function() {
-                        const searchText = $(this).val().toLowerCase();
-
-                        calendar.batchRendering(() => {
-                            calendar.getEvents().forEach(event => {
-                                const matches = event.title.toLowerCase().includes(searchText) ||
-                                                (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
-
-                                if (matches) {
-                                    event.setProp('display', 'auto'); // show event
-                                } else {
-                                    event.setProp('display', 'none'); // hide event
-                                }
-                            });
-                        });
-                    });
-                    
-                    // ✅ Sidebar Mini Calendar (datepicker)
-                    const sidebarEl = document.querySelector('.datepic');
-                    if (sidebarEl) {
-                        const sidebarCal = document.createElement('div');
-                        sidebarEl.appendChild(sidebarCal);
-
-                        new FullCalendar.Calendar(sidebarCal, {
-                            initialView: 'dayGridMonth',
-                            headerToolbar: {
-                                left: 'prev',
-                                center: 'title',
-                                right: 'next'
-                            },
-                            selectable: true,
-                            dateClick: function(info) {
-                                calendar.gotoDate(info.dateStr);
-                            },
-                            height: 'auto',
-                            initialDate: new Date().toISOString().split('T')[0],
-                            timeZone: 'local'
-                        }).render();
-                    }
                 });
+            });
+
+            // ✅ Sidebar Mini Calendar (datepicker)
+            const sidebarEl = document.querySelector('.datepic');
+            if (sidebarEl) {
+                const sidebarCal = document.createElement('div');
+                sidebarEl.appendChild(sidebarCal);
+
+                new FullCalendar.Calendar(sidebarCal, {
+                    initialView: 'dayGridMonth',
+                    headerToolbar: {
+                        left: 'prev',
+                        center: 'title',
+                        right: 'next'
+                    },
+                    selectable: true,
+                    dateClick: function(info) {
+                        calendar.gotoDate(info.dateStr);
+                    },
+                    height: 'auto',
+                    initialDate: new Date().toISOString().split('T')[0],
+                    timeZone: 'local'
+                }).render();
+            }
         });
+});
     </script>
 
 
