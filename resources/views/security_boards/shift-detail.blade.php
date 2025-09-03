@@ -4,6 +4,24 @@
 @endsection
 
 @section('styles')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <style>
+        .profile-map {
+            width: 100px;
+            /* Fixed width */
+            height: 100px;
+            /* Fixed height */
+            overflow: hidden;
+            /* Hide anything outside the circle */
+            position: relative;
+            /* Ensure child elements (map tiles) are contained */
+        }
+
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+    </style>
     <style>
         .document-card {
             background: #fff;
@@ -116,12 +134,60 @@
                 max-width: 50%;
             }
         }
+
+        .btn-assign {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: #fff;
+            font-weight: 600;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 18px;
+            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .btn-assign:hover {
+            background: linear-gradient(135deg, #20c997, #28a745);
+            box-shadow: 0 6px 14px rgba(40, 167, 69, 0.6);
+            transform: translateY(-2px);
+        }
+
+        /* .btn-outline-assign {
+                                background: #fff;
+                                color: #28a745;
+                                border: 2px solid #28a745;
+                                border-radius: 6px;
+                                padding: 8px 16px;
+                                font-weight: 600;
+                                transition: all 0.2s;
+                            }
+
+                            .btn-outline-assign:hover {
+                                background: #28a745;
+                                color: #fff;
+                                box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                            }
+
+                            .btn-assign-pill {
+                                background-color: #28a745;
+                                color: #fff;
+                                border-radius: 50px;
+                                padding: 8px 22px;
+                                font-weight: bold;
+                                transition: all 0.2s;
+                            }
+
+                            .btn-assign-pill:hover {
+                                background-color: #218838;
+                                color:while;
+                                transform: scale(1.05);
+                            } */
     </style>
 @endsection
 @section('contents')
-@php
-    $staffs= App\Models\User::role('security_staff')->get();
-@endphp
+    @php
+        $staffs = App\Models\User::role('security_staff')->get();
+    @endphp
 
     <div class="page-wrapper">
         <div class="content">
@@ -176,7 +242,7 @@
                                     <div class="upper-stats-box">
                                         <div class="profile-detail">
                                             <div class="avater">
-                                                <img src="{{ $shiftDate->staff?->profile_picture ?? 'uploads/no.png' }}"
+                                                <img src="{{ $shiftDate->staff?->profile_picture ?? 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png' }}"
                                                     class="profile-avater profile_picture" id="profile_picture">
                                             </div>
 
@@ -193,8 +259,8 @@
                                                     <span id="email">{{ $shiftDate->staff?->email ?? '' }}</span>
                                                 </div>
                                                 <button id="assignShiftBtn" type="button"
-                                                    class="btn btn-danger mt-2 {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
-                                                    Assign Shift
+                                                    class="btn btn-assign {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
+                                                    <i class="bi bi-person-plus"></i> Assign Shift
                                                 </button>
 
                                             </div>
@@ -208,7 +274,8 @@
                                         <div class="other-detail_boxes">
                                             <div class="box">
                                                 <h6>Site Address</h6>
-                                                <span id="site_address">{{ $shiftDate->shift->site->address ?? '' }}</span>
+                                                <span
+                                                    id="site_address">{{ $shiftDate->shift->site->address ?? '' }}</span>
                                             </div>
                                             <div class="box">
                                                 <h6>Date</h6>
@@ -221,7 +288,7 @@
                                                         {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('h:i A') }}
                                                         -
                                                         {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('h:i A') }}
-                                                        ({{ sprintf('%02d hr %02d min', floor($shiftDate->total_hours), round(($shiftDate->total_hours - floor($shiftDate->total_hours)) * 60)) }})
+                                                        {{ sprintf('%02d hr %02d min', floor($shiftDate->total_hours), round(($shiftDate->total_hours - floor($shiftDate->total_hours)) * 60)) }}
                                                     @else
                                                         Not available
                                                     @endif
@@ -244,9 +311,27 @@
                                 <div class="col-md-6 col-12">
                                     <div class="book-on_box">
                                         <div class="profile-detail">
+                                            @php
+                                                $firstLocation = App\Models\Location::where(
+                                                    'shiftdate_id',
+                                                    $shiftDate->id,
+                                                )
+                                                    ->orderBy('timestamp', 'asc')
+                                                    ->first();
+
+                                                $lastLocation = App\Models\Location::where(
+                                                    'shiftdate_id',
+                                                    $shiftDate->id,
+                                                )
+                                                    ->orderBy('timestamp', 'desc')
+                                                    ->first();
+                                            @endphp
                                             <div class="avater">
-                                                <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}"
-                                                    class="profile-avater profile_picture">
+                                                @if ($firstLocation)
+                                                    <div id="map-on-{{ $shiftDate->id }}" class="profile-map"></div>
+                                                @else
+                                                    <p class="bg-light">No starting location found.</p>
+                                                @endif
                                             </div>
                                             <div class="profile-details">
                                                 <h6>Book on</h6>
@@ -276,8 +361,11 @@
                                     <div class="book-off_box">
                                         <div class="profile-detail">
                                             <div class="avater">
-                                                <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}"
-                                                    class="profile-avater profile_picture">
+                                                @if ($lastLocation)
+                                                    <div id="map-off-{{ $shiftDate->id }}" class="profile-map"></div>
+                                                @else
+                                                    <p class="bg-white">No ending location found.</p>
+                                                @endif
                                             </div>
                                             <div class="profile-details">
                                                 <h6>Book Off </h6>
@@ -762,9 +850,40 @@
             }
         }, 3000); // hides after 5 seconds
     </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            @if ($firstLocation)
+                var mapOn = L.map('map-on-{{ $shiftDate->id }}').setView(
+                    [{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}],
+                    15
+                );
 
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: ''
+                }).addTo(mapOn);
+
+                L.marker([{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}]).addTo(mapOn);
+            @endif
+
+            @if ($lastLocation)
+                var mapOff = L.map('map-off-{{ $shiftDate->id }}').setView(
+                    [{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}],
+                    15
+                );
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: ''
+                }).addTo(mapOff);
+
+                L.marker([{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}]).addTo(mapOff);
+            @endif
+        });
+    </script>
 
 
     <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"
         async defer></script>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 @endsection

@@ -1,3 +1,21 @@
+<style>
+    .btn-assign {
+        background: linear-gradient(135deg, #28a745, #20c997);
+        color: #fff;
+        font-weight: 600;
+        border: none;
+        border-radius: 8px;
+        padding: 10px 18px;
+        box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
+        transition: all 0.2s ease-in-out;
+    }
+
+    .btn-assign:hover {
+        background: linear-gradient(135deg, #20c997, #28a745);
+        box-shadow: 0 6px 14px rgba(40, 167, 69, 0.6);
+        transform: translateY(-2px);
+    }
+</style>
 <div class="row" id="eventModal">
     <div class="tabs-parent_main">
         <div class="tabs-parent nav nav-tabs" role="tablist">
@@ -50,8 +68,8 @@
                                         <span id="email">{{ $shiftDate->staff?->email ?? '' }}</span>
                                     </div>
                                     <button id="assignShiftBtn" type="button"
-                                        class="btn btn-danger mt-2 {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
-                                        Assign Shift
+                                        class="btn btn-assign {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
+                                        <i class="bi bi-person-plus"></i> Assign Shift
                                     </button>
 
                                 </div>
