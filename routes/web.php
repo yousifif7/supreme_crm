@@ -5,6 +5,7 @@ use App\Models\BookingAlarm;
 use App\Models\Notification;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DobController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SiteController;
@@ -41,7 +42,7 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 
-Route::group(['middleware' => ['auth']], function() {
+Route::group(['middleware' => ['auth']], function () {
     // Chat routes
     Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
 
@@ -67,10 +68,10 @@ Route::middleware('auth')->group(function () {
     })->name('logout');
 
 
-Route::get('documents/report',[DocumentController::class,'report'])->name('documents.report');
+    Route::get('documents/report', [DocumentController::class, 'report'])->name('documents.report');
 
-    Route::get('incident_report',[IncidentReportController::class,'index'])->name('incident_report.index');
-     Route::get('/incident_report/export/excel', [IncidentReportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
+    Route::get('incident_report', [IncidentReportController::class, 'index'])->name('incident_report.index');
+    Route::get('/incident_report/export/excel', [IncidentReportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
 
     Route::get('/incident_report/export/pdf', [IncidentReportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
 
@@ -136,7 +137,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
     Route::get('/generateinvoice/{id}', [InvoiceController::class, 'edit'])->name('invoices.edit');
     Route::post('/generateinvoice/{id}', [InvoiceController::class, 'generateClientInvoice'])->name('invoices.store');
 
-        Route::post('/generateinvoice-sub/{id}', [InvoiceController::class, 'generateSubcontractorInvoice'])->name('invoices.sub');
+    Route::post('/generateinvoice-sub/{id}', [InvoiceController::class, 'generateSubcontractorInvoice'])->name('invoices.sub');
 
     Route::get('/invoices/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::delete('/deleteinvoice/{id}', [InvoiceController::class, 'delete'])->name('invoices.delete');
@@ -149,7 +150,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
 
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
     Route::post('/generatepayroll', [PayrollController::class, 'store'])->name('payroll.store');
-        Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
+    Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
 
 
     Route::get('/payrolls/{id}', [PayrollController::class, 'show'])->name('payrolls.show');
@@ -198,13 +199,13 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
 
-Route::get('/shift-dates/{shiftDate}/view', [ShiftController::class, 'view'])
-    ->name('shiftDates.view');
-    
+    Route::get('/shift-dates/{shiftDate}/view', [ShiftController::class, 'view'])
+        ->name('shiftDates.view');
+
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
 
-Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
+    Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
 
     Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');
 
@@ -299,7 +300,7 @@ Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
     Route::post('/updatedocument/{id}', [DocumentationUploadController::class, 'update'])->name('documents.update');
     Route::post('/documents/bulk-delete', [DocumentationUploadController::class, 'bulkDelete'])->name('documents.bulkDelete');
 
-    Route::get('documents/report',[DocumentController::class,'report'])->name('documents.report');
+    Route::get('documents/report', [DocumentController::class, 'report'])->name('documents.report');
 
     //** End: documentation upload controller */
 
@@ -394,6 +395,22 @@ Route::prefix('incidents')->group(function () {
     Route::post('bulkdelete', [IncidentReportController::class, 'bulkdelete'])->name('incidents.bulkdelete'); // delete
 });
 
+Route::prefix('dobs')->group(function () {
+    Route::get('/', [DobController::class, 'index'])->name('dobs.index'); // DataTable
+    Route::post('/', [DobController::class, 'store'])->name('dobs.store'); // Create
+    Route::get('{id}', [DobController::class, 'show'])->name('dobs.show'); // Show modal
+    Route::get('{id}/edit', [DobController::class, 'edit'])->name('dobs.edit'); // Edit modal
+    Route::put('{id}', [DobController::class, 'update'])->name('dobs.update'); // Update
+    Route::delete('{id}', [DobController::class, 'destroy'])->name('dobs.destroy'); // Delete
+    Route::post('/bulk-delete', [DobController::class, 'bulkDelete'])->name('dobs.bulkDelete');
+});
+
+
+    Route::get('/dobs/export/excel', [DobController::class, 'exportDobExcel'])->name('dobs.export.excel');
+    Route::get('/dobs/export/pdf', [DobController::class, 'exportDobPdf'])->name('dobs.export.pdf');
+
+
+
 require __DIR__ . '/auth.php';
 
 // Route::get('/test-read-update', function () {
@@ -410,7 +427,7 @@ require __DIR__ . '/auth.php';
 //     135,
 //     'Test',
 //     'Test notification content.',
-//     ['user_id' => Auth::id()] // ✅ must be object/array
+//     ['user_id' => Auth::id()] //must be object/array
 // );
 
 //         return 'success';

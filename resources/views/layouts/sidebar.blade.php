@@ -133,7 +133,7 @@
                             </li>
                         @endcan
 
-                        @can('Read Reports')
+                        @can('Read Reports Managment')
                             <li class="submenu">
                                 <a href="javascript:void(0);"
                                     class="{{ request()->is('documents*') || request()->is('invoices') ? 'subdrop' : '' }}">
@@ -150,6 +150,12 @@
                                     <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
                                         <a href="{{ route('incident_report.index') }}">
                                             <i class="ti ti-checkup-list"></i>Incident report
+                                        </a>
+                                    </li>
+
+                                    <li class="{{ request()->is('dobs*') ? 'active' : '' }}">
+                                        <a href="{{ route('dobs.index') }}">
+                                            <i class="ti ti-checkup-list"></i>DOB report
                                         </a>
                                     </li>
                                 </ul>
