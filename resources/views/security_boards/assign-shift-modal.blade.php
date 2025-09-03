@@ -19,8 +19,9 @@
                         <select name="staff_id" id="staff_id" class="form-select selec2_assign_modal" required>
                             <option value="">-- Choose Staff --</option>
                             @foreach ($staffs as $staff)
-                                <option value="{{ $staff->id }}">{{ $staff->first_name }}
-                                    {{ $staff->last_name }}
+                                <option value="{{ $staff->id }}" data-first="{{ strtolower($staff->first_name) }}"
+                                    data-last="{{ strtolower($staff->last_name) }}">
+                                    {{ $staff->first_name }} {{ $staff->last_name }}
                                 </option>
                             @endforeach
                         </select>
@@ -35,6 +36,34 @@
     </div>
 </div>
 
+<script>
+    // Custom matcher for Select2
+    function customMatcher(params, data) {
+        if ($.trim(params.term) === '') {
+            return data;
+        }
+
+        let term = params.term.toLowerCase();
+        let first = $(data.element).data('first') || '';
+        let last = $(data.element).data('last') || '';
+        let full = (first + ' ' + last).trim();
+
+        if (first.includes(term) || last.includes(term) || full.includes(term)) {
+            return data;
+        }
+
+        return null;
+    }
+
+    // Initialize Select2 with matcher
+    $(document).ready(function() {
+        $('.selec2_assign_modal').select2({
+            dropdownParent: $('#assignShiftModal'),
+            matcher: customMatcher,
+            width: '100%'
+        });
+    });
+</script>
 <script>
     $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
         e.preventDefault();
@@ -66,6 +95,4 @@
     });
 </script>
 
-<script>
-
-</script>
+<script></script>
