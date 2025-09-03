@@ -46,12 +46,12 @@ class SitesDataTable extends DataTable
             ->editColumn('created_at', function ($user) {
                 return $user->created_at?->format('Y-m-d');
             })
-            ->filterColumn('client_name', function($query, $keyword) {
-                $query->whereHas('client', function($q) use ($keyword) {
+            ->filterColumn('client_name', function ($query, $keyword) {
+                $query->whereHas('client', function ($q) use ($keyword) {
                     $q->where('first_name', 'like', "%{$keyword}%");
                 });
             })
-            ->filterColumn('address', function($query, $keyword) {
+            ->filterColumn('address', function ($query, $keyword) {
                 $query->where('address', 'like', "%{$keyword}%");
             })
             ->rawColumns(['action', 'checkbox', 'number', 'client_name'])
@@ -67,12 +67,14 @@ class SitesDataTable extends DataTable
     {
         $query = $model->newQuery()
             ->with(['client'])
-            ->select('sites.*');
+            ->select('sites.*')
+            ->orderBy('site_name', 'asc'); // alphabetical order
 
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
                 ->with(['client'])
-                ->select('sites.*');
+                ->select('sites.*')
+                ->orderBy('site_name', 'asc'); // apply same ordering
         }
 
         return $query;
@@ -96,7 +98,7 @@ class SitesDataTable extends DataTable
                 >'
             )
             ->addAction(['width' => '80px'])
-            ->orderBy([7, 'DESC'])
+            ->orderBy([0, 'ASC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 15,

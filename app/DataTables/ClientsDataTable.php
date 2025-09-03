@@ -43,16 +43,16 @@ class ClientsDataTable extends DataTable
             ->addColumn('manager_name', function ($client) {
                 return $client->manager ? $client->manager->fore_name : 'N/A';
             })
-            ->filterColumn('client_name', function($query, $keyword) {
+            ->filterColumn('client_name', function ($query, $keyword) {
                 $query->where('client_name', 'like', "%{$keyword}%");
             })
-            ->filterColumn('company_name', function($query, $keyword) {
-                $query->whereHas('company', function($q) use ($keyword) {
+            ->filterColumn('company_name', function ($query, $keyword) {
+                $query->whereHas('company', function ($q) use ($keyword) {
                     $q->where('company_name', 'like', "%{$keyword}%");
                 });
             })
-            ->filterColumn('manager_name', function($query, $keyword) {
-                $query->whereHas('manager', function($q) use ($keyword) {
+            ->filterColumn('manager_name', function ($query, $keyword) {
+                $query->whereHas('manager', function ($q) use ($keyword) {
                     $q->where('fore_name', 'like', "%{$keyword}%");
                 });
             })
@@ -69,12 +69,14 @@ class ClientsDataTable extends DataTable
     {
         $query = $model->newQuery()
             ->with(['company', 'manager'])
-            ->select('clients.*');
+            ->select('clients.*')
+            ->orderBy('client_name', 'asc'); // alphabetical A → Z
 
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
                 ->with(['company', 'manager'])
-                ->select('clients.*');
+                ->select('clients.*')
+                ->orderBy('client_name', 'asc'); // also alphabetical
         }
 
         return $query;
@@ -86,24 +88,24 @@ class ClientsDataTable extends DataTable
     public function html(): HtmlBuilder
     {
         return $this->builder()
-      ->setTableId('clients-table')
-      ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold') // Setting the classes
-      ->columns($this->getColumns())
-      ->minifiedAjax()
-      ->dom(
-        't
+            ->setTableId('clients-table')
+            ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold') // Setting the classes
+            ->columns($this->getColumns())
+            ->minifiedAjax()
+            ->dom(
+                't
         <"d-flex justify-content-between mt-2"
           <"col-sm-12 col-md-5 align-self-center ps-3"i>
           <"d-flex justify-content-between" p>
         >'
-      )
-      ->addAction(['width' => '80px'])
-      ->orderBy([9, 'DESC'])
-      // ->responsive(true)
-      ->parameters([
-        "scrollX" => true,
-        "pageLength" => 15,
-        "drawCallback" => "function(settings) {
+            )
+            ->addAction(['width' => '80px'])
+            ->orderBy([9, 'DESC'])
+            // ->responsive(true)
+            ->parameters([
+                "scrollX" => true,
+                "pageLength" => 15,
+                "drawCallback" => "function(settings) {
             feather.replace();
             var api = this.api();
             var start = api.page.info().start;
@@ -111,7 +113,7 @@ class ClientsDataTable extends DataTable
                 cell.innerHTML = start + i + 1;
             });
         }",
-      ]);
+            ]);
     }
 
     /**

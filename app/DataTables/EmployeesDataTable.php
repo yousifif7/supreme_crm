@@ -42,8 +42,8 @@ class EmployeesDataTable extends DataTable
                 $isActive = isset($employee->sia_expiry) && \Carbon\Carbon::parse($employee->sia_expiry)->isFuture();
                 return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>
                         <span class="' . ($isActive ? 'text-primary' : 'text-danger') . ' fw-bold">'
-                            . ($isActive ? 'Active' : 'Inactive') .
-                        '</span>';
+                    . ($isActive ? 'Active' : 'Inactive') .
+                    '</span>';
             })
             ->editColumn('sia_expiry', function ($employee) {
                 return $employee->sia_expiry;
@@ -61,13 +61,13 @@ class EmployeesDataTable extends DataTable
                 return $user->created_at?->format('Y-m-d');
             })
             ->editColumn('subcontractor', function ($employee) {
-                return $employee->subcontractorDetails->first_name??'N/A';
+                return $employee->subcontractorDetails->first_name ?? 'N/A';
             })
-            ->filterColumn('name', function($query, $keyword) {
+            ->filterColumn('name', function ($query, $keyword) {
                 $query->where('fore_name', 'like', "%{$keyword}%")
-                      ->orWhere('sur_name', 'like', "%{$keyword}%");
+                    ->orWhere('sur_name', 'like', "%{$keyword}%");
             })
-            ->filterColumn('sia_licence', function($query, $keyword) {
+            ->filterColumn('sia_licence', function ($query, $keyword) {
                 $query->where('sia_licence', 'like', "%{$keyword}%");
             })
             ->rawColumns(['action', 'checkbox', 'number', 'name', 'sia_licence'])
@@ -82,11 +82,15 @@ class EmployeesDataTable extends DataTable
     public function query(Employee $model): QueryBuilder
     {
         $query = $model->newQuery()
-            ->select('employees.*');
+            ->select('employees.*')
+            ->orderBy('fore_name', 'asc')   // 👈 First name
+            ->orderBy('sur_name', 'asc');  // 👈 Then last name
 
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
-                ->select('employees.*');
+                ->select('employees.*')
+                ->orderBy('fore_name', 'asc')
+                ->orderBy('sur_name', 'asc');
         }
 
         return $query;
