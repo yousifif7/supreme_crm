@@ -211,11 +211,11 @@
                             <div class="row g-2">
                                 <div class="col">
                                     <input type="text" name="location[latitude]" class="form-control"
-                                        placeholder="Latitude" required>
+                                        placeholder="Latitude(31.123)" required>
                                 </div>
                                 <div class="col">
                                     <input type="text" name="location[longitude]" class="form-control"
-                                        placeholder="Longitude" required>
+                                        placeholder="Longitude(31.123)" required>
                                 </div>
                             </div>
                         </div>
@@ -252,10 +252,13 @@
                 <p><strong>Title:</strong> ${res.title}</p>
                 <p><strong>Type:</strong> ${res.entry_type}</p>
                 <p><strong>Description:</strong> ${res.description}</p>
-                <p><strong>Location:</strong> ${res.location?.address ?? 'N/A'}</p>
+                <p><strong>User:</strong> ${res.user}</p>
+                <p><strong>Address:</strong> ${res.address ?? 'N/A'}</p>
                 <p><strong>Files:</strong></p>
                 <ul>
-                    ${res.media.map(file => `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
+                    ${res.media.map(file => `
+                            <li><a href="${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>
+                        `).join('')}
                 </ul>
             `;
                     $('#dobModalBody').html(html);

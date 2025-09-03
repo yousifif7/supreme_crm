@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use App\Models\User;
 use App\Models\DobEntry;
 use App\Models\DobMedia;
+use App\Models\ShiftDate;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\DataTables\DobsDataTable;
@@ -22,8 +24,35 @@ class DobController extends Controller
     // SHOW DOB ENTRY
     public function show($id)
     {
-        $dobEntry = DobEntry::findOrFail($id);
-        return response()->json($dobEntry->load('media'));
+        $dobEntry = DobEntry::with(['media'])->findOrFail($id);
+        $user = User::find($dobEntry->user_id);
+        $shiftdate = ShiftDate::find($dobEntry->shift_id);
+
+        $shift = $shiftdate?->shift;
+        $site = $shift?->site;
+
+        $data = [
+            'id' => $dobEntry->id,
+            'title' => $dobEntry->title,
+            'entry_type' => $dobEntry->entry_type,
+            'description' => $dobEntry->description,
+            'timestamp' => $dobEntry->timestamp,
+            'location' => [
+                'latitude' => $dobEntry->location['latitude'] ?? null,
+                'longitude' => $dobEntry->location['longitude'] ?? null,
+            ],
+            'address' => $site ? $site->address : 'Unknown',
+            'user' => $user ? $user->first_name . ' ' . $user->last_name : 'Unknown',
+            'media' => $dobEntry->media->map(function ($m) {
+                return [
+                    'id' => $m->id,
+                    'file_url' => asset($m->file_url),
+                    'type' => $m->type,
+                ];
+            }),
+        ];
+
+        return response()->json($data);
     }
 
     // CREATE DOB ENTRY
