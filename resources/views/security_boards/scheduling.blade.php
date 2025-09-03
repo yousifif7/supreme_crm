@@ -86,29 +86,25 @@
         }
 
         .day-cell {
-            height: 100%;
+            min-height: 80px;
+            /* give each cell some vertical space */
             position: relative;
+            padding: 2px;
         }
 
         .gantt-bar {
-            position: absolute;
+            background: #4e73df;
+            color: #fff;
+            padding: 4px;
             border-radius: 4px;
-            padding: 5px;
-            color: white;
-            font-size: 11px;
-            overflow: hidden;
-            white-space: nowrap;
+            margin-bottom: 2px;
             cursor: pointer;
-            transition: all 0.2s;
-            top: 15px;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
 
         .gantt-bar:hover {
-            opacity: 0.9;
-            transform: scale(1.02);
-            z-index: 20;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25);
         }
 
         .gantt-empty {
@@ -747,47 +743,39 @@
 
                 // Now place the shifts in the correct day cells
                 Object.values(sites).forEach(site => {
+                    // Group shifts by date
+                    const shiftsByDate = {};
                     site.shifts.forEach(shift => {
-                        const shiftDate = new Date(shift.start_date);
-                        const dateStr = formatDate(shiftDate);
+                        const dateStr = formatDate(new Date(shift.start_date));
+                        if (!shiftsByDate[dateStr]) {
+                            shiftsByDate[dateStr] = [];
+                        }
+                        shiftsByDate[dateStr].push(shift);
+                    });
+
+                    // Place shifts in correct day cell
+                    Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
                         const cell = $(`#cell-${site.id}-${dateStr}`);
-
                         if (cell.length) {
-                            // Calculate position based on time
-                            const startTime = new Date(`${shift.start_date}T${shift.start_time}`);
-                            const endTime = new Date(`${shift.end_date}T${shift.end_time}`);
+                            shifts.forEach((shift, index) => {
+                                const bar = $(`
+                    <div class="gantt-bar shift-${shift.color_class}"
+                        style="position: relative; top: ${index * 5}px; z-index: ${100 - index};"
+                        data-shift-id="${shift.id}"
+                        title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
+                        ${shift.title}<br>${shift.formatted_time}<br>${shift.staff_name}
+                    </div>
+                `);
 
-                            // Calculate position as percentage of day
-                            const dayStart = new Date(shiftDate);
-                            dayStart.setHours(0, 0, 0, 0);
+                                cell.append(bar);
 
-                            const dayEnd = new Date(shiftDate);
-                            dayEnd.setHours(23, 59, 59, 999);
-
-                            const dayDuration = dayEnd - dayStart;
-                            const shiftStartOffset = startTime - dayStart;
-                            const shiftDuration = endTime - startTime;
-
-                            const left = 1;
-                            const width = 100;
-
-                            // Create shift bar
-                            const bar = $(`
-                                <div class="gantt-bar shift-${shift.color_class}" 
-                                    style="left: ${left}%; width: ${width}%;"
-                                    data-shift-id="${shift.id}"
-                                    title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
-                                    ${shift.title}<br>${shift.formatted_time}<br>${shift.duration}<br>${shift.staff_name}
-                                </div>
-                            `);
-
-                            cell.append(bar);
-
-                            // Add click handler to bar
-                            bar.on('click', function() {
-                                const shiftId = $(this).data('shift-id');
-                                window.open(`${baseUrl}/shift-dates/${shiftId}/view`,
-                                    '_blank');
+                                // Open shift view on click
+                                bar.on('click', function() {
+                                    const shiftId = $(this).data('shift-id');
+                                    window.open(
+                                        `${baseUrl}/shift-dates/${shiftId}/view`,
+                                        '_blank');
+                                });
                             });
                         }
                     });
@@ -859,7 +847,7 @@
 
                     // Site filter
                     if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
-                    return false;
+                        return false;
 
                     // Status filter
                     if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
@@ -868,7 +856,7 @@
                     // Date range filter
                     const shiftStart = new Date(shift.start_date);
                     if (filters.from_shift && shiftStart < new Date(filters.from_shift))
-                    return false;
+                        return false;
                     if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
 
                     return true;
