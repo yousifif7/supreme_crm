@@ -95,6 +95,11 @@
                                         'Security Staff',
                                         'Vehicle Management',
                                         'Invoice Management',
+                                        'Holiday Managment',
+                                        'HR Managment',
+                                        'Reports Managment',
+                                        'Restrictions',
+                                        'Chat',
                                     ];
                                     $actions = ['Read', 'Write', 'Create', 'Delete', 'Import', 'Export'];
                                 @endphp
@@ -120,9 +125,8 @@
                                                 <tr>
                                                     <td>
                                                         <div class="form-check form-check-md form-switch me-2">
-                                                            <input class="form-check-input module-select-all"
-                                                                role="switch" type="checkbox"
-                                                                data-module="{{ $module }}">
+                                                            <input class="form-check-input module-select-all" role="switch"
+                                                                type="checkbox" data-module="{{ $module }}">
                                                             <label class="form-check-label">{{ $module }}</label>
                                                         </div>
                                                     </td>
@@ -134,8 +138,7 @@
                                                                     value="{{ $action . ' ' . $module }}"
                                                                     data-module="{{ $module }}"
                                                                     data-action="{{ $action }}">
-                                                                <label
-                                                                    class="form-check-label">{{ $action }}</label>
+                                                                <label class="form-check-label">{{ $action }}</label>
                                                             </div>
                                                         </td>
                                                     @endforeach
@@ -185,6 +188,11 @@
                                         'Security Staff',
                                         'Vehicle Management',
                                         'Invoice Management',
+                                        'Holiday Managment',
+                                        'HR Managment',
+                                        'Reports Managment',
+                                        'Restrictions',
+                                        'Chat',
                                     ];
                                     $actions = ['Read', 'Write', 'Create', 'Delete', 'Import', 'Export'];
                                 @endphp

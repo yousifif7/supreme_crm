@@ -54,5 +54,40 @@ class permissionSeeder extends Seeder
         Permission::firstOrCreate(['name' => 'Delete Invoice Management', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Import Invoice Management', 'guard_name' => 'web']);
         Permission::firstOrCreate(['name' => 'Export Invoice Management', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Create Restrictions', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Restrictions', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Restrictions', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Restrictions', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Read Restrictions', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Restrictions', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Read Holiday Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Holiday Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Holiday Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Holiday Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Holiday Managment 	', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Holiday Managment', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Read HR Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write HR Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export HR Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create HR Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import HR Managment 	', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete HR Managment', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Read Reports Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Reports Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Reports Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Reports Managment', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Reports Managment 	', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Reports Managment', 'guard_name' => 'web']);
+
+        Permission::firstOrCreate(['name' => 'Read Chat', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Write Chat', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Export Chat', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Create Chat', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Import Chat', 'guard_name' => 'web']);
+        Permission::firstOrCreate(['name' => 'Delete Chat', 'guard_name' => 'web']);
     }
 }

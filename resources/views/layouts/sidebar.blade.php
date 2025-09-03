@@ -124,76 +124,89 @@
                             </li>
                         @endcan
 
-                        <li class="{{ request()->is('vehicle_management*') ? 'active' : '' }}">
-                            <a href="{{ route('vehicle.management') }}">
-                                <i class="ti ti-reorder"></i>
-                                <span>Vehicle Management </span>
-                            </a>
-                        </li>
+                        @can('Read Vehicle Management')
+                            <li class="{{ request()->is('vehicle_management*') ? 'active' : '' }}">
+                                <a href="{{ route('vehicle.management') }}">
+                                    <i class="ti ti-reorder"></i>
+                                    <span>Vehicle Management </span>
+                                </a>
+                            </li>
+                        @endcan
 
-                        <li class="submenu">
-                            <a href="javascript:void(0);"
-                                class="{{ request()->is('documents*') || request()->is('invoices') ? 'subdrop' : '' }}">
-                                <i class="fa fa-file"></i>
-                                <span>Reports</span>
-                                <span class="menu-arrow"></span>
-                            </a>
+                        @can('Read Reports')
+                            <li class="submenu">
+                                <a href="javascript:void(0);"
+                                    class="{{ request()->is('documents*') || request()->is('invoices') ? 'subdrop' : '' }}">
+                                    <i class="fa fa-file"></i>
+                                    <span>Reports</span>
+                                    <span class="menu-arrow"></span>
+                                </a>
 
-                            <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
-                                <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a
-                                        href="{{ route('documents.report') }}"><i
-                                            class="fa-solid fa-file-import"></i>Document Report</a></li>
+                                <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
+                                    <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a
+                                            href="{{ route('documents.report') }}"><i
+                                                class="fa-solid fa-file-import"></i>Document Report</a></li>
 
-                                <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
-                                    <a href="{{ route('incident_report.index') }}">
-                                        <i class="ti ti-checkup-list"></i>Incident report
-                                    </a>
-                                </li>
-                            </ul>
-                        </li>
+                                    <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
+                                        <a href="{{ route('incident_report.index') }}">
+                                            <i class="ti ti-checkup-list"></i>Incident report
+                                        </a>
+                                    </li>
+                                </ul>
+                            </li>
+                        @endcan
 
-                        <li class="{{ request()->is('invoices*') ? 'active' : '' }}">
-                            <a href="{{ route('invoices.index') }}">
-                                <i class="fa fa-file-invoice-dollar"></i>
-                                <span>Invoices</span>
-                            </a>
-                        </li>
+                        @can('Read Invoice Management')
+                            <li class="{{ request()->is('invoices*') ? 'active' : '' }}">
+                                <a href="{{ route('invoices.index') }}">
+                                    <i class="fa fa-file-invoice-dollar"></i>
+                                    <span>Invoices</span>
+                                </a>
+                            </li>
 
-                        <li class="{{ request()->is('payrolls*') ? 'active' : '' }}">
-                            <a href="{{ route('payrolls.index') }}">
-                                <i class="ti ti-file-invoice"></i>
-                                <span>Payrolls</span>
-                            </a>
-                        </li>
+                            <li class="{{ request()->is('payrolls*') ? 'active' : '' }}">
+                                <a href="{{ route('payrolls.index') }}">
+                                    <i class="ti ti-file-invoice"></i>
+                                    <span>Payrolls</span>
+                                </a>
+                            </li>
+                        @endcan
 
+                        @can('Read Holiday Managment')
+                            <li class="{{ request()->is('leaves*') ? 'active' : '' }}">
+                                <a href="{{ route('leaves.index') }}">
+                                    <i class="ti ti-door-exit"></i>
+                                    <span>Holiday Mgt. </span>
+                                </a>
+                            </li>
+                        @endcan
 
-                        <li class="{{ request()->is('leaves*') ? 'active' : '' }}">
-                            <a href="{{ route('leaves.index') }}">
-                                <i class="ti ti-door-exit"></i>
-                                <span>Holiday Mgt. </span>
-                            </a>
-                        </li>
+                        @can('Read Restrictions')
+                            <li class="{{ request()->is('restrictions*') ? 'active' : '' }}">
+                                <a href="{{ route('restrictions.index') }}">
+                                    <i class="fa fa-house-lock"></i>
+                                    <span>Restrictions </span>
+                                </a>
+                            </li>
+                        @endcan
 
-                        <li class="{{ request()->is('restrictions*') ? 'active' : '' }}">
-                            <a href="{{ route('restrictions.index') }}">
-                                <i class="fa fa-house-lock"></i>
-                                <span>Restrictions </span>
-                            </a>
-                        </li>
+                        @can('Read HR Managment')
+                            <li class="{{ request()->is('hr*') ? 'active' : '' }}">
+                                <a href="{{ url('hr') }}">
+                                    <i class="fa fa-phone"></i>
+                                    <span>HR</span>
+                                </a>
+                            </li>
+                        @endcan
 
-                        <li class="{{ request()->is('hr*') ? 'active' : '' }}">
-                            <a href="{{ url('hr') }}">
-                                <i class="fa fa-phone"></i>
-                                <span>HR</span>
-                            </a>
-                        </li>
-
-                        <li class="{{ request()->is('chat*') ? 'active' : '' }}">
-                            <a href="{{ url('chat') }}">
-                                <i class="bi bi-chat"></i>
-                                <span>My Chats</span>
-                            </a>
-                        </li>
+                        @can('Read Chat')
+                            <li class="{{ request()->is('chat*') ? 'active' : '' }}">
+                                <a href="{{ url('chat') }}">
+                                    <i class="bi bi-chat"></i>
+                                    <span>My Chats</span>
+                                </a>
+                            </li>
+                        @endcan
                         <li>
                             <!-- Logout Link -->
                             <a href="{{ route('logout') }}"
