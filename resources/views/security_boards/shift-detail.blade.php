@@ -311,7 +311,7 @@
                                             ->where('id', $shiftDate->staff_id)
                                             ->first();
                                     @endphp
-                                    <div class="col-md-6 col-12">
+                                    <div class="col-12">
                                         {{-- <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
                                             <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"
                                                 class="btn btn-primary" target="_blank">

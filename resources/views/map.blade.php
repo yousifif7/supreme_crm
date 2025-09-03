@@ -7,14 +7,15 @@
             padding: 0;
         }
         #map {
-            height: 500px;
-            width: 500px;
+            height: 350px;
+            width: 100%;
         }
     </style>
     <div id="map"></div>
 
 <script>
-let map, heatmap;
+let map;
+let heatmap;
 let allHeatPoints = [];
 
 function initMap() {
@@ -35,44 +36,58 @@ function initMap() {
 
             const bounds = new google.maps.LatLngBounds();
 
-            locations.forEach(loc => {
-                const lat = parseFloat(loc.latitude);
-                const lng = parseFloat(loc.longitude);
-                if (isNaN(lat) || isNaN(lng)) return;
+            // Create a line of points for realistic heatmap
+            for (let i = 0; i < locations.length - 1; i++) {
+                const start = locations[i];
+                const end = locations[i + 1];
 
-                const latLng = new google.maps.LatLng(lat, lng);
+                const latStep = (parseFloat(end.latitude) - parseFloat(start.latitude)) / 10;
+                const lngStep = (parseFloat(end.longitude) - parseFloat(start.longitude)) / 10;
+
+                for (let j = 0; j <= 10; j++) {
+                    const lat = parseFloat(start.latitude) + latStep * j;
+                    const lng = parseFloat(start.longitude) + lngStep * j;
+                    const latLng = new google.maps.LatLng(lat, lng);
+                    allHeatPoints.push(latLng);
+                    bounds.extend(latLng);
+                }
+            }
+
+            // Add last location if only one point
+            if (locations.length === 1) {
+                const loc = locations[0];
+                const latLng = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
                 allHeatPoints.push(latLng);
                 bounds.extend(latLng);
-            });
+            }
 
             map.fitBounds(bounds);
 
+            // Create heatmap
             heatmap = new google.maps.visualization.HeatmapLayer({
                 data: allHeatPoints,
-                radius: 50,       // size of heat points
-                opacity: 0.7,     // transparency
+                radius: 20,        // smaller radius for line clarity
+                opacity: 0.8,      // more visible
                 dissipating: true,
                 gradient: [
-                    'rgba(0, 255, 255, 0)',
-                    'rgba(0, 255, 255, 1)',
-                    'rgba(0, 191, 255, 1)',
-                    'rgba(0, 127, 255, 1)',
-                    'rgba(0, 63, 255, 1)',
-                    'rgba(0, 0, 255, 1)',
-                    'rgba(63, 0, 255, 1)',
-                    'rgba(127, 0, 255, 1)',
-                    'rgba(191, 0, 255, 1)',
-                    'rgba(255, 0, 255, 1)'
+                    'rgba(0,0,0,0)',
+                    'rgba(255,255,0,0.6)',
+                    'rgba(255,165,0,0.7)',
+                    'rgba(255,0,0,0.8)',
+                    'rgba(128,0,0,1)'
                 ]
             });
 
             heatmap.setMap(map);
 
+            // Toggle button
             document.getElementById("toggleHeatmap").addEventListener("click", () => {
                 heatmap.setMap(heatmap.getMap() ? null : map);
             });
+
         })
         .catch(err => console.error(err));
 }
+
 window.onload = initMap;
 </script>
