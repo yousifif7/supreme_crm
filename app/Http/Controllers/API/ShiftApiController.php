@@ -24,57 +24,58 @@ use Illuminate\Support\Facades\Validator;
 class ShiftApiController extends Controller
 {
     // 10. Get Upcoming Shifts
-    public function getUpcomingShifts(Request $request)
+    public function getShifts(Request $request)
     {
-        // $employee = Employee::where('user_id', Auth::id())->first();
-
         $limit = $request->query('limit', 10);
+        $today = now()->toDateString();
 
-        $shiftDates = ShiftDate::with('shift')
+        $shifts = ShiftDate::with('shift.site')
             ->where('staff_id', Auth::id())
-            ->where(function ($query) {
-                $query->where('shift_date', '>=', now()->toDateString())
-                    ->orWhere('status', 'booked_on')
-                    ->orWhere('is_assign', 3);
-            })
             ->orderBy('shift_date')
             ->paginate($limit);
 
+        $transformed = $shifts->getCollection()->transform(function ($shiftDate) use ($today) {
+            $shift = $shiftDate->shift;
+            $site = $shift?->site;
 
-        $transformed = $shiftDates->getCollection()->transform(function ($shiftDate) {
-            $shift = Shift::findOrFail($shiftDate->shift_id);
-            $site = $shift ? Site::find($shift->site_id) : null;
+            if ($shiftDate->shift_date < $today) {
+                $category = 'past';
+            } elseif ($shiftDate->shift_date == $today) {
+                $category = 'current';
+            } else {
+                $category = 'upcoming';
+            }
 
             return [
                 'id' => $shiftDate->id,
                 'shift_id' => $shiftDate->shift_id,
-                'site_id' => $shiftDate->shift->site_id,
+                'site_id' => $site?->id,
                 'site_name' => $site?->site_name,
-                'site_address' => optional($shiftDate->shift->site)->address,
+                'site_address' => $site?->address,
                 'start_time' => $shiftDate->start_time,
                 'end_time' => $shiftDate->end_time,
                 'shift_date' => $shiftDate->shift_date,
-                'duties' => optional($shiftDate->shift)->duties,
-                'supervisor_name' => $shiftDate->shift->supervisor_name,
-                'supervisor_contact' => $shiftDate->shift->supervisor_contact,
+                'duties' => $shift?->duties,
+                'supervisor_name' => $shift?->supervisor_name,
+                'supervisor_contact' => $shift?->supervisor_contact,
                 'status' => $shiftDate->status,
                 'started_at' => $shiftDate->absentee_start_time,
                 'ended_at' => $shiftDate->absentee_end_time,
-                'briefing_pdf' => optional($shiftDate->shift)->briefing_pdf_url,
-                'risk_assessment_pdf' => optional($shiftDate->shift)->risk_assessment_pdf_url,
+                'briefing_pdf' => $shift?->briefing_pdf_url,
+                'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
+                'category' => $category, // now based only on date
             ];
         });
 
         return response()->json([
             'shift_dates' => $transformed,
             'pagination' => [
-                'current_page' => $shiftDates->currentPage(),
-                'total_pages' => $shiftDates->lastPage(),
-                'total' => $shiftDates->total(),
+                'current_page' => $shifts->currentPage(),
+                'total_pages' => $shifts->lastPage(),
+                'total' => $shifts->total(),
             ],
         ]);
     }
-
     // 11. Accept/Decline Shift
     public function respondToShift(Request $request, $shift_id)
     {
@@ -95,7 +96,7 @@ class ShiftApiController extends Controller
             ]);
         }
 
-        $user= User::find(Auth::id());
+        $user = User::find(Auth::id());
 
         // check if shift status is dispatched
         if ($shift->is_assign == 1) {

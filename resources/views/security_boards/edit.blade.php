@@ -21,18 +21,17 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label for="staff_id" class="form-label">Select Staff</label>
-                                                <select name="staff_id" id="staff_id"
-                                                    class="form-select selec2_assign_modal" required>
-                                                    <option value="">-- Choose Staff --</option>
+                                                <label class="form-label">Staff <span
+                                                        class="text-danger">*</span></label>
+                                                <select name="staff_id" class="form-select select2_modal" id="staff_id"
+                                                    required>
+                                                    <option value="">--choose--</option>
                                                     @foreach ($staffs as $staff)
-                                                        <option value="{{ $staff->id }}"
-                                                            data-first="{{ strtolower($staff->first_name) }}"
-                                                            data-last="{{ strtolower($staff->last_name) }}">
-                                                            {{ $staff->first_name }} {{ $staff->last_name }}
-                                                        </option>
+                                                        <option value="{{ $staff->id }}">
+                                                            {{ $staff->first_name }} {{ $staff->last_name }}</option>
                                                     @endforeach
                                                 </select>
+                                                <span class="text-danger form-error" id="error_client_id"></span>
                                             </div>
                                         </div>
 
@@ -138,15 +137,6 @@
 </div>
 
 <script>
-    // Initialize Select2 with matcher
-    $(document).ready(function() {
-        $('.selec2_assign_modal').select2({
-            dropdownParent: $('#assignShiftModal'),
-            matcher: customMatcher,
-            width: '100%'
-        });
-    });
-
     function editShift(record_id) {
         $.get(`${baseUrl}/editshift/` + record_id, function(data) {
             if (data.shift) {

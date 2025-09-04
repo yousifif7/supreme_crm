@@ -417,7 +417,7 @@ class ShiftController extends Controller
         );
 
         $data['is_assign'] = $data['status_id'];
-
+        $shift->status = 'pending';
         // ✅ Restrictions only if assigning to a staff member
         if (!empty($data['staff_id'])) {
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
@@ -1029,7 +1029,17 @@ class ShiftController extends Controller
         $staff = Employee::findOrFail($staffUser->id);
 
         // ✅ Apply all restrictions (including 40hr/20hr student visa rule)
-        applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $shiftDate->shift_date);
+        $newShiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+
+        // ✅ Apply all restrictions (including 40hr, 20hr student visa, and 12hr rest rule)
+        applyRestrictions(
+            $staff,
+            $validator,
+            'staff_id',
+            $newShiftHours,
+            $shiftDate->shift_date,
+            $newShiftStart //pass new start datetime
+        );
 
         if ($validator->errors()->any()) {
             \Log::info('Restrictions failed', $validator->errors()->toArray());

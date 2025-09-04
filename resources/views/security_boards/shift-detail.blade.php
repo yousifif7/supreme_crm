@@ -364,7 +364,7 @@
                                                 @if ($lastLocation)
                                                     <div id="map-off-{{ $shiftDate->id }}" class="profile-map"></div>
                                                 @else
-                                                    <p class="bg-light">No ending location found.</p>
+                                                    <p class="bg-white">No ending location found.</p>
                                                 @endif
                                             </div>
                                             <div class="profile-details">

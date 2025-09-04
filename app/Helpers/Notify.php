@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use ExponentPhpSDK\Expo;
+use App\Models\ShiftDate;
 use App\Models\DeviceToken;
 use App\Models\Notification;
 use ExponentPhpSDK\ExpoRegistrar;
@@ -29,7 +30,7 @@ if (!function_exists('notify_users')) {
 }
 
 
-function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShiftHours = 0, $shiftDate = null)
+function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShiftHours = 0, $shiftDate = null, $newShiftStart = null)
 {
     $entityClass = get_class($entity);
     $restrictions = \App\Models\Restriction::where('entity_type', $entityClass)
@@ -65,7 +66,7 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 $weekStart = now()->startOfWeek();
                 $weekEnd = now()->endOfWeek();
 
-                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id) // ✅ FIXED
+                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id) // FIXED
                     ->whereBetween('shift_date', [$weekStart, $weekEnd])
                     ->sum('total_hours');
 
@@ -92,6 +93,41 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
 
                         if ($weeklyHours > 20) {
                             $validator->errors()->add($fieldName, $message);
+                        }
+                    }
+                }
+                break;
+            case 'min_rest_hours_check':
+                if ($newShiftStart instanceof \Carbon\Carbon) {
+                    $lastShift = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
+                        ->whereNotNull('end_time')
+                        ->whereRaw("TIMESTAMP(shift_date, end_time) <= ?", [$newShiftStart])
+                        ->orderByDesc('shift_date')
+                        ->orderByDesc('end_time')
+                        ->first();
+
+                    if ($lastShift) {
+                        $lastShiftEnd = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->end_time);
+
+                        // handle overnight shifts
+                        $lastShiftStart = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->start_time);
+                        if ($lastShiftEnd->lte($lastShiftStart)) {
+                            $lastShiftEnd->addDay();
+                        }
+
+                        $hoursDiff = $lastShiftEnd->diffInHours($newShiftStart, false);
+
+                        \Log::info('12h check result', [
+                            'lastShiftEnd' => $lastShiftEnd,
+                            'newShiftStart' => $newShiftStart,
+                            'hoursDiff' => $hoursDiff,
+                        ]);
+
+                        if ($hoursDiff < 12) {
+                            $validator->errors()->add(
+                                $fieldName,
+                                $message ?: 'Staff must have at least 12 hours rest between shifts.'
+                            );
                         }
                     }
                 }
