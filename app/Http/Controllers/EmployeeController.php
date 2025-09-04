@@ -20,6 +20,12 @@ class EmployeeController extends Controller
 {
     public function index(EmployeesDataTable $dataTable)
     {
+        $employeeUserIds = Employee::pluck('user_id')->filter()->toArray();
+
+        User::role('security_staff')
+            ->whereNotIn('id', $employeeUserIds)
+            ->delete();
+
         $departments = Department::all();
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
@@ -226,7 +232,7 @@ class EmployeeController extends Controller
                     'employee_id' => $employee->id,
                     'from_date' => $term['from'],
                     'to_date' => $term['to'],
-                    'term_name' => $term['term_name'],
+                    'term_name' => $term['entitlement'],
                 ]);
             }
         }
@@ -240,7 +246,7 @@ class EmployeeController extends Controller
         $validator = Validator::make($request->all(), [
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'required|email',
+            'email' => 'email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
             'sia_licence' => 'nullable|string',
@@ -317,9 +323,9 @@ class EmployeeController extends Controller
             'terms' => 'nullable|array',
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
-            'terms.*.term_name' => 'nullable',
+            'terms.*.entitlement' => 'nullable',
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
-            'password' => 'required|string|min:6',   // Add password validation
+            'password' => 'string|min:6',   // Add password validation
         ]);
 
         if ($validator->fails()) {
@@ -342,10 +348,18 @@ class EmployeeController extends Controller
                     $user->email = $request->email;
                     $employee->email = $request->email;
                 }
+                if (!$request->email) {
+                    $user->email = $user->email;
+                    $employee->email = $employee->email;
+                }
 
                 if ($request->password) {
                     // Use Hash facade to hash the password
                     $user->password = Hash::make($request->password);
+                }
+                if (!$request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = $user->password;
                 }
 
                 $user->save();
@@ -452,7 +466,7 @@ class EmployeeController extends Controller
                     $employee->terms()->create([
                         'from_date' => $term['from'],
                         'to_date' => $term['to'],
-                        'term_name' => $term['term_name'] ?? 'Term',
+                        'term_name' => $term['entitlement'] ?? 'Term',
                     ]);
                 }
             }
@@ -481,6 +495,7 @@ class EmployeeController extends Controller
 
         return response()->json(['success' => true]);
     }
+
     public function bulkDelete(Request $request)
     {
         $request->validate([
@@ -488,6 +503,16 @@ class EmployeeController extends Controller
             'ids.*' => 'exists:employees,id',
         ]);
 
+        // Get the employees
+        $employees = Employee::whereIn('id', $request->ids)->get();
+
+        // Collect related user IDs
+        $userIds = $employees->pluck('user_id')->toArray();
+
+        // Delete related users (only security_staff role)
+        User::role('security_staff')->whereIn('id', $userIds)->delete();
+
+        // Delete employees
         Employee::whereIn('id', $request->ids)->delete();
 
         return response()->json(['message' => 'Selected employees deleted.']);

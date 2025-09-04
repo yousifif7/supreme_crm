@@ -295,7 +295,8 @@
                         <label for="user_id" class="form-label">Select User</label>
                         <select class="form-select user_select" name="users_id[]" id="user_id" required>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->first_name }} {{ $user->last_name }}</option>
+                                <option value="{{ $user->id }}"data-first="{{ strtolower($user->first_name) }}"
+                                    data-last="{{ strtolower($user->last_name) }}">{{ $user->first_name }} {{ $user->last_name }}</option>
                             @endforeach
                         </select>
                     </div>

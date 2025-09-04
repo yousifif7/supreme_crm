@@ -65,7 +65,7 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 $weekStart = now()->startOfWeek();
                 $weekEnd = now()->endOfWeek();
 
-                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->id)
+                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id) // ✅ FIXED
                     ->whereBetween('shift_date', [$weekStart, $weekEnd])
                     ->sum('total_hours');
 
@@ -77,7 +77,7 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 break;
 
             case 'student_visa_hours_check':
-                if ($entity->visa_type === 'Student' && $shiftDate) {
+                if (strtolower($entity->visa_type) === 'student' && $shiftDate) {
                     $isShiftInActiveTerm = \App\Models\EmployeeTerm::where('employee_id', $entity->id)
                         ->where(function ($query) use ($shiftDate) {
                             $query->where('from_date', '<=', $shiftDate)
@@ -85,8 +85,8 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                         })
                         ->exists();
 
-                    if (!$isShiftInActiveTerm) {
-                        $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->id)
+                    if ($isShiftInActiveTerm) { // ✅ flipped logic
+                        $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
                             ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
                             ->sum('total_hours') + $newShiftHours;
 

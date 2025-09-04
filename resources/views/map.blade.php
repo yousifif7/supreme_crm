@@ -30,7 +30,7 @@ function initMap() {
         .then(data => {
             const locations = data.locations || [];
             if (!locations.length) {
-                alert("No location data for this shift.");
+                toast_danger("No location data found for this shift!");
                 return;
             }
 
