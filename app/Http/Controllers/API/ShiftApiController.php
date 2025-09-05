@@ -146,7 +146,7 @@ class ShiftApiController extends Controller
         }
 
         return response()->json([
-            'message' => 'Could not change shift status ',
+            'message' => 'Could not submit a respond, current shift status '.$shift->status,
         ]);
     }
 
@@ -373,6 +373,14 @@ class ShiftApiController extends Controller
         }
 
         if ($shiftDate->is_assign == 2) {
+
+            $now = Carbon::now();
+            $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+
+            if ($now->lt($shiftStart)) {
+                return response()->json(['message' => 'You can only book on when the shift is due at '.$shiftStart], 422);
+            }
+
             // Update status
             $shiftDate->status = 'booked_on';
             $shiftDate->is_assign = 3; //shift started
@@ -443,6 +451,22 @@ class ShiftApiController extends Controller
         }
 
         //  Correct: update ShiftDate by ID
+
+        // ================== TIME VALIDATION ==================
+        $now = \Carbon\Carbon::now();
+        $shiftEnd = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+
+        // Handle overnight shifts (end_time earlier than start_time)
+        $shiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+        if ($shiftEnd->lte($shiftStart)) {
+            $shiftEnd->addDay(); // push to next day
+        }
+
+        if ($now->lt($shiftEnd)) {
+            return response()->json([
+                'message' => 'You can only book off when the shift has ended (after ' . $shiftEnd->format('H:i') . ').',
+            ], 422);
+        }
 
         if ($shiftDate) {
             $shiftDate->status = 'booked_off';

@@ -45,6 +45,26 @@ class CheckCallController extends Controller
         if (!$employee) {
             return response()->json(['message' => 'No employee linked to this user.'], 404);
         }
+        $now = Carbon::parse($data['timestamp'], 'UTC'); // incoming timestamp assumed UTC
+        $scheduledUtc = Carbon::parse($checkCall->scheduled_time, 'UTC'); // stored in DB as UTC
+
+        $earliest = $scheduledUtc->copy()->subMinutes(5);
+        $latest   = $scheduledUtc->copy()->addMinutes(15);
+
+        
+        if ($now->lt($earliest)) {
+            return response()->json([
+                'message' => 'Too early! Check call can only be completed 5 minutes before its due time. '
+                    . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
+            ], 422);
+        }
+
+        if ($now->gt($latest)) {
+            return response()->json([
+                'message' => 'Missed! Check call can only be completed within 15 minutes after its due time. '
+                    . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
+            ], 422);
+        }
 
         // Handle media files
         foreach ($data['media_files'] ?? [] as $file) {
@@ -91,14 +111,14 @@ class CheckCallController extends Controller
                 $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80); // semi-transparent bg
 
 
-                $shiftdate=ShiftDate::find($checkCall->shift_id);
-                
+                $shiftdate = ShiftDate::find($checkCall->shift_id);
+
                 // Compose text
                 $text = "Time: " . date('Y-m-d H:i', strtotime($data['timestamp'])) .
                     "\nEmployee: " . $employee->fore_name . ' ' . $employee->sur_name .
-                    "\nLat: " . $data['location']['latitude'] ."  ".
-                    "Lng: " . $data['location']['longitude'].
-                    "\nSite: " . $shiftdate->shift->site->site_name.
+                    "\nLat: " . $data['location']['latitude'] . "  " .
+                    "Lng: " . $data['location']['longitude'] .
+                    "\nSite: " . $shiftdate->shift->site->site_name .
                     "\nLocation: " . $shiftdate->shift->site->address;
 
                 $lines = explode("\n", $text);

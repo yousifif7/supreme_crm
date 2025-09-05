@@ -496,7 +496,7 @@ class ShiftController extends Controller
     {
         $request->validate([
             'book_on_id' => 'required|exists:shift_dates,id',
-            'absentee_start_time' => 'required|date_format:H:i',
+            'absentee_start_time' => 'required|date_format:H:i:s',
         ]);
 
         $shiftDate = \App\Models\ShiftDate::find($request->input('book_on_id'));
