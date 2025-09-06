@@ -615,7 +615,7 @@ class ShiftApiController extends Controller
     public function completePatrol(Request $request, $patrol_id)
     {
         $patrol = Patrol::with('shift')->findOrFail($patrol_id);
-        $now = Carbon::parse($request->completed_at);
+        $now = Carbon::now();
         $patrolStart = Carbon::parse($patrol->start_time);
 
         // Guard can complete patrol only up to 50 mins after start
