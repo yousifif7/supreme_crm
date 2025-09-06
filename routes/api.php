@@ -92,6 +92,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/{shift_id}/patrols', [ShiftApiController::class, 'getPatrolRoutes']);
     Route::post('/patrols/checkpoints/{checkpoint_id}/scan', [ShiftApiController::class, 'scanCheckpoint']);
+    Route::post('/patrols/{patrol_id}/start', [ShiftApiController::class, 'startPatrol']);
     Route::post('/patrols/{patrol_id}/complete', [ShiftApiController::class, 'completePatrol']);
 });
 

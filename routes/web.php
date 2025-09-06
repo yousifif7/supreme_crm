@@ -24,6 +24,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
+use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\IncidentReportController;
@@ -406,9 +407,10 @@ Route::prefix('dobs')->group(function () {
 });
 
 
-    Route::get('/dobs/export/excel', [DobController::class, 'exportDobExcel'])->name('dobs.export.excel');
-    Route::get('/dobs/export/pdf', [DobController::class, 'exportDobPdf'])->name('dobs.export.pdf');
-
+Route::get('/dobs/export/excel', [DobController::class, 'exportDobExcel'])->name('dobs.export.excel');
+Route::get('/dobs/export/pdf', [DobController::class, 'exportDobPdf'])->name('dobs.export.pdf');
+Route::get('/patrol/{patrol}/locations', [LocationAPIController::class, 'locations'])
+    ->name('patrol.locations');
 
 
 require __DIR__ . '/auth.php';

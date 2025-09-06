@@ -9,13 +9,13 @@ class PatrolCheckpoint extends Model
     protected $table = 'patrol_check_points';
     //
     protected $fillable = [
-        'patrol_id', 'name', 'qr_code', 'nfc_tag',
+        'site_id', 'name', 'qr_code', 'nfc_tag',
         'latitude', 'longitude', 'required'
     ];
 
-    public function patrol()
+    public function site()
     {
-        return $this->belongsTo(Patrol::class);
+        return $this->belongsTo(Site::class);
     }
 
     public function scans()

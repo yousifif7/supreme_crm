@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\Patrol;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
@@ -47,6 +48,26 @@ class LocationAPIController extends Controller
             ->whereBetween('timestamp', [$request->date_from, $request->date_to])
             ->orderBy('timestamp', 'asc')
             ->get(['latitude', 'longitude', 'timestamp', 'accuracy']);
+
+        return response()->json([
+            'locations' => $locations
+        ]);
+    }
+
+    public function locations(Patrol $patrol, Request $request)
+    {
+        $shiftDateId = $request->query('shiftDateId');
+
+        if (!$shiftDateId) {
+            return response()->json([
+                'error' => 'shiftDateId is required'
+            ], 400);
+        }
+
+        $locations = Location::where('patrol_id', $patrol->id)
+            ->where('shiftdate_id', $shiftDateId)
+            ->orderBy('created_at') // optional: order by timestamp
+            ->get(['latitude', 'longitude', 'created_at']);
 
         return response()->json([
             'locations' => $locations

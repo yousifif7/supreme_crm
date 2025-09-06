@@ -100,13 +100,13 @@
     </div>
     <!-- /Page Wrapper -->
     <!-- Add Client -->
-   @include('sites.create')
+    @include('sites.create')
     <!-- /Add Client -->
 
     <!-- Edit Client -->
-       @include('sites.edit')
+    @include('sites.edit')
 
-  
+
     <!-- /Edit Client -->
 
     <!-- Delete Modal -->
@@ -135,16 +135,15 @@
             <div class="modal-content">
                 <div class="modal-header">
                     <h4 class="modal-title">Import Sites</h4>
-                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                        aria-label="Close">
+                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
                         <i class="ti ti-x"></i>
                     </button>
                 </div>
                 <form action="{{ route('sites.import') }}" method="POST" enctype="multipart/form-data">
                     @csrf
                     <div class="tab-content" id="myTabContent">
-                        <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                            aria-labelledby="info-tab" tabindex="0">
+                        <div class="tab-pane fade show active" id="basic-info" role="tabpanel" aria-labelledby="info-tab"
+                            tabindex="0">
                             <div class="modal-body pb-0 ">
                                 <div class="row">
                                     <div class="col-md-12 mb-3">
@@ -155,9 +154,12 @@
                                                 <li>Row 2 starting from Column B should contain headers</li>
                                                 <li>Data should start from Row 3, Column B onwards</li>
                                                 <li><strong>Required:</strong> Site Name</li>
-                                                <li><strong>Optional:</strong> Client Name, Address, Site Code, Post Code, Guard Names, Contact Number, Contact Person, Note, Start Time, End Time, Break Time, Guard Rate, Office Rate, Billable Rate, Payable Rate</li>
+                                                <li><strong>Optional:</strong> Client Name, Address, Site Code, Post Code,
+                                                    Guard Names, Contact Number, Contact Person, Note, Start Time, End Time,
+                                                    Break Time, Guard Rate, Office Rate, Billable Rate, Payable Rate</li>
                                                 <li>If Client Name is provided, it must exist in the clients database</li>
-                                                <li>The system will automatically find the client and assign its ID when Client Name is provided</li>
+                                                <li>The system will automatically find the client and assign its ID when
+                                                    Client Name is provided</li>
                                                 <li>Time fields should be in HH:MM format (e.g., 08:00, 18:30)</li>
                                                 <li>Rate fields should be numeric values</li>
                                             </ul>
@@ -165,11 +167,13 @@
                                     </div>
                                     <div class="col-md-8">
                                         <div class="d-flex gap-2">
-                                            <input type="file" name="import_file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                            <input type="file" name="import_file" class="form-control" required
+                                                accept=".xlsx,.xls,.csv">
                                         </div>
                                     </div>
                                     <div class="col-md-4">
-                                        <a href="{{ route('sites.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
+                                        <a href="{{ route('sites.export.excel', ['template' => 1]) }}"
+                                            class="btn btn-outline-primary w-100">
                                             <i class="ti ti-download"></i> Download Template
                                         </a>
                                     </div>
@@ -294,7 +298,10 @@
                         </tbody>
                     </table>
                 </div>
-
+                <h6 class="fw-bold mb-2">Checkpoints</h6>
+                <div id="checkpoints_detail">
+                    <p class="text-muted">Loading checkpoints...</p>
+                </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Close</button>
                 </div>
@@ -312,7 +319,7 @@
         });
         $(document).ready(function() {
 
-            $(document).on("change","#clientSelect",function() {
+            $(document).on("change", "#clientSelect", function() {
                 var $this = $(this);
                 const clientId = $(this).val();
 
@@ -322,11 +329,11 @@
                     url: `${baseUrl}/api/client/${clientId}`,
                     method: 'GET',
                     dataType: 'json',
-                    success: function (data) {
+                    success: function(data) {
                         $('.guardRate').val(data.client.guard_rate || '');
                         $('.siteRate').val(data.client.office_rate || '');
                     },
-                    error: function (xhr, status, error) {
+                    error: function(xhr, status, error) {
                         console.error('Fetch error:', error);
                     }
                 });
@@ -455,6 +462,12 @@
                             // Office Rate field: name="employee_office_rate[type.id]"`
                         $(`input[name="employee_office_rate[${type.id}]"]`).val(type.office_rate);
                     });
+
+                    let lat = data.site.latitude ?? 51.505;
+                    let lng = data.site.longitude ?? -0.09;
+
+                    // ✅ Init map with site + checkpoints
+                    initEditMap(lat, lng, data.checkpoints || []);
                 }
 
                 $('#edit_site').modal('show');
@@ -483,6 +496,27 @@
             $('#manager_1_detail').text(data.manager_1_name ?? '');
             $('#manager_2_detail').text(data.manager_2_name ?? '');
 
+            // ✅ Render checkpoints
+            let checkpointsHtml = '';
+            if (data.checkpoints && data.checkpoints.length > 0) {
+                checkpointsHtml = `<ul class="list-group">`;
+                data.checkpoints.forEach(cp => {
+                    checkpointsHtml += `
+                                            <li class="list-group-item">
+                                                <strong>${cp.name}</strong><br>
+                                                Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
+                                                QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
+                                                Required: ${cp.required ? 'Yes' : 'No'}
+                                            </li>
+                                        `;
+                });
+                checkpointsHtml += `</ul>`;
+            } else {
+                checkpointsHtml = `<p class="text-muted">No checkpoints defined</p>`;
+            }
+
+            $('#checkpoints_detail').html(checkpointsHtml);
+
             let modal = new bootstrap.Modal(document.getElementById('viewSiteDetailModal'));
             modal.show();
         }).fail(function() {
@@ -490,7 +524,106 @@
         });
     }
 
+    let editMap, siteMarker;
+    let checkpointMarkers = []; // store {marker, index}
+    function initEditMap(lat = 51.505, lng = -0.09, checkpoints = []) {
+        if (!editMap) {
+            editMap = L.map('editSiteMap').setView([lat, lng], 13);
 
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(editMap);
+
+            siteMarker = L.marker([lat, lng], {
+                draggable: true
+            }).addTo(editMap);
+            siteMarker.on('dragend', function() {
+                let pos = siteMarker.getLatLng();
+                $('#latitude').val(pos.lat);
+                $('#longitude').val(pos.lng);
+            });
+
+            // Click to add new checkpoint
+            editMap.on('click', function(e) {
+                let cpName = prompt("Enter checkpoint name:");
+                if (cpName) {
+                    addCheckpoint(cpName, e.latlng.lat, e.latlng.lng);
+                }
+            });
+        } else {
+            editMap.setView([lat, lng], 13);
+            siteMarker.setLatLng([lat, lng]);
+        }
+
+        $('#latitude').val(lat);
+        $('#longitude').val(lng);
+
+        // Reset old
+        checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
+        checkpointMarkers = [];
+        $('#checkpointList').empty();
+
+        // Load checkpoints
+        checkpoints.forEach(cp => {
+            addCheckpoint(cp.name, cp.latitude, cp.longitude, cp.id);
+        });
+
+        setTimeout(() => editMap.invalidateSize(), 300);
+    }
+
+    function addCheckpoint(name, lat, lng, id = null) {
+        let index = checkpointMarkers.length;
+
+        let marker = L.marker([lat, lng], {
+            draggable: true
+        }).addTo(editMap);
+        checkpointMarkers.push({
+            marker,
+            index
+        });
+
+        let row = `
+            <tr id="checkpoint_row_${index}">
+                <td>
+                    <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
+                    <input type="text" class="form-control"
+                           name="checkpoints[${index}][name]" 
+                           value="${name}">
+                </td>
+                <td>
+                    <input type="text" class="form-control" 
+                           name="checkpoints[${index}][latitude]" 
+                           value="${lat}" readonly>
+                </td>
+                <td>
+                    <input type="text" class="form-control" 
+                           name="checkpoints[${index}][longitude]" 
+                           value="${lng}" readonly>
+                </td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" 
+                            onclick="removeCheckpoint(${index})">
+                        Remove
+                    </button>
+                </td>
+            </tr>
+        `;
+        $('#checkpointList').append(row);
+
+        marker.on('dragend', function() {
+            let pos = marker.getLatLng();
+            $(`#checkpoint_row_${index} input[name="checkpoints[${index}][latitude]"]`).val(pos.lat);
+            $(`#checkpoint_row_${index} input[name="checkpoints[${index}][longitude]"]`).val(pos.lng);
+        });
+    }
+
+    function removeCheckpoint(index) {
+        let cp = checkpointMarkers.find(c => c.index === index);
+        if (cp) {
+            editMap.removeLayer(cp.marker);
+            $(`#checkpoint_row_${index}`).remove();
+        }
+    }
     let selectedId = null;
 
     function deleteSite(record_id) {
@@ -567,11 +700,11 @@
                     data.logs.forEach(log => {
                         html +=
                             `<tr>
-                                                                                                                                                                                <td>${log.user_name}</td>
-                                                                                                                                                                                <td>${log.action}</td>
-                                                                                                                                                                                <td>${log.description}</td>
-                                                                                                                                                                                <td>${log.time}</td>
-                                                                                                                                                                            </tr>`;
+                                                                                                                                                                                                        <td>${log.user_name}</td>
+                                                                                                                                                                                                        <td>${log.action}</td>
+                                                                                                                                                                                                        <td>${log.description}</td>
+                                                                                                                                                                                                        <td>${log.time}</td>
+                                                                                                                                                                                                    </tr>`;
                         });
                         html += '</tbody></table>';
                         modalBody.innerHTML = html;

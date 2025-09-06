@@ -146,7 +146,7 @@ class ShiftApiController extends Controller
         }
 
         return response()->json([
-            'message' => 'Could not submit a respond, current shift status '.$shift->status,
+            'message' => 'Could not submit a respond, current shift status ' . $shift->status,
         ]);
     }
 
@@ -378,7 +378,7 @@ class ShiftApiController extends Controller
             $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
             if ($now->lt($shiftStart)) {
-                return response()->json(['message' => 'You can only book on when the shift is due at '.$shiftStart], 422);
+                return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftStart], 422);
             }
 
             // Update status
@@ -513,13 +513,16 @@ class ShiftApiController extends Controller
 
     public function getPatrolRoutes($shift_id)
     {
-        $shift = ShiftDate::with('patrols.checkpoints')->findOrFail($shift_id);
-
-        $patrols = $shift->patrols->map(function ($patrol) {
+        $shift = ShiftDate::with('patrols')->findOrFail($shift_id);
+        $patrols = $shift->patrols->map(function ($patrol) use ($shift) {
+            $checkpoints = PatrolCheckpoint::where('site_id', $shift->shift->site_id)->get();
             return [
                 'id' => $patrol->id,
                 'name' => $patrol->name,
-                'checkpoints' => $patrol->checkpoints->map(function ($checkpoint) {
+                'start_time' => $patrol->start_time,
+                'started_at' => $patrol->started_at,
+                'completed_at' => $patrol->completed_at,
+                'checkpoints' => $checkpoints->map(function ($checkpoint) {
                     return [
                         'id' => $checkpoint->id,
                         'name' => $checkpoint->name,
@@ -549,6 +552,7 @@ class ShiftApiController extends Controller
             'notes' => 'nullable|string',
             'issues_found' => 'nullable|string',
         ]);
+
         $checkpoint = PatrolCheckpoint::find($checkpoint_id);
         if (!$checkpoint) {
             return response()->json(['message' => 'Checkpoint not found.'], 404);
@@ -577,8 +581,50 @@ class ShiftApiController extends Controller
         return response()->json(['message' => 'Checkpoint scanned']);
     }
 
+    public function startPatrol($patrol_id)
+    {
+        $patrol = Patrol::findOrFail($patrol_id);
+
+        $now = Carbon::now(); // current server time
+        $patrolStart = Carbon::parse($patrol->start_time);
+
+        // Guard cannot start before scheduled time
+        if ($now->lt($patrolStart)) {
+            return response()->json([
+                'message' => 'You cannot start the patrol before its scheduled start time at ' . $patrolStart->format('H:i')
+            ], 403);
+        }
+
+        // Optional: prevent restarting an already started or completed patrol
+        if (in_array($patrol->status, ['in_progress', 'completed'])) {
+            return response()->json([
+                'message' => 'Patrol has already started or completed.'
+            ], 403);
+        }
+
+        $patrol->update([
+            'status' => 'in_progress',
+            'started_at' => $now
+        ]);
+
+        return response()->json([
+            'message' => 'Patrol started at ' . $now->format('H:i')
+        ]);
+    }
+
     public function completePatrol(Request $request, $patrol_id)
     {
+        $patrol = Patrol::with('shift')->findOrFail($patrol_id);
+        $now = Carbon::parse($request->completed_at);
+        $patrolStart = Carbon::parse($patrol->start_time);
+
+        // Guard can complete patrol only up to 50 mins after start
+        if ($now->gt($patrolStart->copy()->addMinutes(50))) {
+            return response()->json([
+                'message' => 'Patrol completion time exceeded. You cannot complete after 50 minutes.'
+            ], 403);
+        }
+
         $request->validate([
             'summary' => 'required|string',
             'total_checkpoints' => 'required|integer',
@@ -586,14 +632,13 @@ class ShiftApiController extends Controller
             'issues_reported' => 'required|integer',
         ]);
 
-        $patrol = Patrol::findOrFail($patrol_id);
-
         $patrol->update([
             'summary' => $request->summary,
             'total_checkpoints' => $request->total_checkpoints,
             'completed_checkpoints' => $request->completed_checkpoints,
             'issues_reported' => $request->issues_reported,
-            'completed_at' => now(),
+            'completed_at' => $now,
+            'status' => 'completed',
         ]);
 
         return response()->json(['message' => 'Patrol marked as completed']);

@@ -8,8 +8,8 @@ class Patrol extends Model
 {
     //
     protected $fillable = [
-        'shift_id', 'name', 'summary', 'total_checkpoints',
-        'completed_checkpoints', 'issues_reported', 'completed_at'
+        'shift_id', 'name', 'summary', 'total_checkpoints','start_time',
+        'completed_checkpoints', 'issues_reported', 'started_at' ,'completed_at',
     ];
 
     public function shift()
@@ -17,8 +17,4 @@ class Patrol extends Model
         return $this->belongsTo(ShiftDate::class);
     }
 
-    public function checkpoints()
-    {
-        return $this->hasMany(PatrolCheckpoint::class);
-    }
 }

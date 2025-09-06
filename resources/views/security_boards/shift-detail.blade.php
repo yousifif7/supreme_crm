@@ -153,35 +153,35 @@
         }
 
         /* .btn-outline-assign {
-                                background: #fff;
-                                color: #28a745;
-                                border: 2px solid #28a745;
-                                border-radius: 6px;
-                                padding: 8px 16px;
-                                font-weight: 600;
-                                transition: all 0.2s;
-                            }
+                                                                                        background: #fff;
+                                                                                        color: #28a745;
+                                                                                        border: 2px solid #28a745;
+                                                                                        border-radius: 6px;
+                                                                                        padding: 8px 16px;
+                                                                                        font-weight: 600;
+                                                                                        transition: all 0.2s;
+                                                                                    }
 
-                            .btn-outline-assign:hover {
-                                background: #28a745;
-                                color: #fff;
-                                box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                            }
+                                                                                    .btn-outline-assign:hover {
+                                                                                        background: #28a745;
+                                                                                        color: #fff;
+                                                                                        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                                                                                    }
 
-                            .btn-assign-pill {
-                                background-color: #28a745;
-                                color: #fff;
-                                border-radius: 50px;
-                                padding: 8px 22px;
-                                font-weight: bold;
-                                transition: all 0.2s;
-                            }
+                                                                                    .btn-assign-pill {
+                                                                                        background-color: #28a745;
+                                                                                        color: #fff;
+                                                                                        border-radius: 50px;
+                                                                                        padding: 8px 22px;
+                                                                                        font-weight: bold;
+                                                                                        transition: all 0.2s;
+                                                                                    }
 
-                            .btn-assign-pill:hover {
-                                background-color: #218838;
-                                color:while;
-                                transform: scale(1.05);
-                            } */
+                                                                                    .btn-assign-pill:hover {
+                                                                                        background-color: #218838;
+                                                                                        color:while;
+                                                                                        transform: scale(1.05);
+                                                                                    } */
     </style>
 @endsection
 @section('contents')
@@ -218,6 +218,8 @@
                         <button class="nav-link" id="checkcalls-tab2" data-bs-toggle="tab" data-bs-target="#checkcalls"
                             type="button" role="tab" aria-controls="checkcalls" aria-selected="false">Check
                             Calls</button>
+                        <button class="nav-link" id="patrols-tab2" data-bs-toggle="tab" data-bs-target="#patrols"
+                            type="button" role="tab" aria-controls="patrols" aria-selected="false">Patrols</button>
                     </div>
 
                     <div class="expiry_date">
@@ -647,6 +649,58 @@
                             </div>
                         @endif
                     </div>
+                    <div class="tab-pane fade" id="patrols" role="tabpanel" aria-labelledby="patrols-tab2">
+                        @php
+                            $patrols = App\Models\Patrol::where('shift_id', $shiftDate->id)->get();
+                            $site = \App\Models\Site::with('checkpoints')->find($shiftDate->shift->site_id);
+                            $checkpoints = \App\Models\PatrolCheckPoint::where('site_id', $site->id) // adjust if necessary
+                                ->get(['id', 'name', 'latitude', 'longitude']);
+                        @endphp
+
+                        @if ($patrols->isNotEmpty())
+                            <table class="table table-bordered table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Start time</th>
+                                        <th>Total Checkpoints</th>
+                                        <th>Completed</th>
+                                        <th>Issues</th>
+                                        <th>Started at</th>
+                                        <th>completed at</th>
+                                        <th>Status</th>
+                                        <th>Map</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($patrols as $patrol)
+                                        <script>
+                                            const siteCheckpoints = @json($checkpoints);
+                                        </script>
+                                        <tr>
+                                            <td>{{ $patrol->name }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('h:i A') }}</td>
+                                            <td>{{ $patrol->total_checkpoints }}</td>
+                                            <td>{{ $patrol->completed_checkpoints }}</td>
+                                            <td>{{ $patrol->issues_reported }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($patrol->started_at)->format('h:i A') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($patrol->completed_at)->format('h:i A') }}</td>
+                                            <td>{{ $patrol->status }}
+                                            </td>
+                                            <td style="min-width:350px">
+                                                <div id="patrol-map-{{ $patrol->id }}"
+                                                    style="height:250px; width:100%; border-radius:8px;"></div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        @else
+                            <div class="alert alert-info" role="alert">
+                                No patrols available for this shift.
+                            </div>
+                        @endif
+                    </div>
                 </div>
             </div>
 
@@ -878,6 +932,131 @@
                 L.marker([{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}]).addTo(mapOff);
             @endif
         });
+    </script>
+
+    <script>
+        function initPatrolMap(patrolId, shiftDateId, checkpoints) {
+            const mapDiv = document.getElementById("patrol-map-" + patrolId);
+            if (!mapDiv) return;
+
+            const map = new google.maps.Map(mapDiv, {
+                zoom: 14,
+                center: {
+                    lat: 0,
+                    lng: 0
+                }, // temporary fallback
+                mapTypeId: "roadmap",
+            });
+
+            const bounds = new google.maps.LatLngBounds();
+            let hasPoints = false; // track if we added any points
+
+            // 🔹 Draw checkpoints markers
+            checkpoints.forEach(cp => {
+                const lat = parseFloat(cp.latitude);
+                const lng = parseFloat(cp.longitude);
+
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    hasPoints = true;
+                    const pos = {
+                        lat,
+                        lng
+                    };
+                    const marker = new google.maps.Marker({
+                        position: pos,
+                        map: map,
+                        title: cp.name,
+                        icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+                    });
+
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `<strong>${cp.name}</strong>`
+                    });
+
+                    marker.addListener("click", () => infoWindow.open(map, marker));
+
+                    bounds.extend(pos);
+                }
+            });
+
+            // 🔹 Fetch guard locations
+            fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const locations = data.locations || [];
+
+                    if (locations.length) {
+                        hasPoints = true;
+
+                        // Map path for polyline
+                        const path = locations.map(loc => ({
+                            lat: parseFloat(loc.latitude),
+                            lng: parseFloat(loc.longitude)
+                        }));
+
+                        // Draw polyline
+                        new google.maps.Polyline({
+                            path: path,
+                            geodesic: true,
+                            strokeColor: "#007bff",
+                            strokeOpacity: 1.0,
+                            strokeWeight: 3,
+                            map: map
+                        });
+
+                        // Start/end markers
+                        new google.maps.Marker({
+                            position: path[0],
+                            map,
+                            label: "S"
+                        });
+                        if (path.length > 1) new google.maps.Marker({
+                            position: path[path.length - 1],
+                            map,
+                            label: "E"
+                        });
+
+                        // Extend bounds
+                        path.forEach(p => bounds.extend(p));
+
+                        // 🔹 Create heatmap
+                        const heatPoints = path.map(p => new google.maps.LatLng(p.lat, p.lng));
+                        const heatmap = new google.maps.visualization.HeatmapLayer({
+                            data: heatPoints,
+                            radius: 20,
+                            opacity: 0.6,
+                            dissipating: true,
+                            gradient: [
+                                'rgba(0,0,0,0)',
+                                'rgba(255,255,0,0.6)',
+                                'rgba(255,165,0,0.7)',
+                                'rgba(255,0,0,0.8)',
+                                'rgba(128,0,0,1)'
+                            ]
+                        });
+                        heatmap.setMap(map);
+                    }
+
+                    // 🔹 Fit map bounds if we have points
+                    if (hasPoints) {
+                        map.fitBounds(bounds);
+                    } else {
+                        map.setCenter({
+                            lat: 51.5074,
+                            lng: -0.1278
+                        });
+                        map.setZoom(14);
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+
+        // 🔹 Initialize maps for all patrols
+        window.onload = function() {
+            @foreach ($patrols as $patrol)
+                initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
+            @endforeach
+        };
     </script>
 
 

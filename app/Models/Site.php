@@ -14,10 +14,15 @@ class Site extends Model
 
     public function client(): BelongsTo
     {
-        return $this->belongsTo(User::class,'client_id');
+        return $this->belongsTo(User::class, 'client_id');
     }
     public function employeeTypes()
     {
         return $this->belongsToMany(EmployeeType::class)->withPivot('guard_rate', 'office_rate');
+    }
+
+    public function checkpoints()
+    {
+        return $this->hasMany(PatrolCheckPoint::class, 'site_id');
     }
 }

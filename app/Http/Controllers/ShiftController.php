@@ -8,6 +8,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
+use App\Models\Patrol;
 use App\Models\Employee;
 use App\Models\Location;
 use Carbon\CarbonPeriod;
@@ -334,8 +335,13 @@ class ShiftController extends Controller
 
                     $start = Carbon::createFromFormat('H:i', $data['start_shift']); // string -> Carbon
 
+                    $site = Site::with('checkpoints')->find($shift->site_id);
+
+                    $totalCheckpoints = $site->checkpoints->count() ?? 0;
+
                     for ($n = 0; $n < (int)$numberOfCheckCalls; $n++) {
                         $checkTime = $start->copy()->addMinutes($n * 60);
+                        $patrolTime = $start->copy()->addMinutes($n * 60);
 
                         CheckCall::create([
                             'shift_id'       => $shiftDate->id,
@@ -343,6 +349,18 @@ class ShiftController extends Controller
                             'name'           => 'Auto CheckCall ' . ($n + 1),
                             'scheduled_time' => $date->format('Y-m-d') . ' ' . $checkTime->format('H:i'),
                             'status'         => 'pending',
+                        ]);
+
+                        Patrol::create([
+                            'shift_id'              => $shiftDate->id,
+                            'name'                  => 'Auto Patrol ' . ($n + 1),
+                            'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
+                            'start_time'            => $date->format('Y-m-d') . ' ' . $patrolTime->format('H:i'), // scheduled start
+                            'status'                => 'pending',
+                            'total_checkpoints'     => $totalCheckpoints,
+                            'completed_checkpoints' => 0,
+                            'issues_reported'       => 0,
+                            'completed_at'          => null,
                         ]);
                     }
 
