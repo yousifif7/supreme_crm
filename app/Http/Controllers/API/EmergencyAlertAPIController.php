@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\EmergencyAlert;
 use App\Http\Controllers\Controller;
@@ -17,7 +18,7 @@ class EmergencyAlertAPIController extends Controller
             'location.address' => 'required|string',
             'enable_device_alarm' => 'required|boolean',
             'message' => 'nullable|string',
-            'timestamp' => 'required|date',
+            'timestamp' => 'date',
         ]);
 
         $alert = EmergencyAlert::create([
@@ -27,7 +28,7 @@ class EmergencyAlertAPIController extends Controller
             'address' => $validated['location']['address'],
             'enable_device_alarm' => $validated['enable_device_alarm'],
             'message' => $validated['message'] ?? null,
-            'timestamp' => $validated['timestamp'],
+            'timestamp' => Carbon::now(),
             'acknowledged_by_control' => false
         ]);
 

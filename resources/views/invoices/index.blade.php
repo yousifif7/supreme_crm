@@ -334,6 +334,24 @@ $(document).on("change", "#invoice_client_name", function() {
     // also update hidden client_id field
     $('#invoice_client_id').val(clientId);
 });
+
+    $(function () {
+        let table = $('#invoices-table').DataTable();
+
+        // Select/Deselect all rows
+        $(document).on('change', '#select-all-checkbox', function () {
+            let isChecked = $(this).is(':checked');
+            $('.dT-row-checkbox').prop('checked', isChecked);
+        });
+
+        $(document).on('change', '.dT-row-checkbox', function () {
+            if (!$(this).is(':checked')) {
+                $('#select-all-checkbox').prop('checked', false);
+            } else if ($('.dT-row-checkbox:checked').length === $('.dT-row-checkbox').length) {
+                $('#select-all-checkbox').prop('checked', true);
+            }
+        });
+    });
     </script>
     {!! $dataTable->scripts() !!}
 @endsection

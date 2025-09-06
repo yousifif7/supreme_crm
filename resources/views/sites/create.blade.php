@@ -93,6 +93,15 @@
                                          </div>
 
                                      </div>
+                                     <div class="col-md-6 mb-3">
+                                         <div class="form-check">
+                                             <input class="form-check-input" type="checkbox" name="has_qr"
+                                                 id="has_qr" value="1">
+                                             <label class="form-label text-danger" for="has_qr">
+                                                 Enable QR Checkpoints
+                                             </label>
+                                         </div>
+                                     </div>
                                      <div class="col-md-12 mb-3">
                                          <label class="form-label">Checkpoints / Locations</label>
                                          <button type="button" class="btn btn-sm btn-primary mb-2"

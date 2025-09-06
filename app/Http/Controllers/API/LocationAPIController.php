@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use Carbon\Carbon;
 use App\Models\Patrol;
 use App\Models\Location;
 use Illuminate\Http\Request;
@@ -18,7 +19,7 @@ class LocationAPIController extends Controller
             'latitude' => 'required|numeric',
             'longitude' => 'required|numeric',
             'accuracy' => 'required|numeric',
-            'timestamp' => 'required|date',
+            'timestamp' => 'date',
             'on_duty' => 'required|boolean',
             'shiftdate_id' => 'nullable',
         ]);
@@ -28,7 +29,7 @@ class LocationAPIController extends Controller
             'latitude' => $validated['latitude'],
             'longitude' => $validated['longitude'],
             'accuracy' => $validated['accuracy'],
-            'timestamp' => $validated['timestamp'],
+            'timestamp' => Carbon::now(),
             'on_duty' => $validated['on_duty'],
             'shiftdate_id' => $validated['shiftdate_id'],
         ]);

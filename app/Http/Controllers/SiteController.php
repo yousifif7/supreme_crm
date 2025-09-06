@@ -52,6 +52,7 @@ class SiteController extends Controller
             'checkpoints.*.qr_code'      => 'nullable|string|max:255',
             'checkpoints.*.nfc_tag'      => 'nullable|string|max:255',
             'checkpoints.*.required'     => 'nullable|boolean',
+            'has_qr' => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -63,6 +64,7 @@ class SiteController extends Controller
         }
 
         $data = $validator->validated();
+        $data['has_qr'] = $request->has('has_qr') ? 1 : 0;
 
         // ✅ Create Site
         $site = Site::create($data);
@@ -131,6 +133,7 @@ class SiteController extends Controller
             'checkpoints.*.name' => 'required_with:checkpoints|string|max:255',
             'checkpoints.*.latitude' => 'required_with:checkpoints|numeric',
             'checkpoints.*.longitude' => 'required_with:checkpoints|numeric',
+            'has_qr' => 'nullable|boolean'
         ]);
 
         if ($validator->fails()) {
@@ -142,6 +145,7 @@ class SiteController extends Controller
         }
 
         $data = $validator->validated();
+        $data['has_qr'] = $request->has('has_qr') ? 1 : 0;
 
         // ✅ Update site
         $site->update($data);
@@ -270,6 +274,7 @@ class SiteController extends Controller
             'payable_rate'     => $site->payable_rate,
             'manager_1_name'   => $site->manager_1_id ?? '',
             'manager_2_name'   => $site->manager_2_id ?? '',
+            'has_qr' => (bool) $site->has_qr,
 
             // ✅ Add checkpoints array
             'checkpoints' => $site->checkpoints->map(function ($cp) {

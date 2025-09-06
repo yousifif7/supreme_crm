@@ -685,7 +685,13 @@
                                             <td>{{ $patrol->issues_reported }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->started_at)->format('h:i A') }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->completed_at)->format('h:i A') }}</td>
-                                            <td>{{ $patrol->status }}
+                                            <td>@if ($patrol->status == 'pending')
+                                                    <p class="bg-warning text-center">Pending</p>
+                                                @elseif ($patrol->status == 'in_progress')
+                                                    <p class="bg-primary text-center">In Progress</p>
+                                                @elseif($patrol->status == 'completed')
+                                                    <p class="bg-success text-center">Completed</p>
+                                                @endif
                                             </td>
                                             <td style="min-width:350px">
                                                 <div id="patrol-map-{{ $patrol->id }}"

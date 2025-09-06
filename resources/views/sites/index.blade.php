@@ -295,6 +295,10 @@
                                 <th>Manager 2</th>
                                 <td id="manager_2_detail"></td>
                             </tr>
+                            <tr>
+                                <th>QR code status</th>
+                                <td id="has_qr"></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -462,7 +466,11 @@
                             // Office Rate field: name="employee_office_rate[type.id]"`
                         $(`input[name="employee_office_rate[${type.id}]"]`).val(type.office_rate);
                     });
-
+                    if (data.site.has_qr == 1) {
+                        $('#edit_has_qr').prop('checked', true);
+                    } else {
+                        $('#edit_has_qr').prop('checked', false);
+                    }
                     let lat = data.site.latitude ?? 51.505;
                     let lng = data.site.longitude ?? -0.09;
 
@@ -495,6 +503,11 @@
             $('#payable_rate_detail').text(`$${data.payable_rate ?? 0}`);
             $('#manager_1_detail').text(data.manager_1_name ?? '');
             $('#manager_2_detail').text(data.manager_2_name ?? '');
+            if (data.has_qr == 1) {
+                $('#has_qr').html('<span class="badge bg-success">Yes</span>');
+            } else {
+                $('#has_qr').html('<span class="badge bg-secondary">No</span>');
+            }
 
             // ✅ Render checkpoints
             let checkpointsHtml = '';
@@ -502,13 +515,13 @@
                 checkpointsHtml = `<ul class="list-group">`;
                 data.checkpoints.forEach(cp => {
                     checkpointsHtml += `
-                                            <li class="list-group-item">
-                                                <strong>${cp.name}</strong><br>
-                                                Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
-                                                QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
-                                                Required: ${cp.required ? 'Yes' : 'No'}
-                                            </li>
-                                        `;
+                                                    <li class="list-group-item">
+                                                        <strong>${cp.name}</strong><br>
+                                                        Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
+                                                        QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
+                                                        Required: ${cp.required ? 'Yes' : 'No'}
+                                                    </li>
+                                                `;
                 });
                 checkpointsHtml += `</ul>`;
             } else {
@@ -583,31 +596,31 @@
         });
 
         let row = `
-            <tr id="checkpoint_row_${index}">
-                <td>
-                    <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
-                    <input type="text" class="form-control"
-                           name="checkpoints[${index}][name]" 
-                           value="${name}">
-                </td>
-                <td>
-                    <input type="text" class="form-control" 
-                           name="checkpoints[${index}][latitude]" 
-                           value="${lat}" readonly>
-                </td>
-                <td>
-                    <input type="text" class="form-control" 
-                           name="checkpoints[${index}][longitude]" 
-                           value="${lng}" readonly>
-                </td>
-                <td>
-                    <button type="button" class="btn btn-sm btn-danger" 
-                            onclick="removeCheckpoint(${index})">
-                        Remove
-                    </button>
-                </td>
-            </tr>
-        `;
+                    <tr id="checkpoint_row_${index}">
+                        <td>
+                            <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
+                            <input type="text" class="form-control"
+                                   name="checkpoints[${index}][name]" 
+                                   value="${name}">
+                        </td>
+                        <td>
+                            <input type="text" class="form-control" 
+                                   name="checkpoints[${index}][latitude]" 
+                                   value="${lat}" readonly>
+                        </td>
+                        <td>
+                            <input type="text" class="form-control" 
+                                   name="checkpoints[${index}][longitude]" 
+                                   value="${lng}" readonly>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-danger" 
+                                    onclick="removeCheckpoint(${index})">
+                                Remove
+                            </button>
+                        </td>
+                    </tr>
+                `;
         $('#checkpointList').append(row);
 
         marker.on('dragend', function() {
@@ -700,11 +713,11 @@
                     data.logs.forEach(log => {
                         html +=
                             `<tr>
-                                                                                                                                                                                                        <td>${log.user_name}</td>
-                                                                                                                                                                                                        <td>${log.action}</td>
-                                                                                                                                                                                                        <td>${log.description}</td>
-                                                                                                                                                                                                        <td>${log.time}</td>
-                                                                                                                                                                                                    </tr>`;
+                                                                                                                                                                                                                <td>${log.user_name}</td>
+                                                                                                                                                                                                                <td>${log.action}</td>
+                                                                                                                                                                                                                <td>${log.description}</td>
+                                                                                                                                                                                                                <td>${log.time}</td>
+                                                                                                                                                                                                            </tr>`;
                         });
                         html += '</tbody></table>';
                         modalBody.innerHTML = html;

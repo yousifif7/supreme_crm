@@ -86,6 +86,16 @@
                                               </select>
                                               <span class="text-danger form-error" id="editerror_manager_2_id"></span>
                                           </div>
+                                          <div class="col-md-6 mb-3">
+                                              <div class="form-check">
+                                                  <input class="form-check-input" type="checkbox" name="has_qr"
+                                                      id="edit_has_qr" value="1"
+                                                      {{ old('has_qr', $site->has_qr ?? 0) ? 'checked' : '' }}>
+                                                  <label class="form-label text-danger" for="edit_has_qr">
+                                                      Enable QR Checkpoints
+                                                  </label>
+                                              </div>
+                                          </div>
                                           <div class="col-md-12 mb-3">
                                               <label class="form-label">Site & Checkpoints</label>
                                               <div id="editSiteMap" style="height: 350px; border-radius: 8px;"></div>

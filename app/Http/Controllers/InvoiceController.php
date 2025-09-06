@@ -87,6 +87,7 @@ class InvoiceController extends Controller
             'invoice' => $invoice->load('items'),
         ]);
     }
+    
     public function generateSubcontractorInvoice(GenerateInvoiceRequest $request)
     {
         $invoice = $this->invoiceService->generateSubcontractorInvoice(

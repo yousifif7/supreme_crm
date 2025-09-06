@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\API;
 
 use Notify;
+use Carbon\Carbon;
 use App\Models\DobEntry;
 use App\Models\DobMedia;
 use App\Models\Employee;
@@ -25,7 +26,7 @@ class DobApiController extends Controller
             'media_files.*' => 'nullable', // file upload or base64
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
-            'timestamp' => 'required|date',
+            'timestamp' => 'date',
         ]);
 
         $user = Auth::user();
@@ -43,7 +44,7 @@ class DobApiController extends Controller
             'title' => $data['title'],
             'description' => $data['description'],
             'location' => json_encode($data['location']),
-            'timestamp' => $data['timestamp'],
+            'timestamp' => Carbon::now(),
         ]);
 
         // Handle media files (like completeCheckCall)

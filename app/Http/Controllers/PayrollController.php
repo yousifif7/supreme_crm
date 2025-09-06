@@ -23,106 +23,115 @@ class PayrollController extends Controller
         return $dataTable->render('invoices.payrolls');
     }
     public function store(Request $request)
-    {
-        $data = $request->validate([
-            'security_staff_id' => 'required|integer|exists:users,id',
-            'site_id'           => 'nullable|integer|exists:sites,id',
-            'notes'             => 'nullable|string|max:355',
-        ]);
+{
+    $data = $request->validate([
+        'security_staff_id' => 'required|integer|exists:users,id',
+        'site_id'           => 'nullable|integer|exists:sites,id',
+        'notes'             => 'nullable|string|max:355',
+        'date_from'         => 'nullable|date',
+        'date_to'           => 'nullable|date|after_or_equal:date_from',
+    ]);
 
-        // Get the Employee record for this User
-        $staff = Employee::where('user_id', $data['security_staff_id'])->firstOrFail();
+    // Get Employee record
+    $staff = Employee::where('user_id', $data['security_staff_id'])->firstOrFail();
 
-        // Get associated shift
-        $shift = Shift::where('staff_id', $staff->user_id)
-            ->when($data['site_id'], fn($q) => $q->where('site_id', $data['site_id']))
-            ->first();
+    // Payroll period
+    $startDate = isset($data['date_from']) ? Carbon::parse($data['date_from'])->startOfDay() : now()->startOfMonth();
+    $endDate   = isset($data['date_to']) ? Carbon::parse($data['date_to'])->endOfDay() : now()->endOfMonth();
 
-        // Default payroll period (full month)
-        $startDate = now()->startOfMonth();
-        $endDate = now()->endOfMonth();
+    // Fetch all relevant shifts
+    $shifts = Shift::where('staff_id', $staff->user_id)
+        ->when($data['site_id'], fn($q) => $q->where('site_id', $data['site_id']))
+        ->get();
 
-        $totalHours = 0;
-        $totalBreaks = 0;
-        $totalBookOnHours = 0;
-        $totalBookOffHours = 0;
+    $totalHours = 0;
+    $totalBreaks = 0;
+    $totalBookOnHours = 0;
+    $totalBookOffHours = 0;
 
+    foreach ($shifts as $shift) {
+        // Allowed shift days
         $daysAllowed = [];
-        if ($shift && $shift->days) {
+        if ($shift->days) {
             $shiftDays = json_decode($shift->days, true);
-            if (isset($shiftDays[0])) {
-                $daysAllowed = explode(',', $shiftDays[0]);
+            foreach ($shiftDays as $dayGroup) {
+                $daysAllowed = array_merge($daysAllowed, explode(',', $dayGroup));
             }
         }
 
-        if ($shift) {
-            $shiftDates = ShiftDate::where('shift_id', $shift->id)
-                ->whereBetween('shift_date', [$startDate, $endDate])
-                ->orderBy('id')
-                ->get();
+        // Fetch shift dates within payroll period
+        $shiftDates = ShiftDate::where('shift_id', $shift->id)
+            ->whereBetween('shift_date', [$startDate, $endDate])
+            ->orderBy('id')
+            ->get();
 
-            foreach ($shiftDates as $shiftDate) {
-                $date = Carbon::parse($shiftDate->shift_date);
-                if (!in_array($date->format('D'), $daysAllowed)) continue;
+        foreach ($shiftDates as $shiftDate) {
+            $date = Carbon::parse($shiftDate->shift_date);
+            if (!in_array($date->format('D'), $daysAllowed)) continue;
 
-                $startTime = $shiftDate->start_time;
-                $endTime = $shiftDate->end_time;
-                $breakMinutes = $shift->{'break-mins_shift'} ?? 0;
+            $startTime = $shiftDate->start_time;
+            $endTime = $shiftDate->end_time;
+            $breakMinutes = $shift->{'break-mins_shift'} ?? 0;
 
-                $startDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $startTime);
-                $endDateTime = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $endTime);
+            $startDateTime = Carbon::parse($date->format('Y-m-d') . ' ' . $startTime);
+            $endDateTime   = Carbon::parse($date->format('Y-m-d') . ' ' . $endTime);
 
-                if ($endDateTime->lessThan($startDateTime)) $endDateTime->addDay();
+            if ($endDateTime->lessThan($startDateTime)) $endDateTime->addDay();
 
-                $durationMinutes = $startDateTime->diffInMinutes($endDateTime);
-                $totalHours += ($durationMinutes - $breakMinutes) / 60;
-                $totalBreaks += $breakMinutes / 60;
+            $durationMinutes = $startDateTime->diffInMinutes($endDateTime);
+            $totalHours += ($durationMinutes - $breakMinutes) / 60;
+            $totalBreaks += $breakMinutes / 60;
 
-                if ($shiftDate->absentee_start_time) {
-                    $bookOn = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
-                    $totalBookOnHours += ($endDateTime->diffInMinutes($bookOn)) / 60;
+            // Absentee calculations
+            if ($shiftDate->absentee_start_time) {
+                $absStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
+                if ($absStart->between($startDateTime, $endDateTime)) {
+                    $totalBookOnHours += $startDateTime->diffInMinutes($absStart) / 60;
                 }
+            }
 
-                if ($shiftDate->absentee_end_time) {
-                    $bookOff = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
-                    $totalBookOffHours += ($bookOff->diffInMinutes($startDateTime)) / 60;
+            if ($shiftDate->absentee_end_time) {
+                $absEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
+                if ($absEnd->between($startDateTime, $endDateTime)) {
+                    $totalBookOffHours += $absEnd->diffInMinutes($endDateTime) / 60;
                 }
             }
         }
-
-        $rate = $staff->guard_rate ?? 0;
-        $totalDeductions = ($totalBookOnHours + $totalBookOffHours) * $rate;
-        $grossAmount = $totalHours * $rate;
-        $netAmount = $grossAmount - $totalDeductions;
-
-        // Create payroll
-        $invoiceNumber = Invoice::generateInvoiceNumber('security_staff');
-
-        $payroll = Invoice::create([
-            'security_staff_id'     => $staff->user_id,
-            'site_id'               => $data['site_id'] ?? null,
-            'notes'                 => $data['notes'] ?? null,
-            'issue_date'            => now(),
-            'due_date'              => now()->addDays(15),
-            'date_from'             => $startDate,
-            'date_to'               => $endDate,
-            'rate_per_hour'         => $rate,
-            'total_shift_hours'     => $totalHours - $totalBookOnHours - $totalBookOffHours,
-            'total_duration_hours'  => $totalHours,
-            'total_break_hours'     => $totalBreaks,
-            'total_deductions_hours' => $totalBookOnHours + $totalBookOffHours,
-            'gross_amount'          => $grossAmount,
-            'net_amount'            => $netAmount,
-            'type'                  => 'security_staff',
-            'invoice_number'        => $invoiceNumber, // explicitly set
-        ]);
-
-        return response()->json([
-            'message' => 'Payroll created successfully',
-            'payroll' => $payroll
-        ]);
     }
 
+    // Payroll calculations
+    $rate = $staff->guard_rate ?? 0;
+    $totalDeductions = ($totalBookOnHours + $totalBookOffHours) * $rate;
+    $grossAmount = $totalHours * $rate;
+    $netAmount = $grossAmount - $totalDeductions;
+
+    // Create payroll
+    $invoiceNumber = Invoice::generateInvoiceNumber('security_staff');
+
+    $payroll = Invoice::create([
+        'security_staff_id'      => $staff->user_id,
+        'site_id'                => $data['site_id'] ?? null,
+        'notes'                  => $data['notes'] ?? null,
+        'issue_date'             => now(),
+        'due_date'               => now()->addDays(15),
+        'date_from'              => $startDate,
+        'date_to'                => $endDate,
+        'rate_per_hour'          => $rate,
+        'total_shift_hours'      => $totalHours - $totalBookOnHours - $totalBookOffHours,
+        'total_duration_hours'   => $totalHours,
+        'total_break_hours'      => $totalBreaks,
+        'total_deductions_hours' => $totalBookOnHours + $totalBookOffHours,
+        'gross_amount'           => $grossAmount,
+        'net_amount'             => $netAmount,
+        'type'                   => 'security_staff',
+        'invoice_number'         => $invoiceNumber,
+    ]);
+
+    return response()->json([
+        'message' => 'Payroll created successfully',
+        'payroll' => $payroll
+    ]);
+}
 
     public function update(Request $request, $id) {}
 
@@ -173,7 +182,7 @@ class PayrollController extends Controller
             $invoice->net_amount = $invoice->items->sum('amount'); // Adjust for deductions if needed
         }
 
-        return view('invoices.show', [
+        return view('invoices.viewpayroll', [
             'invoice' => $invoice,
             'totalHours' => $invoice->items->sum(function ($item) {
                 return $item->hours + $item->break_hours + $item->book_on_hours + $item->book_off_hours;

@@ -35,7 +35,7 @@ class CheckCallController extends Controller
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'notes' => 'nullable|string',
-            'timestamp' => 'required|date',
+            'timestamp' => 'nullable|date',
         ]);
 
         $checkCall = CheckCall::findOrFail($id);
@@ -45,7 +45,7 @@ class CheckCallController extends Controller
         if (!$employee) {
             return response()->json(['message' => 'No employee linked to this user.'], 404);
         }
-        $now = Carbon::parse($data['timestamp'], 'UTC'); // incoming timestamp assumed UTC
+        $now = Carbon::now(); // incoming timestamp assumed UTC
         $scheduledUtc = Carbon::parse($checkCall->scheduled_time, 'UTC'); // stored in DB as UTC
 
         $earliest = $scheduledUtc->copy()->subMinutes(5);

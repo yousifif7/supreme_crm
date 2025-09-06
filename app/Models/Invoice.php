@@ -82,14 +82,14 @@ class Invoice extends Model
     }
 
     // Generate invoice number
-    // protected static function boot()
-    // {
-    //     parent::boot();
+    protected static function boot()
+    {
+        parent::boot();
 
-    //     static::creating(function ($invoice) {
-    //         $invoice->invoice_number = static::generateInvoiceNumber($invoice->type);
-    //     });
-    // }
+        static::creating(function ($invoice) {
+            $invoice->invoice_number = static::generateInvoiceNumber($invoice->type);
+        });
+    }
 
     public static function generateInvoiceNumber($type = 'client')
     {

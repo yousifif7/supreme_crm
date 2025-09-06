@@ -268,11 +268,11 @@ class ShiftApiController extends Controller
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'location.address' => 'required|string',
-            'timestamp' => 'required|date',
+            'timestamp' => 'date',
         ]);
 
         $user = Auth::user();
-        $formattedTimestamp = Carbon::parse($request->timestamp)->format('Y-m-d H:i:s');
+        $formattedTimestamp = Carbon::now()->format('Y-m-d H:i:s');
 
         // Correct: fetch by shiftdate primary key
         $shiftDate = ShiftDate::find($shiftDate_id);
@@ -607,6 +607,34 @@ class ShiftApiController extends Controller
             'started_at' => $now
         ]);
 
+        $shiftDate= ShiftDate::find($patrol->shift_id);
+        $user = User::find($shiftDate->staff_id);
+        Notification::create([
+            'user_id' => 1,
+            'employee_id' => null,
+            'type' => 'alert',
+            'title' => 'Patrol started',
+            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' Started his patrol at ' . $now,
+            'read' => false,
+            'action_url' => "/shift-dates/$patrol->shift_id/view"
+        ]);
+
+        Notification::create([
+            'user_id' => Auth::id(),
+            'employee_id' => auth::id(),
+            'type' => 'alert',
+            'title' => 'Patrol Started',
+            'message' => 'You have started your patrol',
+            'read' => false,
+        ]);
+
+        send_push_notification(
+            Auth::id(),
+            'Patrol started on',
+            'You have started your patrol successfully at '.$now,
+            ['shift_date_id' => $patrol->shift_id]
+        );
+
         return response()->json([
             'message' => 'Patrol started at ' . $now->format('H:i')
         ]);
@@ -640,6 +668,34 @@ class ShiftApiController extends Controller
             'completed_at' => $now,
             'status' => 'completed',
         ]);
+
+        $shiftDate= ShiftDate::find($patrol->shift_id);
+        $user = User::find($shiftDate->staff_id);
+        Notification::create([
+            'user_id' => 1,
+            'employee_id' => null,
+            'type' => 'alert',
+            'title' => 'Patrol Completed',
+            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' completed his patrol at ' . $now,
+            'read' => false,
+            'action_url' => "/shift-dates/$patrol->shift_id/view"
+        ]);
+
+        Notification::create([
+            'user_id' => Auth::id(),
+            'employee_id' => auth::id(),
+            'type' => 'alert',
+            'title' => 'Patrol completed',
+            'message' => 'You have completed your patrol successfully!',
+            'read' => false,
+        ]);
+
+        send_push_notification(
+            Auth::id(),
+            'Patrol Completed',
+            'You have Completed your patrol successfully at '.$now,
+            ['shift_date_id' => $patrol->shift_id]
+        );
 
         return response()->json(['message' => 'Patrol marked as completed']);
     }
