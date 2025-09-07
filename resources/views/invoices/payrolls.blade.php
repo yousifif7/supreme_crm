@@ -158,6 +158,7 @@
                     success: function(response) {
                         toast_success(response.message ?? "Payroll generated successfully");
                         $('#generate_payroll').modal('hide');
+                        location.reload();
                     },
                     error: function(xhr) {
                         $('.form-error').text('');

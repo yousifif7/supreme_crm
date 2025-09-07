@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use Carbon\CarbonPeriod;
 use App\Models\ShiftDate;
 use App\Models\EmployeeType;
+use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use App\Services\InvoiceService;
 use App\DataTables\InvoicesDataTable;
@@ -34,7 +35,7 @@ class InvoiceController extends Controller
         $newStart = Carbon::parse($request->date_from);
         $newEnd   = Carbon::parse($request->date_to);
 
-        // ✅ Overlap check
+        // Overlap check
         $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
             $query->whereBetween('date_from', [$newStart, $newEnd])
                 ->orWhereBetween('date_to', [$newStart, $newEnd])
@@ -48,15 +49,9 @@ class InvoiceController extends Controller
             ->exists();
 
         if ($overlap) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'errors' => ['date_from' => ['An invoice already exists for this date range.']]
-                ], 422);
-            }
-
-            return redirect()->back()
-                ->withErrors(['date_from' => ['An invoice already exists for this date range.']])
-                ->withInput();
+            return response()->json([
+                'errors' => ['date_from' => ['An invoice already exists for this date range.']]
+            ], 422);
         }
 
         try {
@@ -69,25 +64,61 @@ class InvoiceController extends Controller
                 $request->notes
             );
         } catch (ModelNotFoundException $e) {
-            if ($request->ajax()) {
-                return response()->json([
-                    'errors' => [
-                        'shift' => ['No shifts were found for the selected date range. Please adjust your dates or make sure shifts exist before generating an invoice.']
-                    ]
-                ], 422);
+            return response()->json([
+                'errors' => ['shift' => ['No shifts were found for the selected date range.']]
+            ], 422);
+        }
+
+        // ----------------------------
+        // Additional Payroll Calculations
+        // ----------------------------
+        $employeeLeaves = LeaveRequest::where('user_id', $request->employee_id ?? null)
+            ->where('start_date', '>=', $request->date_from)
+            ->where('end_date', '<=', $request->date_to)
+            ->where('processed_by_payroll', false)
+            ->get();
+
+        $totalHours = 0;
+        $totalSSP = 0;
+        $totalHolidayPay = 0;
+        $totalUnpaidLeave = 0;
+
+        foreach ($employeeLeaves as $leave) {
+            $totalHours += $leave->hours;
+
+            if ($leave->type === 'sick_leave') {
+                $totalSSP += ($leave->ssp_days ?? 0) * 23.75;
             }
 
-            return redirect()->back()
-                ->withErrors(['shift' => ['No shifts were found for the selected date range.']])
-                ->withInput();
+            if ($leave->type === 'annual_leave') {
+                $totalHolidayPay += ($leave->holiday_days_used ?? 0) * ($request->hourly_rate ?? 10);
+                $totalUnpaidLeave += ($leave->unpaid_days ?? 0) * ($request->hourly_rate ?? 10);
+            }
+
+            if ($leave->type === 'emergency') {
+                // mark paid/unpaid based on leave.paid
+                $totalHolidayPay += ($leave->paid ? $leave->hours * ($request->hourly_rate ?? 10) : 0);
+                $totalUnpaidLeave += (!$leave->paid ? $leave->hours * ($request->hourly_rate ?? 10) : 0);
+            }
+
+            // Mark leave processed
+            $leave->processed_by_payroll = true;
+            $leave->save();
         }
+
+        $invoice->total_hours = $totalHours;
+        $invoice->total_sick_pay = $totalSSP;
+        $invoice->total_holiday_pay = $totalHolidayPay;
+        $invoice->total_unpaid_leave = $totalUnpaidLeave;
+        $invoice->processed_by_payroll = true;
+        $invoice->save();
 
         return response()->json([
             'message' => 'Client invoice generated successfully',
             'invoice' => $invoice->load('items'),
         ]);
     }
-    
+
     public function generateSubcontractorInvoice(GenerateInvoiceRequest $request)
     {
         $invoice = $this->invoiceService->generateSubcontractorInvoice(
@@ -141,6 +172,7 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice, $id)
     {
         $invoice = Invoice::where('id', $id)->first();
+
         $invoice->load([
             'client',
             'subcontractor',
@@ -158,8 +190,27 @@ class InvoiceController extends Controller
             $invoice->total_deductions_hours = $invoice->items->sum(function ($item) {
                 return $item->break_hours + $item->book_on_hours + $item->book_off_hours;
             });
-            $invoice->gross_amount = $invoice->items->sum('amount');
-            $invoice->net_amount = $invoice->items->sum('amount'); // Adjust if you have deductions
+
+            // Leave / special hours
+            $totalSSPHours = $invoice->items->sum('ssp_hours');
+            $totalHolidayHours = $invoice->items->sum('holiday_hours');
+            $totalUnpaidHours = $invoice->items->sum('unpaid_hours');
+
+            $sspAmount = $invoice->items->sum('ssp_amount');
+            $holidayAmount = $invoice->items->sum('holiday_amount');
+            $unpaidAmount = $invoice->items->sum('unpaid_amount');
+
+            $invoice->gross_amount = $invoice->items->sum('amount') + $sspAmount + $holidayAmount;
+            $invoice->net_amount = $invoice->gross_amount - $unpaidAmount;
+        } else {
+            // Ensure leave totals are also calculated even if shift hours exist
+            $totalSSPHours = $invoice->items->sum('ssp_hours');
+            $totalHolidayHours = $invoice->items->sum('holiday_hours');
+            $totalUnpaidHours = $invoice->items->sum('unpaid_hours');
+
+            $sspAmount = $invoice->items->sum('ssp_amount');
+            $holidayAmount = $invoice->items->sum('holiday_amount');
+            $unpaidAmount = $invoice->items->sum('unpaid_amount');
         }
 
         return view('invoices.show', [
@@ -170,6 +221,12 @@ class InvoiceController extends Controller
             'totalBreaks' => $invoice->items->sum('break_hours'),
             'totalBookOnHours' => $invoice->items->sum('book_on_hours'),
             'totalBookOffHours' => $invoice->items->sum('book_off_hours'),
+            'totalSSPHours' => $totalSSPHours,
+            'totalHolidayHours' => $totalHolidayHours,
+            'totalUnpaidHours' => $totalUnpaidHours,
+            'sspAmount' => $sspAmount,
+            'holidayAmount' => $holidayAmount,
+            'unpaidAmount' => $unpaidAmount,
         ]);
     }
 

@@ -7,9 +7,20 @@ use Illuminate\Database\Eloquent\Model;
 class LeaveRequest extends Model
 {
     //
-    protected $fillable =['user_id', 'start_date', 'end_date','reason','emergency','status'];
+        protected $fillable = [
+        'user_id',
+        'start_date',
+        'end_date',
+        'reason',
+        'emergency',
+        'status',
+        'type',
+        'paid',
+        'hours',
+        'approved_hours',
+    ];
 
     public function employee(){
-        $this->belongsTo(Employee::class, 'user_id');
+        $this->belongsTo(User::class, 'user_id');
     }
 }

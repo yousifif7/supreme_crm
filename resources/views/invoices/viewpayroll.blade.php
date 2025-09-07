@@ -69,9 +69,9 @@
 
 @section('contents')
 
-@php
-    $staff = App\Models\User::role('security_staff',$invoice->secuirty_staff_id)->first();
-@endphp
+    @php
+        $staff = App\Models\User::role('security_staff', $invoice->secuirty_staff_id)->first();
+    @endphp
     <div id="payroll-page" class="page-wrapper">
         <div class="content">
             <div class="alert-box-container"></div>
@@ -117,7 +117,9 @@
                     <div class="row border-bottom mb-3">
                         <div class="col-md-4">
                             <p class="text-dark mb-2 fw-semibold">Staff Details</p>
-                            <p>Name: <span class="text-dark">{{ $staff?->first_name ?? 'N/A' }}{{ $staff?->last_name?? '' }}</span></p>
+                            <p>Name: <span
+                                    class="text-dark">{{ $staff?->first_name ?? 'N/A' }}{{ $staff?->last_name ?? '' }}</span>
+                            </p>
                             <p>Email: <span class="text-dark">{{ $staff?->email }}</span></p>
                             <p>Phone: <span class="text-dark">{{ $staff?->phone }}</span></p>
                             @if ($invoice->subcontractor)
@@ -137,8 +139,19 @@
                                     <p>Book Off Hours: <span class="text-dark">{{ $totalBookOffHours }}</span></p>
                                     <p>Total Billable Hours: <span
                                             class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
+                                    <p>SSP Hours: <span class="text-dark">{{ $sspDays }}</span></p>
+                                    <p>SSP Amount: <span class="text-dark">{{ number_format($sspAmount, 2) }}$</span></p>
+
+                                    <p>Holiday Hours: <span class="text-dark">{{ $holidayHours }}</span></p>
+                                    <p>Holiday Amount: <span
+                                            class="text-dark">{{ number_format($holidayAmount, 2) }}$</span></p>
+
+                                    <p>Unpaid Leave Hours: <span class="text-dark">{{ $unpaidHours }}</span></p>
+                                    <p>Unpaid Leave Deduction: <span
+                                            class="text-dark">{{ number_format($unpaidAmount, 2) }}$</span></p>
                                 </div>
                             </div>
+
                         </div>
                     </div>
 
@@ -193,8 +206,12 @@
                                 <p class="text-dark fw-medium">{{ $invoice->rate_per_hour }}$</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                                <p>Gross Pay</p>
+                                <p>Gross Pay (including SSP/Holiday)</p>
                                 <p class="text-dark fw-medium">{{ number_format($invoice->gross_amount, 2) }}$</p>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                <p>Unpaid Leave Deduction</p>
+                                <p class="text-dark fw-medium">- {{ number_format($unpaidAmount, 2) }}$</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
                                 <h5>Net Pay</h5>

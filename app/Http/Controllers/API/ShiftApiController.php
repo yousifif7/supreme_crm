@@ -150,7 +150,6 @@ class ShiftApiController extends Controller
         ]);
     }
 
-    // 12. Submit Leave Request
     public function submitLeaveRequest(Request $request)
     {
         $request->validate([
@@ -158,48 +157,84 @@ class ShiftApiController extends Controller
             'end_date' => 'required|date|after_or_equal:start_date',
             'reason' => 'required|string',
             'type' => 'required|in:annual_leave,sick_leave,emergency',
+            'hours' => 'nullable|numeric|min:0',
         ]);
 
+        $user = Auth::user();
+        $employee = Employee::where('user_id', $user->id)->first();
+
+        // Calculate total leave hours (optional: convert days to hours if needed)
+        $start = Carbon::parse($request->start_date);
+        $end = Carbon::parse($request->end_date);
+        $totalDays = $end->diffInDays($start) + 1;
+        $hoursPerDay = $request->hours ?? 8; // default 8h/day
+        $totalHours = $totalDays * $hoursPerDay;
+
+        // Determine leave payment logic
+        $paid = true;
+        $sspDays = null;
+        $holidayDaysUsed = null;
+        $unpaidDays = null;
+
+        if ($request->type === 'sick_leave') {
+            // Statutory Sick Pay (SSP) rules
+            $waitingDays = 3;
+            $sspRate = 23.75; // 2025/26 rate
+            $sspDays = max($totalDays - $waitingDays, 0);
+            $paid = $sspDays > 0;
+            $unpaidDays = min($waitingDays, $totalDays);
+        }
+
+        if ($request->type === 'annual_leave') {
+            // Deduct holiday balance
+            $holidayBalance = $employee->holiday_balance ?? 0; // assume in hours
+            if ($totalHours > $holidayBalance) {
+                $holidayDaysUsed = $holidayBalance;
+                $unpaidDays = $totalHours - $holidayBalance;
+                $paid = $holidayBalance > 0;
+            } else {
+                $holidayDaysUsed = $totalHours;
+            }
+        }
+
+        // Create leave request
         $leave = LeaveRequest::create([
-            'user_id' => Auth::id(),
+            'user_id' => $user->id,
             'start_date' => $request->start_date,
             'end_date' => $request->end_date,
             'reason' => $request->reason,
             'type' => $request->type,
+            'hours' => $totalHours,
+            'paid' => $paid,
+            'ssp_days' => $sspDays,
+            'holiday_days_used' => $holidayDaysUsed,
+            'unpaid_days' => $unpaidDays,
             'status' => 'pending',
+            'processed_by_payroll' => false,
         ]);
 
-        $employee = Employee::where('user_id', Auth::id())->first();
+        // Notify dashboard & push notification
         Notify::toDashboard(
-            auth::id(),
+            $user->id,
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
             "/leaves"
         );
 
-        Notification::create([
-            'user_id' => 1,
-            'employee_id' => null,
-            'type' => 'alert',
-            'title' => 'Shift booked on',
-            'message' => 'You have submitted a leave request!',
-        ]);
-
         send_push_notification(
-            $employee->user_id,
+            $user->id,
             'Leave request submitted',
             'You have submitted a leave request.',
-            ['leave' => $leave],
+            ['leave' => $leave]
         );
-
 
         return response()->json([
             'message' => 'Leave request submitted',
             'leave_id' => $leave->id,
         ]);
     }
-
+    
     public function showLeaves()
     {
         // Build query and paginate (no get() here)
@@ -607,7 +642,7 @@ class ShiftApiController extends Controller
             'started_at' => $now
         ]);
 
-        $shiftDate= ShiftDate::find($patrol->shift_id);
+        $shiftDate = ShiftDate::find($patrol->shift_id);
         $user = User::find($shiftDate->staff_id);
         Notification::create([
             'user_id' => 1,
@@ -631,7 +666,7 @@ class ShiftApiController extends Controller
         send_push_notification(
             Auth::id(),
             'Patrol started on',
-            'You have started your patrol successfully at '.$now,
+            'You have started your patrol successfully at ' . $now,
             ['shift_date_id' => $patrol->shift_id]
         );
 
@@ -669,7 +704,7 @@ class ShiftApiController extends Controller
             'status' => 'completed',
         ]);
 
-        $shiftDate= ShiftDate::find($patrol->shift_id);
+        $shiftDate = ShiftDate::find($patrol->shift_id);
         $user = User::find($shiftDate->staff_id);
         Notification::create([
             'user_id' => 1,
@@ -693,7 +728,7 @@ class ShiftApiController extends Controller
         send_push_notification(
             Auth::id(),
             'Patrol Completed',
-            'You have Completed your patrol successfully at '.$now,
+            'You have Completed your patrol successfully at ' . $now,
             ['shift_date_id' => $patrol->shift_id]
         );
 

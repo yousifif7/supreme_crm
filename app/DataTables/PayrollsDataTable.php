@@ -26,7 +26,7 @@ class PayrollsDataTable extends DataTable
             ->addColumn(
                 'employee_name',
                 fn($row) =>
-                $row->employee ? $row->employee->fore_name . ' ' . $row->employee->sur_name : ''
+                $row->securityStaff ? $row->securityStaff->first_name . ' ' . $row->securityStaff->last_name : ''
             )
             ->addColumn(
                 'site_name',

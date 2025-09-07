@@ -173,6 +173,11 @@
                                             class="text-dark">{{ $totalBookOnHours }}</span></p>
                                     <p class="mb-1">Book Off Hours : <span
                                             class="text-dark">{{ $totalBookOffHours }}</span></p>
+                                    <p class="mb-1">SSP Hours : <span class="text-dark">{{ $totalSSPHours }}</span></p>
+                                    <p class="mb-1">Holiday Hours : <span
+                                            class="text-dark">{{ $totalHolidayHours }}</span></p>
+                                    <p class="mb-1">Unpaid Hours : <span class="text-dark">{{ $totalUnpaidHours }}</span>
+                                    </p>
                                     <p>Total Billable Hours : <span
                                             class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
                                 </div>
@@ -244,6 +249,27 @@
                                 <p class="mb-0">Sub Total</p>
                                 <p class="text-dark fw-medium mb-2">{{ number_format($invoice->gross_amount, 2) }}$</p>
                             </div>
+
+                            @if ($sspAmount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">SSP Amount</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($sspAmount, 2) }}$</p>
+                                </div>
+                            @endif
+
+                            @if ($holidayAmount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">Holiday Amount</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($holidayAmount, 2) }}$</p>
+                                </div>
+                            @endif
+
+                            @if ($unpaidAmount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">Unpaid Deductions</p>
+                                    <p class="text-dark fw-medium mb-2">-{{ number_format($unpaidAmount, 2) }}$</p>
+                                </div>
+                            @endif
                             @if ($invoice->tax_amount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Tax</p>

@@ -153,35 +153,35 @@
         }
 
         /* .btn-outline-assign {
-                                                                                        background: #fff;
-                                                                                        color: #28a745;
-                                                                                        border: 2px solid #28a745;
-                                                                                        border-radius: 6px;
-                                                                                        padding: 8px 16px;
-                                                                                        font-weight: 600;
-                                                                                        transition: all 0.2s;
-                                                                                    }
+                                                                                            background: #fff;
+                                                                                            color: #28a745;
+                                                                                            border: 2px solid #28a745;
+                                                                                            border-radius: 6px;
+                                                                                            padding: 8px 16px;
+                                                                                            font-weight: 600;
+                                                                                            transition: all 0.2s;
+                                                                                        }
 
-                                                                                    .btn-outline-assign:hover {
-                                                                                        background: #28a745;
-                                                                                        color: #fff;
-                                                                                        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                                                                                    }
+                                                                                        .btn-outline-assign:hover {
+                                                                                            background: #28a745;
+                                                                                            color: #fff;
+                                                                                            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                                                                                        }
 
-                                                                                    .btn-assign-pill {
-                                                                                        background-color: #28a745;
-                                                                                        color: #fff;
-                                                                                        border-radius: 50px;
-                                                                                        padding: 8px 22px;
-                                                                                        font-weight: bold;
-                                                                                        transition: all 0.2s;
-                                                                                    }
+                                                                                        .btn-assign-pill {
+                                                                                            background-color: #28a745;
+                                                                                            color: #fff;
+                                                                                            border-radius: 50px;
+                                                                                            padding: 8px 22px;
+                                                                                            font-weight: bold;
+                                                                                            transition: all 0.2s;
+                                                                                        }
 
-                                                                                    .btn-assign-pill:hover {
-                                                                                        background-color: #218838;
-                                                                                        color:while;
-                                                                                        transform: scale(1.05);
-                                                                                    } */
+                                                                                        .btn-assign-pill:hover {
+                                                                                            background-color: #218838;
+                                                                                            color:while;
+                                                                                            transform: scale(1.05);
+                                                                                        } */
     </style>
 @endsection
 @section('contents')
@@ -418,119 +418,134 @@
                     </div>
                     <div class="tab-pane fade" id="address2" role="tabpanel" aria-labelledby="address-tab2">
                         @if ($shiftDate->staff)
+                            @php
+                                $staff = App\Models\Employee::where('user_id', $shiftDate->staff_id)->first();
+                            @endphp
                             <div class="container-fluid p-3">
                                 <!-- First Row - 3 Images -->
                                 <div class="row mb-4">
-                                    <div class="col-md-4 col-sm-6 mb-3">
-                                        <div class="document-card">
-                                            <div class="document-image-wrapper">
-                                                <img src="{{ asset($shiftDate->staff?->fileUrl('sia_licence_file', true)) }}"
-                                                    alt="SIA Licence" class="document-image" />
-                                                <div class="document-overlay">
-                                                    <a href="{{ $shiftDate->staff?->fileUrl('sia_licence_file') }}"
-                                                        target="_blank" class="view-btn">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
+                                    @if ($staff->sia_licence_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('sia_licence_file', true)) }}"
+                                                        alt="SIA Licence" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('sia_licence_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">SIA Licence</h6>
                                                 </div>
                                             </div>
-                                            <div class="document-label">
-                                                <h6 class="mb-0">SIA Licence</h6>
-                                            </div>
                                         </div>
-                                    </div>
+                                    @endif
 
-                                    <div class="col-md-4 col-sm-6 mb-3">
-                                        <div class="document-card">
-                                            <div class="document-image-wrapper">
-                                                <img src="{{ asset($shiftDate->staff?->fileUrl('passport_file', true)) }}"
-                                                    alt="Passport" class="document-image" />
-                                                <div class="document-overlay">
-                                                    <a href="{{ $shiftDate->staff?->fileUrl('passport_file') }}"
-                                                        target="_blank" class="view-btn">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
+                                    @if ($staff->passport_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('passport_file', true)) }}"
+                                                        alt="Passport" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('passport_file') }}" target="_blank"
+                                                            class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">Passport</h6>
                                                 </div>
                                             </div>
-                                            <div class="document-label">
-                                                <h6 class="mb-0">Passport</h6>
-                                            </div>
                                         </div>
-                                    </div>
+                                    @endif
 
-                                    <div class="col-md-4 col-sm-6 mb-3">
-                                        <div class="document-card">
-                                            <div class="document-image-wrapper">
-                                                <img src="{{ asset($shiftDate->staff?->fileUrl('act_certificate_file', true)) }}"
-                                                    alt="ACT Certificate" class="document-image" />
-                                                <div class="document-overlay">
-                                                    <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}"
-                                                        target="_blank" class="view-btn">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
+                                    @if ($staff->act_certificate_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('act_certificate_file', true)) }}"
+                                                        alt="ACT Certificate" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('act_certificate_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">ACT Certificate</h6>
                                                 </div>
                                             </div>
-                                            <div class="document-label">
-                                                <h6 class="mb-0">ACT Certificate</h6>
-                                            </div>
                                         </div>
-                                    </div>
+                                    @endif
                                 </div>
 
                                 <!-- Second Row - 3 Images -->
                                 <div class="row mb-4">
-                                    <div class="col-md-4 col-sm-6 mb-3">
-                                        <div class="document-card">
-                                            <div class="document-image-wrapper">
-                                                <img src="{{ asset($shiftDate->staff?->fileUrl('proof_of_address_file', true)) }}"
-                                                    alt="Proof of Address" class="document-image" />
-                                                <div class="document-overlay">
-                                                    <a href="{{ $shiftDate->staff?->fileUrl('proof_of_address_file') }}"
-                                                        target="_blank" class="view-btn">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
+                                    @if ($staff->proof_of_address_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('proof_of_address_file', true)) }}"
+                                                        alt="Proof of Address" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('proof_of_address_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">Proof of Address</h6>
                                                 </div>
                                             </div>
-                                            <div class="document-label">
-                                                <h6 class="mb-0">Proof of Address</h6>
-                                            </div>
                                         </div>
-                                    </div>
+                                    @endif
 
-                                    <div class="col-md-4 col-sm-6 mb-3">
-                                        <div class="document-card">
-                                            <div class="document-image-wrapper">
-                                                <img src="{{ asset($shiftDate->staff?->fileUrl('ni_letter_file', true)) }}"
-                                                    alt="NI Letter" class="document-image" />
-                                                <div class="document-overlay">
-                                                    <a href="{{ $shiftDate->staff?->fileUrl('ni_letter_file') }}"
-                                                        target="_blank" class="view-btn">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
+                                    @if ($staff->ni_letter_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('ni_letter_file', true)) }}"
+                                                        alt="NI Letter" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('ni_letter_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">NI Letter</h6>
                                                 </div>
                                             </div>
-                                            <div class="document-label">
-                                                <h6 class="mb-0">NI Letter</h6>
-                                            </div>
                                         </div>
-                                    </div>
+                                    @endif
 
-                                    <div class="col-md-4 col-sm-6 mb-3">
-                                        <div class="document-card">
-                                            <div class="document-image-wrapper">
-                                                <img src="{{ asset($shiftDate->staff?->fileUrl('first_aid_certificate_file', true)) }}"
-                                                    alt="First Aid Certificate" class="document-image" />
-                                                <div class="document-overlay">
-                                                    <a href="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file') }}"
-                                                        target="_blank" class="view-btn">
-                                                        <i class="ti ti-eye"></i>
-                                                    </a>
+                                    @if ($staff->first_aid_certificate_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('first_aid_certificate_file', true)) }}"
+                                                        alt="First Aid Certificate" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('first_aid_certificate_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">First Aid Certificate</h6>
                                                 </div>
                                             </div>
-                                            <div class="document-label">
-                                                <h6 class="mb-0">First Aid Certificate</h6>
-                                            </div>
                                         </div>
-                                    </div>
+                                    @endif
                                 </div>
                             </div>
                         @else
@@ -685,7 +700,8 @@
                                             <td>{{ $patrol->issues_reported }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->started_at)->format('h:i A') }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->completed_at)->format('h:i A') }}</td>
-                                            <td>@if ($patrol->status == 'pending')
+                                            <td>
+                                                @if ($patrol->status == 'pending')
                                                     <p class="bg-warning text-center">Pending</p>
                                                 @elseif ($patrol->status == 'in_progress')
                                                     <p class="bg-primary text-center">In Progress</p>

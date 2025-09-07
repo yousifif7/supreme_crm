@@ -113,11 +113,12 @@
                                                 <div class="mb-3">
                                                     <label class="form-label">Client Name <span
                                                             class="text-danger">*</span></label>
-                                                    <select type="text" name="client_id" id="invoice_client_name" class="form-select"
-                                                        placeholder="Enter Client Name">
+                                                    <select type="text" name="client_id" id="invoice_client_name"
+                                                        class="form-select" placeholder="Enter Client Name">
                                                         <option>--- Select Client --- </option>
-                                                        @foreach ($clients as $client )
-                                                            <option value="{{ $client->id }}">{{ $client->first_name }}</option>
+                                                        @foreach ($clients as $client)
+                                                            <option value="{{ $client->id }}">{{ $client->first_name }}
+                                                            </option>
                                                         @endforeach
                                                     </select>
                                                     <span class="text-danger form-error"
@@ -126,16 +127,16 @@
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Client Site <span
-                                                            class="text-danger">*</span></label>
-                                                <select name="site_id" class="form-select" id="invoice_site_id">
-                                                    <option value="">--choose--</option>
-                                                </select>
+                                                            class="text-danger"></span></label>
+                                                    <select name="site_id" class="form-select" id="invoice_site_id">
+                                                        <option value="">--choose--</option>
+                                                    </select>
                                                     <span class="text-danger form-error" id="invoiceerror_site_id"></span>
                                                 </div>
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Due Date <span
-                                                            class="text-danger">*</span></label>
+                                                            class="text-danger"></span></label>
                                                     <input type="date" name="due_date" id="invoice_due_date"
                                                         class="form-control" placeholder="">
                                                     <span class="text-danger form-error"
@@ -149,7 +150,7 @@
                                                     <div class="col-md-6">
                                                         <div class="mb-3">
                                                             <label class="form-label">Date From: <span
-                                                                    class="text-danger">*</span></label>
+                                                                    class="text-danger"></span></label>
                                                             <input type="date" name="date_from" id="invoice_date_from"
                                                                 class="form-control">
                                                             <span class="text-danger form-error"
@@ -159,7 +160,7 @@
                                                     <div class="col-md-6">
                                                         <div class="mb-3">
                                                             <label class="form-label">Date To: <span
-                                                                    class="text-danger">*</span></label>
+                                                                    class="text-danger"></span></label>
                                                             <input type="date" name="date_to" id="invoice_date_to"
                                                                 class="form-control">
                                                             <span class="text-danger form-error"
@@ -170,7 +171,7 @@
 
                                                 <div class="mb-3">
                                                     <label class="form-label">Notes <span
-                                                            class="text-danger">*</span></label>
+                                                            class="text-danger"></span></label>
                                                     <textarea class="form-control" name="notes" id="invoice_notes" rows="4"></textarea>
                                                     <span class="text-danger form-error" id="invoiceerror_notes"></span>
                                                 </div>
@@ -280,15 +281,19 @@
                 success: function(response) {
                     closeBsModal('#generate_invoice');
                     toast_success('Invoice Created Successfully!');
-                    reloadDatatable('#clients-table');
+                    reloadDatatable('#invoices-table');
                 },
                 error: function(xhr) {
                     if (xhr.status === 422) {
                         let errors = xhr.responseJSON.errors;
 
+                        let messages = [];
                         $.each(errors, function(key, value) {
-                            $('#invoiceerror_' + key).text(value[0]);
+                            messages.push(value[0]);
                         });
+
+                        // Show all validation messages in one toast
+                        toast_danger(messages.join('<br>'));
                     } else {
                         toast_danger('An error occurred. Please try again.');
                     }
@@ -300,58 +305,59 @@
             });
         });
 
-$(document).on("change", "#invoice_client_name", function() {
-    var $this = $(this);
-    const clientId = $(this).val();
-    if (!clientId) return;
+        $(document).on("change", "#invoice_client_name", function() {
+            var $this = $(this);
+            const clientId = $(this).val();
+            if (!clientId) return;
 
-    var $siteSelect = $('#invoice_site_id');
-    $siteSelect.html('<option value="">--choose--</option>');
+            var $siteSelect = $('#invoice_site_id');
+            $siteSelect.html('<option value="">--choose--</option>');
 
-    $.ajax({
-        url: `${baseUrl}/api/client/${clientId}`, // your existing API
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            // If you have office_rate in form, you can fill it like before
-            $this.parents('.shift-group').find('.siteRate').val(data.client?.office_rate || '');
+            $.ajax({
+                url: `${baseUrl}/api/client/${clientId}`, // your existing API
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    // If you have office_rate in form, you can fill it like before
+                    $this.parents('.shift-group').find('.siteRate').val(data.client?.office_rate || '');
 
-            if (data.sites && data.sites.length > 0) {
-                $.each(data.sites, function(index, site) {
-                    $siteSelect.append(
-                        '<option value="' + site.id + '">' + site.site_name + '</option>'
-                    );
-                });
-            } else {
-                $siteSelect.append('<option value="">No sites found</option>');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Fetch error:', error);
-        }
-    });
+                    if (data.sites && data.sites.length > 0) {
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append(
+                                '<option value="' + site.id + '">' + site.site_name +
+                                '</option>'
+                            );
+                        });
+                    } else {
+                        $siteSelect.append('<option value="">No sites found</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
 
-    // also update hidden client_id field
-    $('#invoice_client_id').val(clientId);
-});
-
-    $(function () {
-        let table = $('#invoices-table').DataTable();
-
-        // Select/Deselect all rows
-        $(document).on('change', '#select-all-checkbox', function () {
-            let isChecked = $(this).is(':checked');
-            $('.dT-row-checkbox').prop('checked', isChecked);
+            // also update hidden client_id field
+            $('#invoice_client_id').val(clientId);
         });
 
-        $(document).on('change', '.dT-row-checkbox', function () {
-            if (!$(this).is(':checked')) {
-                $('#select-all-checkbox').prop('checked', false);
-            } else if ($('.dT-row-checkbox:checked').length === $('.dT-row-checkbox').length) {
-                $('#select-all-checkbox').prop('checked', true);
-            }
+        $(function() {
+            let table = $('#invoices-table').DataTable();
+
+            // Select/Deselect all rows
+            $(document).on('change', '#select-all-checkbox', function() {
+                let isChecked = $(this).is(':checked');
+                $('.dT-row-checkbox').prop('checked', isChecked);
+            });
+
+            $(document).on('change', '.dT-row-checkbox', function() {
+                if (!$(this).is(':checked')) {
+                    $('#select-all-checkbox').prop('checked', false);
+                } else if ($('.dT-row-checkbox:checked').length === $('.dT-row-checkbox').length) {
+                    $('#select-all-checkbox').prop('checked', true);
+                }
+            });
         });
-    });
     </script>
     {!! $dataTable->scripts() !!}
 @endsection
