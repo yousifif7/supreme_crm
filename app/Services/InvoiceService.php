@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\Employee;
 use App\Models\ShiftDate;
 use App\Models\InvoiceItem;
+use App\Models\LeaveRequest;
 
 class InvoiceService
 {
@@ -223,17 +224,14 @@ class InvoiceService
         $startDate = $startDate ? Carbon::parse($startDate)->startOfDay() : now()->startOfMonth();
         $endDate   = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfMonth();
 
+        // 1️⃣ Calculate total worked hours from shifts
         $shifts = Shift::where('staff_id', $staff->user_id)
             ->when($siteId, fn($q) => $q->where('site_id', $siteId))
             ->get();
 
-        $totalHours = 0;
-        $totalBreaks = 0;
-        $totalBookOnHours = 0;
-        $totalBookOffHours = 0;
+        $totalHours = $totalBreaks = $totalBookOnHours = $totalBookOffHours = 0;
 
         foreach ($shifts as $shift) {
-            // Allowed days
             $daysAllowed = [];
             if ($shift->days) {
                 $shiftDays = json_decode($shift->days, true);
@@ -250,29 +248,27 @@ class InvoiceService
                 $date = Carbon::parse($shiftDate->shift_date);
                 if (!in_array($date->format('D'), $daysAllowed)) continue;
 
-                $startDateTime = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->start_time);
-                $endDateTime   = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->end_time);
-
-                if ($endDateTime->lessThan($startDateTime)) $endDateTime->addDay();
+                $startDT = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->start_time);
+                $endDT   = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->end_time);
+                if ($endDT->lessThan($startDT)) $endDT->addDay();
 
                 $breakMinutes = $shift->{'break-mins_shift'} ?? 0;
-                $durationMinutes = $startDateTime->diffInMinutes($endDateTime);
+                $durationMinutes = $startDT->diffInMinutes($endDT);
 
                 $totalHours += ($durationMinutes - $breakMinutes) / 60;
                 $totalBreaks += $breakMinutes / 60;
 
-                // Absentee
+                // Absentee hours
                 if ($shiftDate->absentee_start_time) {
                     $absStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
-                    if ($absStart->between($startDateTime, $endDateTime)) {
-                        $totalBookOnHours += $startDateTime->diffInMinutes($absStart) / 60;
+                    if ($absStart->between($startDT, $endDT)) {
+                        $totalBookOnHours += $startDT->diffInMinutes($absStart) / 60;
                     }
                 }
-
                 if ($shiftDate->absentee_end_time) {
                     $absEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
-                    if ($absEnd->between($startDateTime, $endDateTime)) {
-                        $totalBookOffHours += $absEnd->diffInMinutes($endDateTime) / 60;
+                    if ($absEnd->between($startDT, $endDT)) {
+                        $totalBookOffHours += $absEnd->diffInMinutes($endDT) / 60;
                     }
                 }
             }
@@ -280,20 +276,87 @@ class InvoiceService
 
         $rate = $staff->guard_rate ?? 0;
         $grossAmount = $totalHours * $rate;
-        $deductions = ($totalBookOnHours + $totalBookOffHours) * $rate;
+        $deductions  = ($totalBookOnHours + $totalBookOffHours) * $rate;
+
+        // 2️⃣ Fetch approved leave requests
+        $leaves = LeaveRequest::where('employee_id', $staff->id)
+            ->where('approved', true)
+            ->where(function ($q) use ($startDate, $endDate) {
+                $q->whereBetween('start_date', [$startDate, $endDate])
+                    ->orWhereBetween('end_date', [$startDate, $endDate]);
+            })
+            ->get();
+
+        $leaveBreakdown = [
+            'sick'   => ['paid_days' => 0, 'unpaid_days' => 0, 'amount' => 0],
+            'holiday' => ['paid_hours' => 0, 'unpaid_hours' => 0],
+            'unpaid' => ['hours' => 0],
+            'other'  => ['paid_hours' => 0, 'unpaid_hours' => 0],
+        ];
+
+        foreach ($leaves as $leave) {
+            $leaveStart = Carbon::parse(max($leave->start_date, $startDate));
+            $leaveEnd   = Carbon::parse(min($leave->end_date, $endDate));
+
+            switch ($leave->leave_type) {
+                case 'sick':
+                    $weeklyPay = $staff->weekly_pay ?? 0;
+                    $sick = $this->calculateSickPay($staff, $leaveStart, $leaveEnd, $weeklyPay);
+                    $deductions += $sick['unpaid_days'] * ($weeklyPay / 5); // 5-day week assumption
+                    $leaveBreakdown['sick']['paid_days'] += $sick['paid_days'];
+                    $leaveBreakdown['sick']['unpaid_days'] += $sick['unpaid_days'];
+                    $leaveBreakdown['sick']['amount'] += $sick['amount'];
+                    break;
+
+                case 'holiday':
+                    $requestedHours = $leaveStart->diffInHours($leaveEnd) + 8; // include last day
+                    $earnedHoliday = $staff->holiday_balance ?? $this->calculateHoliday($staff, $totalHours)['holiday_hours'];
+
+                    $paidHours = min($requestedHours, $earnedHoliday);
+                    $unpaidHours = max(0, $requestedHours - $earnedHoliday);
+                    $deductions += $unpaidHours * $rate;
+
+                    // 3️⃣ Update holiday balance
+                    $staff->holiday_balance = max(0, $earnedHoliday - $paidHours);
+                    $staff->save();
+
+                    $leaveBreakdown['holiday']['paid_hours'] += $paidHours;
+                    $leaveBreakdown['holiday']['unpaid_hours'] += $unpaidHours;
+                    break;
+
+                case 'unpaid':
+                    $hours = $leaveStart->diffInHours($leaveEnd) + 8;
+                    $deductions += $hours * $rate;
+                    $leaveBreakdown['unpaid']['hours'] += $hours;
+                    break;
+
+                case 'other':
+                    $hours = $leaveStart->diffInHours($leaveEnd) + 8;
+                    if ($leave->paid) {
+                        $leaveBreakdown['other']['paid_hours'] += $hours;
+                    } else {
+                        $deductions += $hours * $rate;
+                        $leaveBreakdown['other']['unpaid_hours'] += $hours;
+                    }
+                    break;
+            }
+        }
+
         $netAmount = $grossAmount - $deductions;
 
         return [
-            'start_date'             => $startDate,
-            'end_date'               => $endDate,
-            'rate'                   => $rate,
-            'total_hours'            => $totalHours,
-            'total_breaks'           => $totalBreaks,
-            'total_book_on_hours'    => $totalBookOnHours,
-            'total_book_off_hours'   => $totalBookOffHours,
-            'gross_amount'           => $grossAmount,
-            'deductions'             => $deductions,
-            'net_amount'             => $netAmount,
+            'start_date'           => $startDate,
+            'end_date'             => $endDate,
+            'rate'                 => $rate,
+            'total_hours'          => $totalHours,
+            'total_breaks'         => $totalBreaks,
+            'total_book_on_hours'  => $totalBookOnHours,
+            'total_book_off_hours' => $totalBookOffHours,
+            'gross_amount'         => $grossAmount,
+            'deductions'           => $deductions,
+            'net_amount'           => $netAmount,
+            'leave_breakdown'      => $leaveBreakdown,
+            'holiday_balance'      => $staff->holiday_balance,
         ];
     }
 
@@ -309,14 +372,14 @@ class InvoiceService
         $totalDays = $sickStart->diffInDays($sickEnd) + 1;
         $unpaid = min(3, $totalDays);
         $paid = max(0, $totalDays - 3);
-        $paid = min($paid, 196); // 28 weeks
+        $paid = min($paid, 28 * 7); // 28 weeks × 7 days
 
         return [
-            'eligible' => true,
+            'eligible'   => true,
             'total_days' => $totalDays,
             'unpaid_days' => $unpaid,
-            'paid_days' => $paid,
-            'amount' => $paid * 23.75,
+            'paid_days'  => $paid,
+            'amount'     => $paid * 23.75,
         ];
     }
 

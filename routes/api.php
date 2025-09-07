@@ -84,7 +84,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/check-calls/{check_call_id}/complete', [CheckCallController::class, 'completeCheckCall']);
     Route::get('/alarms/check-calls', [CheckCallController::class, 'getCheckCallAlarms']);
     Route::post('/check-calls/phone-complete', [CheckCallController::class, 'phoneComplete']);
-
 });
 
 //Patrols api controller routes
@@ -99,9 +98,9 @@ Route::middleware('auth:sanctum')->group(function () {
 //DOB api controller routes
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/dob', [DobApiController::class,'store']);
-    Route::get('/dob', [DobApiController::class,'index']);
-    Route::put('/dob/{id}', [DobApiController::class,'update']);
+    Route::post('/dob', [DobApiController::class, 'store']);
+    Route::get('/dob', [DobApiController::class, 'index']);
+    Route::put('/dob/{id}', [DobApiController::class, 'update']);
 });
 
 
@@ -141,8 +140,10 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->prefix('invoices')->group(function () {
     Route::get('/shift-history', [InvoiceAPIController::class, 'shiftHistory']);
     Route::post('/', [InvoiceAPIController::class, 'submitInvoice']);
-    Route::get('/', [InvoiceAPIController::class, 'getPayrolls']);
+    Route::get('/', [InvoiceAPIController::class, 'getPayrolls'])->name('invoices.list');
     Route::post('{invoice}/confirm-revision', [InvoiceAPIController::class, 'confirmRevision']);
+    Route::get('/{invoiceId}/pdf', [InvoiceAPIController::class, 'exportPayrollPdf'])
+    ->name('payrolls.exportPdf');
 });
 
 //Training & Bulletins Managment api controller routes
@@ -158,7 +159,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{notification_id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);
-    
 });
 
 // Route::middleware('auth:sanctum')->post('/notifications/mark-all-read', function () {
@@ -179,3 +179,4 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::put('/admin/dob/{entry_id}/edit', [AdminAPIController::class, 'editDOBEntry']);
     Route::post('/admin/alarms/{alarm_id}/override', [AdminAPIController::class, 'overrideMissedAlarm']);
 });
+

@@ -23,23 +23,23 @@ class DocumentAPIController extends Controller
             'description' => 'nullable|string',
         ]);
 
-// Get the uploaded file
-$file = $request->file('file');
+        // Get the uploaded file
+        $file = $request->file('file');
 
-// Define the destination path inside the public folder
-$destinationPath = public_path('documents'); // public/documents
+        // Define the destination path inside the public folder
+        $destinationPath = public_path('documents'); // public/documents
 
-// Ensure the directory exists
-if (!file_exists($destinationPath)) {
-    mkdir($destinationPath, 0755, true);
-}
+        // Ensure the directory exists
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0755, true);
+        }
 
-// Move the file to the public folder
-$fileName = time() . '_' . $file->getClientOriginalName();
-$file->move($destinationPath, $fileName);
+        // Move the file to the public folder
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        $file->move($destinationPath, $fileName);
 
-// Full path (for saving in DB, if needed)
-$filePath = 'documents/' . $fileName;
+        // Full path (for saving in DB, if needed)
+        $filePath = 'documents/' . $fileName;
 
         $document = Document::create([
             'user_id' => $request->user()->id,
@@ -87,7 +87,7 @@ $filePath = 'documents/' . $fileName;
                 'You have uploaded a file',
                 '/employees'
             );
-            
+
             // Send push notification to employee/device
             send_push_notification(
                 $user->id,
@@ -138,8 +138,8 @@ $filePath = 'documents/' . $fileName;
                     'days_remaining' => Carbon::parse($doc->expiry_date)->diffInDays(now()),
                 ];
             });
-        
-            
+
+
         foreach ($expiringSoon as $exp) {
             send_push_notification(
                 Auth::id(),

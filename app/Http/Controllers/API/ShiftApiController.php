@@ -150,127 +150,129 @@ class ShiftApiController extends Controller
         ]);
     }
 
-    public function submitLeaveRequest(Request $request)
-    {
-        $request->validate([
-            'start_date' => 'required|date|after_or_equal:today',
-            'end_date' => 'required|date|after_or_equal:start_date',
-            'reason' => 'required|string',
-            'type' => 'required|in:annual_leave,sick_leave,emergency',
-            'hours' => 'nullable|numeric|min:0',
-        ]);
+   public function submitLeaveRequest(Request $request)
+{
+    $request->validate([
+        'start_date' => 'required|date|after_or_equal:today',
+        'end_date'   => 'required|date|after_or_equal:start_date',
+        'reason'     => 'required|string',
+        'type'       => 'required|in:annual_leave,sick_leave,emergency',
+        'hours'      => 'nullable|numeric|min:0',
+    ]);
 
-        $user = Auth::user();
-        $employee = Employee::where('user_id', $user->id)->first();
+    $user = Auth::user();
+    $employee = Employee::where('user_id', $user->id)->firstOrFail();
 
-        // Calculate total leave hours (optional: convert days to hours if needed)
-        $start = Carbon::parse($request->start_date);
-        $end = Carbon::parse($request->end_date);
-        $totalDays = $end->diffInDays($start) + 1;
-        $hoursPerDay = $request->hours ?? 8; // default 8h/day
-        $totalHours = $totalDays * $hoursPerDay;
+    $start = Carbon::parse($request->start_date);
+    $end   = Carbon::parse($request->end_date);
+    $totalDays = $end->diffInDays($start) + 1;
 
-        // Determine leave payment logic
-        $paid = true;
-        $sspDays = null;
-        $holidayDaysUsed = null;
-        $unpaidDays = null;
+    $hoursPerDay = $request->hours ?? 8;
+    $totalHours  = $totalDays * $hoursPerDay;
 
-        if ($request->type === 'sick_leave') {
-            // Statutory Sick Pay (SSP) rules
-            $waitingDays = 3;
-            $sspRate = 23.75; // 2025/26 rate
-            $sspDays = max($totalDays - $waitingDays, 0);
-            $paid = $sspDays > 0;
-            $unpaidDays = min($waitingDays, $totalDays);
-        }
+    $paid          = true;
+    $sspPaidDays   = 0;
+    $holidayHours  = 0;
+    $unpaidHours   = 0;
 
-        if ($request->type === 'annual_leave') {
-            // Deduct holiday balance
-            $holidayBalance = $employee->holiday_balance ?? 0; // assume in hours
-            if ($totalHours > $holidayBalance) {
-                $holidayDaysUsed = $holidayBalance;
-                $unpaidDays = $totalHours - $holidayBalance;
-                $paid = $holidayBalance > 0;
-            } else {
-                $holidayDaysUsed = $totalHours;
-            }
-        }
+    if ($request->type === 'sick_leave') {
+        $waitingDays = 3;
+        $sspRate = 23.75;
 
-        // Create leave request
-        $leave = LeaveRequest::create([
-            'user_id' => $user->id,
-            'start_date' => $request->start_date,
-            'end_date' => $request->end_date,
-            'reason' => $request->reason,
-            'type' => $request->type,
-            'hours' => $totalHours,
-            'paid' => $paid,
-            'ssp_days' => $sspDays,
-            'holiday_days_used' => $holidayDaysUsed,
-            'unpaid_days' => $unpaidDays,
-            'status' => 'pending',
-            'processed_by_payroll' => false,
-        ]);
-
-        // Notify dashboard & push notification
-        Notify::toDashboard(
-            $user->id,
-            'alert',
-            'Leave Request',
-            'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            "/leaves"
-        );
-
-        send_push_notification(
-            $user->id,
-            'Leave request submitted',
-            'You have submitted a leave request.',
-            ['leave' => $leave]
-        );
-
-        return response()->json([
-            'message' => 'Leave request submitted',
-            'leave_id' => $leave->id,
-        ]);
+        $sspPaidDays = max($totalDays - $waitingDays, 0);
+        $unpaidHours = min($waitingDays, $totalDays) * $hoursPerDay;
+        $paid = $sspPaidDays > 0;
     }
-    
-    public function showLeaves()
-    {
-        // Build query and paginate (no get() here)
-        $leaves = LeaveRequest::where('user_id', Auth::id())
-            ->latest('created_at')
-            ->paginate(10);
 
-        // Transform only the items in the paginator
-        $items = $leaves->getCollection()->map(function ($l) {
-            return [
-                'id'         => $l->id,
-                'type'       => $l->type,
-                'status'     => $l->status,
-                'reason'     => $l->reason,
-                'start_date' => $l->start_date,
-                'end_date'   => $l->end_date,
-                // If location is JSON in DB, decode; if it's already cast to array, keep it
-                'location'   => is_string($l->location) ? json_decode($l->location, true) : $l->location,
-                'timestamp'  => $l->timestamp,
-                'created_at' => $l->created_at,
-                'updated_at' => $l->updated_at,
-            ];
-        })->values();
-
-        return response()->json([
-            'leaves' => $items,
-            'pagination' => [
-                'current_page' => $leaves->currentPage(),
-                'per_page'     => $leaves->perPage(),
-                'total_pages'  => $leaves->lastPage(),
-                'total'        => $leaves->total(),
-                'from'         => $leaves->firstItem(),
-                'to'           => $leaves->lastItem(),
-            ],
-        ]);
+    if ($request->type === 'annual_leave') {
+        $holidayBalance = $employee->holiday_balance ?? 0; // in hours
+        if ($totalHours > $holidayBalance) {
+            $holidayHours = $holidayBalance;
+            $unpaidHours  = $totalHours - $holidayBalance;
+            $paid = $holidayBalance > 0;
+        } else {
+            $holidayHours = $totalHours;
+        }
     }
+
+    $leave = LeaveRequest::create([
+        'user_id'        => $user->id,
+        'employee_id'    => $employee->id,
+        'start_date'     => $request->start_date,
+        'end_date'       => $request->end_date,
+        'reason'         => $request->reason,
+        'type'           => $request->type,
+        'hours'          => $totalHours,
+        'approved_hours' => $totalHours - $unpaidHours,
+        'paid'           => $paid,
+        'ssp_paid_days'  => $sspPaidDays,
+        'holiday_days_used' => $holidayHours,
+        'unpaid_days'    => $unpaidHours / $hoursPerDay,
+        'amount_paid'    => $sspPaidDays * 23.75, // only for sick leave
+        'status'         => 'pending',
+    ]);
+
+    // Notifications
+    Notify::toDashboard(
+        $user->id,
+        'alert',
+        'Leave Request',
+        'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
+        "/leaves"
+    );
+
+    send_push_notification(
+        $user->id,
+        'Leave request submitted',
+        'You have submitted a leave request.',
+        ['leave' => $leave]
+    );
+
+    return response()->json([
+        'message'  => 'Leave request submitted',
+        'leave_id' => $leave->id,
+    ]);
+}
+
+public function showLeaves()
+{
+    $leaves = LeaveRequest::where('user_id', Auth::id())
+        ->latest('created_at')
+        ->paginate(10);
+
+    $items = $leaves->getCollection()->map(function ($l) {
+        return [
+            'id'               => $l->id,
+            'type'             => $l->type,
+            'status'           => $l->status,
+            'reason'           => $l->reason,
+            'start_date'       => $l->start_date,
+            'end_date'         => $l->end_date,
+            'hours'            => $l->hours,
+            'approved_hours'   => $l->approved_hours,
+            'paid'             => $l->paid,
+            'ssp_paid_days'    => $l->ssp_paid_days,
+            'holiday_days_used'=> $l->holiday_days_used,
+            'unpaid_days'      => $l->unpaid_days,
+            'amount_paid'      => $l->amount_paid,
+            'created_at'       => $l->created_at,
+            'updated_at'       => $l->updated_at,
+        ];
+    })->values();
+
+    return response()->json([
+        'leaves' => $items,
+        'pagination' => [
+            'current_page' => $leaves->currentPage(),
+            'per_page'     => $leaves->perPage(),
+            'total_pages'  => $leaves->lastPage(),
+            'total'        => $leaves->total(),
+            'from'         => $leaves->firstItem(),
+            'to'           => $leaves->lastItem(),
+        ],
+    ]);
+}
+
 
     // 13. Acknowledge Shift Documents
     public function acknowledgeDocuments(Request $request, $shift_id)
@@ -283,7 +285,7 @@ class ShiftApiController extends Controller
 
         $employee = Employee::where('user_id', Auth::id())->first();
 
-        $shift = Shift::where('id', $shift_id)
+        $shift = ShiftDate::where('id', $shift_id)
             ->where('staff_id', $employee->id)
             ->firstOrFail();
 

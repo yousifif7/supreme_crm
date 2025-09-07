@@ -11,6 +11,7 @@ use App\Models\ShiftDate;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\InvoiceReview;
+use Barryvdh\DomPDF\Facade\Pdf;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 
@@ -70,7 +71,7 @@ class InvoiceAPIController extends Controller
             'tax_amount' => 0.00,
         ]);
 
-        $shift=ShiftDate::whereIn('id', $validated['shift_ids'])
+        $shift = ShiftDate::whereIn('id', $validated['shift_ids'])
             ->where('staff_id', Auth::id())
             ->update([
                 'invoice_id' => $invoice->id,
@@ -92,7 +93,7 @@ class InvoiceAPIController extends Controller
             'employee_id' => $employee->id,
             'type' => 'alert',
             'title' => 'Invoice submitted',
-            'message' => $employee->fore_name . ' You have submitted Invoice (ID: '. $invoice->invoice_number . ')',
+            'message' => $employee->fore_name . ' You have submitted Invoice (ID: ' . $invoice->invoice_number . ')',
             'read' => false,
         ]);
 
@@ -103,6 +104,7 @@ class InvoiceAPIController extends Controller
         ]);
     }
 
+
     public function getPayrolls(Request $request)
     {
         $request->validate([
@@ -111,8 +113,7 @@ class InvoiceAPIController extends Controller
             'limit' => 'nullable|integer|min:1|max:100'
         ]);
 
-        $query = Invoice::with('adminReview')
-            ->where('security_staff_id', Auth::id());
+        $query = Invoice::where('security_staff_id', Auth::id());
 
         if ($request->status) {
             $query->where('status', $request->status);
@@ -175,5 +176,14 @@ class InvoiceAPIController extends Controller
         }
 
         return response()->json(['message' => 'Invoice revision ' . ($validated['accepted'] ? 'accepted' : 'rejected')]);
+    }
+
+    public function exportPayrollPdf($invoiceId)
+    {
+        $invoice = Invoice::with('employee')->findOrFail($invoiceId);
+
+        $pdf = Pdf::loadView('invoices.payroll_pdf', compact('invoice'));
+
+        return $pdf->download('Payroll_' . $invoice->invoice_number . '.pdf');
     }
 }

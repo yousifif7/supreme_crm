@@ -128,12 +128,7 @@ class ExportController extends Controller
     {
         return Excel::download(new InvoiceExport, 'invoices.xlsx');
     }
-    public function exportSitePdf()
-    {
-        $sites = Site::all();
-        $pdf = Pdf::loadView('exports.sites_pdf', compact('sites'));
-        return $pdf->download('sites.pdf');
-    }
+
     public function importSiteExcel(Request $request)
     {
         $request->validate([

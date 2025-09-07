@@ -40,6 +40,12 @@ class PayrollsDataTable extends DataTable
                 fn($row) =>
                 $row->site ? $row->site->site_name : ''
             )
+            ->addColumn('ssp_days', fn($row) => $row->ssp_days ?? 0)
+            ->addColumn('ssp_amount', fn($row) => number_format($row->ssp_amount ?? 0, 2))
+            ->addColumn('holiday_hours', fn($row) => $row->holiday_hours ?? 0)
+            ->addColumn('holiday_amount', fn($row) => number_format($row->holiday_amount ?? 0, 2))
+            ->addColumn('unpaid_leave_hours', fn($row) => $row->unpaid_leave_hours ?? 0)
+            ->addColumn('unpaid_leave_amount', fn($row) => number_format($row->unpaid_leave_amount ?? 0, 2))
             ->addColumn('action', function ($row) {
                 // Single delete button for payrolls
                 $deleteBtn = '<a href="javascript:void(0)" class="btn btn-sm btn-danger" ' .
@@ -49,7 +55,7 @@ class PayrollsDataTable extends DataTable
                 // You can include more action buttons here if needed
                 return $deleteBtn;
             })
-            ->rawColumns(['checkbox', 'number', 'payroll_no', 'action','status']);
+            ->rawColumns(['checkbox', 'number', 'payroll_no', 'action', 'status']);
     }
 
     public function query(Invoice $model): QueryBuilder
@@ -107,7 +113,13 @@ class PayrollsDataTable extends DataTable
             Column::make('total_shift_hours')->title('Total Shift Hours'),
             Column::make('net_amount')->title('Net Amount'),
             Column::make('total_amount')->title('Total Amount'),
-            
+            Column::make('ssp_days')->title('SSP Days'),
+            Column::make('ssp_amount')->title('SSP Amount'),
+            Column::make('holiday_hours')->title('Holiday Hours'),
+            Column::make('holiday_amount')->title('Holiday Amount'),
+            Column::make('unpaid_leave_hours')->title('Unpaid Leave Hours'),
+            Column::make('unpaid_leave_amount')->title('Unpaid Leave Amount'),
+
         ];
     }
 

@@ -176,6 +176,10 @@ class PayrollController extends Controller
             'holidayHours' => $invoice->holiday_hours,
             'unpaidAmount' => $invoice->unpaid_leave_amount,
             'unpaidHours' => $invoice->unpaid_leave_hours,
+            'totalShiftHours' => $invoice->total_shift_hours,
+            'totalBreaks' => $invoice->total_break_hours,
+            'totalBookOnHours' => $invoice->total_deductions_hours - $invoice->total_break_hours,
+            'sspAmount' => $invoice->ssp_amount,
         ]);
     }
 
