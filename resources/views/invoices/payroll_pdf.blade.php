@@ -24,7 +24,7 @@
     <div class="header">
         <p><strong>Employee:</strong> {{ $invoice->securityStaff->first_name ?? 'Staff' }} {{ $invoice->securityStaff->last_name ?? '' }}</p>
         <p><strong>Payroll Number:</strong> {{ $invoice->invoice_number }}</p>
-        <p><strong>Period:</strong> {{ optional($invoice->date_from)->format('Y-m-d') }} to {{ optional($invoice->date_to)->format('Y-m-d') }}</p>
+        <p><strong>Period:</strong> {{ $invoice->date_from }} to {{ $invoice->date_to }}</p>
         <p><strong>Status:</strong> {{ ucfirst($invoice->status) }}</p>
     </div>
 
