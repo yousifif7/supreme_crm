@@ -413,7 +413,7 @@ class ShiftApiController extends Controller
             $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
             if ($now->lt($shiftStart)) {
-                return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftStart], 422);
+                return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftDate->start_time->format('H:i')], 422);
             }
 
             // Update status

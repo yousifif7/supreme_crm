@@ -1067,7 +1067,7 @@
                     passport_file: "Passport",
                     proof_of_address_file: "Proof of Address",
                     ni_letter_file: "NI Letter",
-                    first_aid_certificate_file: "First Aid Certificate",
+                    first_aid_certificate_file: "Right to work",
                     act_certificate_file: "ACT Certificate"
                 };
 

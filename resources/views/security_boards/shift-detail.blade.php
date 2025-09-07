@@ -541,7 +541,7 @@
                                                     </div>
                                                 </div>
                                                 <div class="document-label">
-                                                    <h6 class="mb-0">First Aid Certificate</h6>
+                                                    <h6 class="mb-0">Right to work</h6>
                                                 </div>
                                             </div>
                                         </div>

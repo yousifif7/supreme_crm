@@ -480,8 +480,7 @@
                                 </div>
 
                                 <div class="col-md-4 mb-3">
-                                    <label class="form-label" for="first_aid_certificate_file">First AID
-                                        certificate</label>
+                                    <label class="form-label" for="first_aid_certificate_file">Right to work</label>
                                     <input type="file" name="first_aid_certificate_file" accept=".jpg,.jpeg,.png,.pdf"
                                         class="form-control">
                                     <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,

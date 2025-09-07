@@ -60,6 +60,8 @@ class CheckCallController extends Controller
         }
 
         if ($now->gt($latest)) {
+            $checkCall->status = 'missed';
+            $checkCall->save();
             return response()->json([
                 'message' => 'Missed! Check call can only be completed within 15 minutes after its due time. '
                     . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
