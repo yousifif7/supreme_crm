@@ -125,6 +125,8 @@ class InvoicesDataTable extends DataTable
             Column::make('net_amount')->title('Net Amount'),
 
             Column::make('total_amount')->title('Total Amount'),
+            Column::computed('status')->title('Status')->addClass('text-center'),
+
         ];
     }
 

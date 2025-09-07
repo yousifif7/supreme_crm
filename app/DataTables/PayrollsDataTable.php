@@ -28,6 +28,13 @@ class PayrollsDataTable extends DataTable
                 fn($row) =>
                 $row->securityStaff ? $row->securityStaff->first_name . ' ' . $row->securityStaff->last_name : ''
             )
+            ->addColumn('status', function ($row) {
+                if ($row->paid_amount >= $row->net_amount) {
+                    return '<span class="badge bg-success">Paid</span>';
+                } else {
+                    return '<span class="badge bg-warning text-dark">Unpaid</span>';
+                }
+            })
             ->addColumn(
                 'site_name',
                 fn($row) =>
@@ -42,7 +49,7 @@ class PayrollsDataTable extends DataTable
                 // You can include more action buttons here if needed
                 return $deleteBtn;
             })
-            ->rawColumns(['checkbox', 'number', 'payroll_no', 'action']);
+            ->rawColumns(['checkbox', 'number', 'payroll_no', 'action','status']);
     }
 
     public function query(Invoice $model): QueryBuilder
@@ -100,6 +107,7 @@ class PayrollsDataTable extends DataTable
             Column::make('total_shift_hours')->title('Total Shift Hours'),
             Column::make('net_amount')->title('Net Amount'),
             Column::make('total_amount')->title('Total Amount'),
+            
         ];
     }
 
