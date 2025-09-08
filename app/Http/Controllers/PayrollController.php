@@ -46,8 +46,8 @@ class PayrollController extends Controller
 
         // SSP & Holiday based on leave requests
         $leaves = LeaveRequest::where('user_id', $staff->user_id)
-            ->where('start_date', '>=', $startDate)
-            ->where('end_date', '<=', $endDate)
+            ->where('status', 'approved')
+            ->whereBetween('start_date', [$startDate, $endDate])
             ->where('processed_by_payroll', false)
             ->get();
 
@@ -102,6 +102,13 @@ class PayrollController extends Controller
             'type'                   => 'security_staff',
             'invoice_number'         => Invoice::generateInvoiceNumber('security_staff'),
         ]);
+
+        send_push_notification(
+            $staff->user_id,
+            'Payroll generated',
+            "A new payroll has been generated for you!",
+            ['leave' => $leave]
+        );
 
         return response()->json([
             'message' => 'Payroll created successfully',

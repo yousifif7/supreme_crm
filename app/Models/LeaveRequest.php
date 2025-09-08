@@ -25,8 +25,12 @@ class LeaveRequest extends Model
         'amount_paid',       // monetary value calculated
     ];
 
-    public function employee()
+    public function user()
     {
         $this->belongsTo(User::class, 'user_id');
+    }
+    public function employee()
+    {
+        $this->belongsTo(Employee::class, 'employee_id');
     }
 }

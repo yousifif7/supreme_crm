@@ -156,7 +156,7 @@ class ShiftApiController extends Controller
         'start_date' => 'required|date|after_or_equal:today',
         'end_date'   => 'required|date|after_or_equal:start_date',
         'reason'     => 'required|string',
-        'type'       => 'required|in:annual_leave,sick_leave,emergency',
+        'type'       => 'required|in:annual_leave,sick_leave,emergency,other',
         'hours'      => 'nullable|numeric|min:0',
     ]);
 
@@ -170,7 +170,7 @@ class ShiftApiController extends Controller
     $hoursPerDay = $request->hours ?? 8;
     $totalHours  = $totalDays * $hoursPerDay;
 
-    $paid          = true;
+    $paid          = false;
     $sspPaidDays   = 0;
     $holidayHours  = 0;
     $unpaidHours   = 0;
@@ -249,6 +249,7 @@ public function showLeaves()
             'start_date'       => $l->start_date,
             'end_date'         => $l->end_date,
             'hours'            => $l->hours,
+            'reject_reason'    => $l->reject_reason,
             'approved_hours'   => $l->approved_hours,
             'paid'             => $l->paid,
             'ssp_paid_days'    => $l->ssp_paid_days,
@@ -764,10 +765,13 @@ public function showLeaves()
         // Determine duty status
         $status = $latestBooking->type === 'book_on' ? 'on-duty' : 'off-duty';
 
+        $patrol = Patrol::where('shift_id',$shiftDate->id)->where('status','in_progress')->first();
+        
         return response()->json([
             'status'        => $status,
             'shift_date_id' => $shiftDate?->id,
             'shift_id'      => $shift?->id,
+            'patrol_id' => $patrol?->id ?? 'No patrols in progress yet',
             'message'       => 'Latest booking retrieved successfully.'
         ]);
     }

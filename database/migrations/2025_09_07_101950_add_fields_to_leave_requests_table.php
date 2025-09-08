@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('leave_requests', function (Blueprint $table) {
             // Payroll / hours tracking
             $table->decimal('hours', 5, 2)->nullable()->after('end_date');
-            $table->boolean('paid')->default(true)->after('hours'); // true = paid, false = unpaid
+            $table->boolean('paid')->default(false)->after('hours'); // true = paid, false = unpaid
             $table->boolean('processed_by_payroll')->default(false)->after('paid');
 
             // Sick pay / statutory leave

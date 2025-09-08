@@ -35,6 +35,7 @@ use App\Models\Invoice;
 use App\Models\Site;
 use App\Models\Subcontractor;
 use App\Models\EmployeeLeave;
+use App\Models\LeaveRequest;
 use App\Models\User;
 use App\Models\Vehicle;
 use App\Models\VehicleCompliance;
@@ -175,7 +176,7 @@ class ExportController extends Controller
 
     public function exportLeavePdf()
     {
-        $leaves = EmployeeLeave::all();
+        $leaves = LeaveRequest::all();
         $pdf = Pdf::loadView('exports.leaves_pdf', compact('leaves'));
         return $pdf->download('leaves.pdf');
     }

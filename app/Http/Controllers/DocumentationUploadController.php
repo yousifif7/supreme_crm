@@ -25,7 +25,6 @@ class DocumentationUploadController extends Controller
     {
         $validator = Validator::make($request->all(), [
             'vehicle_id' => 'required|exists:vehicles,id',
-
             'mot_certificate'           => 'required|file|mimes:pdf|max:2048',
             'insurance_certificate'     => 'required|file|mimes:pdf|max:2048',
             'v5c_logbook'               => 'required|file|mimes:pdf|max:2048',

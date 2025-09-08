@@ -280,7 +280,7 @@ class InvoiceService
 
         // 2️⃣ Fetch approved leave requests
         $leaves = LeaveRequest::where('employee_id', $staff->id)
-            ->where('approved', true)
+            ->where('status', 'approved')
             ->where(function ($q) use ($startDate, $endDate) {
                 $q->whereBetween('start_date', [$startDate, $endDate])
                     ->orWhereBetween('end_date', [$startDate, $endDate]);
