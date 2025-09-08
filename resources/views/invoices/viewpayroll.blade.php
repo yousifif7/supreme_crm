@@ -69,9 +69,9 @@
 
 @section('contents')
 
-    @php
-        $staff = App\Models\User::role('security_staff', $invoice->secuirty_staff_id)->first();
-    @endphp
+    {{-- @php
+        $staff = App\Models\User::find($invoice->secuirty_staff_id);
+    @endphp --}}
     <div id="payroll-page" class="page-wrapper">
         <div class="content">
             <div class="alert-box-container"></div>

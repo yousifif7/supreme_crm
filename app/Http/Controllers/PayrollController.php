@@ -107,7 +107,7 @@ class PayrollController extends Controller
             $staff->user_id,
             'Payroll generated',
             "A new payroll has been generated for you!",
-            ['leave' => $leave]
+            ['invoice' => $invoice]
         );
 
         return response()->json([
@@ -146,8 +146,9 @@ class PayrollController extends Controller
             'sites' => $sites,
         ]);
     }
-    public function show(Invoice $invoice)
+    public function show($id)
     {
+        $invoice = Invoice::find($id);
         $invoice->load([
             'client',
             'subcontractor',
@@ -169,8 +170,10 @@ class PayrollController extends Controller
             $invoice->net_amount = $invoice->items->sum('amount') + $invoice->holiday_amount + $invoice->ssp_amount - $invoice->unpaid_leave_amount;
         }
 
+        $staff = User::role('security_staff')->where('id',$invoice->security_staff_id)->first();
         return view('invoices.viewpayroll', [
             'invoice' => $invoice,
+            'staff' => $staff,
             'totalHours' => $invoice->items->sum(function ($item) {
                 return $item->hours + $item->break_hours + $item->book_on_hours + $item->book_off_hours;
             }),
