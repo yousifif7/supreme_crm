@@ -10,10 +10,16 @@ use Illuminate\Support\Facades\Validator;
 
 class AlertReminderController extends Controller
 {
-    public function index(AlertRemindersDataTable $dataTable)
+    public function index()
     {
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.alert_reminders', compact('vehicles'));
+        return view('vehicle_management.alert_reminders', compact('vehicles'));
+    }
+
+    public function data(AlertRemindersDataTable $dataTable)
+    {
+        // $vehicles = Vehicle::all();
+        return $dataTable->ajax();
     }
     public function store(Request $request)
     {

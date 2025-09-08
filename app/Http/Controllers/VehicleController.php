@@ -16,27 +16,37 @@ class VehicleController extends Controller
 {
 
     public function management(
-        VehiclesDataTable $vehicleDetailTable,
+        VehiclesDataTable $vehiclesDataTable,
         VehicleCompliancesDataTable $vehicleComplianceTable,
         VehicleMaintenancesDataTable $vehicleMaintenanceTable,
         RoadworthinessChecksDataTable $roadworthinessTable,
         DocumentationUploadsDataTable $documentationTable,
         AlertRemindersDataTable $alertTable
-    ) {
+    ) 
+    {
+        $vehicles = Vehicle::all();
+
         return view('vehicle_management.mainindex', compact(
-            'vehicleDetailTable',
+            'vehiclesDataTable',
             'vehicleComplianceTable',
             'vehicleMaintenanceTable',
             'roadworthinessTable',
             'documentationTable',
-            'alertTable'
+            'alertTable',
+            'vehicles',
         ));
     }
 
-    public function vehicle_details(VehiclesDataTable $dataTable)
+    public function vehicle_details()
     {
-        return $dataTable->render('vehicle_management/vehicle_detail');
+        return view('vehicle_management.vehicle_detail');
     }
+
+    public function vehicle_details_data(VehiclesDataTable $dataTable)
+    {
+        return $dataTable->ajax();
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [

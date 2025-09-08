@@ -698,8 +698,16 @@
                                             <td>{{ $patrol->total_checkpoints }}</td>
                                             <td>{{ $patrol->completed_checkpoints }}</td>
                                             <td>{{ $patrol->issues_reported }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($patrol->started_at)->format('h:i A') }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($patrol->completed_at)->format('h:i A') }}</td>
+                                            @if ($patrol->started_at)
+                                                <td>{{ \Carbon\Carbon::parse($patrol->started_at ?? '')->format('h:i A') }}</td>
+                                            @else
+                                                <td></td>    
+                                            @endif
+                                            @if ($patrol->completed_at)
+                                                <td>{{ \Carbon\Carbon::parse($patrol->completed_at ?? '')->format('h:i A') }}</td>
+                                            @else
+                                                <td></td>    
+                                            @endif
                                             <td>
                                                 @if ($patrol->status == 'pending')
                                                     <p class="bg-warning text-center">Pending</p>

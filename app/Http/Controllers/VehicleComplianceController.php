@@ -10,10 +10,16 @@ use Illuminate\Support\Facades\Validator;
 
 class VehicleComplianceController extends Controller
 {
-    public function index(VehicleCompliancesDataTable $dataTable)
+    public function index()
     {
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.compliances', compact('vehicles'));
+        return view('vehicle_management.compliances', compact('vehicles'));
+    }
+
+    public function compailance_data(VehicleCompliancesDataTable $dataTable)
+    {
+        // $vehicles = Vehicle::all();
+        return $dataTable->ajax();
     }
     public function store(Request $request)
     {

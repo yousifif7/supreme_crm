@@ -72,7 +72,22 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {!! $dataTable->table(['class' => 'table table-bordered table-hover'], true) !!}
+                        <table id="vehicles-table" class="table table-row-bordered table-row-dashed gy-4 align-middle fw-bold datatable">
+    <thead>
+        <tr>
+            <th><input type="checkbox" id="selectAll"></th>
+            <th>#</th>
+            <th>Registration No.</th>
+            <th>Make</th>
+            <th>Model</th>
+            <th>Assigned To</th>
+            <th>Category</th>
+            <th>Registration Date</th>
+            <th>Odometer</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+</table>
                     </div>
                 </div>
             </div>
@@ -538,7 +553,6 @@
             });
         }
 
-        let selectedId = null;
 
         function deleteVehicle(record_id) {
             selectedId = record_id;
@@ -595,5 +609,44 @@
                 }
             });
         });
+
+
+        $(function () {
+    var table = $('#vehicles-table').DataTable({
+        processing: true,
+        serverSide: true,
+        ajax: "{{ route('vehicle.data') }}",
+        scrollX: true,
+        pageLength: 15,
+        columns: [
+            { data: 'checkbox', name: 'checkbox', orderable: false, searchable: false },
+            { data: 'number', name: 'number', orderable: false, searchable: false },
+            { data: 'registration_number', name: 'registration_number' },
+            { data: 'make', name: 'make' },
+            { data: 'model', name: 'model' },
+            { data: 'assigned_to', name: 'assigned_to' },
+            { data: 'vehicle_category', name: 'vehicle_category' },
+            { data: 'first_registration_date', name: 'first_registration_date' },
+            { data: 'odometer_reading', name: 'odometer_reading', orderable: false },
+            { data: 'action', name: 'action', orderable: false, searchable: false },
+        ],
+        drawCallback: function(settings) {
+            feather.replace(); // your icons
+            var api = this.api();
+            var start = api.page.info().start;
+            api.column(1, { page: 'current' }).nodes().each(function(cell, i) {
+                cell.innerHTML = start + i + 1; // numbering
+            });
+        },
+        headerCallback: function(thead, data, start, end, display) {
+            $(thead).addClass('thead-light');
+        }
+    });
+
+    // select all checkboxes
+    $('#selectAll').on('click', function () {
+        var checked = this.checked;
+        $('.dT-row-checkbox').prop('checked', checked);
+    });
+});
     </script>
-    {!! $dataTable->scripts() !!}

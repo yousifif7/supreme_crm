@@ -35,7 +35,7 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Dashboard</h2>
+                    <h2 class="mb-1"><b>Dashboard</b></h2>
 
                 </div>
             </div>
@@ -122,7 +122,7 @@
                 <div class="col-xl-12">
                     <div class="card custom-card">
                         <div class="card-header">
-                            <div class="card-title">Live Tracking</div>
+                            <div class="card-title"><b>Live Tracking</b></div>
                         </div>
                         <div class="card-body">
                             <div id="map" style="height: 700px; width: 100%; margin-top: 20px;"></div>
@@ -137,7 +137,7 @@
             <div class="col-xxl-12 col-12 col-xl-12 d-flex">
                 <div class="card w-100">
                     <div class="card-header">
-                        <h5 class="fs-18">Check Calls Monitoring</h5>
+                        <h5 class="fs-18"><b>Check Calls Monitoring</b></h5>
                         <small>Filter by status: Pending | Missed | Completed</small>
                     </div>
                     <div class="card-body" style="max-height: 400px; overflow-y: auto;">
@@ -227,7 +227,7 @@
             <div class="col-xxl-6 col-12 col-xl-6 d-flex">
                 <div class="card flex-fill">
                     <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                        <h5 class="mb-2">Today Shifts (Live)</h5>
+                        <h5 class="mb-2"><b>Today Shifts (Live)</b></h5>
                     </div>
 
                     <!-- ✅ Scroll on card-body instead of table-responsive -->
@@ -269,7 +269,7 @@
                 <div class="card flex-fill">
                     <div class="card-header">
                         <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2">Upcomming Shifts</h5>
+                            <h5 class="mb-2"><b>Upcomming Shifts</b></h5>
                         </div>
                         <div class="card-body p-0">
                             <div class="table-responsive">
@@ -329,7 +329,7 @@
                 <div class="card mt-4">
                     <div class="card-header">
                         <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5 class="fs-18">SIA License Check</h5>
+                            <h5 class="fs-18"><b>SIA License Check</b></h5>
                         </div>
                     </div>
                     <div class="card-body">
@@ -410,7 +410,7 @@
                 <div class="card mt-4">
                     <div class="card-header">
                         <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
-                            <h5 class="fs-18">Book on | Book off</h5>
+                            <h5 class="fs-18"><b>Book on | Book off</b></h5>
                         </div>
                     </div>
                     <div class="card-body">

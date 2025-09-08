@@ -267,6 +267,7 @@ Route::middleware('auth')->group(function () {
     /** End: Vehicle Controller */
 
     /** Begin: Vehicle compliance controller */
+    Route::get('/vehicle_compliances/data', [VehicleComplianceController::class, 'compailance_data'])->name('complainces.data');
     Route::get('/vehicle_compliances', [VehicleComplianceController::class, 'index'])->name('complainces');
     Route::post('compliances', [VehicleComplianceController::class, 'store'])->name('compliances.store');
     Route::get('/editcompliance/{id}', [VehicleComplianceController::class, 'edit'])->name('compliances.edit');
@@ -276,6 +277,7 @@ Route::middleware('auth')->group(function () {
     /** End: Vehicle Maintainace controller */
 
     /** Begin: Vehicle Maintainance */
+    Route::get('/vehicle_maintenances/data', [VehicleMaintenanceController::class, 'data'])->name('maintenances.data');
     Route::get('/vehicle_maintenances', [VehicleMaintenanceController::class, 'index'])->name('maintenances');
     Route::post('maintenances', [VehicleMaintenanceController::class, 'store'])->name('maintenances.store');
     Route::get('/editmaintenance/{id}', [VehicleMaintenanceController::class, 'edit'])->name('maintenances.edit');
@@ -285,6 +287,7 @@ Route::middleware('auth')->group(function () {
     /** End: Vehicle Maintainance */
 
     /** Begin: roadworthinessCheck controller */
+    Route::get('/roadworthiness_check/data', [RoadworthinessCheckController::class, 'data'])->name('checks.data');
     Route::get('/roadworthiness_check', [RoadworthinessCheckController::class, 'index'])->name('checks');
     Route::post('checks', [RoadworthinessCheckController::class, 'store'])->name('checks.store');
     Route::get('/editcheck/{id}', [RoadworthinessCheckController::class, 'edit'])->name('checks.edit');
@@ -294,6 +297,7 @@ Route::middleware('auth')->group(function () {
     //** End: roadworthinessCheck controller */
 
     /** Begin: documentation upload controller */
+    Route::get('/documentation_uploads/data', [DocumentationUploadController::class, 'data'])->name('documents.data');
     Route::get('/documentation_uploads', [DocumentationUploadController::class, 'index'])->name('documents');
     Route::post('documents', [DocumentationUploadController::class, 'store'])->name('documents.store');
     Route::get('/editdocument/{id}', [DocumentationUploadController::class, 'edit'])->name('documents.edit');
@@ -306,6 +310,7 @@ Route::middleware('auth')->group(function () {
     //** End: documentation upload controller */
 
     /** Begin: alert and remainder controller */
+    Route::get('/alert_reminders/data', [AlertReminderController::class, 'data'])->name('reminders.data');
     Route::get('/alert_reminders', [AlertReminderController::class, 'index'])->name('reminders');
     Route::post('reminders', [AlertReminderController::class, 'store'])->name('reminders.store');
     Route::get('/editreminder/{id}', [AlertReminderController::class, 'edit'])->name('reminders.edit');
@@ -317,6 +322,9 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/vehicle_management', [VehicleController::class, 'management'])
         ->name('vehicle.management');
+
+    Route::get('/vehicle_data', [VehicleController::class, 'vehicle_details_data'])
+        ->name('vehicle.data');
 });
 
 Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');

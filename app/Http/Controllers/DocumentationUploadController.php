@@ -11,10 +11,15 @@ use Illuminate\Support\Facades\Validator;
 
 class DocumentationUploadController extends Controller
 {
-    public function index(DocumentationUploadsDataTable $dataTable)
+    public function index()
     {
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.documentation_uploads', compact('vehicles'));
+        return view('vehicle_management.documentation_uploads', compact('vehicles'));
+    }
+    public function data(DocumentationUploadsDataTable $dataTable)
+    {
+        // $vehicles = Vehicle::all();
+        return $dataTable->ajax();
     }
     public function store(Request $request)
     {

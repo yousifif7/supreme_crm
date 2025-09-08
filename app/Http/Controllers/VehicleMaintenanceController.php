@@ -10,10 +10,16 @@ use Illuminate\Support\Facades\Validator;
 
 class VehicleMaintenanceController extends Controller
 {
-    public function index(VehicleMaintenancesDataTable $dataTable)
+    public function index()
     {
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.vehicle_maintainance', compact('vehicles'));
+        return view('vehicle_management.vehicle_maintainance', compact('vehicles'));
+    }
+    
+    public function data(VehicleMaintenancesDataTable $dataTable)
+    {
+        // $vehicles = Vehicle::all();
+        return $dataTable->ajax();
     }
     public function store(Request $request)
     {

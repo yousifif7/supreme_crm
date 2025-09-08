@@ -10,10 +10,15 @@ use Illuminate\Support\Facades\Validator;
 
 class RoadworthinessCheckController extends Controller
 {
-    public function index(RoadworthinessChecksDataTable $dataTable)
+    public function index()
     {
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.checks', compact('vehicles'));
+        return view('vehicle_management.checks', compact('vehicles'));
+    }
+    public function data(RoadworthinessChecksDataTable $dataTable)
+    {
+        $vehicles = Vehicle::all();
+        return $dataTable->ajax();
     }
     public function store(Request $request)
     {
