@@ -49,22 +49,7 @@
 
 
                 <!-- Search -->
-                <div class="input-group input-group-flat d-inline-flex me-1">
-                    <span class="input-icon-addon">
-                        <i class="ti ti-search"></i>
-                    </span>
-                    <input type="text" class="form-control search_box" placeholder="Search...">
-
-
-                    <!-- /Search -->
-
-
-                </div>
-
-
             </div>
-
-
         </div>
         <!-- /Breadcrumb -->
 
@@ -77,7 +62,7 @@
                         style="width:100%">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" id="selectAll"></th>
+                                <th><input type="checkbox" id="mainselectAll"></th>
                                 <th>#</th>
                                 <th>Last Service</th>
                                 <th>Next Service Due</th>
@@ -573,4 +558,9 @@
                 }
             ]
         });
+
+            $('#mainselectAll').on('click', function() {
+        let checked = this.checked;
+        $('.dT-row-checkbox').prop('checked', checked);
+    });
     </script>

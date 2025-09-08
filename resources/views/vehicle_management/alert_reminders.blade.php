@@ -49,19 +49,6 @@
 
 
                 <!-- Search -->
-                <div class="input-group input-group-flat d-inline-flex me-1">
-                    <span class="input-icon-addon">
-                        <i class="ti ti-search"></i>
-                    </span>
-                    <input type="text" class="form-control search_box" placeholder="Search...">
-
-
-                    <!-- /Search -->
-
-
-                </div>
-
-
             </div>
 
 
@@ -76,7 +63,7 @@
                         class="table table-row-bordered table-row-dashed gy-4 align-middle fw-bold" style="width:100%">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" id="selectAll"></th>
+                                <th><input type="checkbox" id="alertsselectAll"></th>
                                 <th>#</th>
                                 <th>Vehicle Registration</th>
                                 <th>MDD</th>
@@ -543,7 +530,7 @@
             });
 
             // ✅ Select/Deselect all checkboxes
-            $('#select-all-checkbox').on('click', function() {
+            $('#alertsselectAll').on('click', function() {
                 let checked = this.checked;
                 $('.dT-row-checkbox').prop('checked', checked);
             });

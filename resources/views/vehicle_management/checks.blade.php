@@ -46,22 +46,6 @@
                     class=" add_btn btn btn-white d-inline-flex align-items-center"">
                     <i class="ti ti-plus me-2"></i>Check
                 </a>
-
-
-                <!-- Search -->
-                <div class="input-group input-group-flat d-inline-flex me-1">
-                    <span class="input-icon-addon">
-                        <i class="ti ti-search"></i>
-                    </span>
-                    <input type="text" class="form-control search_box" placeholder="Search...">
-
-
-                    <!-- /Search -->
-
-
-                </div>
-
-
             </div>
 
 
@@ -77,7 +61,7 @@
                         style="width:100%">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" id="selectAll"></th>
+                                <th><input type="checkbox" id="checksselectAll"></th>
                                 <th>#</th>
                                 <th>Date Completed</th>
                                 <th>Checked By</th>
@@ -251,7 +235,8 @@
                         </p>
                         <div class="d-flex justify-content-center">
                             <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" id="confirmChecksDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+                            <button type="button" id="confirmChecksDeleteBtn" class="btn btn-danger">Yes,
+                                Delete</button>
                         </div>
                     </div>
                 </div>
@@ -488,5 +473,9 @@
                     searchable: false
                 }
             ]
+        });
+        $('#checksselectAll').on('click', function() {
+            let checked = this.checked;
+            $('.dT-row-checkbox').prop('checked', checked);
         });
     </script>

@@ -32,17 +32,6 @@
                     <i class="ti ti-plus me-2"></i>Document
                 </a>
 
-
-                <!-- Search -->
-                <div class="input-group input-group-flat d-inline-flex me-1">
-                    <span class="input-icon-addon">
-                        <i class="ti ti-search"></i>
-                    </span>
-                    <input type="text" class="form-control search_box" placeholder="Search...">
-                    <!-- /Search -->
-                </div>
-
-
             </div>
 
 
@@ -57,7 +46,7 @@
                         class="table table-row-bordered table-row-dashed gy-4 align-middle fw-bold" style="width:100%">
                         <thead>
                             <tr>
-                                <th><input type="checkbox" id="selectAll"></th>
+                                <th><input type="checkbox" id="docsselectAll"></th>
                                 <th>#</th>
                                 <th>Vehicle Registration</th>
                                 <th>MOT</th>
@@ -575,4 +564,9 @@
                 table.ajax.reload(null, false);
             };
         });
+
+            $('#docsselectAll').on('click', function() {
+        let checked = this.checked;
+        $('.dT-row-checkbox').prop('checked', checked);
+    });
     </script>
