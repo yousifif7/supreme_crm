@@ -99,6 +99,10 @@
     #notif-list::-webkit-scrollbar-track {
         background: #f1f1f1;
     }
+
+    html {
+        font-size: 80%;
+    }
 </style>
 
 <body style="font-size: 12px !important">

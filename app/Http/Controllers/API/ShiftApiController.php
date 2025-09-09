@@ -15,7 +15,7 @@ use App\Models\LeaveRequest;
 use App\Models\Notification;
 use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
-use App\Models\PatrolCheckpoint;
+use App\Models\PatrolCheckPoint;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -566,7 +566,7 @@ class ShiftApiController extends Controller
     {
         $shift = ShiftDate::with('patrols')->findOrFail($shift_id);
         $patrols = $shift->patrols->map(function ($patrol) use ($shift) {
-            $checkpoints = PatrolCheckpoint::where('site_id', $shift->shift->site_id)->get();
+            $checkpoints = PatrolCheckPoint::where('site_id', $shift->shift->site_id)->get();
             return [
                 'id' => $patrol->id,
                 'name' => $patrol->name,

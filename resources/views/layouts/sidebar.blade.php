@@ -1,3 +1,4 @@
+  
 <div class="sidebar" id="sidebar">
     <!-- Logo -->
     <div class="sidebar-logo">
@@ -11,7 +12,7 @@
             <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
         </a>
     </div>
-    <div class="sidebar-inner slimscroll">
+    <div class="sidebar-inner slimscroll" >
         <div id="sidebar-menu" class="sidebar-menu">
             <ul>
                 <li>

@@ -1,42 +1,40 @@
+<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization&callback=initMap" async defer></script>
 
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"></script>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        #map {
-            height: 350px;
-            width: 100%;
-        }
-    </style>
-    <div id="map"></div>
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    #map {
+        height: 350px;
+        width: 100%;
+    }
+</style>
+
+<div id="map"></div>
 
 <script>
 let map;
 let heatmap;
 let allHeatPoints = [];
 
-function initMap() {
-    map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 14,
-        center: { lat: 51.5074, lng: -0.1278 }, // fallback center
-        mapTypeId: 'roadmap'
-    });
-
+// Fetch locations from backend and update heatmap
+function fetchAndUpdateHeatmap() {
     fetch("{{ route('shift.locations', ['shiftDateId' => $shiftDate->id]) }}")
         .then(res => res.json())
         .then(data => {
             const locations = data.locations || [];
+            allHeatPoints = []; // reset
+
             if (!locations.length) {
-                toast_danger("No location data found for this shift!");
+                console.warn("No location data found for this shift!");
                 return;
             }
 
             const bounds = new google.maps.LatLngBounds();
 
-            // Create a line of points for realistic heatmap
+            // Interpolated points
             for (let i = 0; i < locations.length - 1; i++) {
                 const start = locations[i];
                 const end = locations[i + 1];
@@ -53,7 +51,7 @@ function initMap() {
                 }
             }
 
-            // Add last location if only one point
+            // Handle single location
             if (locations.length === 1) {
                 const loc = locations[0];
                 const latLng = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
@@ -61,33 +59,43 @@ function initMap() {
                 bounds.extend(latLng);
             }
 
+            // Fit map to new bounds
             map.fitBounds(bounds);
 
-            // Create heatmap
-            heatmap = new google.maps.visualization.HeatmapLayer({
-                data: allHeatPoints,
-                radius: 20,        // smaller radius for line clarity
-                opacity: 0.8,      // more visible
-                dissipating: true,
-                gradient: [
-                    'rgba(0,0,0,0)',
-                    'rgba(255,255,0,0.6)',
-                    'rgba(255,165,0,0.7)',
-                    'rgba(255,0,0,0.8)',
-                    'rgba(128,0,0,1)'
-                ]
-            });
-
-            heatmap.setMap(map);
-
-            // Toggle button
-            document.getElementById("toggleHeatmap").addEventListener("click", () => {
-                heatmap.setMap(heatmap.getMap() ? null : map);
-            });
-
+            // Update heatmap
+            if (!heatmap) {
+                heatmap = new google.maps.visualization.HeatmapLayer({
+                    data: allHeatPoints,
+                    radius: 20,
+                    opacity: 0.8,
+                    dissipating: true,
+                    gradient: [
+                        'rgba(0,0,0,0)',
+                        'rgba(255,255,0,0.6)',
+                        'rgba(255,165,0,0.7)',
+                        'rgba(255,0,0,0.8)',
+                        'rgba(128,0,0,1)'
+                    ]
+                });
+                heatmap.setMap(map);
+            } else {
+                heatmap.setData(allHeatPoints);
+            }
         })
-        .catch(err => console.error(err));
+        .catch(err => console.error("Heatmap fetch error:", err));
 }
 
-window.onload = initMap;
+function initMap() {
+    map = new google.maps.Map(document.getElementById("map"), {
+        zoom: 14,
+        center: { lat: 51.5074, lng: -0.1278 }, // fallback center (London)
+        mapTypeId: 'roadmap'
+    });
+
+    // Initial load
+    fetchAndUpdateHeatmap();
+
+    // Auto-refresh every 30 seconds
+    setInterval(fetchAndUpdateHeatmap, 30000);
+}
 </script>

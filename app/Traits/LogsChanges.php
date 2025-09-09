@@ -33,10 +33,10 @@ trait LogsChanges
                     $newStaffId = $model->staff_id;
 
                     // Fetch old and new related staff
-                    $oldStaff = \App\Models\Employee::find($oldValue);
+                    $oldStaff = \App\Models\User::find($oldValue);
 
-                    $oldValue = isset($oldStaff->fore_name) ? $oldStaff->fore_name . ' ' . $oldStaff->sur_name : null;
-                    $newValue = isset($model->staff->fore_name) ? $model->staff?->fore_name . ' ' . $model->staff?->sur_name : 'N/A';
+                    $oldValue = isset($oldStaff->first_name) ? $oldStaff->first_name . ' ' . $oldStaff->last_name : null;
+                    $newValue = isset($model->staff->first_name) ? $model->staff?->first_name . ' ' . $model->staff?->last_name : 'N/A';
                 }
 
                 if (isset($arrayValues[$field])) {
@@ -83,7 +83,7 @@ trait LogsChanges
             // create shift logs description
             if ($modelType == 'ShiftDate') {
                 $modelType = 'Shift';
-                $staff = isset($model->staff->fore_name) ? $model->staff?->fore_name . ' ' . $model->staff?->sur_name : 'N/A';
+                $staff = isset($model->staff->first_name) ? $model->staff?->first_name . ' ' . $model->staff?->last_name : 'N/A';
                 $site = $model->shift->site->site_name ?? 'N/A';
                 $date = $model->shift_date ?? 'N/A';
                 $start = $model->start_time ?? 'N/A';

@@ -3,6 +3,9 @@
 @section('styles')
     <!-- Flatpickr CSS -->
     <style>
+        html{
+            font-size:80%;
+        }
         .gantt-container {
             overflow-x: auto;
             margin-top: 20px;
@@ -21,7 +24,7 @@
             width: 115px;
             min-width: 100px;
             padding: 10px;
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
             background-color: #e9ecef;
             border-right: 1px solid #dee2e6;
@@ -31,6 +34,7 @@
         .gantt-timeline-header {
             display: flex;
             flex: 1;
+            font-size:10px;
         }
 
         .gantt-body {
@@ -60,6 +64,7 @@
             font-style: bold;
             flex-direction: column;
             justify-content: center;
+            font-size: 10px;
         }
 
         .gantt-row-content {
@@ -79,7 +84,7 @@
             text-align: center;
             padding: 8px 5px;
             width: 100px;
-            font-size: 12px;
+            font-size: 10px;
             font-weight: bold;
             background-color: #f8f9fa;
             border-bottom: 1px solid #dee2e6;

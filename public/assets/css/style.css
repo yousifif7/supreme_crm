@@ -14780,10 +14780,12 @@ button.swal2-cancel {
 }
 
 .sidebar {
+  font-size:80%;
   display: -webkit-box;
   display: -ms-flexbox;
   display: flex;
-  background: var(--sidebar-bg); !important;
+  background: var(--sidebar-bg);
+  !important:;
   border-right: 1px solid #E5E7EB;
   margin-top: 0;
   z-index: 1001;
@@ -14791,10 +14793,12 @@ button.swal2-cancel {
   top: 0;
   bottom: 0;
   left: 0;
-  -webkit-transition: all 0.5s ease;
-  -ms-transition: all 0.5s ease;
+  -webkit-transition:;
+  -ms-transition:;
   transition: all 0.5s ease;
   width: 260px;
+  -moz-transition:;
+  -o-transition:;
 }
 @media (max-width: 991.98px) {
   .sidebar {
