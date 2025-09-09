@@ -80,7 +80,7 @@
             </tr>
             <tr>
                 <th>Location</th>
-                <td colspan="3">{{ json_decode($incident->location, true)['address'] ?? '' }}</td>
+                <td colspan="3">{{ $incident->formatted_address ?? '' }}</td>
             </tr>
             <tr>
                 <th>Description</th>

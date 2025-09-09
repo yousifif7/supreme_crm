@@ -92,7 +92,7 @@ class IncidentReportsExport implements FromCollection, WithHeadings, WithMapping
 
     public function map($report): array
     {
-        $location = json_decode($report->location, true);
+        $location = is_string($report->location) ? json_decode($report->location, true) : $report->location;
 
         return [
             ++$this->rowNumber,

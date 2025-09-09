@@ -232,11 +232,13 @@
                         <div class="mb-3">
                             <label for="category" class="form-label">Category</label>
                             <select class="form-select" id="category" name="category" required>
-                                <option value="">-- Select Category --</option>
-                                <option value="incident">Incident</option>
-                                <option value="observation">Observation</option>
-                                <option value="maintenance">Maintenance</option>
-                                <option value="visitor">Visitor</option>
+                                <option value="">Select Category</option>
+                                <option value="theft">Theft</option>
+                                <option value="assault">Assault</option>
+                                <option value="fire">Fire</option>
+                                <option value="medical">Medical</option>
+                                <option value="property_damage">Property Damage</option>
+                                <option value="suspicious_activity">Suspicious Activity</option>
                                 <option value="other">Other</option>
                             </select>
                         </div>
@@ -244,10 +246,11 @@
                         <div class="mb-3">
                             <label for="severity" class="form-label">Severity</label>
                             <select class="form-select" id="severity" name="severity" required>
-                                <option value="">-- Select Severity --</option>
+                                <option value="">Select Severity</option>
                                 <option value="low">Low</option>
                                 <option value="medium">Medium</option>
                                 <option value="high">High</option>
+                                <option value="critical">Critical</option>
                             </select>
                         </div>
 
@@ -260,19 +263,18 @@
                             <label for="description" class="form-label">Description</label>
                             <textarea class="form-control" id="description" name="description" rows="3" required></textarea>
                         </div>
-
                         <div class="row">
                             <div class="col-md-4 mb-3">
                                 <label for="latitude" class="form-label">Latitude</label>
-                                <input type="text" class="form-control" id="latitude" name="latitude">
+                                <input type="text" class="form-control" id="latitude" name="location[latitude]">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="longitude" class="form-label">Longitude</label>
-                                <input type="text" class="form-control" id="longitude" name="longitude">
+                                <input type="text" class="form-control" id="longitude" name="location[longitude]">
                             </div>
                             <div class="col-md-4 mb-3">
                                 <label for="address" class="form-label">Address</label>
-                                <input type="text" class="form-control" id="address" name="address">
+                                <input type="text" class="form-control" id="address" name="location[address]">
                             </div>
                         </div>
 
@@ -460,44 +462,33 @@
             });
         });
 
+        $('#createIncidentForm').on('submit', function(e) {
+            e.preventDefault();
+            let formData = new FormData(this);
 
-        $(document).ready(function() {
-            $('#createIncidentForm').on('submit', function(e) {
-                e.preventDefault(); // stop page reload
+            // Ensure checkbox always sends 0 or 1
+            let policeNotified = $('#police_notified').is(':checked') ? 1 : 0;
+            formData.set('police_notified', policeNotified); // <-- add this
 
-                // Ensure checkbox always sends 0 or 1
-                let policeNotified = $('#police_notified').is(':checked') ? 1 : 0;
-
-                $.ajax({
-                    url: '{{ route('incidents.store') }}', // <-- adjust to your Laravel route
-                    type: 'POST',
-                    data: {
-                        shift_id: $('#shift_id').val(),
-                        category: $('#category').val(),
-                        severity: $('#severity').val(),
-                        title: $('#title').val(),
-                        description: $('#description').val(),
-                        location: {
-                            latitude: $('#latitude').val(),
-                            longitude: $('#longitude').val(),
-                            address: $('#address').val()
-                        },
-                        police_notified: policeNotified,
-                        police_reference: $('#police_reference').val(),
-                        immediate_action_taken: $('#immediate_action_taken').val(),
-                        _token: $('meta[name="csrf-token"]').attr('content') // for Laravel
-                    },
-                    success: function(response) {
-                        toastr.success(response.message);
-                        $('#incidentCreateModal').modal('hide');
-                        $('#createIncidentForm')[0].reset();
-                        $('#incidentsTable').DataTable().ajax.reload(); // refresh datatable
-                    },
-                    error: function(xhr) {
-                        console.error(xhr.responseText);
-                        toastr.error('Failed to create incident');
-                    }
-                });
+            $.ajax({
+                url: '{{ route('incidents.store') }}',
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    toastr.success(response.message);
+                    $('#incidentCreateModal').modal('hide');
+                    $('#createIncidentForm')[0].reset();
+                    $('#incidentsTable').DataTable().ajax.reload();
+                },
+                error: function(xhr) {
+                    console.error(xhr.responseText);
+                    toastr.error('Failed to create incident');
+                }
             });
         });
     </script>
