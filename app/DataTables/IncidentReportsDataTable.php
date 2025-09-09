@@ -43,8 +43,7 @@ class IncidentReportsDataTable extends DataTable
             ->editColumn('category', fn($report) => ucfirst(str_replace('_', ' ', $report->category)))
             ->editColumn('severity', fn($report) => ucfirst($report->severity))
             ->editColumn('location', function ($report) {
-                $loc = json_decode($report->location, true);
-                return $loc['address'] ?? '';
+                return $report->formatted_address ?? 'N/A';
             })
             ->editColumn('police_notified', fn($report) => $report->police_notified ? 'Yes' : 'No')
             ->editColumn('status', fn($report) => ucfirst(str_replace('_', ' ', $report->status)))

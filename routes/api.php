@@ -62,7 +62,7 @@ Route::middleware('auth:sanctum')->prefix('documents')->group(function () {
 //Shifts api controller routes
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/shifts/upcoming', [ShiftApiController::class, 'getShifts']);
+    Route::get('/shifts/all', [ShiftApiController::class, 'getShifts']);
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
     Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);

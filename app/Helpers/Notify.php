@@ -140,7 +140,6 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
     }
 }
 
-
 function send_push_notification($userId, $title, $message, $data = [])
 {
     $devices = \App\Models\DeviceToken::where('user_id', $userId)
@@ -225,8 +224,6 @@ function send_push_notification($userId, $title, $message, $data = [])
 
     return true;
 }
-
-
 
 class Notify
 {

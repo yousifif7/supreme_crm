@@ -38,5 +38,8 @@ return [
     'expo' => [
         'access_token' => env('EXPO_ACCESS_TOKEN'),
     ],
+    'google_maps' => [
+        'key' => env('GOOGLE_MAPS_API_KEY'),
+    ],
 
 ];

@@ -115,13 +115,13 @@ class IncidentReportController extends Controller
             'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name . ' in shift #' . $data['shift_id'],
             '/incident_report'
         );
-        
+
         Notification::create([
             'user_id' => null,
             'employee_id' => $employee->id,
             'type' => 'alert',
-            'title' => 'Incident report',
-            'message' => 'You have uploaded a DOB entry successfully',
+            'title' => 'Incident Report',
+            'message' => 'You have submitted a Inicident report successfully',
         ]);
 
         send_push_notification(
@@ -148,6 +148,19 @@ class IncidentReportController extends Controller
         }
 
         $reports = $query->paginate($request->query('limit', 10));
+
+        // Add humanized_address to each incident
+        $reports->getCollection()->transform(function ($incident) {
+            $latitude = $incident->location['latitude'] ?? null;
+            $longitude = $incident->location['longitude'] ?? null;
+            $address = $incident->location['address'] ?? null;
+
+            $incident->humanized_address = $address
+                ? $address
+                : ($latitude && $longitude ? "Lat: {$latitude}, Lng: {$longitude}" : null);
+
+            return $incident;
+        });
 
         return response()->json([
             'incidents' => $reports

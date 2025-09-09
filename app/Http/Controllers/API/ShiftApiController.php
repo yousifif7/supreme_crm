@@ -27,12 +27,25 @@ class ShiftApiController extends Controller
     public function getShifts(Request $request)
     {
         $limit = $request->query('limit', 10);
+        $category = $request->query('category'); // can be "past", "current", "upcoming"
         $today = now()->toDateString();
 
-        $shifts = ShiftDate::with('shift.site')
+        $query = ShiftDate::with('shift.site')
             ->where('staff_id', Auth::id())
-            ->orderBy('shift_date')
-            ->paginate($limit);
+            ->orderBy('shift_date');
+
+        // Apply category filter if provided
+        if ($category) {
+            if ($category === 'past') {
+                $query->where('shift_date', '<', $today);
+            } elseif ($category === 'current') {
+                $query->where('shift_date', '=', $today);
+            } elseif ($category === 'upcoming') {
+                $query->where('shift_date', '>', $today);
+            }
+        }
+
+        $shifts = $query->paginate($limit);
 
         $transformed = $shifts->getCollection()->transform(function ($shiftDate) use ($today) {
             $shift = $shiftDate->shift;
@@ -63,7 +76,7 @@ class ShiftApiController extends Controller
                 'ended_at' => $shiftDate->absentee_end_time,
                 'briefing_pdf' => $shift?->briefing_pdf_url,
                 'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
-                'category' => $category, // now based only on date
+                'category' => $category,
             ];
         });
 
@@ -150,129 +163,129 @@ class ShiftApiController extends Controller
         ]);
     }
 
-   public function submitLeaveRequest(Request $request)
-{
-    $request->validate([
-        'start_date' => 'required|date|after_or_equal:today',
-        'end_date'   => 'required|date|after_or_equal:start_date',
-        'reason'     => 'required|string',
-        'type'       => 'required|in:annual_leave,sick_leave,emergency,other',
-        'hours'      => 'nullable|numeric|min:0',
-    ]);
+    public function submitLeaveRequest(Request $request)
+    {
+        $request->validate([
+            'start_date' => 'required|date|after_or_equal:today',
+            'end_date'   => 'required|date|after_or_equal:start_date',
+            'reason'     => 'required|string',
+            'type'       => 'required|in:annual_leave,sick_leave,emergency,other',
+            'hours'      => 'nullable|numeric|min:0',
+        ]);
 
-    $user = Auth::user();
-    $employee = Employee::where('user_id', $user->id)->firstOrFail();
+        $user = Auth::user();
+        $employee = Employee::where('user_id', $user->id)->firstOrFail();
 
-    $start = Carbon::parse($request->start_date);
-    $end   = Carbon::parse($request->end_date);
-    $totalDays = $end->diffInDays($start) + 1;
+        $start = Carbon::parse($request->start_date);
+        $end   = Carbon::parse($request->end_date);
+        $totalDays = $end->diffInDays($start) + 1;
 
-    $hoursPerDay = $request->hours ?? 8;
-    $totalHours  = $totalDays * $hoursPerDay;
+        $hoursPerDay = $request->hours ?? 8;
+        $totalHours  = $totalDays * $hoursPerDay;
 
-    $paid          = false;
-    $sspPaidDays   = 0;
-    $holidayHours  = 0;
-    $unpaidHours   = 0;
+        $paid          = false;
+        $sspPaidDays   = 0;
+        $holidayHours  = 0;
+        $unpaidHours   = 0;
 
-    if ($request->type === 'sick_leave') {
-        $waitingDays = 3;
-        $sspRate = 23.75;
+        if ($request->type === 'sick_leave') {
+            $waitingDays = 3;
+            $sspRate = 23.75;
 
-        $sspPaidDays = max($totalDays - $waitingDays, 0);
-        $unpaidHours = min($waitingDays, $totalDays) * $hoursPerDay;
-        $paid = $sspPaidDays > 0;
-    }
-
-    if ($request->type === 'annual_leave') {
-        $holidayBalance = $employee->holiday_balance ?? 0; // in hours
-        if ($totalHours > $holidayBalance) {
-            $holidayHours = $holidayBalance;
-            $unpaidHours  = $totalHours - $holidayBalance;
-            $paid = $holidayBalance > 0;
-        } else {
-            $holidayHours = $totalHours;
+            $sspPaidDays = max($totalDays - $waitingDays, 0);
+            $unpaidHours = min($waitingDays, $totalDays) * $hoursPerDay;
+            $paid = $sspPaidDays > 0;
         }
+
+        if ($request->type === 'annual_leave') {
+            $holidayBalance = $employee->holiday_balance ?? 0; // in hours
+            if ($totalHours > $holidayBalance) {
+                $holidayHours = $holidayBalance;
+                $unpaidHours  = $totalHours - $holidayBalance;
+                $paid = $holidayBalance > 0;
+            } else {
+                $holidayHours = $totalHours;
+            }
+        }
+
+        $leave = LeaveRequest::create([
+            'user_id'        => $user->id,
+            'employee_id'    => $employee->id,
+            'start_date'     => $request->start_date,
+            'end_date'       => $request->end_date,
+            'reason'         => $request->reason,
+            'type'           => $request->type,
+            'hours'          => $totalHours,
+            'approved_hours' => $totalHours - $unpaidHours,
+            'paid'           => $paid,
+            'ssp_paid_days'  => $sspPaidDays,
+            'holiday_days_used' => $holidayHours,
+            'unpaid_days'    => $unpaidHours / $hoursPerDay,
+            'amount_paid'    => $sspPaidDays * 23.75, // only for sick leave
+            'status'         => 'pending',
+        ]);
+
+        // Notifications
+        Notify::toDashboard(
+            $user->id,
+            'alert',
+            'Leave Request',
+            'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
+            "/leaves"
+        );
+
+        send_push_notification(
+            $user->id,
+            'Leave request submitted',
+            'You have submitted a leave request.',
+            ['leave' => $leave]
+        );
+
+        return response()->json([
+            'message'  => 'Leave request submitted',
+            'leave_id' => $leave->id,
+        ]);
     }
 
-    $leave = LeaveRequest::create([
-        'user_id'        => $user->id,
-        'employee_id'    => $employee->id,
-        'start_date'     => $request->start_date,
-        'end_date'       => $request->end_date,
-        'reason'         => $request->reason,
-        'type'           => $request->type,
-        'hours'          => $totalHours,
-        'approved_hours' => $totalHours - $unpaidHours,
-        'paid'           => $paid,
-        'ssp_paid_days'  => $sspPaidDays,
-        'holiday_days_used' => $holidayHours,
-        'unpaid_days'    => $unpaidHours / $hoursPerDay,
-        'amount_paid'    => $sspPaidDays * 23.75, // only for sick leave
-        'status'         => 'pending',
-    ]);
+    public function showLeaves()
+    {
+        $leaves = LeaveRequest::where('user_id', Auth::id())
+            ->latest('created_at')
+            ->paginate(10);
 
-    // Notifications
-    Notify::toDashboard(
-        $user->id,
-        'alert',
-        'Leave Request',
-        'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
-        "/leaves"
-    );
+        $items = $leaves->getCollection()->map(function ($l) {
+            return [
+                'id'               => $l->id,
+                'type'             => $l->type,
+                'status'           => $l->status,
+                'reason'           => $l->reason,
+                'start_date'       => $l->start_date,
+                'end_date'         => $l->end_date,
+                'hours'            => $l->hours,
+                'reject_reason'    => $l->reject_reason,
+                'approved_hours'   => $l->approved_hours,
+                'paid'             => $l->paid,
+                'ssp_paid_days'    => $l->ssp_paid_days,
+                'holiday_days_used' => $l->holiday_days_used,
+                'unpaid_days'      => $l->unpaid_days,
+                'amount_paid'      => $l->amount_paid,
+                'created_at'       => $l->created_at,
+                'updated_at'       => $l->updated_at,
+            ];
+        })->values();
 
-    send_push_notification(
-        $user->id,
-        'Leave request submitted',
-        'You have submitted a leave request.',
-        ['leave' => $leave]
-    );
-
-    return response()->json([
-        'message'  => 'Leave request submitted',
-        'leave_id' => $leave->id,
-    ]);
-}
-
-public function showLeaves()
-{
-    $leaves = LeaveRequest::where('user_id', Auth::id())
-        ->latest('created_at')
-        ->paginate(10);
-
-    $items = $leaves->getCollection()->map(function ($l) {
-        return [
-            'id'               => $l->id,
-            'type'             => $l->type,
-            'status'           => $l->status,
-            'reason'           => $l->reason,
-            'start_date'       => $l->start_date,
-            'end_date'         => $l->end_date,
-            'hours'            => $l->hours,
-            'reject_reason'    => $l->reject_reason,
-            'approved_hours'   => $l->approved_hours,
-            'paid'             => $l->paid,
-            'ssp_paid_days'    => $l->ssp_paid_days,
-            'holiday_days_used'=> $l->holiday_days_used,
-            'unpaid_days'      => $l->unpaid_days,
-            'amount_paid'      => $l->amount_paid,
-            'created_at'       => $l->created_at,
-            'updated_at'       => $l->updated_at,
-        ];
-    })->values();
-
-    return response()->json([
-        'leaves' => $items,
-        'pagination' => [
-            'current_page' => $leaves->currentPage(),
-            'per_page'     => $leaves->perPage(),
-            'total_pages'  => $leaves->lastPage(),
-            'total'        => $leaves->total(),
-            'from'         => $leaves->firstItem(),
-            'to'           => $leaves->lastItem(),
-        ],
-    ]);
-}
+        return response()->json([
+            'leaves' => $items,
+            'pagination' => [
+                'current_page' => $leaves->currentPage(),
+                'per_page'     => $leaves->perPage(),
+                'total_pages'  => $leaves->lastPage(),
+                'total'        => $leaves->total(),
+                'from'         => $leaves->firstItem(),
+                'to'           => $leaves->lastItem(),
+            ],
+        ]);
+    }
 
 
     // 13. Acknowledge Shift Documents
@@ -416,7 +429,7 @@ public function showLeaves()
             $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
             if ($now->lt($shiftStart)) {
-                return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftDate->start_time->format('H:i')], 422);
+                return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftDate->start_time], 422);
             }
 
             // Update status
@@ -765,8 +778,8 @@ public function showLeaves()
         // Determine duty status
         $status = $latestBooking->type === 'book_on' ? 'on-duty' : 'off-duty';
 
-        $patrol = Patrol::where('shift_id',$shiftDate->id)->where('status','in_progress')->first();
-        
+        $patrol = Patrol::where('shift_id', $shiftDate->id)->where('status', 'in_progress')->first();
+
         return response()->json([
             'status'        => $status,
             'shift_date_id' => $shiftDate?->id,

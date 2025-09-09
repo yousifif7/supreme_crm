@@ -15,7 +15,7 @@ use App\DataTables\IncidentReportsDataTable;
 
 class IncidentReportController extends Controller
 {
-    
+
     public function index(IncidentReportsDataTable $dataTable, Request $request)
     {
         return $dataTable->render('incident_reports.index');
@@ -28,50 +28,51 @@ class IncidentReportController extends Controller
     public function show($id)
     {
         $report = IncidentReport::with(['media', 'people'])->findOrFail($id);
-        $report->location = json_decode($report->location, true);
-
-        return response()->json($report);
+        return response()->json($report); // formatted_address will be included automatically
     }
 
     /**
      * Fetch incident for editing (prefill modal).
      */
-public function edit($id)
-{
-    $incident = IncidentReport::with('media')->findOrFail($id);
+    public function edit($id)
+    {
+        $incident = IncidentReport::with('media')->findOrFail($id);
 
-    return response()->json([
-        'id' => $incident->id,
-        'title' => $incident->title,
-        'category' => $incident->category,
-        'severity' => $incident->severity,
-        'description' => $incident->description,
-        'police_notified' => (bool) $incident->police_notified,
-        'location' => $incident->location ? json_decode($incident->location) : null,
-        'media' => $incident->media->map(fn($m) => ['file_url' => $m->file_url]),
-    ]);
-}
+        return response()->json([
+            'id' => $incident->id,
+            'title' => $incident->title,
+            'category' => $incident->category,
+            'severity' => $incident->severity,
+            'description' => $incident->description,
+            'police_notified' => (bool) $incident->police_notified,
+            'formatted_address' => $incident->formatted_address, // <--- add this
+            'media' => $incident->media->map(fn($m) => ['file_url' => $m->file_url]),
+        ]);
+    }
+    public function update(Request $request, $id)
+    {
+        $request->validate([
+            'title' => 'required|string|max:255',
+            'category' => 'required|string|max:100',
+            'severity' => 'required|string|max:50',
+            'description' => 'nullable|string',
+            'police_notified' => 'boolean',
+        ]);
 
-public function update(Request $request, $id)
-{
-    $request->validate([
-        'title' => 'required|string|max:255',
-        'category' => 'required|string|max:100',
-        'severity' => 'required|string|max:50',
-        'description' => 'nullable|string',
-        'police_notified' => 'boolean',
-    ]);
+        $incident = IncidentReport::findOrFail($id);
+        $incident->update($request->only([
+            'title',
+            'category',
+            'severity',
+            'description',
+            'police_notified'
+        ]));
 
-    $incident = IncidentReport::findOrFail($id);
-    $incident->update($request->only([
-        'title', 'category', 'severity', 'description', 'police_notified'
-    ]));
-
-    return response()->json([
-        'message' => 'Incident updated successfully!',
-        'incident' => $incident
-    ]);
-}
+        return response()->json([
+            'message' => 'Incident updated successfully!',
+            'incident' => $incident
+        ]);
+    }
 
     /**
      * Delete an incident.
@@ -84,7 +85,7 @@ public function update(Request $request, $id)
         return response()->json(['message' => 'Incident deleted successfully']);
     }
 
-        public function bulkdelete(Request $request)
+    public function bulkdelete(Request $request)
     {
         $request->validate([
             'ids' => 'required|array',

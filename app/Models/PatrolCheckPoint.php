@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PatrolCheckpoint extends Model
+class PatrolCheckPoint extends Model
 {
     protected $table = 'patrol_check_points';
     //

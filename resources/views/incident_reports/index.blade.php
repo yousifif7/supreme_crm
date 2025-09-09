@@ -312,7 +312,7 @@
         // SHOW INCIDENT
         function showIncident(id) {
             $.ajax({
-                url: '/incidents/' + id, // make sure your route exists
+                url: '/incidents/' + id,
                 type: 'GET',
                 success: function(res) {
                     let html = `
@@ -320,11 +320,11 @@
                 <p><strong>Category:</strong> ${res.category}</p>
                 <p><strong>Severity:</strong> ${res.severity}</p>
                 <p><strong>Description:</strong> ${res.description}</p>
-                <p><strong>Location:</strong> ${res.location.address}</p>
+                <p><strong>Location:</strong> ${res.formatted_address ?? 'N/A'}</p>
                 <p><strong>Police Notified:</strong> ${res.police_notified ? 'Yes' : 'No'}</p>
                 <p><strong>Files:</strong></p>
                 <ul>
-                    ${res.media.map(file => `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
+                    ${res.media.map(file => `<li><a href="${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
                 </ul>
             `;
                     $('#incidentModalBody').html(html);
@@ -335,7 +335,6 @@
                 }
             });
         }
-
         // EDIT INCIDENT
         function editIncident(id) {
             $.ajax({
@@ -351,7 +350,7 @@
                     $('#police_notified').prop('checked', res.police_notified);
 
                     // Example if you want to preview location & files
-                    $('#location_preview').text(res.location?.address ?? 'N/A');
+                    $('#location_preview').text(res.formatted_address ?? 'N/A');
                     let filesHtml = res.media.map(file =>
                         `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`
                     ).join('');
