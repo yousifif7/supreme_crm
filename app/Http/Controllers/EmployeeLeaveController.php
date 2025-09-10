@@ -228,7 +228,7 @@ class EmployeeLeaveController extends Controller
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'exists:employee_leaves,id',
+            'ids.*' => 'exists:leave_requests,id',
         ]);
 
         LeaveRequest::whereIn('id', $request->ids)->delete();
