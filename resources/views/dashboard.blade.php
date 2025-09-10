@@ -436,7 +436,6 @@
                                         <td>{{ ucfirst($booking->type) }}</td>
                                         <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('Y-m-d H:i') }}
                                         </td>
-                                        <td>{{ $booking->status }}</td>
                                     </tr>
                                 @empty
                                     <tr>
