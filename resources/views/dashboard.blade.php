@@ -421,34 +421,22 @@
                                     <th>Shift</th>
                                     <th>Type</th>
                                     <th>Scheduled Time</th>
-                                    <th>Status</th>
-                                    <th>Action</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($bookingAlarms as $alarm)
+                                @forelse ($bookings as $booking)
                                     @php
                                         // $shift= App\Models\Shift::find($alarm->shift_id);
-                                        $staff = App\Models\Employee::find($alarm->staff_id);
+                                        $staff = App\Models\Employee::role('security_staff')->where('id',$booking->user_id)->first();
                                     @endphp
                                     <tr>
-                                        <td>{{ $staff->fore_name ?? 'N/A' }}
-                                            {{ $staff->sur_name ?? '' }}</td>
-                                        <td>{{ $alarm->shift_id }}</td>
-                                        <td>{{ ucfirst($alarm->type) }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($alarm->scheduled_time)->format('Y-m-d H:i') }}
+                                        <td>{{ $staff->first_name ?? 'N/A' }}
+                                            {{ $staff->last_name ?? '' }}</td>
+                                        <td>{{ $booking->shift_id }}</td>
+                                        <td>{{ ucfirst($booking->type) }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('Y-m-d H:i') }}
                                         </td>
-                                        <td>{{ $alarm->status }}</td>
-                                        <td>
-                                            @if ($alarm->status !== 'Submitted')
-                                                <button class="btn btn-success btn-sm"
-                                                    onclick="acknowledgeAlarm({{ $alarm->id }})">
-                                                    Acknowledge
-                                                </button>
-                                            @else
-                                                ✔️
-                                            @endif
-                                        </td>
+                                        <td>{{ $booking->status }}</td>
                                     </tr>
                                 @empty
                                     <tr>

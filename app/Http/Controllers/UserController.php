@@ -14,10 +14,10 @@ use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use Illuminate\Support\Str;
-use App\Models\BookingAlarm;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\DataTables\UsersDataTable;
+use App\Models\ShiftBooking;
 use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
@@ -41,21 +41,7 @@ class UserController extends Controller
             ->get();
 
         $now = Carbon::now();
-        $bookingAlarms = BookingAlarm::with(['shift.staff']) // eager load shift & staff
-            ->orderBy('scheduled_time')
-            ->get()
-            ->map(function ($alarm) use ($now) {
-                // Determine status
-                if ($alarm->acknowledged) {
-                    $alarm->status = 'Submitted';
-                } elseif ($alarm->scheduled_time < $now) {
-                    $alarm->status = 'Missed';
-                } else {
-                    $alarm->status = 'Due';
-                }
-
-                return $alarm;
-            });
+        $bookings = ShiftBooking::orderBy('timestamp')->get();
 
         $today = Carbon::today();
 
@@ -215,7 +201,7 @@ class UserController extends Controller
             ];
         });
         $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('dashboard', compact('apiKey','siaDocuments', 'bookingAlarms', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
+        return view('dashboard', compact('apiKey','siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
     }
 
     public function index(UsersDataTable $dataTable)
