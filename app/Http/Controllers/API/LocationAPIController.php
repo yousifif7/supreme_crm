@@ -22,6 +22,7 @@ class LocationAPIController extends Controller
             'timestamp' => 'date',
             'on_duty' => 'required|boolean',
             'shiftdate_id' => 'nullable',
+            'patrol_id' => 'nullable',
         ]);
 
         $location = Location::create([
@@ -32,6 +33,7 @@ class LocationAPIController extends Controller
             'timestamp' => Carbon::now(),
             'on_duty' => $validated['on_duty'],
             'shiftdate_id' => $validated['shiftdate_id'],
+            'patrol_id' => $validated['patrol_id'],
         ]);
 
         return response()->json(['status' => 'success', 'location_id' => $location->id]);

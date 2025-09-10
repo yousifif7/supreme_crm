@@ -784,7 +784,7 @@ class ShiftApiController extends Controller
             'status'        => $status,
             'shift_date_id' => $shiftDate?->id,
             'shift_id'      => $shift?->id,
-            'patrol_id' => $patrol?->id ?? 'No patrols in progress yet',
+            'patrol_id' => $patrol?->id ?? null,
             'message'       => 'Latest booking retrieved successfully.'
         ]);
     }
