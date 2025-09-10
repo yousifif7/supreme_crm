@@ -76,10 +76,17 @@ class DocumentAPIController extends Controller
 
                 'alert',
                 'Document Uploaded',
-                'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
+                $request->document_type . ' Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
                 '/employees'
             );
 
+            Notification::create([
+                'user_id' => Auth::id(),
+                'employee_id' => null,
+                'type' => 'alert',
+                'title' => 'Document Uploaded',
+                'message' => 'You have uploaded a '. $request->document_type .' entry successfully',
+            ]);
             // Send push notification to employee/device
             send_push_notification(
                 $user->id,
@@ -106,6 +113,7 @@ class DocumentAPIController extends Controller
                 'type' => $doc->document_type,
                 'filename' => basename($doc->file_path),
                 'status' => $doc->status,
+                'description' => $doc->description,
                 'expiry_date' => $doc->expiry_date,
                 'uploaded_at' => $doc->created_at,
                 'admin_comments' => $doc->admin_comments,

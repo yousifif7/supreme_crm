@@ -359,7 +359,7 @@ class EmployeeController extends Controller
                     send_push_notification(
                         $user->id,
                         'Creds changed',
-                        'An admin has changed your account credintials, your new password is: ' . $user->password,
+                        'An admin has changed your account credintials! Ask an admin for it.',
                         ['user' => $user],
                     );
                 }

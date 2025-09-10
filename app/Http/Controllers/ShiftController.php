@@ -1323,6 +1323,14 @@ class ShiftController extends Controller
             'status' => $request->input('status'),
         ]);
 
+        $shift = ShiftDate::find($patrol->shift_id);
+        send_push_notification(
+            $shift?->user_id,
+            'Patrol updated',
+            'An admin has updated your patrol! check on your app now.',
+            ['patrol' => $patrol],
+        );
+
         return response()->json([
             'success' => true,
             'patrol' => $patrol

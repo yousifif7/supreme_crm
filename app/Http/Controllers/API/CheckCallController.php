@@ -199,7 +199,7 @@ class CheckCallController extends Controller
                 $user->id,
                 'Checkcall completed',
                 'You have Completed your checkcall.',
-                ['checkcall' => $checkcall]
+                ['checkcall' => $checkCall]
             );
         } catch (\Exception $e) {
             \Log::error('Notification failed: ' . $e->getMessage());
@@ -262,6 +262,13 @@ class CheckCallController extends Controller
             'scheduled_time' => $request->scheduled_time,
             'status' => $request->status,
         ]);
+
+        send_push_notification(
+            $checkcall->employee_id,
+            'Checkcall updated',
+            'An admin has updated your checkcall! check on your app now.',
+            ['checkcall' => $checkcall],
+        );
 
         return response()->json(['message' => 'Check call updated successfully']);
     }

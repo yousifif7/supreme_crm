@@ -227,12 +227,21 @@ class ShiftApiController extends Controller
 
         // Notifications
         Notify::toDashboard(
-            $user->id,
+            null,
             'alert',
             'Leave Request',
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
             "/leaves"
         );
+
+        Notification::create([
+            'user_id' => $user->id,
+            'employee_id' => auth::id(),
+            'type' => 'alert',
+            'title' => 'Leave Requested',
+            'message' => 'You have submitted a leave request.',
+            'read' => false,
+        ]);
 
         send_push_notification(
             $user->id,

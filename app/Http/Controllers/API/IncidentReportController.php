@@ -117,8 +117,8 @@ class IncidentReportController extends Controller
         );
 
         Notification::create([
-            'user_id' => null,
-            'employee_id' => $employee->id,
+            'user_id' => Auth::id(),
+            'employee_id' => null,
             'type' => 'alert',
             'title' => 'Incident Report',
             'message' => 'You have submitted a Inicident report successfully',
@@ -150,7 +150,7 @@ class IncidentReportController extends Controller
         $reports = $query->paginate($request->query('limit', 10));
 
         $reports->getCollection()->transform(function ($incident) {
-            $location = json_decode($incident->location, true) ?? [];
+            $location = $incident->location ?? [];
 
             $latitude = $location['latitude'] ?? null;
             $longitude = $location['longitude'] ?? null;
