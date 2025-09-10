@@ -59,7 +59,7 @@ class AuthAPIController extends Controller
             'user' => [
                 'id' => $user->id,
                 'email' => $user->email,
-                'name' => $user->first_name.' '.$user->last_name,
+                'name' => $user->first_name . ' ' . $user->last_name,
                 'role' => $user->getRoleNames()->first(),
                 'profile' => $user->profile // make sure profile relation is defined
             ],
@@ -85,6 +85,13 @@ class AuthAPIController extends Controller
 
         // TODO: send email — here we log it for now
         Log::info("Password reset code for {$user->email}: $code");
+
+        send_push_notification(
+            $user->id,
+            'PASSWORD Reset code',
+            'Password code reset was requested from your account! check your email!.',
+            ['code' => $code]
+        );
 
         return response()->json([
             'message' => 'Reset code sent to your email.'
@@ -147,6 +154,13 @@ class AuthAPIController extends Controller
 
         Cache::forget('reset_token_' . $request->email);
         DB::table('password_resets')->where('email', $request->email)->delete();
+
+        send_push_notification(
+            $user->id,
+            'PASSWORD changed successfully',
+            'Your account password has been changed successfully!.',
+            ['user' => $user]
+        );
 
         return response()->json([
             'message' => 'Password reset successfully'

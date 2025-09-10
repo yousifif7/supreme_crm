@@ -32,6 +32,13 @@ class EmergencyAlertAPIController extends Controller
             'acknowledged_by_control' => false
         ]);
 
+        send_push_notification(
+            Auth::id(),
+            'Emergency alert',
+            'Energmency alert has been triggered from your device!',
+            ['alert' => $alert]
+        );
+
         return response()->json([
             'alert_id' => $alert->id,
             'acknowledged_by_control' => $alert->acknowledged_by_control

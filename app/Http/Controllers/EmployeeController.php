@@ -356,6 +356,12 @@ class EmployeeController extends Controller
                 if ($request->password) {
                     // Use Hash facade to hash the password
                     $user->password = Hash::make($request->password);
+                    send_push_notification(
+                        $user->id,
+                        'Creds changed',
+                        'An admin has changed your account credintials, your new password is: ' . $user->password,
+                        ['user' => $user],
+                    );
                 }
                 if (!$request->password) {
                     // Use Hash facade to hash the password

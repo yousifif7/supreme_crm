@@ -84,6 +84,14 @@ class ProfileAPIController extends Controller
         $bank->profile_id = $profile->id;
         $bank->save();
 
+
+        send_push_notification(
+            Auth::id(),
+            'Profile updated',
+            'You have updated your profile successfully.',
+            ['profile' => $profile],
+        );
+
         return response()->json([
             'message' => 'Profile updated successfully',
             'approval_id' => uniqid('approval_')

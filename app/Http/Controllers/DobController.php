@@ -133,6 +133,13 @@ class DobController extends Controller
             }
         }
 
+        send_push_notification(
+            $dobEntry->user_id,
+            'Dob report updated',
+            'An admin has updated your dob report, check your DOBs ',
+            ['dobEntry' => $dobEntry],
+        );
+
         return response()->json(['message' => 'DOB Entry updated successfully']);
     }
 

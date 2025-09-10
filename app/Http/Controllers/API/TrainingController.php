@@ -69,34 +69,34 @@ class TrainingController extends Controller
 
         return response()->json(['message' => 'Acknowledged successfully.']);
     }
-public function store(Request $request)
-{
-    $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'description' => 'required|string',
-        'pdf_url' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048', // max 2MB
-        'type' => 'required|string',
-        'expiry_date' => 'required|date',
-    ]);
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'title' => 'required|string|max:255',
+            'description' => 'required|string',
+            'pdf_url' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048', // max 2MB
+            'type' => 'required|string',
+            'expiry_date' => 'required|date',
+        ]);
 
-    $filePath = null;
+        $filePath = null;
 
-    $filePath = null;
+        $filePath = null;
 
-    if ($request->hasFile('pdf_url')) {
-        $filePath = $request->file('pdf_url')->store('materials', 'public');
+        if ($request->hasFile('pdf_url')) {
+            $filePath = $request->file('pdf_url')->store('materials', 'public');
+        }
+
+        TrainingMaterial::create([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'type' => $validated['type'],
+            'expiry_date' => $validated['expiry_date'],
+            'pdf_url' => $filePath, // ✅ correct variable
+        ]);
+
+        return back()->with('message', 'Material created successfully');
     }
-
-    TrainingMaterial::create([
-        'title' => $validated['title'],
-        'description' => $validated['description'],
-        'type' => $validated['type'],
-        'expiry_date' => $validated['expiry_date'],
-        'pdf_url' => $filePath, // ✅ correct variable
-    ]);
-
-    return back()->with('message', 'Material created successfully');
-}
 
     public function exportMaterialsPdf()
     {
@@ -128,19 +128,19 @@ public function store(Request $request)
         ]);
 
         // Save file if uploaded
-    $filePath = null;
+        $filePath = null;
 
-    if ($request->hasFile('pdf_url')) {
-        $filePath = $request->file('pdf_url')->store('materials', 'public');
-    }
+        if ($request->hasFile('pdf_url')) {
+            $filePath = $request->file('pdf_url')->store('materials', 'public');
+        }
 
-    TrainingMaterial::create([
-        'title' => $validated['title'],
-        'description' => $validated['description'],
-        'type' => $validated['type'],
-        'expiry_date' => $validated['expiry_date'],
-        'pdf_url' => $filePath, // ✅ correct variable
-    ]);
+        TrainingMaterial::create([
+            'title' => $validated['title'],
+            'description' => $validated['description'],
+            'type' => $validated['type'],
+            'expiry_date' => $validated['expiry_date'],
+            'pdf_url' => $filePath, // ✅ correct variable
+        ]);
 
         return response()->json(['success' => true]);
     }

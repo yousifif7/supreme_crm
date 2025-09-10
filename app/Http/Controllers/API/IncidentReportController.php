@@ -273,6 +273,14 @@ class IncidentReportController extends Controller
             }
         }
 
+        
+        send_push_notification(
+            auth::id(),
+            'Incident report',
+            'You have submitted an incident report successfully.',
+            ['data' => $data],
+        );
+
         return response()->json([
             'message' => 'Incident report updated successfully',
             'incident_id' => $report->id

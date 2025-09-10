@@ -51,7 +51,7 @@ class CheckCallController extends Controller
         $earliest = $scheduledUtc->copy()->subMinutes(5);
         $latest   = $scheduledUtc->copy()->addMinutes(15);
 
-        
+
         if ($now->lt($earliest)) {
             return response()->json([
                 'message' => 'Too early! Check call can only be completed 5 minutes before its due time. '
@@ -194,6 +194,13 @@ class CheckCallController extends Controller
                 'title' => 'Checkcall completed',
                 'message' => 'You have completed your check call successfully',
             ]);
+
+            send_push_notification(
+                $user->id,
+                'Checkcall completed',
+                'You have Completed your checkcall.',
+                ['checkcall' => $checkcall]
+            );
         } catch (\Exception $e) {
             \Log::error('Notification failed: ' . $e->getMessage());
         }
