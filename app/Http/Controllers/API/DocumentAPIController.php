@@ -72,19 +72,11 @@ class DocumentAPIController extends Controller
             ]);
 
             Notify::toDashboard(
-                auth::id(),
+                null,
 
                 'alert',
                 'Document Uploaded',
                 'Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
-                '/employees'
-            );
-
-            Notify::toDashboard(
-                $employee->id,
-                'alert',
-                'Document Uploaded',
-                'You have uploaded a file',
                 '/employees'
             );
 

@@ -92,11 +92,19 @@ class DobApiController extends Controller
         // Send basic notification (optional, no logs)
         Notification::create([
             'user_id' => Auth::id(),
-            'employee_id' => $employee->id,
+            'employee_id' => null,
             'type' => 'alert',
             'title' => 'DOB Uploaded',
             'message' => 'You have uploaded a DOB entry successfully',
         ]);
+
+        Notify::toDashboard(
+            null,
+            'alert',
+            'DOB uploaded',
+            'DOB uploaded by guard ' . $employee->fore_name . ' ' . $employee->sur_name,
+            '/dobs'
+        );
 
         send_push_notification(
             $employee->user_id,
@@ -137,7 +145,8 @@ class DobApiController extends Controller
                 'entry_type' => $e->entry_type,
                 'title' => $e->title,
                 'description' => $e->description,
-                'media_urls' => $e->media->pluck('file_url'),
+                // 👇 this will always be an array (empty if no media)
+                'media_urls' => $e->media ? $e->media->pluck('file_url')->toArray() : [],
                 'location' => json_decode($e->location),
                 'timestamp' => $e->timestamp,
                 'admin_comments' => $e->admin_comments,

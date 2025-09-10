@@ -109,7 +109,7 @@ class IncidentReportController extends Controller
 
         // Notifications
         Notify::toDashboard(
-            $user->id,
+            null,
             'alert',
             'Incident report',
             'Incident report by ' . $employee->fore_name . ' ' . $employee->sur_name . ' in shift #' . $data['shift_id'],
@@ -143,23 +143,44 @@ class IncidentReportController extends Controller
         $query = IncidentReport::with(['media', 'people'])
             ->where('user_id', Auth::id());
 
-        if ($request->has('status')) {
+        if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
 
         $reports = $query->paginate($request->query('limit', 10));
 
-        // Add humanized_address to each incident
         $reports->getCollection()->transform(function ($incident) {
-            $latitude = $incident->location['latitude'] ?? null;
-            $longitude = $incident->location['longitude'] ?? null;
-            $address = $incident->location['address'] ?? null;
+            $location = json_decode($incident->location, true) ?? [];
 
-            $incident->humanized_address = $address
-                ? $address
-                : ($latitude && $longitude ? "Lat: {$latitude}, Lng: {$longitude}" : null);
+            $latitude = $location['latitude'] ?? null;
+            $longitude = $location['longitude'] ?? null;
+            $address = $location['address'] ?? null;
 
-            return $incident;
+            return [
+                'id' => $incident->id,
+                'user_id' => $incident->user_id,
+                'shift_id' => $incident->shift_id,
+                'category' => $incident->category,
+                'severity' => $incident->severity,
+                'title' => $incident->title,
+                'description' => $incident->description,
+                'location' => $location, // now it’s an array, not a string
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'address' => $address,
+                'humanized_address' => $address
+                    ? $address
+                    : ($latitude && $longitude ? "Lat: {$latitude}, Lng: {$longitude}" : null),
+                'police_notified' => $incident->police_notified,
+                'police_reference' => $incident->police_reference,
+                'immediate_action_taken' => $incident->immediate_action_taken,
+                'status' => $incident->status,
+                'formatted_address' => $incident->formatted_address,
+                'media' => $incident->media->map(fn($m) => $m->file_url) ?? [],
+                'people' => $incident->people ?? [],
+                'created_at' => $incident->created_at,
+                'updated_at' => $incident->updated_at,
+            ];
         });
 
         return response()->json([
@@ -273,7 +294,7 @@ class IncidentReportController extends Controller
             }
         }
 
-        
+
         send_push_notification(
             auth::id(),
             'Incident report',

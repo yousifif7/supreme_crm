@@ -153,35 +153,35 @@
         }
 
         /* .btn-outline-assign {
-                                                                                            background: #fff;
-                                                                                            color: #28a745;
-                                                                                            border: 2px solid #28a745;
-                                                                                            border-radius: 6px;
-                                                                                            padding: 8px 16px;
-                                                                                            font-weight: 600;
-                                                                                            transition: all 0.2s;
-                                                                                        }
+                                                                                                        background: #fff;
+                                                                                                        color: #28a745;
+                                                                                                        border: 2px solid #28a745;
+                                                                                                        border-radius: 6px;
+                                                                                                        padding: 8px 16px;
+                                                                                                        font-weight: 600;
+                                                                                                        transition: all 0.2s;
+                                                                                                    }
 
-                                                                                        .btn-outline-assign:hover {
-                                                                                            background: #28a745;
-                                                                                            color: #fff;
-                                                                                            box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                                                                                        }
+                                                                                                    .btn-outline-assign:hover {
+                                                                                                        background: #28a745;
+                                                                                                        color: #fff;
+                                                                                                        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                                                                                                    }
 
-                                                                                        .btn-assign-pill {
-                                                                                            background-color: #28a745;
-                                                                                            color: #fff;
-                                                                                            border-radius: 50px;
-                                                                                            padding: 8px 22px;
-                                                                                            font-weight: bold;
-                                                                                            transition: all 0.2s;
-                                                                                        }
+                                                                                                    .btn-assign-pill {
+                                                                                                        background-color: #28a745;
+                                                                                                        color: #fff;
+                                                                                                        border-radius: 50px;
+                                                                                                        padding: 8px 22px;
+                                                                                                        font-weight: bold;
+                                                                                                        transition: all 0.2s;
+                                                                                                    }
 
-                                                                                        .btn-assign-pill:hover {
-                                                                                            background-color: #218838;
-                                                                                            color:while;
-                                                                                            transform: scale(1.05);
-                                                                                        } */
+                                                                                                    .btn-assign-pill:hover {
+                                                                                                        background-color: #218838;
+                                                                                                        color:while;
+                                                                                                        transform: scale(1.05);
+                                                                                                    } */
     </style>
 @endsection
 @section('contents')
@@ -684,6 +684,7 @@
                                         <th>Started at</th>
                                         <th>completed at</th>
                                         <th>Status</th>
+                                        <th>Action</th>
                                         <th>Map</th>
                                     </tr>
                                 </thead>
@@ -699,14 +700,16 @@
                                             <td>{{ $patrol->completed_checkpoints }}</td>
                                             <td>{{ $patrol->issues_reported }}</td>
                                             @if ($patrol->started_at)
-                                                <td>{{ \Carbon\Carbon::parse($patrol->started_at ?? '')->format('h:i A') }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($patrol->started_at ?? '')->format('h:i A') }}
+                                                </td>
                                             @else
-                                                <td></td>    
+                                                <td></td>
                                             @endif
                                             @if ($patrol->completed_at)
-                                                <td>{{ \Carbon\Carbon::parse($patrol->completed_at ?? '')->format('h:i A') }}</td>
+                                                <td>{{ \Carbon\Carbon::parse($patrol->completed_at ?? '')->format('h:i A') }}
+                                                </td>
                                             @else
-                                                <td></td>    
+                                                <td></td>
                                             @endif
                                             <td>
                                                 @if ($patrol->status == 'pending')
@@ -716,6 +719,19 @@
                                                 @elseif($patrol->status == 'completed')
                                                     <p class="bg-success text-center">Completed</p>
                                                 @endif
+                                            </td>
+                                            <td>
+                                                <button class="btn btn-sm btn-primary edit-patrol-btn"
+                                                    data-id="{{ $patrol->id }}" data-name="{{ $patrol->name }}"
+                                                    data-time="{{ \Carbon\Carbon::parse($patrol->start_time)->format('H:i') }}"
+                                                    data-status="{{ $patrol->status }}">
+                                                    Edit
+                                                </button>
+
+                                                <button class="btn btn-sm btn-danger delete-patrol-btn"
+                                                    data-id="{{ $patrol->id }}">
+                                                    Delete
+                                                </button>
                                             </td>
                                             <td style="min-width:350px">
                                                 <div id="patrol-map-{{ $patrol->id }}"
@@ -768,6 +784,44 @@
                                 <div>
                                     <button type="submit" class="btn btn-primary">Save Changes</button>
                                 </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Edit Patrol Modal -->
+            <div class="modal fade" id="editPatrolModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <form id="editPatrolForm">
+                        @csrf
+                        <input type="hidden" name="id" id="edit_patrol_id">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Patrol</h5>
+                                <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Patrol Name</label>
+                                    <input type="text" id="edit_patrol_name" name="name" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Start Time</label>
+                                    <input type="time" id="edit_patrol_time" name="start_time" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select id="edit_patrol_status" name="status" class="form-control">
+                                        <option value="pending">Pending</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>
                     </form>
@@ -1087,6 +1141,77 @@
                 initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
             @endforeach
         };
+
+
+$(document).ready(function () {
+    // Open edit modal
+    $(document).on("click", ".edit-patrol-btn", function () {
+        $("#edit_patrol_id").val($(this).data("id"));
+        $("#edit_patrol_name").val($(this).data("name"));
+        $("#edit_patrol_time").val($(this).data("time"));
+        $("#edit_patrol_status").val($(this).data("status"));
+        $("#editPatrolModal").modal("show");
+    });
+
+    // Submit edit form
+    $("#editPatrolForm").on("submit", function (e) {
+        e.preventDefault();
+
+        let id = $("#edit_patrol_id").val();
+        let formData = $(this).serialize();
+
+        $.ajax({
+            url: "/patrols/" + id,
+            type: "PUT",
+            data: formData,
+            success: function (response) {
+                $("#editPatrolModal").modal("hide");
+
+                let patrol = response.patrol;
+                let row = $("button.edit-patrol-btn[data-id='" + patrol.id + "']").closest("tr");
+
+                // Update row values directly
+                row.find("td:eq(0)").text(patrol.name); // assuming first td is name
+                row.find("td:eq(1)").text(patrol.start_time); // second column = time
+
+                let statusCell = row.find("td:eq(7)"); // third column = status
+                if (patrol.status === "pending") {
+                    statusCell.html('<p class="bg-warning text-center">Pending</p>');
+                } else if (patrol.status === "in_progress") {
+                    statusCell.html('<p class="bg-primary text-center">In Progress</p>');
+                } else if (patrol.status === "completed") {
+                    statusCell.html('<p class="bg-success text-center">Completed</p>');
+                }
+                toast_success("Update failed!");
+
+            },
+            error: function () {
+                toast_danger("Update failed!");
+            }
+        });
+    });
+
+    // Delete patrol
+    $(document).on("click", ".delete-patrol-btn", function () {
+        if (!confirm("Are you sure you want to delete this patrol?")) return;
+
+        let id = $(this).data("id");
+
+        $.ajax({
+            url: "/patrols/" + id,
+            type: "DELETE",
+            data: { _token: "{{ csrf_token() }}" },
+            success: function () {
+                $("button.delete-patrol-btn[data-id='" + id + "']").closest("tr").remove();
+            },
+            error: function () {
+                alert("Delete failed!");
+            }
+        });
+    });
+});
+
+
     </script>
 
 

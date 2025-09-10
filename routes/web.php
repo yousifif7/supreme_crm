@@ -414,6 +414,8 @@ Route::prefix('dobs')->group(function () {
     Route::post('/bulk-delete', [DobController::class, 'bulkDelete'])->name('dobs.bulkDelete');
 });
 
+    Route::put('/patrols/{id}', [ShiftController::class, 'patrolUpdate'])->name('patrol.update'); 
+    Route::delete('/patrols/{id}', [ShiftController::class, 'patrolDestroy'])->name('patrol.delete');
 
 Route::get('/dobs/export/excel', [DobController::class, 'exportDobExcel'])->name('dobs.export.excel');
 Route::get('/dobs/export/pdf', [DobController::class, 'exportDobPdf'])->name('dobs.export.pdf');

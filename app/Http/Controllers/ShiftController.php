@@ -1300,4 +1300,40 @@ class ShiftController extends Controller
 
         return view('security_boards.shift-detail', compact('shiftDate'));
     }
+
+
+    public function patrolUpdate(Request $request, $id)
+    {
+        $patrol = Patrol::findOrFail($id);
+
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'start_time' => 'required',
+            'status' => 'required|in:pending,in_progress,completed',
+        ]);
+
+        // Fix start_time formatting
+        $startTime = $request->input('start_time'); // e.g. "05:00"
+        $patrolDate = $patrol->date ?? now()->toDateString(); // if you store date separately
+        $fixedStartTime = $patrolDate . ' ' . $startTime . ':00';
+
+        $patrol->update([
+            'name' => $request->input('name'),
+            'start_time' => $fixedStartTime,
+            'status' => $request->input('status'),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'patrol' => $patrol
+        ]);
+    }
+
+    public function patrolDestroy($id)
+    {
+        $patrol = Patrol::findOrFail($id);
+        $patrol->delete();
+
+        return response()->json(['success' => true]);
+    }
 }
