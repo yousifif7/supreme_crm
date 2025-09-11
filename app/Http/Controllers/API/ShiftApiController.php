@@ -171,6 +171,7 @@ class ShiftApiController extends Controller
             'reason'     => 'required|string',
             'type'       => 'required|in:annual_leave,sick_leave,emergency,other',
             'hours'      => 'nullable|numeric|min:0',
+            'shift_id'   => 'nullable',
         ]);
 
         $user = Auth::user();
@@ -211,6 +212,7 @@ class ShiftApiController extends Controller
         $leave = LeaveRequest::create([
             'user_id'        => $user->id,
             'employee_id'    => $employee->id,
+            'shift_id'       => $request->shift_id,
             'start_date'     => $request->start_date,
             'end_date'       => $request->end_date,
             'reason'         => $request->reason,
@@ -265,6 +267,7 @@ class ShiftApiController extends Controller
         $items = $leaves->getCollection()->map(function ($l) {
             return [
                 'id'               => $l->id,
+                'shift_id'               => $l->shift_id,
                 'type'             => $l->type,
                 'status'           => $l->status,
                 'reason'           => $l->reason,
@@ -708,6 +711,8 @@ class ShiftApiController extends Controller
 
         // Guard can complete patrol only up to 50 mins after start
         if ($now->gt($patrolStart->copy()->addMinutes(50))) {
+            $patrol->status = 'missed';
+            $patrol->save();
             return response()->json([
                 'message' => 'Patrol completion time exceeded. You cannot complete after 50 minutes.'
             ], 403);
@@ -795,6 +800,77 @@ class ShiftApiController extends Controller
             'shift_id'      => $shift?->id,
             'patrol_id' => $patrol?->id ?? null,
             'message'       => 'Latest booking retrieved successfully.'
+        ]);
+    }
+
+    public function workHours(Request $request)
+    {
+        $user = Auth::user();
+
+        // Get all ended shifts for this guard
+        $shifts = ShiftDate::where('staff_id', $user->id)
+            ->where('is_assign', 4) // only finished shifts
+            ->get();
+
+        $totalWorked = 0;
+
+        foreach ($shifts as $shift) {
+            // Prefer total_hours if stored
+            if ($shift->total_hours) {
+                $worked = $shift->total_hours;
+            } else {
+                // Calculate manually from times
+                $start = Carbon::parse($shift->start_time);
+                $end   = Carbon::parse($shift->end_time);
+
+                $worked = $end->diffInMinutes($start) / 60;
+
+                // subtract break if available
+                if ($shift->break_time) {
+                    $worked -= $shift->break_time;
+                }
+            }
+
+            $totalWorked += max($worked, 0); // avoid negatives
+        }
+
+        $weeklyLimit = 40;
+        $remaining = max($weeklyLimit - $totalWorked, 0);
+
+        return response()->json([
+            'total_worked_hours' => round($totalWorked, 2),
+            'remaining_hours'    => round($remaining, 2),
+            'weekly_limit'       => $weeklyLimit,
+        ]);
+    }
+
+
+    public function holidayBalances()
+    {
+        $user = Auth::user();
+        $employee = Employee::where('user_id', $user->id)->firstOrFail();
+
+        $totalHolidayHours = $employee->holiday_balance ?? 0;
+
+        // Sum of approved hours for all annual leaves
+        $usedHours = LeaveRequest::where('employee_id', $employee->id)
+            ->whereIn('status', ['approved', 'completed'])
+            ->sum('approved_hours');
+
+        // Available hours cannot be negative
+        $availableHours = max($totalHolidayHours - $usedHours, 0);
+
+        // Unpaid hours (if a leave requested more than balance)
+        $unpaidHours = LeaveRequest::where('employee_id', $employee->id)
+            ->whereIn('status', ['approved', 'completed'])
+            ->sum(\DB::raw('hours - approved_hours'));
+
+        return response()->json([
+            'user_id'     => $user->id,
+            'total_hours'     => $totalHolidayHours,
+            'used_hours'      => $usedHours,
+            'available_hours' => $availableHours,
+            'unpaid_hours'    => max($unpaidHours, 0),
         ]);
     }
 }

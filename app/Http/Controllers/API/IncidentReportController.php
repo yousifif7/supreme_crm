@@ -35,7 +35,7 @@ class IncidentReportController extends Controller
             'people_involved.*.role' => 'required|in:witness,victim,suspect,staff,visitor',
             'people_involved.*.contact' => 'nullable|string',
             'people_involved.*.description' => 'nullable|string',
-            'police_notified' => 'required|boolean',
+            'police_notified' => 'required',
             'police_reference' => 'nullable|string',
             'immediate_action_taken' => 'nullable|string',
         ]);
@@ -43,6 +43,7 @@ class IncidentReportController extends Controller
         $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
 
+        $data['police_notified'] = filter_var($request->input('police_notified'), FILTER_VALIDATE_BOOLEAN);
         // Create Incident Report
         $report = IncidentReport::create([
             'user_id' => $user->id,
@@ -52,7 +53,7 @@ class IncidentReportController extends Controller
             'title' => $data['title'],
             'description' => $data['description'],
             'location' => json_encode($data['location']),
-            'police_notified' => $data['police_notified'],
+            'police_notified' => $data['police_notified'] ? 1 : 0,
             'police_reference' => $data['police_reference'] ?? null,
             'immediate_action_taken' => $data['immediate_action_taken'] ?? null,
         ]);

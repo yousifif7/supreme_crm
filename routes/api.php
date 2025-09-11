@@ -56,8 +56,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->prefix('documents')->group(function () {
     Route::post('/', [DocumentAPIController::class, 'upload']);
     Route::get('/', [DocumentAPIController::class, 'index']);
-    Route::get('/alerts', [DocumentAPIController::class, 'alerts']);
 });
+    Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('auth:sanctum');
 
 //Shifts api controller routes
 //Should be authenticated
@@ -66,6 +66,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
     Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);
+    Route::get('/holiday-Balance', [ShiftApiController::class, 'holidayBalances']);
     Route::post('/shifts/{shift_id}/acknowledge-documents', [ShiftApiController::class, 'acknowledgeDocuments']);
 
     Route::post('/shifts/{shiftDate_id}/book-on', [ShiftApiController::class, 'bookOn']);
@@ -75,6 +76,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/alarms/{alarm_id}/acknowledge', [ShiftApiController::class, 'acknowledgeAlarm']);
 
     Route::get('/shift-status', [ShiftApiController::class, 'checkDutyStatus']);
+    Route::get('/work-hours', [ShiftApiController::class, 'workHours']);
 });
 
 //Shifts api controller routes
@@ -126,6 +128,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/location/history', [LocationAPIController::class, 'history']);
     Route::post('/location/update', [LocationAPIController::class, 'update']);
+    Route::post('/location/disabled', [LocationAPIController::class, 'disabled']);
+    Route::get('/activity-check', [LocationAPIController::class, 'checkIdle']);
 });
 
 //Emergency/Panic Button api controller routes

@@ -2,12 +2,14 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
 use Carbon\Carbon;
 use App\Models\Patrol;
 use App\Models\Location;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 
 
 class LocationAPIController extends Controller
@@ -76,4 +78,83 @@ class LocationAPIController extends Controller
             'locations' => $locations
         ]);
     }
+
+    public function disabled(Request $request)
+    {
+        $user = Auth::user();
+
+        // Throttle notifications so admins don't get spammed
+        $cacheKey = "location_disabled:{$user->id}";
+        if (Cache::has($cacheKey)) {
+            return response()->json(['status' => 'ok', 'message' => 'Notification already sent recently.']);
+        }
+
+        $displayName = trim(($user->first_name ?? $user->name) . ' ' . ($user->last_name ?? ''));
+        $message = 'Location services disabled by ' . $displayName . ' at: ' . now();
+
+        // Use your existing helper exactly as you showed
+        \Notify::toDashboard(
+            null,
+            'alert',
+            'Location Services Disabled',
+            $message,
+            ""
+        );
+
+        // keep cooldown (adjust minutes as you prefer)
+        Cache::put($cacheKey, true, now()->addMinutes(30));
+
+        return response()->json(['status' => 'success', 'message' => 'Control has been notified.']);
+    }
+
+public function checkIdle(Request $request)
+{
+    $user = $request->user();
+
+    // Get last location
+    $lastLocation = Location::where('user_id', $user->id)
+        ->orderByDesc('timestamp')
+        ->first();
+
+    if (!$lastLocation) {
+        return response()->json([
+            'message' => 'No location recorded yet',
+            'idle_status' => 'unknown'
+        ]);
+    }
+
+    $now = now(); // current time
+    $diffMinutes = $lastLocation->timestamp->diffInMinutes($now); // positive number
+
+    $alerts = [];
+
+    // 15-min idle -> notify guard
+    if ($diffMinutes >= 15 && $diffMinutes < 30) {
+        send_push_notification(
+            $user->id,
+            'Idle Alert',
+            'You have been idle for 15 minutes.',
+            ['location' => $lastLocation]
+        );
+        $alerts[] = 'guard_notified';
+    }
+
+    // 30-min idle -> notify control
+    if ($diffMinutes >= 30) {
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Idle Guard Alert',
+            'Guard ' . $user->first_name.' '.$user->last_name .' has been idle for 30 minutes.',
+            ""
+        );
+        $alerts[] = 'control_notified';
+    }
+
+    return response()->json([
+        'idle_minutes' => $diffMinutes,
+        'alerts_sent' => $alerts
+    ]);
+}
+
 }

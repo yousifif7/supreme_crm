@@ -1309,7 +1309,7 @@ class ShiftController extends Controller
         $request->validate([
             'name' => 'required|string|max:255',
             'start_time' => 'required',
-            'status' => 'required|in:pending,in_progress,completed',
+            'status' => 'required|in:pending,in_progress,completed,missed',
         ]);
 
         // Fix start_time formatting

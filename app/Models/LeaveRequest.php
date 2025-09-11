@@ -13,6 +13,7 @@ class LeaveRequest extends Model
         'start_date',
         'end_date',
         'reason',
+        'shift_id',
         'emergency',
         'status',            // pending, approved, denied
         'type',              // Sick, Annual, Unpaid, Other
@@ -32,5 +33,10 @@ class LeaveRequest extends Model
     public function employee()
     {
         $this->belongsTo(Employee::class, 'employee_id');
+    }
+
+    public function shift()
+    {
+        $this->belongsTo(ShiftDate::class, 'shift_id');
     }
 }

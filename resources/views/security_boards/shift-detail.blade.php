@@ -718,6 +718,8 @@
                                                     <p class="bg-primary text-center">In Progress</p>
                                                 @elseif($patrol->status == 'completed')
                                                     <p class="bg-success text-center">Completed</p>
+                                                @elseif($patrol->status == 'missed')
+                                                    <p class="bg-danger text-center">Missed</p>
                                                 @endif
                                             </td>
                                             <td>
@@ -816,6 +818,7 @@
                                         <option value="pending">Pending</option>
                                         <option value="in_progress">In Progress</option>
                                         <option value="completed">Completed</option>
+                                        <option value="missed">Missed</option>
                                     </select>
                                 </div>
                             </div>

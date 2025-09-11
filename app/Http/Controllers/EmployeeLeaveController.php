@@ -6,6 +6,7 @@ use Notify;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Employee;
+use App\Models\ShiftDate;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use App\Models\EmployeeLeave;
@@ -187,6 +188,30 @@ class EmployeeLeaveController extends Controller
                 "An admin Approved a leave request from {$leave->start_date} to {$leave->end_date} requested by $employeeName",
                 "/leaves"
             );
+
+            $shift = ShiftDate::find($leave->shift_id);
+            if ($shift) {
+                $shift->staff_id = null;
+                $shift->status = 'cancelled';
+                $shift->is_assign = 6;
+                $shift->save();
+
+                // $staff = User::role('security_staff')->where('id',$shift->staff_id)->first();
+                send_push_notification(
+                    $userId,
+                    'Removed from shift',
+                    "You have been removed from shift (ID: ".$shift->id.' at '. $shift->shift_date,
+                    ['shift' => $shift]
+                );
+
+                Notify::toDashboard(
+                    null,
+                    'alert',
+                    'Guard Removed from shift',
+                    "Guard ".$employeeName . ' Has been removed from shift due to leave accepted, Reassign the shift before '.$shift->start_time,
+                    "/shift-dates/$shift->id/view",
+                );
+            }
 
             send_push_notification(
                 $userId,
