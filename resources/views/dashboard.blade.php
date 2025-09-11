@@ -427,7 +427,7 @@
                                 @forelse ($bookings as $booking)
                                     @php
                                         // $shift= App\Models\Shift::find($alarm->shift_id);
-                                        $staff = App\Models\Employee::role('security_staff')->where('id',$booking->user_id)->first();
+                                        $staff = App\Models\User::role('security_staff')->where('id',$booking->user_id)->first();
                                     @endphp
                                     <tr>
                                         <td>{{ $staff->first_name ?? 'N/A' }}

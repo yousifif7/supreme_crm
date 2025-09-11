@@ -59,6 +59,16 @@
                                         placeholder="Enter Surname">
                                     <span class="text-danger form-error" id="error_sur_name"></span>
                                 </div>
+                                    <div class="col-md-4 mb-3">
+        <label class="form-label">Employment Start Date</label>
+        <input type="date" name="employment_start_date" class="form-control bg-yellow"
+            placeholder="Employment start date">
+    </div>
+                                    <div class="col-md-4 mb-3">
+        <label class="form-label">Employment End Date</label>
+        <input type="date" name="employment_end_date" class="form-control bg-yellow"
+            placeholder="Employment end date">
+                                </div>
                                 <div class="col-md-4 mb-3">
                                     <label class="form-label">Gender </label>
                                     <select class="form-select bg-yellow" name="gender">

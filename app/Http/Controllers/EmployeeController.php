@@ -2,19 +2,20 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\EmployeesDataTable;
-use App\Models\Department;
-use App\Models\Employee;
-use App\Models\EmployeeType;
+use App\Models\User;
 use App\Models\Holiday;
 use App\Models\License;
-use App\Models\User;
+use App\Models\Employee;
 use App\Models\VisaType;
+use App\Models\Department;
 use App\Models\EmployeeTerm;
+use App\Models\EmployeeType;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Hash;
+use App\DataTables\EmployeesDataTable;
+use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
@@ -120,6 +121,8 @@ class EmployeeController extends Controller
             'terms.*.term_name' => 'nullable',
             'password' => 'required|string|min:6',   // Add password validation
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
+            'employment_start_date' => 'nullable|date',
+            'employment_end_date' => 'nullable|date|after:employment_start_date'
         ]);
 
         if ($validator->fails()) {
@@ -326,6 +329,8 @@ class EmployeeController extends Controller
             'terms.*.entitlement' => 'nullable',
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
             'password' => 'string|min:6',   // Add password validation
+            'employment_start_date' => 'nullable|date',
+            'employment_end_date' => 'nullable|date|after:employment_start_date'
         ]);
 
         if ($validator->fails()) {
@@ -577,6 +582,8 @@ class EmployeeController extends Controller
             'first_aid_certificate_file' => $employee->first_aid_certificate_file,
             'act_certificate_file' => $employee->act_certificate_file,
             'additional_files' => $employee->additional_files,
+            'employment_start_date' => $employee->employment_start_date,
+            'employment_end_date' => $employee->employment_end_date,
         ]);
     }
     public function print($id)
@@ -617,7 +624,45 @@ class EmployeeController extends Controller
             'first_aid_certificate_file' => $employee->first_aid_certificate_file,
             'act_certificate_file' => $employee->act_certificate_file,
             'additional_files' => $employee->additional_files,
-
+            'employment_start_date' => $employee->employment_start_date,
+            'employment_end_date' => $employee->employment_end_date,
         ]);
+    }
+
+    public function employmentReport(Request $request)
+    {
+        $query = Employee::query();
+
+        // Apply filter by name
+        if ($request->filled('name')) {
+            $query->where(function ($q) use ($request) {
+                $q->where('fore_name', 'like', '%' . $request->name . '%')
+                    ->orWhere('sur_name', 'like', '%' . $request->name . '%');
+            });
+        }
+
+        $employees = $query->get();
+
+        // Pass filter status
+        $hasFilters = $request->filled('name');
+
+        return view('employees.employment_report', compact('employees', 'hasFilters'))
+            ->with('name', $request->name);
+    }
+
+    public function exportEmploymentPdf(Employee $employee)
+    {
+        $start = $employee->employment_start_date ? \Carbon\Carbon::parse($employee->employment_start_date) : null;
+        $end = $employee->employment_end_date ? \Carbon\Carbon::parse($employee->employment_end_date) : now();
+        $duration = $start ? $start->diff($end)->format('%y years, %m months, %d days') : 'N/A';
+
+        $pdf = Pdf::loadView('employees.employment_pdf', [
+            'employee' => $employee,
+            'start' => $start,
+            'end' => $end,
+            'duration' => $duration,
+        ]);
+
+        return $pdf->download("employment_report_{$employee->id}.pdf");
     }
 }

@@ -159,6 +159,12 @@
                                             <i class="ti ti-checkup-list"></i>DOB report
                                         </a>
                                     </li>
+
+                                    <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
+                                        <a href="{{ route('reports.employment') }}">
+                                            <i class="ti ti-checkup-list"></i>Employemt Report
+                                        </a>
+                                    </li>
                                 </ul>
                             </li>
                         @endcan

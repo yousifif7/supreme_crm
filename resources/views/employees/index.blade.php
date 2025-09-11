@@ -345,6 +345,14 @@
                                 <td id="email_detail"></td>
                             </tr>
                             <tr>
+                                <th>Employment Start Date</th>
+                                <td id="employment_start_date"></td>
+                            </tr>
+                            <tr>
+                                <th>Employment Start Date</th>
+                                <td id="employment_end_date"></td>
+                            </tr>
+                            <tr>
                                 <th>Gender</th>
                                 <td id="gender_detail"></td>
                             </tr>
@@ -718,6 +726,8 @@
                     $('#bank_branch').val(data.employee.bank_branch);
                     $('#other_info').val(data.employee.other_info);
                     $('#current_endorsement').val(data.employee.current_endorsement);
+                    $('#employment_start_date').val(data.employment_start_date);
+                    $('#employment_end_date').val(data.employment_end_date);
 
                     // Handle Holidays
                     $('#editholiday-rows').empty();
@@ -1055,6 +1065,8 @@
                 $('#nationality_detail').text(data.nationality);
                 $('#passport_no_detail').text(data.passport_no);
                 $('#passport_expiry_detail').text(data.passport_expiry);
+                $('#employment_start_date').text(data.employment_start_date);
+                $('#employment_end_date').text(data.employment_end_date);
                 $('#address_group_detail').text(data.address_group);
                 $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(

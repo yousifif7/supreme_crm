@@ -24,6 +24,8 @@ class Employee extends Model
         'licence_type',
         'entry_date',
         'dob',
+        'employment_start_date',
+        'employment_end_date',
         'service_type',
         'visa_type',
         'visa_expiry',
@@ -130,7 +132,7 @@ class Employee extends Model
         return $this->hasMany(EmployeeTerm::class, 'employee_id');
     }
 
-      public function subcontractorDetails()
+    public function subcontractorDetails()
     {
         return $this->belongsTo(User::class, 'subcontractor');
     }
@@ -143,8 +145,8 @@ class Employee extends Model
     public function fileUrl($file_name, $preview_only = false)
     {
         $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
-        if(in_array($file_name, $documents)) {
-            if($this->$file_name) {
+        if (in_array($file_name, $documents)) {
+            if ($this->$file_name) {
                 // checkif ends with .pdf
                 if ($preview_only && str_ends_with($this->$file_name, '.pdf')) {
                     return '/uploads/PDF_file_icon.svg';
@@ -175,7 +177,7 @@ class Employee extends Model
         return $this->hasMany(CheckCall::class);
     }
 
-    
+
     public function dobEntries()
     {
         return $this->hasMany(DobEntry::class);
@@ -186,9 +188,9 @@ class Employee extends Model
         return $this->hasMany(LeaveRequest::class);
     }
 
-    public function invoices(){
+    public function invoices()
+    {
 
         return $this->hasMany(Invoice::class);
     }
-
 }

@@ -77,7 +77,7 @@ public function upload(Request $request)
                 'alert',
                 'Document Uploaded',
                 $request->document_type . ' Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
-                '/employees'
+                '/employees#'.$employee->id,
             );
 
             Notification::create([
