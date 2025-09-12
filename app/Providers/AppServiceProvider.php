@@ -24,6 +24,8 @@ class AppServiceProvider extends ServiceProvider
     {
         //
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
+
+        ini_set('max_execution_time', env('PHP_MAX_EXECUTION_TIME', 300));
         
         Builder::macro('setTableHeadClass', function ($class) {
             $this->parameters['header_class'] = $class;
