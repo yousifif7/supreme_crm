@@ -26,15 +26,24 @@ class ShiftApiController extends Controller
     // 10. Get Upcoming Shifts
     public function getShifts(Request $request)
     {
-        $limit = $request->query('limit', 10);
-        $category = $request->query('category'); // can be "past", "current", "upcoming"
-        $today = now()->toDateString();
+        $userId   = Auth::id();
+        $limit    = $request->query('limit', 10);
+        $category = $request->query('category'); // "past", "current", "upcoming"
+        $today    = now()->toDateString();
 
-        $query = ShiftDate::with('shift.site')
-            ->where('staff_id', Auth::id())
+        // Eager-load trainings and only the current user's acknowledgements for those trainings
+        $query = ShiftDate::with([
+            'shift.site',
+            'trainings' => function ($q) use ($userId) {
+                $q->with(['acknowledgements' => function ($q2) use ($userId) {
+                    $q2->where('user_id', $userId);
+                }]);
+            },
+        ])
+            ->where('staff_id', $userId)
             ->orderBy('shift_date');
 
-        // Apply category filter if provided
+        // category filter
         if ($category) {
             if ($category === 'past') {
                 $query->where('shift_date', '<', $today);
@@ -49,7 +58,7 @@ class ShiftApiController extends Controller
 
         $transformed = $shifts->getCollection()->transform(function ($shiftDate) use ($today) {
             $shift = $shiftDate->shift;
-            $site = $shift?->site;
+            $site  = $shift?->site;
 
             if ($shiftDate->shift_date < $today) {
                 $category = 'past';
@@ -59,24 +68,60 @@ class ShiftApiController extends Controller
                 $category = 'upcoming';
             }
 
+            $trainings = $shiftDate->trainings->map(function ($training) {
+                // Because we eager-loaded only this user's acknowledgements,
+                // there will be at most one item in the collection (or none).
+                $ack = $training->acknowledgements->first();
+
+                $acknowledged = false;
+                $acknowledgedAt = null;
+                $completionSeconds = null;
+
+                if ($ack) {
+                    // Use acknowledged_at presence as the acknowledgement flag
+                    $acknowledged = !empty($ack->acknowledged_at);
+                    // Convert to string so JSON is consistent; null if not present
+                    $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
+                    $completionSeconds = $ack->completion_time_seconds !== null
+                        ? (int) $ack->completion_time_seconds
+                        : null;
+                }
+
+                return [
+                    'id'                      => $training->id,
+                    'title'                   => $training->title,
+                    'description'             => $training->description,
+                    'pdf_url'                 => $training->pdf_url,
+                    'content_url'             => $training->content_url ?? null,
+                    'required'                => (bool) ($training->required ?? false),
+                    'expiry_date'             => $training->expiry_date,
+                    'acknowledged'            => $acknowledged,
+                    'acknowledged_at'         => $acknowledgedAt,
+                    'completion_time_seconds' => $completionSeconds,
+                    'created_at'              => $training->created_at,
+                    'updated_at'              => $training->updated_at,
+                ];
+            });
+
             return [
-                'id' => $shiftDate->id,
-                'shift_id' => $shiftDate->shift_id,
-                'site_id' => $site?->id,
-                'site_name' => $site?->site_name,
-                'site_address' => $site?->address,
-                'start_time' => $shiftDate->start_time,
-                'end_time' => $shiftDate->end_time,
-                'shift_date' => $shiftDate->shift_date,
-                'duties' => $shift?->duties,
-                'supervisor_name' => $shift?->supervisor_name,
-                'supervisor_contact' => $shift?->supervisor_contact,
-                'status' => $shiftDate->status,
-                'started_at' => $shiftDate->absentee_start_time,
-                'ended_at' => $shiftDate->absentee_end_time,
-                'briefing_pdf' => $shift?->briefing_pdf_url,
-                'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
-                'category' => $category,
+                'id'                   => $shiftDate->id,
+                'shift_id'             => $shiftDate->shift_id,
+                'site_id'              => $site?->id,
+                'site_name'            => $site?->site_name,
+                'site_address'         => $site?->address,
+                'start_time'           => $shiftDate->start_time,
+                'end_time'             => $shiftDate->end_time,
+                'shift_date'           => $shiftDate->shift_date,
+                'duties'               => $shift?->duties,
+                'supervisor_name'      => $shift?->supervisor_name,
+                'supervisor_contact'   => $shift?->supervisor_contact,
+                'status'               => $shiftDate->status,
+                'started_at'           => $shiftDate->absentee_start_time,
+                'ended_at'             => $shiftDate->absentee_end_time,
+                'briefing_pdf'         => $shift?->briefing_pdf_url,
+                'risk_assessment_pdf'  => $shift?->risk_assessment_pdf_url,
+                'category'             => $category,
+                'trainings'            => $trainings,
             ];
         });
 
@@ -84,11 +129,12 @@ class ShiftApiController extends Controller
             'shift_dates' => $transformed,
             'pagination' => [
                 'current_page' => $shifts->currentPage(),
-                'total_pages' => $shifts->lastPage(),
-                'total' => $shifts->total(),
+                'total_pages'  => $shifts->lastPage(),
+                'total'        => $shifts->total(),
             ],
         ]);
     }
+
     // 11. Accept/Decline Shift
     public function respondToShift(Request $request, $shift_id)
     {
@@ -404,7 +450,7 @@ class ShiftApiController extends Controller
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
 
-        // Check if user already booked on
+        // ✅ Check if user already booked on
         $existingBooking = ShiftBooking::where('user_id', $user->id)
             ->where('type', 'book_on')
             ->first();
@@ -415,8 +461,9 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
-        // Correct: find by ShiftDate ID
-        $shiftDate = ShiftDate::find($shiftDate_id);
+        // ✅ Correct: find by ShiftDate ID
+        $shiftDate = ShiftDate::with('trainings.acknowledgements')->find($shiftDate_id);
+
         if (!$shiftDate) {
             return response()->json([
                 'message' => 'Trying to book on unavailable shift (ShiftDate ID: ' . $shiftDate_id . ').'
@@ -425,50 +472,49 @@ class ShiftApiController extends Controller
 
         if ($shiftDate->is_assign !== 2) {
             return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted, You can not book on or off a shift untill it is accepted!',
-            ]);
+                'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted. You cannot book on/off until it is accepted!',
+            ], 422);
         }
 
-        if (!$shiftDate) {
-            return response()->json([
-                'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
-            ]);
-        }
+        // ✅ Block booking if trainings not acknowledged
+        foreach ($shiftDate->trainings as $training) {
+            $ack = $training->acknowledgements->firstWhere('user_id', $user->id);
 
-        if ($shiftDate->is_assign == 2) {
-
-            $now = Carbon::now();
-            $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
-
-            if ($now->lt($shiftStart)) {
-                return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftDate->start_time], 422);
+            if (!$ack || !$ack->acknowledged_at) {
+                return response()->json([
+                    'message' => "You must acknowledge all training/policies before booking on. Pending: {$training->title}"
+                ], 422);
             }
-
-            // Update status
-            $shiftDate->status = 'booked_on';
-            $shiftDate->is_assign = 3; //shift started
-
-            $timeOnly = date('H:i', strtotime($request->timestamps));
-
-            $shiftDate->absentee_start_time = $timeOnly;
-            $shiftDate->save();
         }
 
+        // ✅ Only allow booking on at or after shift start
+        $now = Carbon::now();
+        $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
-        // Notifications
+        if ($now->lt($shiftStart)) {
+            return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftDate->start_time], 422);
+        }
+
+        // ✅ Update status
+        $shiftDate->status = 'booked_on';
+        $shiftDate->is_assign = 3; // shift started
+        $shiftDate->absentee_start_time = date('H:i', strtotime($request->timestamps));
+        $shiftDate->save();
+
+        // ✅ Notifications
         Notification::create([
             'user_id' => 1,
             'employee_id' => null,
             'type' => 'alert',
             'title' => 'Shift booked on',
-            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' Booked on shift (ID: ' . $shiftDate->id . ' starting at ' . $shiftDate->start_time,
+            'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' booked on shift (ID: ' . $shiftDate->id . ') starting at ' . $shiftDate->start_time,
             'read' => false,
             'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
 
         Notification::create([
             'user_id' => $user->id,
-            'employee_id' => auth::id(),
+            'employee_id' => $employee->id,
             'type' => 'alert',
             'title' => 'Shift booked on',
             'message' => 'You have booked on shift (ID: ' . $shiftDate->id . ') ends at ' . $shiftDate->shift->end_shift,
@@ -484,6 +530,7 @@ class ShiftApiController extends Controller
 
         return $this->bookOnOff($request, $shiftDate_id, 'book_on');
     }
+
 
     public function bookOff(Request $request, $shiftDate_id)
     {

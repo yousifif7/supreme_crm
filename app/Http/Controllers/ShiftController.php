@@ -105,6 +105,7 @@ class ShiftController extends Controller
                 'site_id' => $request->site_id[$i],
                 'company_id' => $request->company_id[$i] ?? null,
                 'staff_id' => $request->staff_id[$i] ?? null,
+                'training_id' => $request->training_id ?? [],
                 'start_shift' => $request->start_shift[$i],
                 'end_shift' => $request->end_shift[$i],
                 'break-mins_shift' => $request->{'break-mins_shift'}[$i] ?? null,
@@ -157,6 +158,8 @@ class ShiftController extends Controller
                 'restrict_start_time' => 'nullable',
                 'enforce_picture_check' => 'nullable',
                 'restrict_location_check' => 'nullable',
+                'training_id' => 'nullable|array',
+                'training_id.*' => 'exists:training_materials,id',
             ]);
 
 
@@ -314,6 +317,10 @@ class ShiftController extends Controller
                             $request->end_shift[$i]
                         ),
                     ]);
+
+                    if (!empty($data['training_id'])) {
+                        $shiftDate->trainings()->sync($data['training_id']);
+                    }
 
                     $startTime = Carbon::createFromFormat('H:i', $data['start_shift']);
                     $endTime   = Carbon::createFromFormat('H:i', $data['end_shift']);

@@ -121,6 +121,26 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
+                                                <label class="form-label">Select Policies</label>
+                                                <select class="form-select" name="training_id[]" multiple>
+                                                    @php
+                                                        $trainings = App\Models\TrainingMaterial::whereNotNull(
+                                                            'pdf_url',
+                                                        )->get();
+                                                    @endphp
+                                                    @foreach ($trainings as $training)
+                                                        <option value="{{ $training->id }}">{{ $training->title }}
+                                                        </option>
+                                                    @endforeach
+                                                </select>
+                                                <span class="text-danger form-error error_training_id"></span>
+                                                <span><small class="text-muted">Hold Ctrl (Windows) or Command (Mac) to
+                                                    select multiple policies.</small></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
                                                 <label class="form-label">From <span
                                                         class="text-danger">*</span></label>
                                                 <input type="date" name="from_shift[]" class="form-control">
