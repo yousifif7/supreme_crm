@@ -3,9 +3,10 @@
 @section('styles')
     <!-- Flatpickr CSS -->
     <style>
-        html{
-            font-size:80%;
+        html {
+            font-size: 80%;
         }
+
         .gantt-container {
             overflow-x: auto;
             margin-top: 20px;
@@ -34,7 +35,7 @@
         .gantt-timeline-header {
             display: flex;
             flex: 1;
-            font-size:10px;
+            font-size: 10px;
         }
 
         .gantt-body {
@@ -273,6 +274,11 @@
                                             <button class="btn btn-outline-secondary" id="nextWeekBtn">
                                                 <i class="ti ti-chevron-right"></i>
                                             </button>
+
+                                            <!-- New buttons for view modes -->
+                                            <button class="btn btn-outline-secondary" id="viewDayBtn">Day</button>
+                                            <button class="btn btn-outline-secondary" id="viewWeekBtn">Week</button>
+                                            <button class="btn btn-outline-secondary" id="viewMonthBtn">Month</button>
                                         </div>
                                     </div>
                                 </div>
@@ -533,13 +539,19 @@
                     },
                     success: function(response) {
                         closeBsModal('#add_shift');
-                        $('#success_message').html(response.message ??
-                            'Shift Added Successfully');
-                        if (response.redirect_url) {
-                            $('#latest_shift_link').attr('href', response.redirect_url);
-                        }
-                        $('#success_modal').modal('show');
 
+                        toast_success(response.message ?? 'Shift created successfully!');
+                        // if (response.redirect_url) {
+                        //     $('#latest_shift_link').attr('href', response.redirect_url);
+                        // }
+                        // $('#success_modal').modal('show');
+                        location.reload();
+
+                        // if (response.redirect_url) {
+                        //     window.location.href = response.redirect_url;
+                        // } else {
+                        //     // fallback: just refresh Gantt chart if no URL is provided
+                        // }
                     },
                     error: function(xhr) {
                         console.log("Status:", xhr.status);
@@ -570,311 +582,289 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            let allShiftsData = []; // Store all shifts data
-            let currentWeekStart = getMonday(new Date()); // Start with current week (Monday)
-            let currentWeekEnd = new Date(currentWeekStart);
-            currentWeekEnd.setDate(currentWeekEnd.getDate() + 6); // Sunday of current week
+document.addEventListener('DOMContentLoaded', function() {
+    let allShiftsData = []; // Store all shifts data
+    let currentWeekStart = getMonday(new Date()); // Start with current week (Monday)
+    let currentWeekEnd = new Date(currentWeekStart);
+    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6); // Sunday of current week
 
-            // Display current week
-            updateWeekDisplay();
+    let ganttView = 'week'; // default view
 
-            // Navigation buttons
-            $('#todayBtn').on('click', function() {
-                currentWeekStart = getMonday(new Date());
-                currentWeekEnd = new Date(currentWeekStart);
-                currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
-                updateWeekDisplay();
-                renderCurrentWeek();
-            });
+    // Initial render
+    renderCurrentView();
 
-            $('#prevWeekBtn').on('click', function() {
-                currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-                currentWeekEnd.setDate(currentWeekEnd.getDate() - 7);
-                updateWeekDisplay();
-                renderCurrentWeek();
-            });
+    // Navigation buttons
+    $('#todayBtn').on('click', function() {
+        const today = new Date();
+        if (ganttView === 'day') {
+            currentWeekStart = new Date(today);
+            currentWeekEnd = new Date(today);
+        } else if (ganttView === 'week') {
+            currentWeekStart = getMonday(today);
+            currentWeekEnd = new Date(currentWeekStart);
+            currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+        } else if (ganttView === 'month') {
+            currentWeekStart = new Date(today.getFullYear(), today.getMonth(), 1);
+            currentWeekEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+        }
+        renderCurrentView();
+    });
 
-            $('#nextWeekBtn').on('click', function() {
-                currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-                currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
-                updateWeekDisplay();
-                renderCurrentWeek();
-            });
+    $('#prevWeekBtn').on('click', function() {
+        if (ganttView === 'day') {
+            currentWeekStart.setDate(currentWeekStart.getDate() - 1);
+            currentWeekEnd = new Date(currentWeekStart);
+        } else if (ganttView === 'week') {
+            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            currentWeekEnd.setDate(currentWeekEnd.getDate() - 7);
+        } else if (ganttView === 'month') {
+            currentWeekStart.setMonth(currentWeekStart.getMonth() - 1);
+            currentWeekEnd = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
+        }
+        renderCurrentView();
+    });
 
-            // Load all shifts data
-            loadAllShiftsData();
+    $('#nextWeekBtn').on('click', function() {
+        if (ganttView === 'day') {
+            currentWeekStart.setDate(currentWeekStart.getDate() + 1);
+            currentWeekEnd = new Date(currentWeekStart);
+        } else if (ganttView === 'week') {
+            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+        } else if (ganttView === 'month') {
+            currentWeekStart.setMonth(currentWeekStart.getMonth() + 1);
+            currentWeekEnd = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
+        }
+        renderCurrentView();
+    });
 
-            // Handle search
-            $('#ganttSearchBtn').on('click', function() {
-                filterGanttChart($('#ganttSearch').val());
-            });
+    // View mode buttons
+    $('#viewDayBtn').on('click', function() {
+        ganttView = 'day';
+        renderCurrentView();
+    });
 
-            $('#ganttSearch').on('keyup', function(e) {
-                if (e.key === 'Enter') {
-                    filterGanttChart($(this).val());
-                }
-            });
+    $('#viewWeekBtn').on('click', function() {
+        ganttView = 'week';
+        renderCurrentView();
+    });
 
-            function loadAllShiftsData(currentFilters = {}) {
-                // Show loading state
-                $('#ganttChart').html(
-                    '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>'
-                );
+    $('#viewMonthBtn').on('click', function() {
+        ganttView = 'month';
+        renderCurrentView();
+    });
 
-                // Fetch all shifts data from API
-                $.ajax({
-                    url: `${baseUrl}/api/shifts`,
-                    method: 'GET',
-                    data: {
-                        ...currentFilters
-                        // No date filters - get all shifts
-                    },
-                    success: function(response) {
-                        allShiftsData = response.data;
-                        renderCurrentWeek();
-                    },
-                    error: function(xhr) {
-                        $('#ganttChart').html(
-                            '<div class="gantt-empty">Error loading data. Please try again.</div>');
-                        console.error('Error loading Gantt data:', xhr);
-                    }
-                });
+    // Search
+    $('#ganttSearchBtn').on('click', function() {
+        filterGanttChart($('#ganttSearch').val());
+    });
+    $('#ganttSearch').on('keyup', function(e) {
+        if (e.key === 'Enter') filterGanttChart($(this).val());
+    });
+
+    // Load shifts
+    function loadAllShiftsData(currentFilters = {}) {
+        $('#ganttChart').html('<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>');
+
+        $.ajax({
+            url: `${baseUrl}/api/shifts`,
+            method: 'GET',
+            data: { ...currentFilters },
+            success: function(response) {
+                allShiftsData = response.data;
+                renderCurrentView();
+            },
+            error: function(xhr) {
+                $('#ganttChart').html('<div class="gantt-empty">Error loading data. Please try again.</div>');
+                console.error('Error loading Gantt data:', xhr);
             }
-
-            function renderCurrentWeek(filteredData = null) {
-                if (!allShiftsData || allShiftsData.length === 0) {
-                    $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
-                    return;
-                }
-
-                let shiftsToRender = filteredData || allShiftsData;
-
-                if (shiftsToRender.length === 0) {
-                    $('#ganttChart').html('<div class="gantt-empty">No shifts found for this selection.</div>');
-                    return;
-                }
-
-                // Determine start and end dates for the chart
-                let startDate = currentWeekStart;
-                let endDate = currentWeekEnd;
-
-                // If using filtered data with a custom date range, override start/end
-                if (filteredData && filteredData.length > 0) {
-                    const dates = filteredData.map(s => new Date(s.start_date));
-                    startDate = new Date(Math.min(...dates));
-                    endDate = new Date(Math.max(...dates));
-                }
-
-                renderGanttChart(shiftsToRender, startDate, endDate);
-            }
-
-            function renderGanttChart(data, startDate, endDate) {
-                // Group shifts by site
-                const sites = {};
-                data.forEach(shift => {
-                    if (!sites[shift.site_id]) {
-                        sites[shift.site_id] = {
-                            id: shift.site_id,
-                            name: shift.site_name,
-                            client_name: shift.client_name,
-                            shifts: []
-                        };
-                    }
-                    sites[shift.site_id].shifts.push(shift);
-                });
-
-                // Generate header
-                let headerHtml = `
-                    <div class="gantt-header">
-                    <div class="gantt-sidebar-header">Client Name</div>
-                        <div class="gantt-sidebar-header">Site Name</div>
-                        <div class="gantt-timeline-header">
-                `;
-
-                // Generate day columns for each day in the week
-                const currentDate = new Date(startDate);
-                while (currentDate <= endDate) {
-                    const dateStr = formatDate(currentDate);
-                    const dayName = currentDate.toLocaleDateString('en-US', {
-                        weekday: 'short'
-                    });
-                    const dayNum = currentDate.getDate();
-                    const monthName = currentDate.toLocaleDateString('en-US', {
-                        month: 'short'
-                    });
-
-                    headerHtml += `<div class="day-header">${dayName}<br>${monthName} ${dayNum}</div>`;
-
-                    // Move to next day
-                    currentDate.setDate(currentDate.getDate() + 1);
-                }
-
-                headerHtml += `</div></div>`;
-
-                // Generate body with sites and shifts
-                let bodyHtml = `<div class="gantt-body">`;
-
-                Object.values(sites).forEach(site => {
-                    bodyHtml += `
-                        <div class="gantt-row" data-site-id="${site.id}">
-                        <div class="gantt-row-sidebar">
-                                <strong>${site.client_name}</strong>
-                            </div>
-                            <div class="gantt-row-sidebar">
-                                <strong>${site.name}</strong>
-                                <small class="text-muted">${site.shifts.length} shift(s)</small>
-                            </div>
-                            <div class="gantt-row-content">
-                    `;
-
-                    // Generate day columns for this site row
-                    const dayDate = new Date(startDate);
-                    while (dayDate <= endDate) {
-                        const dateStr = formatDate(dayDate);
-                        bodyHtml += `<div class="day-column" data-date="${dateStr}">
-                            <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
-                        </div>`;
-                        dayDate.setDate(dayDate.getDate() + 1);
-                    }
-
-                    bodyHtml += `</div></div>`;
-                });
-
-                bodyHtml += `</div>`;
-
-                // Combine and render
-                $('#ganttChart').html(headerHtml + bodyHtml);
-
-                // Now place the shifts in the correct day cells
-                Object.values(sites).forEach(site => {
-                    // Group shifts by date
-                    const shiftsByDate = {};
-                    site.shifts.forEach(shift => {
-                        const dateStr = formatDate(new Date(shift.start_date));
-                        if (!shiftsByDate[dateStr]) {
-                            shiftsByDate[dateStr] = [];
-                        }
-                        shiftsByDate[dateStr].push(shift);
-                    });
-
-                    // Place shifts in correct day cell
-                    Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
-                        const cell = $(`#cell-${site.id}-${dateStr}`);
-                        if (cell.length) {
-                            shifts.forEach((shift, index) => {
-                                const bar = $(`
-                    <div class="gantt-bar shift-${shift.color_class}"
-                        style="position: relative; top: ${index * 5}px; z-index: ${100 - index};"
-                        data-shift-id="${shift.id}"
-                        title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
-                        ${shift.title}<br>${shift.formatted_time}<br>${shift.staff_name}
-                    </div>
-                `);
-
-                                cell.append(bar);
-
-                                // Open shift view on click
-                                bar.on('click', function() {
-                                    const shiftId = $(this).data('shift-id');
-                                    window.open(
-                                        `${baseUrl}/shift-dates/${shiftId}/view`,
-                                        '_blank');
-                                });
-                            });
-                        }
-                    });
-                });
-            }
-
-            function filterGanttChart(searchTerm) {
-                if (!searchTerm) {
-                    $('.gantt-row').show();
-                    return;
-                }
-
-                const term = searchTerm.toLowerCase();
-                $('.gantt-row').each(function() {
-                    const siteText = $(this).find('.gantt-row-sidebar').text().toLowerCase();
-                    const shiftText = $(this).find('.gantt-bar').text().toLowerCase();
-
-                    if (siteText.includes(term) || shiftText.includes(term)) {
-                        $(this).show();
-                    } else {
-                        $(this).hide();
-                    }
-                });
-            }
-
-            function formatDate(date) {
-                return date.toISOString().split('T')[0];
-            }
-
-            function getMonday(date) {
-                const d = new Date(date);
-                const day = d.getDay();
-                const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust when day is Sunday
-                return new Date(d.setDate(diff));
-            }
-
-            function updateWeekDisplay() {
-                const options = {
-                    month: 'short',
-                    day: 'numeric',
-                    year: 'numeric'
-                };
-                const startStr = currentWeekStart.toLocaleDateString('en-US', options);
-                const endStr = currentWeekEnd.toLocaleDateString('en-US', options);
-                $('#currentWeekDisplay').text(`${startStr} - ${endStr}`);
-            }
-
-            // UPDATED FILTER HANDLER
-            document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
-                e.preventDefault();
-
-                const form = e.target;
-                const formData = new FormData(form);
-                const filters = {};
-
-                for (const [key, value] of formData.entries()) {
-                    if (value) filters[key] = value;
-                }
-
-                // Filter allShiftsData
-                const filteredShifts = allShiftsData.filter(shift => {
-                    // Staff filter
-                    if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
-                        return false;
-
-                    // Client filter
-                    if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
-                            .client_id)) return false;
-
-                    // Site filter
-                    if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
-                        return false;
-
-                    // Status filter
-                    if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
-                        return false;
-
-                    // Date range filter
-                    const shiftStart = new Date(shift.start_date);
-                    if (filters.from_shift && shiftStart < new Date(filters.from_shift))
-                        return false;
-                    if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
-
-                    return true;
-                });
-
-                renderCurrentWeek(filteredShifts); // Render filtered shifts
-                const filterModalEl = document.getElementById('filterModal');
-                const filterModal = bootstrap.Modal.getInstance(filterModalEl) || new bootstrap.Modal(
-                    filterModalEl);
-                filterModal.hide();
-            });
-
         });
+    }
+
+    // Render Gantt based on view
+    function renderCurrentView(filteredData = null) {
+        if (!allShiftsData || allShiftsData.length === 0) {
+            $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
+            return;
+        }
+
+        const shiftsToRender = filteredData || allShiftsData;
+
+        if (shiftsToRender.length === 0) {
+            $('#ganttChart').html('<div class="gantt-empty">No shifts found for this selection.</div>');
+            return;
+        }
+
+        let startDate, endDate;
+        if (ganttView === 'day') {
+            startDate = new Date(currentWeekStart);
+            endDate = new Date(currentWeekStart);
+        } else if (ganttView === 'week') {
+            startDate = new Date(currentWeekStart);
+            endDate = new Date(currentWeekStart);
+            endDate.setDate(endDate.getDate() + 6);
+        } else if (ganttView === 'month') {
+            startDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
+            endDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
+            currentWeekStart = new Date(startDate);
+            currentWeekEnd = new Date(endDate);
+        }
+
+        renderGanttChart(shiftsToRender, startDate, endDate);
+        updateWeekDisplay();
+    }
+
+    function renderGanttChart(data, startDate, endDate) {
+        const sites = {};
+        data.forEach(shift => {
+            if (!sites[shift.site_id]) {
+                sites[shift.site_id] = {
+                    id: shift.site_id,
+                    name: shift.site_name,
+                    client_name: shift.client_name,
+                    shifts: []
+                };
+            }
+            sites[shift.site_id].shifts.push(shift);
+        });
+
+        // Header
+        let headerHtml = `
+            <div class="gantt-header">
+                <div class="gantt-sidebar-header">Client Name</div>
+                <div class="gantt-sidebar-header">Site Name</div>
+                <div class="gantt-timeline-header">
+        `;
+        const currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const dateStr = formatDate(currentDate);
+            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
+            const dayNum = currentDate.getDate();
+            const monthName = currentDate.toLocaleDateString('en-US', { month: 'short' });
+            headerHtml += `<div class="day-header">${dayName}<br>${monthName} ${dayNum}</div>`;
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        headerHtml += `</div></div>`;
+
+        // Body
+        let bodyHtml = `<div class="gantt-body">`;
+        Object.values(sites).forEach(site => {
+            bodyHtml += `
+                <div class="gantt-row" data-site-id="${site.id}">
+                    <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
+                    <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
+                    <div class="gantt-row-content">
+            `;
+            const dayDate = new Date(startDate);
+            while (dayDate <= endDate) {
+                const dateStr = formatDate(dayDate);
+                bodyHtml += `<div class="day-column" data-date="${dateStr}">
+                                <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
+                             </div>`;
+                dayDate.setDate(dayDate.getDate() + 1);
+            }
+            bodyHtml += `</div></div>`;
+        });
+        bodyHtml += `</div>`;
+
+        $('#ganttChart').html(headerHtml + bodyHtml);
+
+        // Place shifts
+        Object.values(sites).forEach(site => {
+            const shiftsByDate = {};
+            site.shifts.forEach(shift => {
+                const dateStr = formatDate(new Date(shift.start_date));
+                if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
+                shiftsByDate[dateStr].push(shift);
+            });
+            Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
+                const cell = $(`#cell-${site.id}-${dateStr}`);
+                if (cell.length) {
+                    shifts.forEach((shift, index) => {
+                        const bar = $(`
+                            <div class="gantt-bar shift-${shift.color_class}" style="position: relative; top: ${index * 5}px; z-index: ${100 - index};" 
+                                data-shift-id="${shift.id}" title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
+                                ${shift.title}<br>${shift.formatted_time}<br>${shift.staff_name}
+                            </div>
+                        `);
+                        cell.append(bar);
+                        bar.on('click', function() {
+                            const shiftId = $(this).data('shift-id');
+                            window.open(`${baseUrl}/shift-dates/${shiftId}/view`, '_blank');
+                        });
+                    });
+                }
+            });
+        });
+    }
+
+    function filterGanttChart(searchTerm) {
+        if (!searchTerm) {
+            $('.gantt-row').show();
+            return;
+        }
+        const term = searchTerm.toLowerCase();
+        $('.gantt-row').each(function() {
+            const siteText = $(this).find('.gantt-row-sidebar').text().toLowerCase();
+            const shiftText = $(this).find('.gantt-bar').text().toLowerCase();
+            if (siteText.includes(term) || shiftText.includes(term)) $(this).show();
+            else $(this).hide();
+        });
+    }
+
+    function formatDate(date) {
+        return date.toISOString().split('T')[0];
+    }
+
+    function getMonday(date) {
+        const d = new Date(date);
+        const day = d.getDay();
+        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+        return new Date(d.setDate(diff));
+    }
+
+    function updateWeekDisplay() {
+        const options = { month: 'short', day: 'numeric', year: 'numeric' };
+        let startStr = currentWeekStart.toLocaleDateString('en-US', options);
+        let endStr = currentWeekEnd.toLocaleDateString('en-US', options);
+
+        if (ganttView === 'day') $('#currentWeekDisplay').text(startStr);
+        else if (ganttView === 'week') $('#currentWeekDisplay').text(`${startStr} - ${endStr}`);
+        else if (ganttView === 'month') {
+            const monthName = currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            $('#currentWeekDisplay').text(monthName);
+        }
+    }
+
+    // Filter form
+    document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const filters = {};
+        for (const [key, value] of formData.entries()) if (value) filters[key] = value;
+
+        const filteredShifts = allShiftsData.filter(shift => {
+            if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff)) return false;
+            if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters.client_id)) return false;
+            if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site)) return false;
+            if (filters.status && parseInt(shift.status) !== parseInt(filters.status)) return false;
+            const shiftStart = new Date(shift.start_date);
+            if (filters.from_shift && shiftStart < new Date(filters.from_shift)) return false;
+            if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
+            return true;
+        });
+
+        renderCurrentView(filteredShifts);
+        const filterModalEl = document.getElementById('filterModal');
+        const filterModal = bootstrap.Modal.getInstance(filterModalEl) || new bootstrap.Modal(filterModalEl);
+        filterModal.hide();
+    });
+
+    // Initial data load
+    loadAllShiftsData();
+});
+
     </script>
 
     <script>

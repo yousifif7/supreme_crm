@@ -611,7 +611,7 @@
                                 <tbody>
                                     @foreach ($checkcalls as $checkcall)
                                         @php
-                                            $employee = \App\Models\Employee::find($checkcall->employee_id);
+                                            $employee = \App\Models\User::find($checkcall->employee_id);
                                             $checkCallMedia =
                                                 \App\Models\CheckCallMedia::where(
                                                     'check_call_id',
@@ -620,7 +620,7 @@
                                         @endphp
                                         <tr>
                                             <td>{{ $checkcall?->name }}</td>
-                                            <td>{{ $employee?->fore_name }} {{ $employee?->sur_name }}</td>
+                                            <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                             <td>{{ $checkcall->scheduled_time }}</td>
                                             <td>
                                                 @if ($checkcall->status == 'pending')
@@ -921,6 +921,7 @@
                 type: 'POST',
                 data: $(this).serialize(),
                 success: function(res) {
+                    toast_success('Check call updated sucessfully');
                     location.reload(); // Refresh table
                 },
                 error: function(xhr) {
