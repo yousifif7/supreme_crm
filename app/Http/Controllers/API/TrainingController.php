@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\DataTables\MaterialDataTable;
 use App\Models\TrainingAcknowledgement;
+use Illuminate\Support\Facades\Storage;
 
 class TrainingController extends Controller
 {
@@ -69,6 +70,7 @@ class TrainingController extends Controller
 
         return response()->json(['message' => 'Acknowledged successfully.']);
     }
+
     public function store(Request $request)
     {
         $validated = $request->validate([
@@ -84,7 +86,12 @@ class TrainingController extends Controller
         $filePath = null;
 
         if ($request->hasFile('pdf_url')) {
-            $filePath = $request->file('pdf_url')->store('materials', 'public');
+            // Move file into the public/materials folder
+            $fileName = time() . '_' . $request->file('pdf_url')->getClientOriginalName();
+            $filePath = $request->file('pdf_url')->move(public_path('materials'), $fileName);
+
+            // Save only the relative path for later use
+            $filePath = 'materials/' . $fileName;
         }
 
         TrainingMaterial::create([
@@ -92,7 +99,7 @@ class TrainingController extends Controller
             'description' => $validated['description'],
             'type' => $validated['type'],
             'expiry_date' => $validated['expiry_date'],
-            'pdf_url' => $filePath, // ✅ correct variable
+            'pdf_url' => $filePath, // correct variable
         ]);
 
         return back()->with('message', 'Material created successfully');

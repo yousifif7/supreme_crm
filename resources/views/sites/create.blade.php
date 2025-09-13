@@ -23,7 +23,7 @@
                                                  name="client_id" style="height: 100px !important;">
                                                  <option value="">--choose--</option>
                                                  @foreach ($clients as $client)
-                                                     <option value="{{ $client->id }}">{{ $client->first_name }}
+                                                     <option value="{{ $client->id }}">{{ $client->name }}
                                                          {{ $client->last_name }}
                                                      </option>
                                                  @endforeach

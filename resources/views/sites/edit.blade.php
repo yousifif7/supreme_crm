@@ -24,7 +24,7 @@
                                                   id="client_id">
                                                   <option value="">--choose--</option>
                                                   @foreach ($clients as $client)
-                                                      <option value="{{ $client->id }}">{{ $client->client_name }}
+                                                      <option value="{{ $client->id }}">{{ $client->name }}
                                                       </option>
                                                   @endforeach
                                               </select>

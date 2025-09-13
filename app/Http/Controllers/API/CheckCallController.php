@@ -102,16 +102,16 @@ class CheckCallController extends Controller
             $imgPath = public_path($filePath);
             $img = null;
 
-            if (in_array(pathinfo($imgPath, PATHINFO_EXTENSION), ['jpg', 'jpeg'])) {
+            $ext = strtolower(pathinfo($imgPath, PATHINFO_EXTENSION));
+            if ($ext === 'jpg' || $ext === 'jpeg') {
                 $img = imagecreatefromjpeg($imgPath);
-            } elseif (pathinfo($imgPath, PATHINFO_EXTENSION) === 'png') {
+            } elseif ($ext === 'png') {
                 $img = imagecreatefrompng($imgPath);
             }
 
             if ($img) {
                 $white = imagecolorallocate($img, 255, 255, 255);
                 $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80); // semi-transparent bg
-
 
                 $shiftdate = ShiftDate::find($checkCall->shift_id);
 
@@ -124,24 +124,42 @@ class CheckCallController extends Controller
                     "\nLocation: " . $shiftdate->shift->site->address;
 
                 $lines = explode("\n", $text);
-                $lineHeight = 15; // spacing per line
-                $padding = 5;
-                $x = $padding;
-                $y = $padding;
 
-                // Draw semi-transparent rectangle behind text
-                $rectHeight = count($lines) * $lineHeight + 2 * $padding;
-                $rectWidth = 300; // approximate width
-                imagefilledrectangle($img, 0, 0, $rectWidth, $rectHeight, $blackTrans);
+                // Use TTF font for larger text
+                $fontPath = public_path('fonts/arial.ttf'); // make sure this file exists
 
-                // Draw white text
+                // Scale font size based on image width
+                $imgWidth = imagesx($img);
+                $fontSize = max(30, intval($imgWidth * 0.025));
+                // 2.5% of image width, min 20px
+
+                $lineHeight = $fontSize + 30;
+                $padding = 15;
+
+                // Calculate rectangle width based on longest line
+                $rectWidth = 0;
                 foreach ($lines as $line) {
-                    imagestring($img, 5, $x, $y, $line, $white);
+                    $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
+                    $lineWidth = abs($bbox[4] - $bbox[0]);
+                    if ($lineWidth > $rectWidth) {
+                        $rectWidth = $lineWidth;
+                    }
+                }
+                $rectHeight = count($lines) * $lineHeight + 2 * $padding;
+
+                // Draw semi-transparent rectangle
+                imagefilledrectangle($img, 0, 0, $rectWidth + 2 * $padding, $rectHeight, $blackTrans);
+
+                // Draw text line by line
+                $x = $padding;
+                $y = $padding + $fontSize;
+                foreach ($lines as $line) {
+                    imagettftext($img, $fontSize, 0, $x, $y, $white, $fontPath, $line);
                     $y += $lineHeight;
                 }
 
                 // Save image back
-                if (in_array(pathinfo($imgPath, PATHINFO_EXTENSION), ['jpg', 'jpeg'])) {
+                if ($ext === 'jpg' || $ext === 'jpeg') {
                     imagejpeg($img, $imgPath, 90);
                 } else {
                     imagepng($img, $imgPath);

@@ -632,6 +632,7 @@ class ShiftApiController extends Controller
                 'start_time' => $patrol->start_time,
                 'started_at' => $patrol->started_at,
                 'completed_at' => $patrol->completed_at,
+                'status' => $patrol->status,
                 'checkpoints' => $checkpoints->map(function ($checkpoint) {
                     return [
                         'id' => $checkpoint->id,

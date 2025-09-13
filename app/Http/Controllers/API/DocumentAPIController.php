@@ -152,7 +152,7 @@ public function upload(Request $request)
          * 2. Patrol Alerts (5 min notification / 50 min missed)
          */
         $patrols = Patrol::whereHas('shift', fn($q) => $q->where('staff_id', $user->id))
-            ->where('status', '!=', 'missed')
+            ->where('status','pending')
             ->get();
 
         foreach ($patrols as $patrol) {
@@ -187,7 +187,7 @@ public function upload(Request $request)
          * 3. Check Call Alerts (5 min notification / 15 min missed)
          */
         $checkCalls = CheckCall::whereHas('shiftDate', fn($q) => $q->where('staff_id', $user->id))
-            ->where('status', '!=', 'missed')
+            ->where('status', 'pending')
             ->get();
 
         foreach ($checkCalls as $checkCall) {
