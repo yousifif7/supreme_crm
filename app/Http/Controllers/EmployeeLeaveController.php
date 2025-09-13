@@ -200,7 +200,7 @@ class EmployeeLeaveController extends Controller
                 send_push_notification(
                     $userId,
                     'Removed from shift',
-                    "You have been removed from shift (ID: ".$shift->id.' at '. $shift->shift_date,
+                    "You have been removed from shift (ID: " . $shift->id . ' at ' . $shift->shift_date,
                     ['shift' => $shift]
                 );
 
@@ -208,7 +208,7 @@ class EmployeeLeaveController extends Controller
                     null,
                     'alert',
                     'Guard Removed from shift',
-                    "Guard ".$employeeName . ' Has been removed from shift due to leave accepted, Reassign the shift before '.$shift->start_time,
+                    "Guard " . $employeeName . ' Has been removed from shift due to leave accepted, Reassign the shift before ' . $shift->start_time,
                     "/shift-dates/$shift->id/view",
                 );
             }
@@ -300,5 +300,10 @@ class EmployeeLeaveController extends Controller
             'amount_paid' => $leave->amount_paid,
             'reject_reason' => $leave->reject_reason,
         ]);
+    }
+
+    public function calendar()
+    {
+        return view('leave_management.calendar');
     }
 }

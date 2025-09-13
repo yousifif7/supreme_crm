@@ -167,4 +167,6 @@ class TrainingController extends Controller
         TrainingMaterial::whereIn('id', $ids)->delete();
         return response()->json(['success' => true, 'message' => 'Material deleted succesfully']);
     }
+
+
 }

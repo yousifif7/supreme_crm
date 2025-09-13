@@ -287,9 +287,9 @@
                                                 <h6>Shift Time</h6>
                                                 <span id="shift_time">
                                                     @if (!empty($shiftDate->start_time) && !empty($shiftDate->end_time))
-                                                        {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('h:i A') }}
+                                                        {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i') }}
                                                         -
-                                                        {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('h:i A') }}
+                                                        {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('H:i') }}
                                                         {{ sprintf('%02d hr %02d min', floor($shiftDate->total_hours), round(($shiftDate->total_hours - floor($shiftDate->total_hours)) * 60)) }}
                                                     @else
                                                         Not available

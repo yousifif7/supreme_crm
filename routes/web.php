@@ -332,6 +332,7 @@ Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterials
 
 Route::post('/hr', [TrainingController::class, 'store'])->name('materials.store');
 Route::get('/hr', [TrainingController::class, 'matsView'])->name('materials.index');
+Route::get('/calendar', [EmployeeLeaveController::class, 'calendar'])->name('calendar');
 
 Route::post('/materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
 Route::post('/material/delete', [TrainingController::class, 'delete'])->name('material.delete');

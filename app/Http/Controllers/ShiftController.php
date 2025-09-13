@@ -715,8 +715,8 @@ class ShiftController extends Controller
             if (!$shift) continue;
 
             // Format shift time
-            $startFormatted = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time)->format('h:i A');
-            $endFormatted = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time)->format('h:i A');
+            $startFormatted = \Carbon\Carbon::parse($sd->start_time)->format('H:i');
+            $endFormatted   = \Carbon\Carbon::parse($sd->end_time)->format('H:i');
 
             // Calculate duration in hours
             $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
