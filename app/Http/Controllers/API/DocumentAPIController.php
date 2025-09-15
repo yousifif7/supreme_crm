@@ -12,96 +12,97 @@ use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 
 class DocumentAPIController extends Controller
 {
-public function upload(Request $request)
-{
-    $request->validate([
-        'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file',
-        'file' => 'required|array',
-        'file.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB per file
-        'expiry_date' => 'required|date',
-        'description' => 'nullable|string',
-    ]);
-
-    $documents = [];
-    $destinationPath = public_path('documents');
-
-    // Ensure the directory exists
-    if (!file_exists($destinationPath)) {
-        mkdir($destinationPath, 0755, true);
-    }
-
-    foreach ($request->file('file') as $file) {
-        $fileName = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
-        $file->move($destinationPath, $fileName);
-
-        $filePath = 'documents/' . $fileName;
-
-        $document = Document::create([
-            'user_id' => $request->user()->id,
-            'document_type' => $request->document_type,
-            'file_path' => $filePath,
-            'expiry_date' => $request->expiry_date,
-            'description' => $request->description,
-            'status' => 'pending',
+    public function upload(Request $request)
+    {
+        $request->validate([
+            'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file',
+            'file' => 'required|array',
+            'file.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB per file
+            'expiry_date' => 'required|date',
+            'description' => 'nullable|string',
         ]);
 
-        $documents[] = $document;
+        $documents = [];
+        $destinationPath = public_path('documents');
 
-        // Sync to employee table if applicable
-        $syncToEmployeeTable = [
-            'sia_licence_file' => 'sia_licence_file',
-            'passport_file' => 'passport_file',
-            'proof_of_address_file' => 'proof_of_address_file',
-            'ni_letter_file' => 'ni_letter_file',
-            'first_aid_certificate_file' => 'first_aid_certificate_file',
-            'act_certificate_file' => 'act_certificate_file'
-        ];
-
-        $user = $request->user();
-        $employee = $user->employee;
-
-        if ($employee && isset($syncToEmployeeTable[$request->document_type])) {
-            $employeeColumn = $syncToEmployeeTable[$request->document_type];
-
-            $employee->update([
-                $employeeColumn => basename($filePath),
-                'licence_expiry' => $request->expiry_date
-            ]);
-
-            Notify::toDashboard(
-                null,
-                'alert',
-                'Document Uploaded',
-                $request->document_type . ' Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
-                '/employees#'.$employee->id,
-            );
-
-            Notification::create([
-                'user_id' => Auth::id(),
-                'employee_id' => null,
-                'type' => 'alert',
-                'title' => 'Document Uploaded',
-                'message' => 'You have uploaded a ' . $request->document_type . ' entry successfully',
-            ]);
-
-            send_push_notification(
-                $user->id,
-                'You uploaded a document',
-                'Your Document has been uploaded successfully.',
-                ['document_id' => $document->id],
-            );
+        // Ensure the directory exists
+        if (!file_exists($destinationPath)) {
+            mkdir($destinationPath, 0755, true);
         }
-    }
 
-    return response()->json([
-        'documents' => $documents,
-        'uploaded_at' => now(),
-    ]);
-}
+        foreach ($request->file('file') as $file) {
+            $fileName = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
+            $file->move($destinationPath, $fileName);
+
+            $filePath = 'documents/' . $fileName;
+
+            $document = Document::create([
+                'user_id' => $request->user()->id,
+                'document_type' => $request->document_type,
+                'file_path' => $filePath,
+                'expiry_date' => $request->expiry_date,
+                'description' => $request->description,
+                'status' => 'pending',
+            ]);
+
+            $documents[] = $document;
+
+            // Sync to employee table if applicable
+            $syncToEmployeeTable = [
+                'sia_licence_file' => 'sia_licence_file',
+                'passport_file' => 'passport_file',
+                'proof_of_address_file' => 'proof_of_address_file',
+                'ni_letter_file' => 'ni_letter_file',
+                'first_aid_certificate_file' => 'first_aid_certificate_file',
+                'act_certificate_file' => 'act_certificate_file'
+            ];
+
+            $user = $request->user();
+            $employee = $user->employee;
+
+            if ($employee && isset($syncToEmployeeTable[$request->document_type])) {
+                $employeeColumn = $syncToEmployeeTable[$request->document_type];
+
+                $employee->update([
+                    $employeeColumn => basename($filePath),
+                    'licence_expiry' => $request->expiry_date
+                ]);
+
+                Notify::toDashboard(
+                    null,
+                    'alert',
+                    'Document Uploaded',
+                    $request->document_type . ' Document uploaded by ' . $employee->fore_name . ' ' . $employee->sur_name,
+                    '/employees#' . $employee->id,
+                );
+
+                Notification::create([
+                    'user_id' => Auth::id(),
+                    'employee_id' => null,
+                    'type' => 'alert',
+                    'title' => 'Document Uploaded',
+                    'message' => 'You have uploaded a ' . $request->document_type . ' entry successfully',
+                ]);
+
+                send_push_notification(
+                    $user->id,
+                    'You uploaded a document',
+                    'Your Document has been uploaded successfully.',
+                    ['document_id' => $document->id],
+                );
+            }
+        }
+
+        return response()->json([
+            'documents' => $documents,
+            'uploaded_at' => now(),
+        ]);
+    }
 
     // 8. Get User Documents
     public function index(Request $request)
@@ -132,27 +133,42 @@ public function upload(Request $request)
         /**
          * 1. Document Expiry Alerts
          */
+
         $expiringSoon = $user->documents()
-            ->whereDate('expiry_date', '>=', now())
+            ->whereDate('expiry_date', '>=', now())        // Only future or today
             ->whereDate('expiry_date', '<=', now()->addDays(30))
-            ->get()
-            ->map(function ($doc) {
-                return [
-                    'type' => 'document_expiry',
-                    'document_id' => $doc->id,
-                    'title' => 'Document Expiry Alert',
-                    'message' => 'Your ' . $doc->document_type . ' is about to expire.',
-                    'expiry_date' => $doc->expiry_date,
-                    'days_remaining' => Carbon::parse($doc->expiry_date)->diffInDays(now()),
-                ];
-            });
+            ->get();
+
+        foreach ($expiringSoon as $doc) {
+            $cacheKey = "document_expiry_sent:user:{$user->id}:doc:{$doc->id}";
+
+            if (!Cache::has($cacheKey)) {
+                $expiryDate = Carbon::parse($doc->expiry_date);
+                $daysRemaining =(int) now()->diffInDays($expiryDate); // default absolute diff
+
+                send_push_notification(
+                    $user->id,
+                    'Document Expiry Alert',
+                    "Your {$doc->document_type} is about to expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
+                    [
+                        'type' => 'document_expiry',
+                        'document_id' => $doc->id,
+                        'expiry_date' => $doc->expiry_date,
+                        'days_remaining' => $daysRemaining,
+                    ]
+                );
+
+                Cache::put($cacheKey, true, 604800); // cache for 7 days
+            }
+        }
+
         $alerts = array_merge($alerts, $expiringSoon->toArray());
 
         /**
          * 2. Patrol Alerts (5 min notification / 50 min missed)
          */
         $patrols = Patrol::whereHas('shift', fn($q) => $q->where('staff_id', $user->id))
-            ->where('status','pending')
+            ->where('status', 'pending')
             ->get();
 
         foreach ($patrols as $patrol) {

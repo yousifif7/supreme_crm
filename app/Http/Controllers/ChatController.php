@@ -227,11 +227,20 @@ class ChatController extends Controller
 
     public function sendMessage(Request $request, $conversationId)
     {
-        $request->validate([
-            'message' => 'nullable|string',
-            'user_id' => 'required|exists:users,id',
-            'attachment' => 'nullable|file|max:10240', // 10MB max
-        ]);
+        if ($request->hasFile('attachment')) {
+            $request->validate([
+                'message' => 'nullable|string',
+                'user_id' => 'required|exists:users,id',
+                'attachment' => 'nullable|file|max:10240', // 10MB max
+            ]);
+        }
+        if (!$request->hasFile('attachment')) {
+            $request->validate([
+                'message' => 'required|string',
+                'user_id' => 'required|exists:users,id',
+                'attachment' => 'nullable|file|max:10240', // 10MB max
+            ]);
+        }
 
         $conversation = Conversation::findOrFail($conversationId);
         $attachmentPath = null;
@@ -244,7 +253,7 @@ class ChatController extends Controller
         }
         $message = $conversation->messages()->create([
             'sender_id' => $request->user_id,
-            'message' => $request->message,
+            'message' => $request->message?? 'Attachment',
             'attachment' => $attachmentPath,
         ]);
 
