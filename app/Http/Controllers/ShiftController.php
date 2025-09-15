@@ -521,14 +521,15 @@ class ShiftController extends Controller
     {
         $request->validate([
             'book_on_id' => 'required|exists:shift_dates,id',
-            'absentee_start_time' => 'required|date_format:H:i:s',
+            'absentee_start_time' => 'required|date_format:H:i',
         ]);
 
         $shiftDate = \App\Models\ShiftDate::find($request->input('book_on_id'));
+        $time = $request->input('absentee_start_time') . ':00'; // append seconds
 
         if ($shiftDate->staff_id) {
             if ($shiftDate->is_assign == 2) {
-                $shiftDate->absentee_start_time = $request->input('absentee_start_time');
+                $shiftDate->absentee_start_time = $time;
                 $shiftDate->status = 'booked_on';
                 $shiftDate->is_assign = 3;
                 $shiftDate->save();
@@ -912,14 +913,14 @@ class ShiftController extends Controller
                 ->get();
 
             foreach ($shiftDates as $sd) {
-                $start = $today . 'T' . date('H:i:s', strtotime($sd->start_time));
-                $end = $today . 'T' . date('H:i:s', strtotime($sd->end_time));
+                $start = $today . 'T' . date('H:i', strtotime($sd->start_time));
+                $end = $today . 'T' . date('H:i', strtotime($sd->end_time));
 
                 $events[] = [
-                    'title' => $shift->client->client_name ?? 'Unknown Client',
+                    'title' => $shift->client->name ?? 'Unknown Client',
                     'start' => $start,
                     'end' => $end,
-                    'client' => $shift->client->client_name ?? '',
+                    'client' => $shift->client->name ?? '',
                     'site' => $shift->site->site_name ?? '',
                     'staff' => $sd?->staff?->first_name . ' ' . $sd?->staff?->last_name,
                     'allDay' => false,

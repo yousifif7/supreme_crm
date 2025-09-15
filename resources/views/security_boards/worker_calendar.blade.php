@@ -2,7 +2,107 @@
 @section('title', 'CRM - Worker Calendar')
 
 @section('styles')
+    <style>
+        /* Highlight days with shifts */
+        /* Reduce day cell padding to make calendar compact */
+        /* Event container */
+        ._schedule-box-container {
+            display: flex;
+            align-items: center;
+            /* vertically center */
+            justify-content: center;
+            /* horizontally center */
+            padding: 6px 12px;
+            /* make box wider */
+            border-radius: 6px;
+            font-size: 0.85rem;
+            /* slightly bigger text */
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+            overflow: hidden;
+            line-height: 1.2;
+            min-height: 35px;
+            /* taller box */
+            cursor: pointer;
+            transition: transform 0.1s ease-in-out, box-shadow 0.2s;
+            text-align: center;
+            /* center text inside */
+            margin-top: 5px;
+        }
 
+        /* Hover effect */
+        ._schedule-box-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Urgent indicator (small red dot) */
+        .urgent-indicator {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            margin-right: 6px;
+            flex-shrink: 0;
+        }
+
+        /* Text inside event */
+        ._schedule-box-container .flex-grow-1 {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* vertically center text inside box */
+            align-items: center;
+            /* horizontally center text */
+        }
+
+        ._schedule-box-container .flex-grow-1 strong {
+            font-size: 0.85rem;
+            margin-bottom: 2px;
+        }
+
+        ._schedule-box-container .text-muted {
+            font-size: 0.75rem;
+            color: rgba(0, 0, 0, 0.7);
+            display: block;
+        }
+
+        .fc-toolbar button {
+            border: none !important;
+            border-radius: 6px !important;
+            padding: 6px 12px !important;
+            margin-right: 5px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            color: #fff !important;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        /* Assign colors to each view button */
+        .fc-dayGridDay-button {
+            background-color: #80BFFF !important;
+            /* light blue */
+        }
+
+        .fc-dayGridWeek-button {
+            background-color: #5489C4 !important;
+            /* dark blue */
+        }
+
+        .fc-dayGridMonth-button {
+            background-color: #69CF83 !important;
+            /* green */
+        }
+
+        /* Active button highlight */
+        .fc-toolbar button.fc-button-active {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+            transform: translateY(-3px) !important;
+        }
+
+        /* Optional: hover effect */
+        .fc-toolbar button:hover {
+            opacity: 0.85 !important;
+        }
+    </style>
 @endsection
 @section('contents')
     <!-- Page Wrapper -->
@@ -32,7 +132,7 @@
                             </div>
 
                             <!-- Event -->
-                          @include('security_boards.event_colors')
+                            @include('security_boards.event_colors')
                             <!-- /Event -->
 
 
@@ -57,7 +157,7 @@
 
             <!-- Add Rota -->
 
-          
+
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
             <!-- /Breadcrumb -->
@@ -149,7 +249,8 @@
                         }
                         const checkpointSection = clone.querySelector('.checkpoint-section');
                         if (checkpointSection) {
-                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                            checkpointSection.setAttribute('id',
+                                `checkpoint-section${newShiftGroupIndex}`);
                         }
 
                         // Clear checkpoint rows
@@ -186,11 +287,11 @@
             bindEvents();
         });
 
-    let checkIndex = 0;
+        let checkIndex = 0;
 
-    function addCheckCallRow($parentRow) {
-        checkIndex++;
-        const row = `
+        function addCheckCallRow($parentRow) {
+            checkIndex++;
+            const row = `
                 <div class="row checkcall-row mb-3 align-items-center" data-index="${checkIndex}">
                     <div class="col-md-3">
                         <label>Check Call Name</label>
@@ -205,21 +306,20 @@
                     </div>
                 </div>
             `;
-        $parentRow.append(row);
-    }
+            $parentRow.append(row);
+        }
 
-    $(document).ready(function() {
-        $(document).on('click', '.addCheckCallRow', function() {
-            console.log("Add Check Call clicked ✅");
-            var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
-            addCheckCallRow($parentRow);
-        });
+        $(document).ready(function() {
+            $(document).on('click', '.addCheckCallRow', function() {
+                console.log("Add Check Call clicked ✅");
+                var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
+                addCheckCallRow($parentRow);
+            });
 
-        $(document).on('click', '.removeCheckCallRow', function() {
-            $(this).closest('.checkcall-row').remove();
+            $(document).on('click', '.removeCheckCallRow', function() {
+                $(this).closest('.checkcall-row').remove();
+            });
         });
-    });
-        
     </script>
     <script>
         $(document).ready(function() {
@@ -275,7 +375,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
 
-              const colorMap = {
+            const colorMap = {
                 'bg-dark-blue': '#5489C4',
                 'bg-lighter': '#D6D4CE',
                 'bg-dark-green': '#69CF83',
@@ -298,6 +398,7 @@
                         initialView: 'dayGridWeek',
                         initialDate: new Date().toISOString().split('T')[0],
                         timeZone: 'local',
+                        firstDay: 1,
                         eventDisplay: 'block',
                         displayEventEnd: true,
 
@@ -319,47 +420,39 @@
                         eventContent: function(info) {
                             const event = info.event;
                             const props = event.extendedProps;
-                                                        const bgClass = event.classNames?.[0] || 'bg-secondary';
-
+                            const bgClass = event.classNames?.[0] || 'bg-secondary';
+                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
                             const startTime = event.start?.toLocaleTimeString([], {
                                 hour: '2-digit',
-                                minute: '2-digit'
+                                minute: '2-digit',
+                                hour12: false
                             }) || '';
                             const endTime = event.end?.toLocaleTimeString([], {
                                 hour: '2-digit',
-                                minute: '2-digit'
+                                minute: '2-digit',
+                                hour12: false
                             }) || '';
 
                             const container = document.createElement('div');
-
-                            // Compose class string
-                           container.className = `_schedule-box-container ${bgClass}`;
-                    container.style.marginBottom = '5px';
-
-                    container.style.backgroundColor = colorMap[bgClass] || colorMap['bg-secondary'];
-
-                            // Apply background color from colorMap based on className
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
-
+                            container.className = `_schedule-box-container ${bgClass}`;
+                            container.style.backgroundColor = bgColor;
 
                             container.innerHTML = `
-                        <div class="d-flex align-items-center " style="background: ${bgColor} !important;">
-                            <div class="position-relative" >
-                                ${props.urgent ? '<span class="urgent-indicator bg-danger"></span>' : ''}
-                            </div>
-                            <div class="flex-grow-1">
-                                <div style="font-size:10px"><strong style="color: black;">${event.title}</strong></div>
-                                <div class="text-muted" style="font-size: 0.75rem; color: black !important;">${props.location || ''}</div>
-                                <div class="text-muted" style="font-size: 0.75rem; color: black !important">${startTime} - ${endTime}</div>
-                            </div>
-                        </div>
-                    `;
+        ${props.urgent ? '<span class="urgent-indicator bg-danger"></span>' : ''}
+        <div class="flex-grow-1">
+            <strong>${event.title}</strong>
+            <span class="text-muted">${props.location || ''}</span>
+            <span class="text-muted">${startTime} - ${endTime}</span>
+        </div>
+    `;
 
                             return {
                                 domNodes: [container]
                             };
                         },
+
+
 
                         eventClick: function(info) {
                             // console.log('Event clicked:', info.event.extendedProps);
@@ -369,7 +462,8 @@
                             button.setAttribute('data-title', 'Rota Detail');
                             button.setAttribute('data-size', 'modal-xl');
                             button.setAttribute('data-width', '80%');
-                            button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
+                            button.setAttribute('data-href',
+                                `shifts/${info.event.extendedProps.sd_id}`);
                             button.style.display = 'none';
                             document.body.appendChild(button);
                             button.click();
@@ -387,8 +481,10 @@
 
                         calendar.batchRendering(() => {
                             calendar.getEvents().forEach(event => {
-                                const matches = event.title.toLowerCase().includes(searchText) ||
-                                                (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
+                                const matches = event.title.toLowerCase().includes(
+                                        searchText) ||
+                                    (event.extendedProps.location && event.extendedProps
+                                        .location.toLowerCase().includes(searchText));
 
                                 if (matches) {
                                     event.setProp('display', 'auto'); // show event
@@ -398,7 +494,7 @@
                             });
                         });
                     });
-                    
+
                     // 🔸 Sidebar mini calendar
                     const sidebarEl = document.querySelector('.datepic');
                     if (sidebarEl) {
@@ -407,6 +503,7 @@
 
                         new FullCalendar.Calendar(sidebarCal, {
                             initialView: 'dayGridMonth',
+                            firstDay: 1,
                             headerToolbar: {
                                 left: 'prev',
                                 center: 'title',
@@ -441,7 +538,7 @@
         });
     </script>
     <script type="text/javascript">
-        $(document).on("change","#clientSelect",function() {
+        $(document).on("change", "#clientSelect", function() {
             var $this = $(this);
             const clientId = $(this).val();
 
@@ -450,29 +547,30 @@
             var $siteSelect = $('#siteSelect');
             // Clear current options
             $siteSelect.html('<option value="">--choose--</option>');
-            
+
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
+                success: function(data) {
                     $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
 
                     if (data.sites && data.sites.length > 0) {
-                        $.each(data.sites, function (index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
                     }
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
         });
 
-        $(document).on("change","#StaffSelect",function() {
+        $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);
             const staffId = $(this).val();
 
@@ -482,10 +580,11 @@
                 url: `${baseUrl}/api/staff/${staffId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                success: function(data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                        '');
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });

@@ -63,10 +63,8 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
-                                                <input type="text" name="start_shift[]" id="start_shift"
-                                                    class="form-control time-input" lang="en-GB"
-                                                    value="{{ old('start_shift.0') }}">
-
+                                                <input type="text" name="start_shift[]" id="start_shift" placeholder="HH:MM"
+                                                    class="form-control time-input" value="{{ old('start_shift.0') }}">
                                                 <span class="text-danger form-error error_start_shift"></span>
                                             </div>
                                         </div>
@@ -74,11 +72,12 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">End <span class="text-danger">*</span></label>
-                                                <input type="text" name="end_shift[]" class="form-control time-input"
-                                                    id="end_shift" lang="en-GB" placeholder="HH:MM">
+                                                <input type="text" name="end_shift[]" id="end_shift"
+                                                    class="form-control time-input" placeholder="HH:MM">
                                                 <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
+
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
@@ -367,15 +366,18 @@
         });
     });
 </script> --}}
-<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
+
 <script>
     document.addEventListener("DOMContentLoaded", function() {
-        flatpickr(".time-input", {
+        // Apply Flatpickr to all inputs with class .time-input
+        flatpickr("input.time-input", {
             enableTime: true,
             noCalendar: true,
-            dateFormat: "H:i", // Always 24h format
-            time_24hr: true, // Force 24-hour clock
-            allowInput: true 
+            dateFormat: "H:i", // Save as 24h format
+            time_24hr: true,
+            minuteIncrement: 5,
+            allowInput: true
         });
     });
 </script>

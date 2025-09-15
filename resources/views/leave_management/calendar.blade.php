@@ -74,7 +74,7 @@
             <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
                 <div class="my-auto mb-2">
                     <br>
-                    <h2 class="mb-1">Calendar - UK Holidays</h2>
+                    <h2 class="mb-1">Calendar - Holidays</h2>
                 </div>
             </div>
             <div id="ukCalendar"></div>
@@ -116,4 +116,5 @@
                 });
         });
     </script>
+
 @endsection

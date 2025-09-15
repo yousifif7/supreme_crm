@@ -153,35 +153,35 @@
         }
 
         /* .btn-outline-assign {
-                                                                                                        background: #fff;
-                                                                                                        color: #28a745;
-                                                                                                        border: 2px solid #28a745;
-                                                                                                        border-radius: 6px;
-                                                                                                        padding: 8px 16px;
-                                                                                                        font-weight: 600;
-                                                                                                        transition: all 0.2s;
-                                                                                                    }
+                                                                                                                                    background: #fff;
+                                                                                                                                    color: #28a745;
+                                                                                                                                    border: 2px solid #28a745;
+                                                                                                                                    border-radius: 6px;
+                                                                                                                                    padding: 8px 16px;
+                                                                                                                                    font-weight: 600;
+                                                                                                                                    transition: all 0.2s;
+                                                                                                                                }
 
-                                                                                                    .btn-outline-assign:hover {
-                                                                                                        background: #28a745;
-                                                                                                        color: #fff;
-                                                                                                        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                                                                                                    }
+                                                                                                                                .btn-outline-assign:hover {
+                                                                                                                                    background: #28a745;
+                                                                                                                                    color: #fff;
+                                                                                                                                    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                                                                                                                                }
 
-                                                                                                    .btn-assign-pill {
-                                                                                                        background-color: #28a745;
-                                                                                                        color: #fff;
-                                                                                                        border-radius: 50px;
-                                                                                                        padding: 8px 22px;
-                                                                                                        font-weight: bold;
-                                                                                                        transition: all 0.2s;
-                                                                                                    }
+                                                                                                                                .btn-assign-pill {
+                                                                                                                                    background-color: #28a745;
+                                                                                                                                    color: #fff;
+                                                                                                                                    border-radius: 50px;
+                                                                                                                                    padding: 8px 22px;
+                                                                                                                                    font-weight: bold;
+                                                                                                                                    transition: all 0.2s;
+                                                                                                                                }
 
-                                                                                                    .btn-assign-pill:hover {
-                                                                                                        background-color: #218838;
-                                                                                                        color:while;
-                                                                                                        transform: scale(1.05);
-                                                                                                    } */
+                                                                                                                                .btn-assign-pill:hover {
+                                                                                                                                    background-color: #218838;
+                                                                                                                                    color:while;
+                                                                                                                                    transform: scale(1.05);
+                                                                                                                                } */
     </style>
 @endsection
 @section('contents')
@@ -354,10 +354,11 @@
                                             @csrf
                                             <input type="hidden" id="book_on_id" name="book_on_id"
                                                 value="{{ $shiftDate->id }}">
-                                            <input type="time" id="absentee_start_time" name="absentee_start_time"
-                                                value="{{ $shiftDate->absentee_start_time ?? date('h:i') }}"
-                                                class="form-control mb-2">
-                                            <button type="submit" class="btn btn-primary">set book on time</button>
+
+                                            <input type="text" id="absentee_start_time" name="absentee_start_time"
+                                                placeholder="HH:MM" class="form-control mb-2">
+
+                                            <button type="submit" class="btn btn-primary">Set book on time</button>
                                         </form>
                                     </div>
                                     <div class="book-off_box">
@@ -387,10 +388,9 @@
                                             @csrf
                                             <input type="hidden" id="book_off_id" name="book_off_id"
                                                 value="{{ $shiftDate->id }}">
-                                            <input type="time" id="absentee_end_time" name="absentee_end_time"
-                                                value="{{ $shiftDate->absentee_end_time ?? date('h:i') }}"
-                                                class="form-control mb-2">
-                                            <button type="submit" class="btn btn-primary">set book off time</button>
+                                            <input type="text" id="absentee_end_time" name="absentee_end_time"
+                                                placeholder="HH:MM" class="form-control mb-2">
+                                            <button type="submit" class="btn btn-danger">Set book off time</button>
                                         </form>
                                     </div>
                                 </div>
@@ -591,7 +591,7 @@
                             $checkcalls = collect();
                             if (!empty($shiftDate?->id)) {
                                 $checkcalls = \App\Models\CheckCall::where('shift_id', $shiftDate->id)
-                                    ->orderBy('scheduled_time', 'desc')
+                                    ->orderBy('scheduled_time', 'asc')
                                     ->get();
                             }
                         @endphp
@@ -621,7 +621,8 @@
                                         <tr>
                                             <td>{{ $checkcall?->name }}</td>
                                             <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                            <td>{{ $checkcall->scheduled_time }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($scheduled_time->started_at ?? '')->format('H:i') }}
+                                            </td>
                                             <td>
                                                 @if ($checkcall->status == 'pending')
                                                     <p class="bg-warning text-center">Pending</p>
@@ -695,18 +696,18 @@
                                         </script>
                                         <tr>
                                             <td>{{ $patrol->name }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('h:i A') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('H:i') }}</td>
                                             <td>{{ $patrol->total_checkpoints }}</td>
                                             <td>{{ $patrol->completed_checkpoints }}</td>
                                             <td>{{ $patrol->issues_reported }}</td>
                                             @if ($patrol->started_at)
-                                                <td>{{ \Carbon\Carbon::parse($patrol->started_at ?? '')->format('h:i A') }}
+                                                <td>{{ \Carbon\Carbon::parse($patrol->started_at ?? '')->format('H:i') }}
                                                 </td>
                                             @else
                                                 <td></td>
                                             @endif
                                             @if ($patrol->completed_at)
-                                                <td>{{ \Carbon\Carbon::parse($patrol->completed_at ?? '')->format('h:i A') }}
+                                                <td>{{ \Carbon\Carbon::parse($patrol->completed_at ?? '')->format('H:i') }}
                                                 </td>
                                             @else
                                                 <td></td>
@@ -1147,76 +1148,158 @@
         };
 
 
-$(document).ready(function () {
-    // Open edit modal
-    $(document).on("click", ".edit-patrol-btn", function () {
-        $("#edit_patrol_id").val($(this).data("id"));
-        $("#edit_patrol_name").val($(this).data("name"));
-        $("#edit_patrol_time").val($(this).data("time"));
-        $("#edit_patrol_status").val($(this).data("status"));
-        $("#editPatrolModal").modal("show");
-    });
+        $(document).ready(function() {
+            // Open edit modal
+            $(document).on("click", ".edit-patrol-btn", function() {
+                $("#edit_patrol_id").val($(this).data("id"));
+                $("#edit_patrol_name").val($(this).data("name"));
+                $("#edit_patrol_time").val($(this).data("time"));
+                $("#edit_patrol_status").val($(this).data("status"));
+                $("#editPatrolModal").modal("show");
+            });
 
-    // Submit edit form
-    $("#editPatrolForm").on("submit", function (e) {
-        e.preventDefault();
+            // Submit edit form
+            $("#editPatrolForm").on("submit", function(e) {
+                e.preventDefault();
 
-        let id = $("#edit_patrol_id").val();
-        let formData = $(this).serialize();
+                let id = $("#edit_patrol_id").val();
+                let formData = $(this).serialize();
 
-        $.ajax({
-            url: "/patrols/" + id,
-            type: "PUT",
-            data: formData,
-            success: function (response) {
-                $("#editPatrolModal").modal("hide");
+                $.ajax({
+                    url: "/patrols/" + id,
+                    type: "PUT",
+                    data: formData,
+                    success: function(response) {
+                        $("#editPatrolModal").modal("hide");
 
-                let patrol = response.patrol;
-                let row = $("button.edit-patrol-btn[data-id='" + patrol.id + "']").closest("tr");
+                        let patrol = response.patrol;
+                        let row = $("button.edit-patrol-btn[data-id='" + patrol.id + "']")
+                            .closest("tr");
 
-                // Update row values directly
-                row.find("td:eq(0)").text(patrol.name); // assuming first td is name
-                row.find("td:eq(1)").text(patrol.start_time); // second column = time
+                        // Update row values directly
+                        row.find("td:eq(0)").text(patrol.name); // assuming first td is name
+                        row.find("td:eq(1)").text(patrol.start_time); // second column = time
 
-                let statusCell = row.find("td:eq(7)"); // third column = status
-                if (patrol.status === "pending") {
-                    statusCell.html('<p class="bg-warning text-center">Pending</p>');
-                } else if (patrol.status === "in_progress") {
-                    statusCell.html('<p class="bg-primary text-center">In Progress</p>');
-                } else if (patrol.status === "completed") {
-                    statusCell.html('<p class="bg-success text-center">Completed</p>');
-                }
-                toast_success("Update failed!");
+                        let statusCell = row.find("td:eq(7)"); // third column = status
+                        if (patrol.status === "pending") {
+                            statusCell.html('<p class="bg-warning text-center">Pending</p>');
+                        } else if (patrol.status === "in_progress") {
+                            statusCell.html(
+                                '<p class="bg-primary text-center">In Progress</p>');
+                        } else if (patrol.status === "completed") {
+                            statusCell.html('<p class="bg-success text-center">Completed</p>');
+                        }
+                        toast_success("Update failed!");
 
-            },
-            error: function () {
-                toast_danger("Update failed!");
-            }
+                    },
+                    error: function() {
+                        toast_danger("Update failed!");
+                    }
+                });
+            });
+
+            // Delete patrol
+            $(document).on("click", ".delete-patrol-btn", function() {
+                if (!confirm("Are you sure you want to delete this patrol?")) return;
+
+                let id = $(this).data("id");
+
+                $.ajax({
+                    url: "/patrols/" + id,
+                    type: "DELETE",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function() {
+                        $("button.delete-patrol-btn[data-id='" + id + "']").closest("tr")
+                            .remove();
+                    },
+                    error: function() {
+                        alert("Delete failed!");
+                    }
+                });
+            });
         });
-    });
-
-    // Delete patrol
-    $(document).on("click", ".delete-patrol-btn", function () {
-        if (!confirm("Are you sure you want to delete this patrol?")) return;
-
-        let id = $(this).data("id");
-
-        $.ajax({
-            url: "/patrols/" + id,
-            type: "DELETE",
-            data: { _token: "{{ csrf_token() }}" },
-            success: function () {
-                $("button.delete-patrol-btn[data-id='" + id + "']").closest("tr").remove();
-            },
-            error: function () {
-                alert("Delete failed!");
-            }
-        });
-    });
-});
-
-
     </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const timeInput = document.getElementById("absentee_start_time");
+
+            // Set default current time (24h)
+            function setCurrentTime() {
+                const now = new Date();
+                const h = ("0" + now.getHours()).slice(-2);
+                const m = ("0" + now.getMinutes()).slice(-2);
+                timeInput.value = `${h}:${m}`;
+            }
+            if (!timeInput.value) {
+                setCurrentTime();
+            }
+
+            // Allow only HH:MM format
+            timeInput.addEventListener("input", function() {
+                this.value = this.value.replace(/[^0-9:]/g, ""); // only numbers + colon
+            });
+
+            // Validate on blur
+            timeInput.addEventListener("blur", function() {
+                const match = this.value.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+                if (!match) {
+                    alert("Please enter time in 24-hour format (HH:MM). Example: 08:30 or 15:45");
+                    setCurrentTime();
+                    return;
+                }
+
+                // Format to HH:mm
+                const h = ("0" + match[1]).slice(-2);
+                const m = ("0" + match[2]).slice(-2);
+                this.value = `${h}:${m}`;
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            function setup24hTimeInput(inputId) {
+                const input = document.getElementById(inputId);
+
+                if (!input) return; // skip if not found
+
+                // Default value = now (HH:mm)
+                function setCurrentTime() {
+                    const now = new Date();
+                    const h = ("0" + now.getHours()).slice(-2);
+                    const m = ("0" + now.getMinutes()).slice(-2);
+                    input.value = `${h}:${m}`;
+                }
+                if (!input.value) {
+                    setCurrentTime();
+                }
+
+                // Allow only digits and colon
+                input.addEventListener("input", function() {
+                    this.value = this.value.replace(/[^0-9:]/g, "");
+                });
+
+                // Validate on blur
+                input.addEventListener("blur", function() {
+                    const match = this.value.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+                    if (!match) {
+                        alert("Please enter time in 24-hour format (HH:MM). Example: 08:30 or 15:45");
+                        setCurrentTime();
+                        return;
+                    }
+                    const h = ("0" + match[1]).slice(-2);
+                    const m = ("0" + match[2]).slice(-2);
+                    this.value = `${h}:${m}`;
+                });
+            }
+
+            // Apply for both Book On & Book Off
+            setup24hTimeInput("absentee_start_time");
+            setup24hTimeInput("absentee_end_time");
+        });
+    </script>
+
 
 
     <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"

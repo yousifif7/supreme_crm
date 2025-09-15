@@ -1,6 +1,8 @@
 @extends('layouts.app')
 @section('title', 'CRM - Scheduling')
 @section('styles')
+<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+
     <!-- Flatpickr CSS -->
     <style>
         html {
@@ -12,6 +14,13 @@
             margin-top: 20px;
             border: 1px solid #dee2e6;
             border-radius: 4px;
+        }
+
+        .btn-gantt-view.active {
+            background-color: #0d6efd;
+            /* Bootstrap primary color */
+            color: white;
+            border-color: #0d6efd;
         }
 
         .gantt-header {
@@ -582,289 +591,335 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-document.addEventListener('DOMContentLoaded', function() {
-    let allShiftsData = []; // Store all shifts data
-    let currentWeekStart = getMonday(new Date()); // Start with current week (Monday)
-    let currentWeekEnd = new Date(currentWeekStart);
-    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6); // Sunday of current week
+        document.addEventListener('DOMContentLoaded', function() {
+            let allShiftsData = []; // Store all shifts data
+            let currentWeekStart = getMonday(new Date()); // Start with current week (Monday)
+            let currentWeekEnd = new Date(currentWeekStart);
+            currentWeekEnd.setDate(currentWeekEnd.getDate() + 6); // Sunday of current week
 
-    let ganttView = 'week'; // default view
+            let ganttView = 'week'; // default view
+            setActiveGanttView('#viewWeekBtn'); // highlight week button
+            // Initial render
+            renderCurrentView();
 
-    // Initial render
-    renderCurrentView();
-
-    // Navigation buttons
-    $('#todayBtn').on('click', function() {
-        const today = new Date();
-        if (ganttView === 'day') {
-            currentWeekStart = new Date(today);
-            currentWeekEnd = new Date(today);
-        } else if (ganttView === 'week') {
-            currentWeekStart = getMonday(today);
-            currentWeekEnd = new Date(currentWeekStart);
-            currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
-        } else if (ganttView === 'month') {
-            currentWeekStart = new Date(today.getFullYear(), today.getMonth(), 1);
-            currentWeekEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        }
-        renderCurrentView();
-    });
-
-    $('#prevWeekBtn').on('click', function() {
-        if (ganttView === 'day') {
-            currentWeekStart.setDate(currentWeekStart.getDate() - 1);
-            currentWeekEnd = new Date(currentWeekStart);
-        } else if (ganttView === 'week') {
-            currentWeekStart.setDate(currentWeekStart.getDate() - 7);
-            currentWeekEnd.setDate(currentWeekEnd.getDate() - 7);
-        } else if (ganttView === 'month') {
-            currentWeekStart.setMonth(currentWeekStart.getMonth() - 1);
-            currentWeekEnd = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
-        }
-        renderCurrentView();
-    });
-
-    $('#nextWeekBtn').on('click', function() {
-        if (ganttView === 'day') {
-            currentWeekStart.setDate(currentWeekStart.getDate() + 1);
-            currentWeekEnd = new Date(currentWeekStart);
-        } else if (ganttView === 'week') {
-            currentWeekStart.setDate(currentWeekStart.getDate() + 7);
-            currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
-        } else if (ganttView === 'month') {
-            currentWeekStart.setMonth(currentWeekStart.getMonth() + 1);
-            currentWeekEnd = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
-        }
-        renderCurrentView();
-    });
-
-    // View mode buttons
-    $('#viewDayBtn').on('click', function() {
-        ganttView = 'day';
-        renderCurrentView();
-    });
-
-    $('#viewWeekBtn').on('click', function() {
-        ganttView = 'week';
-        renderCurrentView();
-    });
-
-    $('#viewMonthBtn').on('click', function() {
-        ganttView = 'month';
-        renderCurrentView();
-    });
-
-    // Search
-    $('#ganttSearchBtn').on('click', function() {
-        filterGanttChart($('#ganttSearch').val());
-    });
-    $('#ganttSearch').on('keyup', function(e) {
-        if (e.key === 'Enter') filterGanttChart($(this).val());
-    });
-
-    // Load shifts
-    function loadAllShiftsData(currentFilters = {}) {
-        $('#ganttChart').html('<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>');
-
-        $.ajax({
-            url: `${baseUrl}/api/shifts`,
-            method: 'GET',
-            data: { ...currentFilters },
-            success: function(response) {
-                allShiftsData = response.data;
+            // Navigation buttons
+            $('#todayBtn').on('click', function() {
+                const today = new Date();
+                if (ganttView === 'day') {
+                    currentWeekStart = new Date(today);
+                    currentWeekEnd = new Date(today);
+                } else if (ganttView === 'week') {
+                    currentWeekStart = getMonday(today);
+                    currentWeekEnd = new Date(currentWeekStart);
+                    currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+                } else if (ganttView === 'month') {
+                    currentWeekStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                    currentWeekEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                }
                 renderCurrentView();
-            },
-            error: function(xhr) {
-                $('#ganttChart').html('<div class="gantt-empty">Error loading data. Please try again.</div>');
-                console.error('Error loading Gantt data:', xhr);
+            });
+
+            $('#prevWeekBtn').on('click', function() {
+                if (ganttView === 'day') {
+                    currentWeekStart.setDate(currentWeekStart.getDate() - 1);
+                    currentWeekEnd = new Date(currentWeekStart);
+                } else if (ganttView === 'week') {
+                    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+                    currentWeekEnd.setDate(currentWeekEnd.getDate() - 7);
+                } else if (ganttView === 'month') {
+                    currentWeekStart.setMonth(currentWeekStart.getMonth() - 1);
+                    currentWeekEnd = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() +
+                        1, 0);
+                }
+                renderCurrentView();
+            });
+
+            $('#nextWeekBtn').on('click', function() {
+                if (ganttView === 'day') {
+                    currentWeekStart.setDate(currentWeekStart.getDate() + 1);
+                    currentWeekEnd = new Date(currentWeekStart);
+                } else if (ganttView === 'week') {
+                    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+                    currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
+                } else if (ganttView === 'month') {
+                    currentWeekStart.setMonth(currentWeekStart.getMonth() + 1);
+                    currentWeekEnd = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() +
+                        1, 0);
+                }
+                renderCurrentView();
+            });
+
+            // View mode buttons
+            $('#viewDayBtn').on('click', function() {
+                ganttView = 'day';
+                currentWeekStart = new Date();
+                currentWeekEnd = new Date(currentWeekStart);
+                renderCurrentView();
+                setActiveGanttView('#viewDayBtn');
+            });
+
+            $('#viewWeekBtn').on('click', function() {
+                ganttView = 'week';
+                currentWeekStart = getMonday(new Date());
+                currentWeekEnd = new Date(currentWeekStart);
+                currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
+                renderCurrentView();
+                setActiveGanttView('#viewWeekBtn');
+            });
+
+            $('#viewMonthBtn').on('click', function() {
+                ganttView = 'month';
+                const today = new Date();
+                currentWeekStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                currentWeekEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+                renderCurrentView();
+                setActiveGanttView('#viewMonthBtn');
+            })
+            // Search
+            $('#ganttSearchBtn').on('click', function() {
+                filterGanttChart($('#ganttSearch').val());
+            });
+            $('#ganttSearch').on('keyup', function(e) {
+                if (e.key === 'Enter') filterGanttChart($(this).val());
+            });
+            // Load shifts
+            function loadAllShiftsData(currentFilters = {}) {
+                $('#ganttChart').html(
+                    '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>'
+                );
+
+                $.ajax({
+                    url: `${baseUrl}/api/shifts`,
+                    method: 'GET',
+                    data: {
+                        ...currentFilters
+                    },
+                    success: function(response) {
+                        allShiftsData = response.data;
+                        renderCurrentView();
+                    },
+                    error: function(xhr) {
+                        $('#ganttChart').html(
+                            '<div class="gantt-empty">Error loading data. Please try again.</div>');
+                        console.error('Error loading Gantt data:', xhr);
+                    }
+                });
             }
-        });
-    }
 
-    // Render Gantt based on view
-    function renderCurrentView(filteredData = null) {
-        if (!allShiftsData || allShiftsData.length === 0) {
-            $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
-            return;
-        }
+            // Render Gantt based on view
+            function renderCurrentView(filteredData = null) {
+                if (!allShiftsData || allShiftsData.length === 0) {
+                    $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
+                    return;
+                }
 
-        const shiftsToRender = filteredData || allShiftsData;
+                const shiftsToRender = filteredData || allShiftsData;
 
-        if (shiftsToRender.length === 0) {
-            $('#ganttChart').html('<div class="gantt-empty">No shifts found for this selection.</div>');
-            return;
-        }
+                if (shiftsToRender.length === 0) {
+                    $('#ganttChart').html('<div class="gantt-empty">No shifts found for this selection.</div>');
+                    return;
+                }
 
-        let startDate, endDate;
-        if (ganttView === 'day') {
-            startDate = new Date(currentWeekStart);
-            endDate = new Date(currentWeekStart);
-        } else if (ganttView === 'week') {
-            startDate = new Date(currentWeekStart);
-            endDate = new Date(currentWeekStart);
-            endDate.setDate(endDate.getDate() + 6);
-        } else if (ganttView === 'month') {
-            startDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
-            endDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
-            currentWeekStart = new Date(startDate);
-            currentWeekEnd = new Date(endDate);
-        }
+                let startDate, endDate;
+                if (ganttView === 'day') {
+                    startDate = new Date(currentWeekStart);
+                    endDate = new Date(currentWeekStart);
+                } else if (ganttView === 'week') {
+                    startDate = new Date(currentWeekStart);
+                    endDate = new Date(currentWeekStart);
+                    endDate.setDate(endDate.getDate() + 6);
+                } else if (ganttView === 'month') {
+                    startDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
+                    endDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
+                    currentWeekStart = new Date(startDate);
+                    currentWeekEnd = new Date(endDate);
+                }
 
-        renderGanttChart(shiftsToRender, startDate, endDate);
-        updateWeekDisplay();
-    }
-
-    function renderGanttChart(data, startDate, endDate) {
-        const sites = {};
-        data.forEach(shift => {
-            if (!sites[shift.site_id]) {
-                sites[shift.site_id] = {
-                    id: shift.site_id,
-                    name: shift.site_name,
-                    client_name: shift.client_name,
-                    shifts: []
-                };
+                renderGanttChart(shiftsToRender, startDate, endDate);
+                updateWeekDisplay();
             }
-            sites[shift.site_id].shifts.push(shift);
-        });
 
-        // Header
-        let headerHtml = `
+            function renderGanttChart(data, startDate, endDate) {
+                const sites = {};
+                data.forEach(shift => {
+                    if (!sites[shift.site_id]) {
+                        sites[shift.site_id] = {
+                            id: shift.site_id,
+                            name: shift.site_name,
+                            client_name: shift.client_name,
+                            shifts: []
+                        };
+                    }
+                    sites[shift.site_id].shifts.push(shift);
+                });
+
+                // Header
+                let headerHtml = `
             <div class="gantt-header">
                 <div class="gantt-sidebar-header">Client Name</div>
                 <div class="gantt-sidebar-header">Site Name</div>
                 <div class="gantt-timeline-header">
         `;
-        const currentDate = new Date(startDate);
-        while (currentDate <= endDate) {
-            const dateStr = formatDate(currentDate);
-            const dayName = currentDate.toLocaleDateString('en-US', { weekday: 'short' });
-            const dayNum = currentDate.getDate();
-            const monthName = currentDate.toLocaleDateString('en-US', { month: 'short' });
-            headerHtml += `<div class="day-header">${dayName}<br>${monthName} ${dayNum}</div>`;
-            currentDate.setDate(currentDate.getDate() + 1);
-        }
-        headerHtml += `</div></div>`;
+                const currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    const dateStr = formatDate(currentDate);
+                    const dayName = currentDate.toLocaleDateString('en-US', {
+                        weekday: 'short'
+                    });
+                    const dayNum = currentDate.getDate();
+                    const monthName = currentDate.toLocaleDateString('en-US', {
+                        month: 'short'
+                    });
+                    headerHtml += `<div class="day-header">${dayName}<br>${monthName} ${dayNum}</div>`;
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                headerHtml += `</div></div>`;
 
-        // Body
-        let bodyHtml = `<div class="gantt-body">`;
-        Object.values(sites).forEach(site => {
-            bodyHtml += `
+                // Body
+                let bodyHtml = `<div class="gantt-body">`;
+                Object.values(sites).forEach(site => {
+                    bodyHtml += `
                 <div class="gantt-row" data-site-id="${site.id}">
                     <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
                     <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
                     <div class="gantt-row-content">
             `;
-            const dayDate = new Date(startDate);
-            while (dayDate <= endDate) {
-                const dateStr = formatDate(dayDate);
-                bodyHtml += `<div class="day-column" data-date="${dateStr}">
+                    const dayDate = new Date(startDate);
+                    while (dayDate <= endDate) {
+                        const dateStr = formatDate(dayDate);
+                        bodyHtml += `<div class="day-column" data-date="${dateStr}">
                                 <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
                              </div>`;
-                dayDate.setDate(dayDate.getDate() + 1);
-            }
-            bodyHtml += `</div></div>`;
-        });
-        bodyHtml += `</div>`;
+                        dayDate.setDate(dayDate.getDate() + 1);
+                    }
+                    bodyHtml += `</div></div>`;
+                });
+                bodyHtml += `</div>`;
 
-        $('#ganttChart').html(headerHtml + bodyHtml);
+                $('#ganttChart').html(headerHtml + bodyHtml);
 
-        // Place shifts
-        Object.values(sites).forEach(site => {
-            const shiftsByDate = {};
-            site.shifts.forEach(shift => {
-                const dateStr = formatDate(new Date(shift.start_date));
-                if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
-                shiftsByDate[dateStr].push(shift);
-            });
-            Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
-                const cell = $(`#cell-${site.id}-${dateStr}`);
-                if (cell.length) {
-                    shifts.forEach((shift, index) => {
-                        const bar = $(`
+                // Place shifts
+                Object.values(sites).forEach(site => {
+                    const shiftsByDate = {};
+                    site.shifts.forEach(shift => {
+                        const dateStr = formatDate(new Date(shift.start_date));
+                        if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
+                        shiftsByDate[dateStr].push(shift);
+                    });
+                    Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
+                        const cell = $(`#cell-${site.id}-${dateStr}`);
+                        if (cell.length) {
+                            shifts.forEach((shift, index) => {
+                                const bar = $(`
                             <div class="gantt-bar shift-${shift.color_class}" style="position: relative; top: ${index * 5}px; z-index: ${100 - index};" 
                                 data-shift-id="${shift.id}" title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
                                 ${shift.title}<br>${shift.formatted_time}<br>${shift.staff_name}
                             </div>
                         `);
-                        cell.append(bar);
-                        bar.on('click', function() {
-                            const shiftId = $(this).data('shift-id');
-                            window.open(`${baseUrl}/shift-dates/${shiftId}/view`, '_blank');
-                        });
+                                cell.append(bar);
+                                bar.on('click', function() {
+                                    const shiftId = $(this).data('shift-id');
+                                    window.open(
+                                        `${baseUrl}/shift-dates/${shiftId}/view`,
+                                        '_blank');
+                                });
+                            });
+                        }
+                    });
+                });
+
+                const todayStr = formatDate(new Date());
+                const todayCell = document.querySelector(`[data-date='${todayStr}']`);
+
+                if (todayCell) {
+                    todayCell.scrollIntoView({
+                        behavior: "smooth",
+                        inline: "center", // keep today in the center
+                        block: "nearest"
                     });
                 }
+            }
+
+            function filterGanttChart(searchTerm) {
+                if (!searchTerm) {
+                    $('.gantt-row').show();
+                    return;
+                }
+                const term = searchTerm.toLowerCase();
+                $('.gantt-row').each(function() {
+                    const siteText = $(this).find('.gantt-row-sidebar').text().toLowerCase();
+                    const shiftText = $(this).find('.gantt-bar').text().toLowerCase();
+                    if (siteText.includes(term) || shiftText.includes(term)) $(this).show();
+                    else $(this).hide();
+                });
+            }
+
+            function formatDate(date) {
+                return date.toISOString().split('T')[0];
+            }
+
+            function getMonday(date) {
+                const d = new Date(date);
+                const day = d.getDay();
+                const diff = d.getDate() - day + (day === 0 ? -6 : 1);
+                return new Date(d.setDate(diff));
+            }
+
+            function updateWeekDisplay() {
+                const options = {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                };
+                let startStr = currentWeekStart.toLocaleDateString('en-US', options);
+                let endStr = currentWeekEnd.toLocaleDateString('en-US', options);
+
+                if (ganttView === 'day') $('#currentWeekDisplay').text(startStr);
+                else if (ganttView === 'week') $('#currentWeekDisplay').text(`${startStr} - ${endStr}`);
+                else if (ganttView === 'month') {
+                    const monthName = currentWeekStart.toLocaleDateString('en-US', {
+                        month: 'long',
+                        year: 'numeric'
+                    });
+                    $('#currentWeekDisplay').text(monthName);
+                }
+            }
+
+            // Filter form
+            document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = e.target;
+                const formData = new FormData(form);
+                const filters = {};
+                for (const [key, value] of formData.entries())
+                    if (value) filters[key] = value;
+
+                const filteredShifts = allShiftsData.filter(shift => {
+                    if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
+                        return false;
+                    if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
+                            .client_id)) return false;
+                    if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
+                        return false;
+                    if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
+                        return false;
+                    const shiftStart = new Date(shift.start_date);
+                    if (filters.from_shift && shiftStart < new Date(filters.from_shift))
+                        return false;
+                    if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
+                    return true;
+                });
+
+                renderCurrentView(filteredShifts);
+                const filterModalEl = document.getElementById('filterModal');
+                const filterModal = bootstrap.Modal.getInstance(filterModalEl) || new bootstrap.Modal(
+                    filterModalEl);
+                filterModal.hide();
             });
+
+            // Initial data load
+            loadAllShiftsData();
         });
-    }
-
-    function filterGanttChart(searchTerm) {
-        if (!searchTerm) {
-            $('.gantt-row').show();
-            return;
-        }
-        const term = searchTerm.toLowerCase();
-        $('.gantt-row').each(function() {
-            const siteText = $(this).find('.gantt-row-sidebar').text().toLowerCase();
-            const shiftText = $(this).find('.gantt-bar').text().toLowerCase();
-            if (siteText.includes(term) || shiftText.includes(term)) $(this).show();
-            else $(this).hide();
-        });
-    }
-
-    function formatDate(date) {
-        return date.toISOString().split('T')[0];
-    }
-
-    function getMonday(date) {
-        const d = new Date(date);
-        const day = d.getDay();
-        const diff = d.getDate() - day + (day === 0 ? -6 : 1);
-        return new Date(d.setDate(diff));
-    }
-
-    function updateWeekDisplay() {
-        const options = { month: 'short', day: 'numeric', year: 'numeric' };
-        let startStr = currentWeekStart.toLocaleDateString('en-US', options);
-        let endStr = currentWeekEnd.toLocaleDateString('en-US', options);
-
-        if (ganttView === 'day') $('#currentWeekDisplay').text(startStr);
-        else if (ganttView === 'week') $('#currentWeekDisplay').text(`${startStr} - ${endStr}`);
-        else if (ganttView === 'month') {
-            const monthName = currentWeekStart.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            $('#currentWeekDisplay').text(monthName);
-        }
-    }
-
-    // Filter form
-    document.getElementById('shiftFilterForm').addEventListener('submit', function(e) {
-        e.preventDefault();
-        const form = e.target;
-        const formData = new FormData(form);
-        const filters = {};
-        for (const [key, value] of formData.entries()) if (value) filters[key] = value;
-
-        const filteredShifts = allShiftsData.filter(shift => {
-            if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff)) return false;
-            if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters.client_id)) return false;
-            if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site)) return false;
-            if (filters.status && parseInt(shift.status) !== parseInt(filters.status)) return false;
-            const shiftStart = new Date(shift.start_date);
-            if (filters.from_shift && shiftStart < new Date(filters.from_shift)) return false;
-            if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
-            return true;
-        });
-
-        renderCurrentView(filteredShifts);
-        const filterModalEl = document.getElementById('filterModal');
-        const filterModal = bootstrap.Modal.getInstance(filterModalEl) || new bootstrap.Modal(filterModalEl);
-        filterModal.hide();
-    });
-
-    // Initial data load
-    loadAllShiftsData();
-});
-
     </script>
 
     <script>
@@ -929,6 +984,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             });
         });
+
+        function setActiveGanttView(buttonId) {
+            // Remove active from all
+            $('#viewDayBtn, #viewWeekBtn, #viewMonthBtn').removeClass('active');
+
+            // Add active to the clicked one
+            $(buttonId).addClass('active');
+        }
+
     </script>
 
 @endsection

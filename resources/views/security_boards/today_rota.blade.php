@@ -2,35 +2,47 @@
 @section('title', "CRM - Today's Rota")
 @section('styles')
     <style>
+        /* DayGrid event container */
         .fc-daygrid-day-events {
             display: flex !important;
             flex-wrap: wrap;
-            gap: 6px;
+            gap: 4px;
+            /* reduce gap */
             justify-content: flex-start;
             align-items: flex-start;
         }
 
+        /* Each event harness */
         .fc-daygrid-event-harness {
-            flex: 1 0 auto;
-            width: auto;
+            flex: 0 1 120px;
+            /* set fixed width for events, auto-wrap */
         }
 
+        /* Event block */
         .fc-daygrid-event {
             display: block !important;
-            width: 100px !important;
+            width: 100% !important;
             box-sizing: border-box;
+            margin: 0 !important;
+            padding: 0 !important;
         }
 
-        .datepic .fc-prev-button,
-        .datepic .fc-next-button {
-            font-size: 12px !important;
-            /* Reduce arrow icon size */
-            padding: 2px 4px !important;
-            /* Reduce button padding */
-            height: 24px !important;
-            /* Reduce button height */
-            width: 30px !important;
-            /* Optional: make buttons smaller square */
+        /* Event content */
+        .fc-event-custom {
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            line-height: 1.2;
+            color: #fff;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Optional: hover effect */
+        .fc-event-custom:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.15);
         }
     </style>
 
@@ -699,7 +711,8 @@
                         }
                         const checkpointSection = clone.querySelector('.checkpoint-section');
                         if (checkpointSection) {
-                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                            checkpointSection.setAttribute('id',
+                                `checkpoint-section${newShiftGroupIndex}`);
                         }
 
                         // Clear checkpoint rows
@@ -737,6 +750,7 @@
         });
 
         let checkIndex = 0;
+
         function addCheckpointRow($parentRow, groupIndex = 0) {
             checkIndex++;
 
@@ -819,134 +833,145 @@
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-    const calendarEl = document.getElementById('calendar');
+            const calendarEl = document.getElementById('calendar');
 
-    const colorMap = {
-        'bg-dark-blue': '#5489C4',
-        'bg-lighter': '#D6D4CE',
-        'bg-dark-green': '#69CF83',
-        'bg-light-yellow': '#FAD66B',
-        'bg-light-blue': '#80BFFF',
-        'bg-purple': '#9F87F5',
-        'bg-red': '#F55B7C',
-        'bg-primary11': '#FFFF5E',
-        'bg-orange': '#F5B25F',
-        'bg-secondary': '#6c757d'
-    };
+            const colorMap = {
+                'bg-dark-blue': '#5489C4',
+                'bg-lighter': '#D6D4CE',
+                'bg-dark-green': '#69CF83',
+                'bg-light-yellow': '#FAD66B',
+                'bg-light-blue': '#80BFFF',
+                'bg-purple': '#9F87F5',
+                'bg-red': '#F55B7C',
+                'bg-primary11': '#FFFF5E',
+                'bg-orange': '#F5B25F',
+                'bg-secondary': '#6c757d'
+            };
 
-    fetch(`${baseUrl}/api/shifts-today`)
-        .then(response => response.json())
-        .then(data => {
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridDay',
-                initialDate: new Date().toISOString().split('T')[0],
-                timeZone: 'local',
-                eventDisplay: 'block',
-                displayEventEnd: true,
+            fetch(`${baseUrl}/api/shifts-today`)
+                .then(response => response.json())
+                .then(data => {
+                    const calendar = new FullCalendar.Calendar(calendarEl, {
+                        initialView: 'dayGridDay',
+                        initialDate: new Date().toISOString().split('T')[0],
+                        timeZone: 'local',
+                        eventDisplay: 'block',
+                        displayEventEnd: true,
 
-                headerToolbar: {
-                    left: '',
-                    center: 'title',
-                    right: ''
-                },
+                        headerToolbar: {
+                            left: '',
+                            center: 'title',
+                            right: ''
+                        },
 
-                events: data, // ✅ Today's shifts
+                        events: data, // Today's shifts
 
-                eventContent: function(info) {
-                    const event = info.event;
-                    const props = event.extendedProps;
+                        eventContent: function(info) {
+                            const event = info.event;
+                            const props = event.extendedProps;
 
-                    const startTime = event.start?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '';
-                    const endTime = event.end?.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) || '';
+                            const startTime = event.start?.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                            }) || '';
+                            const endTime = event.end?.toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                                hour12: false
+                            }) || '';
 
-                    const client = props.client || '';
-                    const site = props.site || '';
-                    const staff = props.staff || '';
+                            const client = props.client || '';
+                            const site = props.site || '';
+                            const staff = props.staff || '';
 
-                    const bgClass = event.classNames?.[0] || 'bg-secondary';
-                    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+                            const bgClass = event.classNames?.[0] || 'bg-secondary';
+                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                    const container = document.createElement('div');
-                    container.style.backgroundColor = bgColor;
-                    container.style.padding = '6px 10px';
-                    container.style.borderRadius = '8px';
-                    container.style.color = (bgColor === '#F8F9FA' || bgColor === '#FFF9C4') ? '#000' : '#fff';
-                    container.style.boxSizing = 'border-box';
-                    container.style.width = '100%'; // ✅ stack vertically
+                            const container = document.createElement('div');
+                            container.classList.add('fc-event-custom');
+                            container.style.backgroundColor = bgColor;
+                            container.style.color = (bgColor === '#F8F9FA' || bgColor ===
+                                '#FFF9C4') ? '#000' : '#fff';
 
-                    container.innerHTML = `
-                        <b>${client}</b><br>
-                        ${staff}<br>
-                        ${site}<br>
-                        ${startTime} - ${endTime}
-                    `;
+                            container.innerHTML = `
+        <b>${client}</b><br>
+        <small>${staff}</small><br>
+        <small>${site}</small><br>
+        <small>${startTime} - ${endTime}</small>
+    `;
 
-                    return { domNodes: [container] };
-                },
+                            return {
+                                domNodes: [container]
+                            };
+                        },
 
-                eventClick: function(info) {
-                    const button = document.createElement('button');
-                    button.setAttribute('data-toggle', 'ajax-modal');
-                    button.setAttribute('data-title', 'Rota Detail');
-                    button.setAttribute('data-size', 'modal-xl');
-                    button.setAttribute('data-width', '80%');
-                    button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
-                    button.style.display = 'none';
-                    document.body.appendChild(button);
-                    button.click();
-                },
+                        eventClick: function(info) {
+                            const button = document.createElement('button');
+                            button.setAttribute('data-toggle', 'ajax-modal');
+                            button.setAttribute('data-title', 'Rota Detail');
+                            button.setAttribute('data-size', 'modal-xl');
+                            button.setAttribute('data-width', '80%');
+                            button.setAttribute('data-href',
+                                `shifts/${info.event.extendedProps.sd_id}`);
+                            button.style.display = 'none';
+                            document.body.appendChild(button);
+                            button.click();
+                        },
 
-                eventDidMount: function(info) {
-                    info.el.style.backgroundColor = 'transparent';
-                    info.el.style.border = 'none';
-                    info.el.style.overflow = 'visible';
-                    info.el.style.margin = '3px 0'; // small vertical spacing
-                }
-            });
-
-            calendar.render();
-
-            $('#calendarSearch').on('input', function() {
-                const searchText = $(this).val().toLowerCase();
-
-                calendar.batchRendering(() => {
-                    calendar.getEvents().forEach(event => {
-                        const matches = event.title.toLowerCase().includes(searchText) ||
-                                        (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
-
-                        if (matches) {
-                            event.setProp('display', 'auto');
-                        } else {
-                            event.setProp('display', 'none');
+                        eventDidMount: function(info) {
+                            info.el.style.backgroundColor = 'transparent';
+                            info.el.style.border = 'none';
+                            info.el.style.overflow = 'visible';
+                            info.el.style.margin = '3px 0'; // small vertical spacing
                         }
                     });
+
+                    calendar.render();
+
+                    $('#calendarSearch').on('input', function() {
+                        const searchText = $(this).val().toLowerCase();
+
+                        calendar.batchRendering(() => {
+                            calendar.getEvents().forEach(event => {
+                                const matches = event.title.toLowerCase().includes(
+                                        searchText) ||
+                                    (event.extendedProps.location && event.extendedProps
+                                        .location.toLowerCase().includes(searchText));
+
+                                if (matches) {
+                                    event.setProp('display', 'auto');
+                                } else {
+                                    event.setProp('display', 'none');
+                                }
+                            });
+                        });
+                    });
+
+                    // ✅ Sidebar Mini Calendar (datepicker)
+                    const sidebarEl = document.querySelector('.datepic');
+                    if (sidebarEl) {
+                        const sidebarCal = document.createElement('div');
+                        sidebarEl.appendChild(sidebarCal);
+
+                        new FullCalendar.Calendar(sidebarCal, {
+                            initialView: 'dayGridMonth',
+                            headerToolbar: {
+                                left: 'prev',
+                                center: 'title',
+                                right: 'next'
+                            },
+                            selectable: true,
+                            dateClick: function(info) {
+                                calendar.gotoDate(info.dateStr);
+                            },
+                            height: 'auto',
+                            initialDate: new Date().toISOString().split('T')[0],
+                            timeZone: 'local'
+                        }).render();
+                    }
                 });
-            });
-
-            // ✅ Sidebar Mini Calendar (datepicker)
-            const sidebarEl = document.querySelector('.datepic');
-            if (sidebarEl) {
-                const sidebarCal = document.createElement('div');
-                sidebarEl.appendChild(sidebarCal);
-
-                new FullCalendar.Calendar(sidebarCal, {
-                    initialView: 'dayGridMonth',
-                    headerToolbar: {
-                        left: 'prev',
-                        center: 'title',
-                        right: 'next'
-                    },
-                    selectable: true,
-                    dateClick: function(info) {
-                        calendar.gotoDate(info.dateStr);
-                    },
-                    height: 'auto',
-                    initialDate: new Date().toISOString().split('T')[0],
-                    timeZone: 'local'
-                }).render();
-            }
         });
-});
     </script>
 
 
@@ -965,7 +990,7 @@
         });
     </script>
     <script type="text/javascript">
-        $(document).on("change","#clientSelect",function() {
+        $(document).on("change", "#clientSelect", function() {
             var $this = $(this);
             const clientId = $(this).val();
 
@@ -974,29 +999,30 @@
             var $siteSelect = $('#siteSelect');
             // Clear current options
             $siteSelect.html('<option value="">--choose--</option>');
-            
+
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
+                success: function(data) {
                     $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
 
                     if (data.sites && data.sites.length > 0) {
-                        $.each(data.sites, function (index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
                     }
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
         });
 
-        $(document).on("change","#StaffSelect",function() {
+        $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);
             const staffId = $(this).val();
 
@@ -1006,10 +1032,11 @@
                 url: `${baseUrl}/api/staff/${staffId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                success: function(data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                        '');
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
