@@ -352,7 +352,7 @@ class ShiftApiController extends Controller
         $request->validate([
             'risk_assessment_read' => 'required|boolean',
             'assignment_instructions_read' => 'required|boolean',
-            'acknowledgment_timestamp' => 'required|date',
+            'acknowledgment_timestamp' => 'nullable|date',
         ]);
 
         $employee = Employee::where('user_id', Auth::id())->first();
@@ -364,7 +364,7 @@ class ShiftApiController extends Controller
         $shift->update([
             'risk_assessment_read' => $request->risk_assessment_read,
             'assignment_instructions_read' => $request->assignment_instructions_read,
-            'acknowledgment_timestamp' => $request->acknowledgment_timestamp,
+            'acknowledgment_timestamp' => Carbon::now(),
         ]);
 
         return response()->json(['message' => 'Documents acknowledged']);

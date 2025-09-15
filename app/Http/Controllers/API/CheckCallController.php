@@ -180,7 +180,7 @@ class CheckCallController extends Controller
             'status' => 'completed',
             'employee_id' => $user->id,
             'notes' => $data['notes'] ?? null,
-            'completed_at' => $data['timestamp'],
+            'completed_at' => Carbon::now(),
         ]);
 
         // Store location
@@ -235,7 +235,7 @@ class CheckCallController extends Controller
         $request->validate([
             'guard_id' => 'required|exists:users,id',
             'phone_number' => 'required|string',
-            'timestamp' => 'required|date',
+            'timestamp' => 'nullable|date',
         ]);
 
         // For demo purposes, just log the call
