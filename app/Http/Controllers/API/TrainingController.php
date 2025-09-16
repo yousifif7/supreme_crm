@@ -117,10 +117,12 @@ class TrainingController extends Controller
         return Excel::download(new MaterialsExport, 'materials.xlsx');
     }
 
-    public function show(TrainingMaterial $material)
+    public function show($id)
     {
+        $material = TrainingMaterial::findOrFail($id);
         return response()->json($material);
     }
+
 
     public function update(Request $request, $id)
     {
@@ -167,6 +169,4 @@ class TrainingController extends Controller
         TrainingMaterial::whereIn('id', $ids)->delete();
         return response()->json(['success' => true, 'message' => 'Material deleted succesfully']);
     }
-
-
 }

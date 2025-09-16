@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use App\Models\EmployeeLeave;
 use App\DataTables\LeavesDataTable;
 use Illuminate\Support\Facades\File;
+use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Validator;
 
 class EmployeeLeaveController extends Controller
@@ -305,5 +306,61 @@ class EmployeeLeaveController extends Controller
     public function calendar()
     {
         return view('leave_management.calendar');
+    }
+
+
+public function pending(Request $request)
+{
+    if ($request->ajax()) {
+        $query = LeaveRequest::where('status', 'pending')->with('user');
+
+        return DataTables::of($query)
+            ->addColumn('checkbox', function($leave){
+                return '<input type="checkbox" class="dT-row-checkbox" value="'.$leave->id.'">';
+            })
+            ->addColumn('reason', function($leave){
+                return $leave->reason;
+            })
+            ->addColumn('staff_name', fn($leave) => $leave->user ? $leave->user->first_name . ' ' . $leave->user->last_name : 'N/A')
+            ->addColumn('control', function ($leave) {
+                return '<button class="btn btn-sm btn-success approve-btn" data-id="' . $leave->id . '">Approve</button>
+                        <button class="btn btn-sm btn-danger reject-btn" data-id="' . $leave->id . '">Reject</button>';
+            })
+            ->addColumn('actions', fn($leave) => view('leave_management.leaves.action', compact('leave')))
+            ->rawColumns(['checkbox','actions','control'])
+            ->make(true);
+    }
+        $status = [
+            'pending' => 'Pending',
+            'approved' => 'Approved',
+            'rejected' => 'Rejected',
+        ];
+    $employees = \App\Models\Employee::selectRaw("CONCAT(fore_name, ' ', sur_name) as full_name, id")
+        ->pluck('full_name', 'id')->toArray();
+
+    return view('leave_management.new_leave_requests', compact('employees','status'));
+}
+
+
+    public function approve(LeaveRequest $leave)
+    {
+        $leave->status = 'approved';
+        $leave->reject_reason = null;
+        $leave->save();
+
+        return response()->json(['success' => true, 'message' => 'Leave approved']);
+    }
+
+    public function reject(Request $request, LeaveRequest $leave)
+    {
+        $request->validate([
+            'reason' => 'required|string|max:500',
+        ]);
+
+        $leave->status = 'rejected';
+        $leave->reject_reason = $request->reason;
+        $leave->save();
+
+        return response()->json(['success' => true, 'message' => 'Leave rejected']);
     }
 }

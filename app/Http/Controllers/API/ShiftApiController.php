@@ -215,7 +215,7 @@ class ShiftApiController extends Controller
             'start_date' => 'required|date|after_or_equal:today',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'reason'     => 'required|string',
-            'type'       => 'required|in:annual_leave,sick_leave,emergency,other',
+            'type'       => 'required|in:annual_holiday,sick_leave,unpaid_leave,other_leave',
             'hours'      => 'nullable|numeric|min:0',
             'shift_id'   => 'nullable',
         ]);

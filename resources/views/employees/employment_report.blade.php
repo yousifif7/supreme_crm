@@ -10,15 +10,26 @@
             <!-- Filter Form -->
             <div class="card">
                 <div class="card-body">
+                    @php
+                        // Load all employees for the dropdown
+                        $allEmployees = App\Models\Employee::orderBy('fore_name')->get();
+                    @endphp
                     <form method="GET" action="{{ route('reports.employment') }}">
                         <div class="row">
-                            <div class="col-md-3">
-                                <label for="name" class="form-label">Employee Name</label>
-                                <input type="text" name="name" id="name" class="form-control"
-                                    value="{{ request('name') }}" placeholder="Enter employee name">
+                            <div class="col-md-6">
+                                <label for="name" class="form-label">Select Employee</label>
+                                <select name="name" id="name" class="form-select select2">
+                                    <option value="">-- Choose Employee --</option>
+                                    @foreach ($allEmployees as $emp)
+                                        @php $fullName = trim($emp->fore_name . ' ' . $emp->sur_name); @endphp
+                                        <option value="{{ $fullName }}" {{ request('name') == $fullName ? 'selected' : '' }}>
+                                            {{ $fullName }}
+                                        </option>
+                                    @endforeach
+                                </select>
                             </div>
-                            <div class="col-md-1 d-flex align-items-end">
-                                <button type="submit" class="btn btn-primary">Filter</button>
+                            <div class="col-md-2 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">Filter</button>
                             </div>
                         </div>
                     </form>
@@ -31,7 +42,7 @@
                     <div class="custom-datatable-filter table-responsive">
 
                         @if (!$hasFilters)
-                            <div class="alert alert-info">Please enter a name to view results.</div>
+                            <div class="alert alert-info">Please select an employee to view results.</div>
                         @elseif($employees->isEmpty())
                             <div class="alert alert-warning">No employees match the current filters.</div>
                         @else
@@ -56,32 +67,33 @@
                                             $end = $employee->employment_end_date
                                                 ? \Carbon\Carbon::parse($employee->employment_end_date)
                                                 : now();
-                                            $duration = $start
-                                                ? $start->diff($end)->format('%y years, %m months, %d days')
-                                                : 'N/A';
+
+                                            if ($start) {
+                                                $diff = $start->diff($end);
+                                                $parts = [];
+                                                if ($diff->y > 0) $parts[] = $diff->y . ' year' . ($diff->y > 1 ? 's' : '');
+                                                if ($diff->m > 0) $parts[] = $diff->m . ' month' . ($diff->m > 1 ? 's' : '');
+                                                if ($diff->d > 0) $parts[] = $diff->d . ' day' . ($diff->d > 1 ? 's' : '');
+                                                $duration = implode(', ', $parts) ?: '0 days';
+                                            } else {
+                                                $duration = 'N/A';
+                                            }
                                         @endphp
                                         <tr>
                                             <td>{{ $employee->id }}</td>
                                             <td>{{ $employee->fore_name }} {{ $employee->sur_name }}</td>
                                             <td>
-                                                <span
-                                                    class="badge bg-{{ $employee->status == 'active' ? 'success' : 'danger' }}">
+                                                <span class="badge bg-{{ $employee->status == 'active' ? 'success' : 'danger' }}">
                                                     {{ ucfirst($employee->status) }}
                                                 </span>
                                             </td>
                                             <td>{{ $start ? $start->format('d/m/Y') : 'N/A' }}</td>
-                                            <td>{{ $employee->employment_end_date ? $end->format('d/m/Y') : 'Present' }}
-                                            </td>
+                                            <td>{{ $employee->employment_end_date ? $end->format('d/m/Y') : 'Present' }}</td>
                                             <td>{{ $duration }}</td>
                                             <td>
-                                                <a href="{{ url('employees#' . $employee->id) }}"
-                                                    class="btn btn-sm btn-primary">
+                                                <a href="{{ url('employees#' . $employee->id) }}" class="btn btn-sm btn-primary">
                                                     View
                                                 </a>
-                                                {{-- <a href="{{ route('reports.employment.pdf', $employee->id) }}"
-                                                    class="btn btn-sm btn-danger">
-                                                    Export PDF
-                                                </a> --}}
                                             </td>
                                         </tr>
                                     @endforeach
@@ -94,11 +106,14 @@
         </div>
     </div>
 
-    <!-- DataTables -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+    <!-- DataTables + Select2 -->
+
+
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <script>
         $(document).ready(function() {
             $('#employmentTable').DataTable({
@@ -109,6 +124,12 @@
                     search: "_INPUT_",
                     searchPlaceholder: "Search employees..."
                 }
+            });
+
+            $('#name').select2({
+                width: '100%',
+                placeholder: "-- Choose Employee --",
+                allowClear: true
             });
         });
     </script>

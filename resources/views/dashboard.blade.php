@@ -41,8 +41,8 @@
             </div>
             <!-- /Breadcrumb -->
 
-            <div class="row">
-                <div class="col-xl-3 col-md-6">
+            <div class="row row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3">
+                <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
@@ -57,11 +57,10 @@
                                     </a>
                                 </div>
                             </div>
-
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6">
+                <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
@@ -80,7 +79,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6">
+                <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
@@ -99,7 +98,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-xl-3 col-md-6">
+                <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
                             <div class="d-flex align-items-center mb-3">
@@ -117,15 +116,36 @@
                         </div>
                     </div>
                 </div>
+                <div class="col">
+                    <div class="card position-relative">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="avatar avatar-lg br-10 icon-rotate bg-warning flex-shrink-0">
+                                    <span class="d-flex align-items-center"><i
+                                            class="ti ti-door-exit text-white fs-20"></i></span>
+                                </div>
+                                @php
+                                    $leaves = App\Models\LeaveRequest::where('status','pending')->get();
+                                @endphp
+                                <div class="ms-3">
+                                    <a href="/leaves/pending">
+                                        <p class="fw-medium text-truncate mb-1 fs-16 ">New Leave Requests</p>
+                                        <h5 class="fs-18">{{ $leaves->count() }}</h5>
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="row">
                 <div class="col-xl-12">
                     <div class="card custom-card">
                         <div class="card-header">
-                            <div class="card-title"><b>Live Tracking</b></div>
+                            <div class="card-title"><h3><b>Live Tracking</b></h3></div>
                         </div>
-                        <div class="card-body">
-                            <div id="map" style="height: 700px; width: 100%; margin-top: 20px;"></div>
+                        <div class="">
+                            <div id="map" style="height: 700px; width: 100%;"></div>
                         </div>
                     </div>
                 </div>
@@ -252,11 +272,11 @@
                                                 ->first();
                                         @endphp
                                         <tr>
-                                            <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('h:i A') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }}</td>
                                             <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                             <td>X</td>
                                             <td>{{ $shift->break_time }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('h:i A') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -306,9 +326,9 @@
                                                 <tr class="text-center">
                                                     <td>{{ Carbon::parse($shift->shift_date)->format('D, M j') }}</td>
                                                     <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                                    <td>{{ Carbon::parse($shift->start_time)->format('h:i A') }}</td>
+                                                    <td>{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
                                                     <td>{{ $shift->break_time ?? '-' }}</td>
-                                                    <td>{{ Carbon::parse($shift->end_time)->format('h:i A') }}</td>
+                                                    <td>{{ Carbon::parse($shift->end_time)->format('H:i') }}</td>
                                                 </tr>
                                             @empty
                                                 <tr>
@@ -325,8 +345,8 @@
                     </div>
                 </div>
             </div>
-            <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
-                <div class="card mt-4">
+            <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex flex-column">
+                <div class="card mt-4 flex-fill">
                     <div class="card-header">
                         <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
                             <h5 class="fs-18"><b>SIA License Check</b></h5>
@@ -406,8 +426,8 @@
                 </div>
             </div>
 
-            <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
-                <div class="card mt-4">
+            <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex flex-column">
+                <div class="card mt-4 flex-fill">
                     <div class="card-header">
                         <div class="d-flex align-items-center justify-content-between flex-wrap row-gap-2">
                             <h5 class="fs-18"><b>Book on | Book off</b></h5>

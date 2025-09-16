@@ -59,18 +59,19 @@
             </div>
 
             <!-- Material Details Modal -->
-            <div class="modal fade" id="materialDetailsModal" tabindex="-1">
-                <div class="modal-dialog modal-lg">
+            <!-- View Material Modal -->
+            <div class="modal fade" id="viewMaterialModal" tabindex="-1">
+                <div class="modal-dialog">
                     <div class="modal-content">
                         <div class="modal-header">
-                            <h5 class="modal-title">Material Details</h5>
+                            <h5 id="viewTitle" class="modal-title"></h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <p><strong>Title:</strong> <span id="materialTitle"></span></p>
-                            <p><strong>Description:</strong> <span id="materialDescription"></span></p>
-                            <p><strong>Type:</strong> <span id="materialType"></span></p>
-                            <p><strong>Expiry Date:</strong> <span id="materialExpiry"></span></p>
+                            <p><strong>Description:</strong> <span id="viewDescription"></span></p>
+                            <p><strong>Type:</strong> <span id="viewType"></span></p>
+                            <p><strong>Expiry:</strong> <span id="viewExpiry"></span></p>
+                            <p><strong>File:</strong> <span id="viewFile"></span></p>
                         </div>
                     </div>
                 </div>
@@ -154,152 +155,193 @@
         </div>
         <!-- /Add Client -->
 
-        <!-- Delete Modal -->
-        <div class="modal fade" id="delete_modal">
-            <div class="modal-dialog modal-dialog-centered">
+        <!-- Delete Material Modal -->
+        <div class="modal fade" id="deleteMaterialModal" tabindex="-1">
+            <div class="modal-dialog">
                 <div class="modal-content">
-                    <div class="modal-body text-center">
-                        <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
-                            <i class="ti ti-trash-x fs-36"></i>
-                        </span>
-                        <h4 class="mb-1">Confirm Delete</h4>
-                        <p class="mb-3">This action cannot be undone. Are you sure you want to delete?</p>
-                        <div class="d-flex justify-content-center">
-                            <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
-                            <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
-                        </div>
+                    <div class="modal-header">
+                        <h5 class="modal-title">Confirm Delete</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">Are you sure you want to delete this material?</div>
+                    <div class="modal-footer">
+                        <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     </div>
                 </div>
             </div>
         </div>
-        <!-- /Delete Modal -->
-    </div>
 
-    <!-- /Page Wrapper -->
-@endsection
-@section('scripts')
-{{ $dataTable->scripts() }}
 
-<script>
-    // Select All Checkbox
-$(document).on('change', '#selectAll', function() {
-    $('.rowCheckbox').prop('checked', $(this).is(':checked'));
-});
+        <!-- Edit Material Modal -->
+        <div class="modal fade" id="editMaterialModal" tabindex="-1">
+            <div class="modal-dialog">
+                <form id="editMaterialForm">
+                    @csrf
+                    @method('PUT')
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Material</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <input type="hidden" name="id" id="editMaterialId">
+                            <div class="mb-2">
+                                <label>Title</label>
+                                <input type="text" name="title" id="editTitle" class="form-control" required>
+                            </div>
+                            <div class="mb-2">
+                                <label>Description</label>
+                                <textarea name="description" id="editDescription" class="form-control"></textarea>
+                            </div>
+                            <div class="mb-2">
+                                <label>Type</label>
+                                <input type="text" name="type" id="editType" class="form-control">
+                            </div>
+                            <div class="mb-2">
+                                <label>Expiry Date</label>
+                                <input type="date" name="expiry_date" id="editExpiry" class="form-control">
+                            </div>
+                            <div class="mb-2">
+                                <label>PDF URL</label>
+                                <input type="text" name="pdf_url" id="editPdf" class="form-control">
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-primary" type="submit">Save Changes</button>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
 
-    // Add Material AJAX
-$('#add_material_form').on('submit', function(e) {
-    e.preventDefault();
 
-    let formData = new FormData(this);
-    let submitBtn = $(this).find('button[type="submit"]');
-    submitBtn.prop('disabled', true).text('Saving...');
+        <!-- /Page Wrapper -->
+    @endsection
+    @section('scripts')
+        {{ $dataTable->scripts() }}
 
-    $.ajax({
-        url: $(this).attr('action'),
-        type: 'POST',
-        data: formData,
-        processData: false,
-        contentType: false,
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function(response) {
-            $('#add_material_form')[0].reset();
-            $('#addMaterialModal').modal('hide');
-            toast_success(response.message);
-            reloadDatatable('#materials-table');
-            materialsTable.ajax.reload(null, false); // reload without resetting pagination
-        },
-        error: function(xhr) {
-            if (xhr.status === 422) {
-                let errors = xhr.responseJSON.errors;
-                $.each(errors, function(key, value) {
-                    $('#error_' + key).text(value[0]);
+        <script>
+            // Select All Checkbox
+            $(document).on('change', '#selectAll', function() {
+                $('.rowCheckbox').prop('checked', $(this).is(':checked'));
+            });
+
+            // Add Material AJAX
+            $('#add_material_form').on('submit', function(e) {
+                e.preventDefault();
+
+                let formData = new FormData(this);
+                let submitBtn = $(this).find('button[type="submit"]');
+                submitBtn.prop('disabled', true).text('Saving...');
+
+                $.ajax({
+                    url: $(this).attr('action'),
+                    type: 'POST',
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        $('#add_material_form')[0].reset();
+                        $('#addMaterialModal').modal('hide');
+                        toast_success('HR Material created successfully!');
+                        reloadDatatable('#training_materials-table');
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422) {
+                            let errors = xhr.responseJSON.errors;
+                            $.each(errors, function(key, value) {
+                                $('#error_' + key).text(value[0]);
+                            });
+                        } else {
+                            toast_danger('Something went wrong!');
+                        }
+                    },
+                    complete: function() {
+                        submitBtn.prop('disabled', false).text('Save');
+                    }
                 });
-            } else {
-                toast_danger('Something went wrong!');
-            }
-        },
-        complete: function() {
-            submitBtn.prop('disabled', false).text('Save');
-        }
-    });
-});
+            });
 
-    // View Material
-    $(document).on('click', '.viewMaterial', function() {
-    let id = $(this).data('id');
+            let selectedMaterialId = null;
 
-    $.get(`/materials/${id}`, function(data) {
-        $('#viewTitle').text(data.title);
-        $('#viewDescription').text(data.description);
-        $('#viewType').text(data.type);
-        $('#viewExpiry').text(data.expiry_date);
-        if(data.pdf_url) {
-            $('#viewFile').html(`<a href="${data.pdf_url}" target="_blank">Download</a>`);
-        } else {
-            $('#viewFile').html('—');
-        }
-        $('#viewMaterialModal').modal('show');
-    }).fail(function() {
-        toast_danger('Failed to fetch material details.');
-    });
-});
+            // View
+            $(document).on('click', '.viewMaterial', function() {
+                let id = $(this).data('id');
+                $.get(`/materials/${id}`, function(data) {
+                    $('#viewTitle').text(data.title);
+                    $('#viewDescription').text(data.description);
+                    $('#viewType').text(data.type);
+                    $('#viewExpiry').text(data.expiry_date);
+                    $('#viewFile').html(data.pdf_url ?
+                        `<a href="${data.pdf_url}" target="_blank">Download</a>` : '—');
+                    $('#viewMaterialModal').modal('show');
+                }).fail(() => toast_danger('Failed to fetch material details.'));
+            });
 
-    // Delete Material
-    let selectedMaterialId = null;
+            // Edit
+            $(document).on('click', '.editMaterial', function() {
+                let id = $(this).data('id');
+                $.get(`/materials/${id}`, function(data) {
+                    $('#editMaterialId').val(data.id);
+                    $('#editTitle').val(data.title);
+                    $('#editDescription').val(data.description);
+                    $('#editType').val(data.type);
+                    $('#editExpiry').val(data.expiry_date);
+                    $('#editPdf').val(data.pdf_url);
+                    $('#editMaterialModal').modal('show');
+                }).fail(() => toast_danger('Failed to fetch material details.'));
+            });
 
-$(document).on('click', '.deleteMaterial', function() {
-    selectedMaterialId = $(this).data('id');
-    $('#deleteMaterialModal').modal('show');
-});
+            $('#editMaterialForm').on('submit', function(e) {
+                e.preventDefault();
+                let id = $('#editMaterialId').val();
+                $.ajax({
+                    url: `/materials/${id}`,
+                    type: 'PUT',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    data: $(this).serialize(),
+                    success: function(resp) {
+                        $('#editMaterialModal').modal('hide');
+                        toast_success('Hr material edited successfully!');
+                        reloadDatatable('#training_materials-table');
 
-$('#confirmDeleteBtn').on('click', function() {
-    if (!selectedMaterialId) return;
+                    },
+                    error: function() {
+                        toast_danger('Failed to update material.');
+                    }
+                });
+            });
 
-    $.ajax({
-        url: `/materials/${selectedMaterialId}`,
-        type: 'DELETE',
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function(response) {
-            $('#deleteMaterialModal').modal('hide');
-            toast_success(response.message);
-            reloadDatatable('#materials-table');
+            // Delete
+            $(document).on('click', '.deleteMaterial', function() {
+                selectedMaterialId = $(this).data('id');
+                $('#deleteMaterialModal').modal('show');
+            });
 
-            materialsTable.ajax.reload(null, false);
-        },
-        error: function() {
-            toast_danger('Failed to delete material.');
-        }
-    });
-});
-
-    // Bulk Delete
-   $('#bulkDeleteBtn').on('click', function() {
-    let selectedIds = $('.rowCheckbox:checked').map(function() { return this.value; }).get();
-
-    if (selectedIds.length === 0) {
-        toast_danger('Select at least one material.');
-        return;
-    }
-
-    if (!confirm('Are you sure you want to delete selected materials?')) return;
-
-    $.ajax({
-        url: '/materials/bulk-delete',
-        type: 'POST',
-        data: { ids: selectedIds },
-        headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-        success: function(response) {
-            toast_success(response.message);
-            reloadDatatable('#materials-table');
-
-            materialsTable.ajax.reload(null, false);
-        },
-        error: function() {
-            toast_danger('Failed to delete selected materials.');
-        }
-    });
-});
-
-
-</script>
-@endsection
+            $('#confirmDeleteBtn').on('click', function() {
+                if (!selectedMaterialId) return;
+                $.ajax({
+                    url: `/materials/${selectedMaterialId}`,
+                    type: 'DELETE',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(resp) {
+                        $('#deleteMaterialModal').modal('hide');
+                        toast_success('Hr material Deleted succesfully!');
+                        reloadDatatable('training_materials-table');
+                    },
+                    error: function() {
+                        toast_danger('Failed to delete material.');
+                    }
+                });
+            });
+        </script>
+    @endsection

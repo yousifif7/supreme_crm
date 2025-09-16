@@ -161,7 +161,7 @@
 
                                       <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.employment') }}">
-                                              <i class="ti ti-checkup-list"></i>Employemt Report
+                                              <i class="ti ti-checkup-list"></i>Employment Report
                                           </a>
                                       </li>
                                   </ul>
@@ -197,6 +197,10 @@
                                       <li class="{{ request()->is('leaves') ? 'active' : '' }}">
                                           <a href="{{ route('leaves.index') }}">
                                               <i class="ti ti-door-exit"></i>Leaves </a>
+                                      </li>
+                                      <li class="{{ request()->is('leaves/pending') ? 'active' : '' }}">
+                                          <a href="{{ route('leaves.pending') }}">
+                                              <i class="ti ti-door-exit"></i>New Leave Requests </a>
                                       </li>
                                       <li class="{{ request()->is('calendar') ? 'active' : '' }}">
                                           <a href="{{ url('calendar') }}">

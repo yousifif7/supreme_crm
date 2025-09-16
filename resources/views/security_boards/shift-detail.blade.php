@@ -153,35 +153,35 @@
         }
 
         /* .btn-outline-assign {
-                                                                                                                                    background: #fff;
-                                                                                                                                    color: #28a745;
-                                                                                                                                    border: 2px solid #28a745;
-                                                                                                                                    border-radius: 6px;
-                                                                                                                                    padding: 8px 16px;
-                                                                                                                                    font-weight: 600;
-                                                                                                                                    transition: all 0.2s;
-                                                                                                                                }
+                                                                                                                                        background: #fff;
+                                                                                                                                        color: #28a745;
+                                                                                                                                        border: 2px solid #28a745;
+                                                                                                                                        border-radius: 6px;
+                                                                                                                                        padding: 8px 16px;
+                                                                                                                                        font-weight: 600;
+                                                                                                                                        transition: all 0.2s;
+                                                                                                                                    }
 
-                                                                                                                                .btn-outline-assign:hover {
-                                                                                                                                    background: #28a745;
-                                                                                                                                    color: #fff;
-                                                                                                                                    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                                                                                                                                }
+                                                                                                                                    .btn-outline-assign:hover {
+                                                                                                                                        background: #28a745;
+                                                                                                                                        color: #fff;
+                                                                                                                                        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                                                                                                                                    }
 
-                                                                                                                                .btn-assign-pill {
-                                                                                                                                    background-color: #28a745;
-                                                                                                                                    color: #fff;
-                                                                                                                                    border-radius: 50px;
-                                                                                                                                    padding: 8px 22px;
-                                                                                                                                    font-weight: bold;
-                                                                                                                                    transition: all 0.2s;
-                                                                                                                                }
+                                                                                                                                    .btn-assign-pill {
+                                                                                                                                        background-color: #28a745;
+                                                                                                                                        color: #fff;
+                                                                                                                                        border-radius: 50px;
+                                                                                                                                        padding: 8px 22px;
+                                                                                                                                        font-weight: bold;
+                                                                                                                                        transition: all 0.2s;
+                                                                                                                                    }
 
-                                                                                                                                .btn-assign-pill:hover {
-                                                                                                                                    background-color: #218838;
-                                                                                                                                    color:while;
-                                                                                                                                    transform: scale(1.05);
-                                                                                                                                } */
+                                                                                                                                    .btn-assign-pill:hover {
+                                                                                                                                        background-color: #218838;
+                                                                                                                                        color:while;
+                                                                                                                                        transform: scale(1.05);
+                                                                                                                                    } */
     </style>
 @endsection
 @section('contents')
@@ -926,7 +926,7 @@
                     location.reload(); // Refresh table
                 },
                 error: function(xhr) {
-                    alert('Error updating check call');
+                    toast_danger('Error updating check call');
                 }
             });
         });

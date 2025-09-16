@@ -6,65 +6,27 @@
         /* Highlight days with shifts */
         /* Reduce day cell padding to make calendar compact */
         /* Event container */
-        ._schedule-box-container {
-            display: flex;
-            align-items: center;
-            /* vertically center */
-            justify-content: center;
-            /* horizontally center */
-            padding: 6px 12px;
-            /* make box wider */
-            border-radius: 6px;
-            font-size: 0.85rem;
-            /* slightly bigger text */
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
-            overflow: hidden;
-            line-height: 1.2;
-            min-height: 35px;
-            /* taller box */
+        .datepic .fc-prev-button,
+        .datepic .fc-next-button {
+            font-size: 14px !important;
+            padding: 4px 6px !important;
+            height: 28px !important;
+            width: 34px !important;
+            border-radius: 6px !important;
+            background-color: #5489C4 !important;
+            color: #fff !important;
+            border: none !important;
             cursor: pointer;
-            transition: transform 0.1s ease-in-out, box-shadow 0.2s;
-            text-align: center;
-            /* center text inside */
-            margin-top: 5px;
+            transition: opacity 0.2s, transform 0.1s;
         }
 
-        /* Hover effect */
-        ._schedule-box-container:hover {
+        .datepic .fc-prev-button:hover,
+        .datepic .fc-next-button:hover {
+            opacity: 0.85 !important;
             transform: translateY(-1px);
-            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
         }
 
-        /* Urgent indicator (small red dot) */
-        .urgent-indicator {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
-            margin-right: 6px;
-            flex-shrink: 0;
-        }
-
-        /* Text inside event */
-        ._schedule-box-container .flex-grow-1 {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            /* vertically center text inside box */
-            align-items: center;
-            /* horizontally center text */
-        }
-
-        ._schedule-box-container .flex-grow-1 strong {
-            font-size: 0.85rem;
-            margin-bottom: 2px;
-        }
-
-        ._schedule-box-container .text-muted {
-            font-size: 0.75rem;
-            color: rgba(0, 0, 0, 0.7);
-            display: block;
-        }
-
+        /* FullCalendar view buttons */
         .fc-toolbar button {
             border: none !important;
             border-radius: 6px !important;
@@ -76,31 +38,97 @@
             transition: background 0.2s, transform 0.1s;
         }
 
-        /* Assign colors to each view button */
+        /* Assign colors */
         .fc-dayGridDay-button {
             background-color: #80BFFF !important;
-            /* light blue */
         }
 
         .fc-dayGridWeek-button {
             background-color: #5489C4 !important;
-            /* dark blue */
         }
 
         .fc-dayGridMonth-button {
             background-color: #69CF83 !important;
-            /* green */
         }
 
         /* Active button highlight */
         .fc-toolbar button.fc-button-active {
             box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
-            transform: translateY(-3px) !important;
+            transform: translateY(-2px) !important;
         }
 
-        /* Optional: hover effect */
+        /* Hover effect */
         .fc-toolbar button:hover {
             opacity: 0.85 !important;
+        }
+
+        /* Event/shift boxes */
+        /* Container for each event (shift) */
+        /* Ensure text wraps inside the box */
+        ._schedule-box-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            min-height: 50px;
+            width: 95%;
+            margin: 0 auto;
+            color: #000;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            line-height: 1.3;
+            word-break: break-word;
+            /* allow long words to wrap */
+            white-space: normal;
+            /* enable text wrapping */
+        }
+
+        .fc .fc-daygrid-event-harness,
+        .fc .fc-daygrid-event {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Optional: remove any hover effect applied by FullCalendar */
+        .fc .fc-daygrid-event:hover {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        ._schedule-box-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Increase spacing in calendar header for clarity */
+        .fc .fc-col-header-cell {
+            padding: 6px 4px !important;
+            font-size: 0.85rem;
+        }
+
+        /* Stack events neatly */
+        .fc-daygrid-day-events {
+            display: flex !important;
+            flex-direction: column;
+            gap: 8px !important;
+            /* more space between boxes */
+            padding: 4px 0 !important;
+        }
+
+        /* Hide urgent red lines */
+        .urgent-indicator {
+            display: none !important;
+        }
+
+        .fc-daygrid-day-frame {
+            padding: 6px 4px !important;
+            min-height: 90px;
+            /* taller day cells */
         }
     </style>
 @endsection
@@ -470,6 +498,8 @@
                         },
 
                         eventDidMount: function(info) {
+                            info.el.style.backgroundColor = 'transparent';
+                            info.el.style.border = 'none';
                             info.el.style.overflow = 'visible';
                         }
                     });

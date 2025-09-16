@@ -635,10 +635,7 @@ class EmployeeController extends Controller
 
         // Apply filter by name
         if ($request->filled('name')) {
-            $query->where(function ($q) use ($request) {
-                $q->where('fore_name', 'like', '%' . $request->name . '%')
-                    ->orWhere('sur_name', 'like', '%' . $request->name . '%');
-            });
+            $query->whereRaw("CONCAT(fore_name, ' ', sur_name) LIKE ?", ["%{$request->name}%"]);
         }
 
         $employees = $query->get();

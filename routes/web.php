@@ -330,18 +330,22 @@ Route::middleware('auth')->group(function () {
 Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');
 Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterialsPdf'])->name('materials.export.pdf');
 
+Route::prefix('leaves')->group(function () {
+    Route::get('pending', [EmployeeLeaveController::class, 'pending'])->name('leaves.pending');
+    Route::post('approve/{leave}', [EmployeeLeaveController::class, 'approve'])->name('leaves.approve');
+    Route::post('reject/{leave}', [EmployeeLeaveController::class, 'reject'])->name('leaves.reject');
+});
+
 Route::post('/hr', [TrainingController::class, 'store'])->name('materials.store');
 Route::get('/hr', [TrainingController::class, 'matsView'])->name('materials.index');
 Route::get('/calendar', [EmployeeLeaveController::class, 'calendar'])->name('calendar');
 
 Route::post('/materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
-Route::post('/material/delete', [TrainingController::class, 'delete'])->name('material.delete');
 // Update material (if needed)
 Route::put('materials/{id}', [TrainingController::class, 'update'])->name('materials.update');
 // Delete single material
 Route::delete('materials/{id}', [TrainingController::class, 'destroy'])->name('materials.destroy');
 // Bulk delete
-Route::post('materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
 Route::get('materials/{id}', [TrainingController::class, 'show'])->name('materials.show');
 
 // web.php
