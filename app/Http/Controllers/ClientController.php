@@ -18,7 +18,7 @@ class ClientController extends Controller
     public function index(ClientsDataTable $dataTable, Request $request)
     {
         $companys = Company::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
 
         return $dataTable->render('clients.index', compact('companys', 'staffs'));
         // view('clients.index');

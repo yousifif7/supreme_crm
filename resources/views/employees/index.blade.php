@@ -1044,7 +1044,7 @@
         }
 
         function viewEmployeeDetail(id) {
-            $.get(`${baseUrl}/employees/${id}/view`, function(data) {
+            $.get(`${baseUrl}/employees/${id}/w`, function(data) {
                 $('#employee_name_heading').text(`${data.fore_name} ${data.sur_name}`);
                 $('#full_name_detail').text(`${data.fore_name} ${data.sur_name}`);
                 $('#email_detail').text(data.email);

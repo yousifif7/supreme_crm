@@ -33,7 +33,7 @@
         /* Active tab */
         .page-tabs-container .nav-tabs .nav-link.active {
             color: #fff !important;
-            background-color: #0d6efd !important;
+            background-color: #495057 !important;
             /* blue */
             border: none;
             font-weight: 600;

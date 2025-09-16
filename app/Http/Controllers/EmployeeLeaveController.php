@@ -309,37 +309,38 @@ class EmployeeLeaveController extends Controller
     }
 
 
-public function pending(Request $request)
-{
-    if ($request->ajax()) {
-        $query = LeaveRequest::where('status', 'pending')->with('user');
+    public function pending(Request $request)
+    {
+        if ($request->ajax()) {
+            $query = LeaveRequest::where('status', 'pending')->with('user');
 
-        return DataTables::of($query)
-            ->addColumn('checkbox', function($leave){
-                return '<input type="checkbox" class="dT-row-checkbox" value="'.$leave->id.'">';
-            })
-            ->addColumn('reason', function($leave){
-                return $leave->reason;
-            })
-            ->addColumn('staff_name', fn($leave) => $leave->user ? $leave->user->first_name . ' ' . $leave->user->last_name : 'N/A')
-            ->addColumn('control', function ($leave) {
-                return '<button class="btn btn-sm btn-success approve-btn" data-id="' . $leave->id . '">Approve</button>
+            return DataTables::of($query)
+                ->addIndexColumn()
+                ->addColumn('checkbox', function ($leave) {
+                    return '<input type="checkbox" class="dT-row-checkbox" value="' . $leave->id . '">';
+                })
+                ->addColumn('reason', function ($leave) {
+                    return $leave->reason;
+                })
+                ->addColumn('staff_name', fn($leave) => $leave->user ? $leave->user->first_name . ' ' . $leave->user->last_name : 'N/A')
+                ->addColumn('control', function ($leave) {
+                    return '<button class="btn btn-sm btn-success approve-btn" data-id="' . $leave->id . '">Approve</button>
                         <button class="btn btn-sm btn-danger reject-btn" data-id="' . $leave->id . '">Reject</button>';
-            })
-            ->addColumn('actions', fn($leave) => view('leave_management.leaves.action', compact('leave')))
-            ->rawColumns(['checkbox','actions','control'])
-            ->make(true);
-    }
+                })
+                ->addColumn('actions', fn($leave) => view('leave_management.leaves.action', compact('leave')))
+                ->rawColumns(['checkbox', 'actions', 'control'])
+                ->make(true);
+        }
         $status = [
             'pending' => 'Pending',
             'approved' => 'Approved',
             'rejected' => 'Rejected',
         ];
-    $employees = \App\Models\Employee::selectRaw("CONCAT(fore_name, ' ', sur_name) as full_name, id")
-        ->pluck('full_name', 'id')->toArray();
+        $employees = Employee::selectRaw("CONCAT(fore_name, ' ', sur_name) as full_name, id")
+            ->pluck('full_name', 'id')->toArray();
 
-    return view('leave_management.new_leave_requests', compact('employees','status'));
-}
+        return view('leave_management.new_leave_requests', compact('employees', 'status'));
+    }
 
 
     public function approve(LeaveRequest $leave)
@@ -348,6 +349,50 @@ public function pending(Request $request)
         $leave->reject_reason = null;
         $leave->save();
 
+        $employee=User::find($leave->user_id);
+        $employeeName = $employee->first_name . ' ' . $employee->last_name;
+
+        $userId = $employee->id;
+        if ($leave->status === 'approved') {
+            Notify::toDashboard(
+                null,
+                'alert',
+                'Leave Approved',
+                "An admin Approved a leave request from {$leave->start_date} to {$leave->end_date} requested by $employeeName",
+                "/leaves"
+            );
+
+            $shift = ShiftDate::find($leave->shift_id);
+            if ($shift) {
+                $shift->staff_id = null;
+                $shift->status = 'cancelled';
+                $shift->is_assign = 6;
+                $shift->save();
+
+                // $staff = User::role('security_staff')->where('id',$shift->staff_id)->first();
+                send_push_notification(
+                    $userId,
+                    'Removed from shift',
+                    "You have been removed from shift (ID: " . $shift->id . ' at ' . $shift->shift_date,
+                    ['shift' => $shift]
+                );
+
+                Notify::toDashboard(
+                    null,
+                    'alert',
+                    'Guard Removed from shift',
+                    "Guard " . $employeeName . ' Has been removed from shift due to leave accepted, Reassign the shift before ' . $shift->start_time,
+                    "/shift-dates/$shift->id/view",
+                );
+            }
+
+            send_push_notification(
+                $userId,
+                'Leave Approved',
+                "Your leave request has been approved by admin.",
+                ['leave' => $leave]
+            );
+        }
         return response()->json(['success' => true, 'message' => 'Leave approved']);
     }
 
@@ -360,6 +405,22 @@ public function pending(Request $request)
         $leave->status = 'rejected';
         $leave->reject_reason = $request->reason;
         $leave->save();
+
+        $employee = User::find($leave->user_id);
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Leave Rejected',
+            "An admin rejected a leave request from {$leave->start_date} to {$leave->end_date} requested by {$employee->first_name} {$employee->last_name} Reason: {$leave->reject_reason}",
+            "/leaves"
+        );
+
+        send_push_notification(
+            $leave->user_id,
+            'Leave Rejected',
+            "Your leave request was rejected. Reason: {$leave->reject_reason}",
+            ['leave' => $leave]
+        );
 
         return response()->json(['success' => true, 'message' => 'Leave rejected']);
     }

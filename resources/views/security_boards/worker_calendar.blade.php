@@ -481,20 +481,17 @@
                         },
 
 
-
                         eventClick: function(info) {
-                            // console.log('Event clicked:', info.event.extendedProps);
                             // create a button with data-toggle="ajax-modal" in body and click it
                             const button = document.createElement('button');
-                            button.setAttribute('data-toggle', 'ajax-modal');
-                            button.setAttribute('data-title', 'Rota Detail');
-                            button.setAttribute('data-size', 'modal-xl');
-                            button.setAttribute('data-width', '80%');
-                            button.setAttribute('data-href',
-                                `shifts/${info.event.extendedProps.sd_id}`);
-                            button.style.display = 'none';
-                            document.body.appendChild(button);
-                            button.click();
+                            const shiftId = info.event.extendedProps.sd_id;
+
+                            if (!shiftId) {
+                                console.error('Shift ID missing for this event:', info.event);
+                                return;
+                            }
+
+                            window.open(`/shift-dates/${shiftId}/view`, '_blank');
                         },
 
                         eventDidMount: function(info) {

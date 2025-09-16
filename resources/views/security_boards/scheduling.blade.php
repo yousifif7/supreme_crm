@@ -1,7 +1,7 @@
 @extends('layouts.app')
 @section('title', 'CRM - Scheduling')
 @section('styles')
-<link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
 
     <!-- Flatpickr CSS -->
     <style>
@@ -34,8 +34,12 @@
             width: 115px;
             min-width: 100px;
             padding: 10px;
-            font-size: 12px;
-            font-weight: bold;
+            font-size: 13px;
+            /* slightly larger */
+            font-weight: 800;
+            /* heavier than bold */
+            color: #212529;
+            /* darker for contrast */
             background-color: #e9ecef;
             border-right: 1px solid #dee2e6;
             text-align: center;
@@ -90,12 +94,17 @@
             position: relative;
         }
 
+
         .day-header {
             text-align: center;
             padding: 8px 5px;
             width: 100px;
-            font-size: 10px;
-            font-weight: bold;
+            font-size: 11px;
+            /* slightly larger */
+            font-weight: 800;
+            /* stronger bold */
+            color: #343a40;
+            /* darker text */
             background-color: #f8f9fa;
             border-bottom: 1px solid #dee2e6;
         }
@@ -992,7 +1001,6 @@
             // Add active to the clicked one
             $(buttonId).addClass('active');
         }
-
     </script>
 
 @endsection

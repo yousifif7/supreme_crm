@@ -141,20 +141,48 @@ class Employee extends Model
     {
         return $this->profile_picture ? '/uploads/profile_pics/' . $this->profile_picture : 'uploads/no.png';
     }
-
     public function fileUrl($file_name, $preview_only = false)
     {
-        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
-        if (in_array($file_name, $documents)) {
-            if ($this->$file_name) {
-                // checkif ends with .pdf
-                if ($preview_only && str_ends_with($this->$file_name, '.pdf')) {
-                    return '/uploads/PDF_file_icon.svg';
-                }
-                return '/uploads/' . $file_name . '/' . $this->$file_name;
-            }
+        $documents = [
+            'sia_licence_file',
+            'passport_file',
+            'proof_of_address_file',
+            'ni_letter_file',
+            'first_aid_certificate_file',
+            'act_certificate_file'
+        ];
+
+        if (!in_array($file_name, $documents)) {
+            return '/uploads/no.png'; // fallback for unknown column
+        }
+
+        $file = $this->$file_name;
+
+        if (!$file) {
             return '/uploads/no.png';
         }
+
+        // 🔹 If file already has "documents/" or "uploads/" path saved in DB
+        if (str_starts_with($file, 'documents/') || str_starts_with($file, 'uploads/')) {
+            if ($preview_only && str_ends_with($file, '.pdf')) {
+                return '/uploads/PDF_file_icon.svg';
+            }
+            return asset($file);
+        }
+
+        // 🔹 Handle dashboard upload (stored just as filename)
+        $path = 'uploads/' . $file_name . '/' . $file;
+
+        // 🔹 Handle app upload (stored as filename but should live in /documents)
+        if (!file_exists(public_path($path))) {
+            $path = 'documents/' . $file;
+        }
+
+        if ($preview_only && str_ends_with($file, '.pdf')) {
+            return '/uploads/PDF_file_icon.svg';
+        }
+
+        return asset($path);
     }
 
     public function shifts()

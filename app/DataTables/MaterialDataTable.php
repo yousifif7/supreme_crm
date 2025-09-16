@@ -13,6 +13,7 @@ class MaterialDataTable extends DataTable
     public function dataTable($query): EloquentDataTable
     {
         return (new EloquentDataTable($query))
+            ->addIndexColumn()
             ->addColumn('checkbox', function ($row) {
                 return '<input type="checkbox" class="rowCheckbox" value="' . $row->id . '">';
             })
@@ -69,7 +70,7 @@ class MaterialDataTable extends DataTable
                 ->width(10)
                 ->addClass('text-center'),
 
-            Column::make('id'),
+            Column::computed('DT_RowIndex')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
             Column::make('title'),
             Column::make('description'),
             Column::make('type'),

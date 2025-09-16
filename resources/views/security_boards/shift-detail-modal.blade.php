@@ -50,10 +50,9 @@
                         <div class="upper-stats-box">
                             <div class="profile-detail">
                                 <div class="avater">
-                                    <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}"
+                                    <img src="{{ $shiftDate->staff?->profile_picture ?? 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png' }}"
                                         class="profile-avater profile_picture" id="profile_picture">
                                 </div>
-
 
                                 <div class="profile-details">
                                     <h6 id="name">{{ $shiftDate->staff?->first_name ?? '' }}
@@ -93,10 +92,10 @@
                                     <h6>Shift Time</h6>
                                     <span id="shift_time">
                                         @if (!empty($shiftDate->start_time) && !empty($shiftDate->end_time))
-                                            {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('h:i A') }}
+                                            {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i') }}
                                             -
-                                            {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('h:i A') }}
-                                            ({{ sprintf('%02d hr %02d min', floor($shiftDate->total_hours), round(($shiftDate->total_hours - floor($shiftDate->total_hours)) * 60)) }})
+                                            {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('H:i') }}
+                                            {{ sprintf('%02d hr %02d min', floor($shiftDate->total_hours), round(($shiftDate->total_hours - floor($shiftDate->total_hours)) * 60)) }}
                                         @else
                                             Not available
                                         @endif
@@ -116,13 +115,24 @@
                             </div>
                         </div>
                     </div>
-
                     <div class="col-md-6 col-12">
                         <div class="book-on_box">
                             <div class="profile-detail">
+                                @php
+                                    $firstLocation = App\Models\Location::where('shiftdate_id', $shiftDate->id)
+                                        ->orderBy('timestamp', 'asc')
+                                        ->first();
+
+                                    $lastLocation = App\Models\Location::where('shiftdate_id', $shiftDate->id)
+                                        ->orderBy('timestamp', 'desc')
+                                        ->first();
+                                @endphp
                                 <div class="avater">
-                                    <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}"
-                                        class="profile-avater profile_picture">
+                                    @if ($firstLocation)
+                                        <div id="map-on-{{ $shiftDate->id }}" class="profile-map"></div>
+                                    @else
+                                        <p class="bg-light">No starting location found.</p>
+                                    @endif
                                 </div>
                                 <div class="profile-details">
                                     <h6>Book on</h6>
@@ -142,19 +152,21 @@
                                 @csrf
                                 <input type="hidden" id="book_on_id" name="book_on_id"
                                     value="{{ $shiftDate->id }}">
-                                <input type="time" id="absentee_start_time" name="absentee_start_time"
-                                    value="{{ $shiftDate->absentee_start_time ?? date('h:i') }}"
-                                    class="form-control mb-2">
-                                <button type="submit" class="btn btn-primary">set book on time</button>
+
+                                <input type="text" id="absentee_start_time" name="absentee_start_time"
+                                    placeholder="HH:MM" class="form-control mb-2">
+
+                                <button type="submit" class="btn btn-primary">Set book on time</button>
                             </form>
                         </div>
-                    </div>
-                    <div class="col-md-6">
                         <div class="book-off_box">
                             <div class="profile-detail">
                                 <div class="avater">
-                                    <img src="{{ $shiftDate->staff?->profilePictureUrl() ?? 'uploads/no.png' }}"
-                                        class="profile-avater profile_picture">
+                                    @if ($lastLocation)
+                                        <div id="map-off-{{ $shiftDate->id }}" class="profile-map"></div>
+                                    @else
+                                        <p class="bg-white">No ending location found.</p>
+                                    @endif
                                 </div>
                                 <div class="profile-details">
                                     <h6>Book Off </h6>
@@ -173,131 +185,151 @@
                                 @csrf
                                 <input type="hidden" id="book_off_id" name="book_off_id"
                                     value="{{ $shiftDate->id }}">
-                                <input type="time" id="absentee_end_time" name="absentee_end_time"
-                                    value="{{ $shiftDate->absentee_end_time ?? date('h:i') }}"
-                                    class="form-control mb-2">
-                                <button type="submit" class="btn btn-primary">set book off time</button>
+                                <input type="text" id="absentee_end_time" name="absentee_end_time"
+                                    placeholder="HH:MM" class="form-control mb-2">
+                                <button type="submit" class="btn btn-danger">Set book off time</button>
                             </form>
                         </div>
                     </div>
+                    @if ($shiftDate->staff_id)
+                        @php
+                            // $employee= App\Models\Employee::find($shiftDate->staff_id);
+                            $user = App\Models\User::role('security_staff')->where('id', $shiftDate->staff_id)->first();
+                        @endphp
+                    @endif
                 </div>
             </div>
         </div>
         <div class="tab-pane fade" id="address2" role="tabpanel" aria-labelledby="address-tab2">
             @if ($shiftDate->staff)
+                @php
+                    $staff = App\Models\Employee::where('user_id', $shiftDate->staff_id)->first();
+                @endphp
                 <div class="container-fluid p-3">
                     <!-- First Row - 3 Images -->
                     <div class="row mb-4">
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ asset($shiftDate->staff?->fileUrl('sia_licence_file', true)) }}"
-                                        alt="SIA Licence" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('sia_licence_file') }}"
-                                            target="_blank" class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
+                        @if ($staff->sia_licence_file)
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="document-card">
+                                    <div class="document-image-wrapper">
+                                        <img src="{{ asset($staff?->fileUrl('sia_licence_file', true)) }}"
+                                            alt="SIA Licence" class="document-image" />
+                                        <div class="document-overlay">
+                                            <a href="{{ $staff?->fileUrl('sia_licence_file') }}" target="_blank"
+                                                class="view-btn">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="document-label">
+                                        <h6 class="mb-0">SIA Licence</h6>
                                     </div>
                                 </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">SIA Licence</h6>
-                                </div>
                             </div>
-                        </div>
+                        @endif
 
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ asset($shiftDate->staff?->fileUrl('passport_file', true)) }}"
-                                        alt="Passport" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('passport_file') }}" target="_blank"
-                                            class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
+                        @if ($staff->passport_file)
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="document-card">
+                                    <div class="document-image-wrapper">
+                                        <img src="{{ asset($staff?->fileUrl('passport_file', true)) }}"
+                                            alt="Passport" class="document-image" />
+                                        <div class="document-overlay">
+                                            <a href="{{ $staff?->fileUrl('passport_file') }}" target="_blank"
+                                                class="view-btn">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="document-label">
+                                        <h6 class="mb-0">Passport</h6>
                                     </div>
                                 </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">Passport</h6>
-                                </div>
                             </div>
-                        </div>
+                        @endif
 
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ asset($shiftDate->staff?->fileUrl('act_certificate_file', true)) }}"
-                                        alt="ACT Certificate" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('act_certificate_file') }}"
-                                            target="_blank" class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
+                        @if ($staff->act_certificate_file)
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="document-card">
+                                    <div class="document-image-wrapper">
+                                        <img src="{{ asset($staff?->fileUrl('act_certificate_file', true)) }}"
+                                            alt="ACT Certificate" class="document-image" />
+                                        <div class="document-overlay">
+                                            <a href="{{ $staff?->fileUrl('act_certificate_file') }}" target="_blank"
+                                                class="view-btn">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="document-label">
+                                        <h6 class="mb-0">ACT Certificate</h6>
                                     </div>
                                 </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">ACT Certificate</h6>
-                                </div>
                             </div>
-                        </div>
+                        @endif
                     </div>
 
                     <!-- Second Row - 3 Images -->
                     <div class="row mb-4">
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ asset($shiftDate->staff?->fileUrl('proof_of_address_file', true)) }}"
-                                        alt="Proof of Address" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('proof_of_address_file') }}"
-                                            target="_blank" class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
+                        @if ($staff->proof_of_address_file)
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="document-card">
+                                    <div class="document-image-wrapper">
+                                        <img src="{{ asset($staff?->fileUrl('proof_of_address_file', true)) }}"
+                                            alt="Proof of Address" class="document-image" />
+                                        <div class="document-overlay">
+                                            <a href="{{ $staff?->fileUrl('proof_of_address_file') }}" target="_blank"
+                                                class="view-btn">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="document-label">
+                                        <h6 class="mb-0">Proof of Address</h6>
                                     </div>
                                 </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">Proof of Address</h6>
-                                </div>
                             </div>
-                        </div>
+                        @endif
 
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ asset($shiftDate->staff?->fileUrl('ni_letter_file', true)) }}"
-                                        alt="NI Letter" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('ni_letter_file') }}" target="_blank"
-                                            class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
+                        @if ($staff->ni_letter_file)
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="document-card">
+                                    <div class="document-image-wrapper">
+                                        <img src="{{ asset($staff?->fileUrl('ni_letter_file', true)) }}"
+                                            alt="NI Letter" class="document-image" />
+                                        <div class="document-overlay">
+                                            <a href="{{ $staff?->fileUrl('ni_letter_file') }}" target="_blank"
+                                                class="view-btn">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="document-label">
+                                        <h6 class="mb-0">NI Letter</h6>
                                     </div>
                                 </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">NI Letter</h6>
-                                </div>
                             </div>
-                        </div>
+                        @endif
 
-                        <div class="col-md-4 col-sm-6 mb-3">
-                            <div class="document-card">
-                                <div class="document-image-wrapper">
-                                    <img src="{{ asset($shiftDate->staff?->fileUrl('first_aid_certificate_file', true)) }}"
-                                        alt="First Aid Certificate" class="document-image" />
-                                    <div class="document-overlay">
-                                        <a href="{{ $shiftDate->staff?->fileUrl('first_aid_certificate_file') }}"
-                                            target="_blank" class="view-btn">
-                                            <i class="ti ti-eye"></i>
-                                        </a>
+                        @if ($staff->first_aid_certificate_file)
+                            <div class="col-md-4 col-sm-6 mb-3">
+                                <div class="document-card">
+                                    <div class="document-image-wrapper">
+                                        <img src="{{ asset($staff?->fileUrl('first_aid_certificate_file', true)) }}"
+                                            alt="First Aid Certificate" class="document-image" />
+                                        <div class="document-overlay">
+                                            <a href="{{ $staff?->fileUrl('first_aid_certificate_file') }}"
+                                                target="_blank" class="view-btn">
+                                                <i class="ti ti-eye"></i>
+                                            </a>
+                                        </div>
+                                    </div>
+                                    <div class="document-label">
+                                        <h6 class="mb-0">Right to work</h6>
                                     </div>
                                 </div>
-                                <div class="document-label">
-                                    <h6 class="mb-0">First Aid Certificate</h6>
-                                </div>
                             </div>
-                        </div>
+                        @endif
                     </div>
                 </div>
             @else
@@ -341,9 +373,9 @@
             @php
                 // Make sure $shiftDate is set and has shift_id before querying
                 $checkcalls = collect();
-                if (!empty($shiftDate?->shift_id)) {
-                    $checkcalls = \App\Models\CheckCall::where('shift_id', $shiftDate->shift_id)
-                        ->orderBy('scheduled_time', 'desc')
+                if (!empty($shiftDate?->id)) {
+                    $checkcalls = \App\Models\CheckCall::where('shift_id', $shiftDate->id)
+                        ->orderBy('scheduled_time', 'asc')
                         ->get();
                 }
             @endphp
@@ -363,15 +395,16 @@
                     <tbody>
                         @foreach ($checkcalls as $checkcall)
                             @php
-                                $employee = \App\Models\Employee::find($checkcall->employee_id);
+                                $employee = \App\Models\User::find($checkcall->employee_id);
                                 $checkCallMedia =
                                     \App\Models\CheckCallMedia::where('check_call_id', $checkcall->id)->get() ??
                                     collect();
                             @endphp
                             <tr>
                                 <td>{{ $checkcall?->name }}</td>
-                                <td>{{ $employee?->fore_name }} {{ $employee?->sur_name }}</td>
-                                <td>{{ $checkcall->scheduled_time }}</td>
+                                <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                <td>{{ \Carbon\Carbon::parse($scheduled_time->started_at ?? '')->format('H:i') }}
+                                </td>
                                 <td>
                                     @if ($checkcall->status == 'pending')
                                         <p class="bg-warning text-center">Pending</p>
@@ -415,271 +448,270 @@
             @endif
         </div>
     </div>
-</div>
 
-<div class="modal fade" id="editCheckCallModal" tabindex="-1" aria-labelledby="editCheckCallLabel"
-    aria-hidden="true">
-    <div class="modal-dialog">
-        <form id="editCheckCallForm">
-            @csrf
-            @method('PUT')
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="editCheckCallLabel">Edit Check Call</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+    <div class="modal fade" id="editCheckCallModal" tabindex="-1" aria-labelledby="editCheckCallLabel"
+        aria-hidden="true">
+        <div class="modal-dialog">
+            <form id="editCheckCallForm">
+                @csrf
+                @method('PUT')
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editCheckCallLabel">Edit Check Call</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" name="id" id="checkcall_id">
+                        <div class="mb-3">
+                            <label>Name</label>
+                            <input type="text" class="form-control" name="name" id="checkpoint_name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Scheduled Time</label>
+                            <input type="datetime" class="form-control" name="scheduled_time" id="scheduled_time"
+                                required>
+                        </div>
+                        <div class="mb-3">
+                            <label>Status</label>
+                            <select class="form-select" name="status" id="status" required>
+                                <option value="pending">Pending</option>
+                                <option value="completed">Completed</option>
+                                <option value="missed">Missed</option>
+                            </select>
+                        </div>
+                        <div>
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="modal-body">
-                    <input type="hidden" name="id" id="checkcall_id">
-                    <div class="mb-3">
-                        <label>Name</label>
-                        <input type="text" class="form-control" name="name" id="checkpoint_name" required>
-                    </div>
-                    <div class="mb-3">
-                        <label>Scheduled Time</label>
-                        <input type="datetime" class="form-control" name="scheduled_time" id="scheduled_time"
-                            required>
-                    </div>
-                    <div class="mb-3">
-                        <label>Status</label>
-                        <select class="form-select" name="status" id="status" required>
-                            <option value="pending">Pending</option>
-                            <option value="completed">Completed</option>
-                            <option value="missed">Missed</option>
-                        </select>
-                    </div>
-                    <div>
-                        <button type="submit" class="btn btn-primary">Save Changes</button>
-                    </div>
-                </div>
-            </div>
-        </form>
+            </form>
+        </div>
     </div>
-</div>
 
 
-@php
-    $apiKey = env('GOOGLE_MAPS_API_KEY');
-@endphp
-<script>
-    $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
-        e.preventDefault();
-        var actionUrl = $(this).attr('action');
+    @php
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+    @endphp
+    <script>
+        $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
+            e.preventDefault();
+            var actionUrl = $(this).attr('action');
 
-        $.ajax({
-            url: actionUrl,
-            type: 'POST',
-            data: $(this).serialize(),
-            dataType: 'json', // ensures proper parsing
-            success: function(response) {
-                if (response.success) {
-                    // Use a toast or alert instead of hidden div
-                    toast_success(response
-                        .success); // create a toast_success function if you don't have one
-                    closeBsModal('#eventModal'); // close the modal AFTER showing toast
-                } else {
-                    toast_danger('Unexpected response from server.');
-                }
-            },
-            error: function(xhr) {
-                if (xhr.status === 422 && xhr.responseJSON) {
-                    if (xhr.responseJSON.error) {
-                        toast_danger(xhr.responseJSON.error);
-                    } else if (xhr.responseJSON.errors) {
-                        let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                        toast_danger(messages);
+            $.ajax({
+                url: actionUrl,
+                type: 'POST',
+                data: $(this).serialize(),
+                dataType: 'json', // ensures proper parsing
+                success: function(response) {
+                    if (response.success) {
+                        // Use a toast or alert instead of hidden div
+                        toast_success(response
+                            .success); // create a toast_success function if you don't have one
+                        closeBsModal('#eventModal'); // close the modal AFTER showing toast
+                    } else {
+                        toast_danger('Unexpected response from server.');
                     }
-                } else {
-                    toast_danger('An unexpected error occurred while assigning the shift.');
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON) {
+                        if (xhr.responseJSON.error) {
+                            toast_danger(xhr.responseJSON.error);
+                        } else if (xhr.responseJSON.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
+                            toast_danger(messages);
+                        }
+                    } else {
+                        toast_danger('An unexpected error occurred while assigning the shift.');
+                    }
                 }
-            }
+            });
         });
-    });
 
-    $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
-        $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
-        $('#assignShiftModal').modal('show');
-        $(".selec2_assign_modal").select2({
-            dropdownParent: $("#assignShiftModal")
+        $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
+            $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
+            $('#assignShiftModal').modal('show');
+            $(".selec2_assign_modal").select2({
+                dropdownParent: $("#assignShiftModal")
+            });
         });
-    });
 
-    $(document).ready(function() {
-        const london = [51.5074, -0.1278];
-        const oxford = [51.7520, -1.2577];
+        $(document).ready(function() {
+            const london = [51.5074, -0.1278];
+            const oxford = [51.7520, -1.2577];
 
-        const map1 = L.map('map-first').setView(london, 8);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '&copy; OpenStreetMap contributors'
-        }).addTo(map1);
-        const route = L.polyline([london, oxford], {
-            color: 'darkblue',
-            weight: 5
-        }).addTo(map1);
-        map1.fitBounds(route.getBounds());
-    });
-
-
-    $(document).on('click', '.edit-checkcall-btn', function() {
-        $('#checkcall_id').val($(this).data('id'));
-        $('#checkpoint_name').val($(this).data('name'));
-        $('#scheduled_time').val($(this).data('time').replace(' ', 'T')); // for datetime-local
-
-        // Set the status select based on the data-status attribute
-        $('#status').val($(this).data('status'));
-
-        $('#editCheckCallModal').modal('show');
-    });
-    // Handle update form submit
-    $('#editCheckCallForm').on('submit', function(e) {
-        e.preventDefault();
-        let id = $('#checkcall_id').val();
-
-        $.ajax({
-            url: `/checkcalls/${id}`, // Your update route
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(res) {
-                location.reload(); // Refresh table
-            },
-            error: function(xhr) {
-                alert('Error updating check call');
-            }
+            const map1 = L.map('map-first').setView(london, 8);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '&copy; OpenStreetMap contributors'
+            }).addTo(map1);
+            const route = L.polyline([london, oxford], {
+                color: 'darkblue',
+                weight: 5
+            }).addTo(map1);
+            map1.fitBounds(route.getBounds());
         });
-    });
 
-    $(document).on('click', '.delete-checkcall-btn', function() {
-        if (!confirm('Are you sure you want to delete this check call?')) return;
-        let id = $(this).data('id');
 
-        $.ajax({
-            url: `/checkcalls/${id}`,
-            type: 'DELETE',
-            data: {
-                _token: '{{ csrf_token() }}'
-            },
-            success: function() {
-                location.reload();
-            },
-            error: function() {
-                alert('Error deleting check call');
-            }
+        $(document).on('click', '.edit-checkcall-btn', function() {
+            $('#checkcall_id').val($(this).data('id'));
+            $('#checkpoint_name').val($(this).data('name'));
+            $('#scheduled_time').val($(this).data('time').replace(' ', 'T')); // for datetime-local
+
+            // Set the status select based on the data-status attribute
+            $('#status').val($(this).data('status'));
+
+            $('#editCheckCallModal').modal('show');
         });
-    });
-</script>
+        // Handle update form submit
+        $('#editCheckCallForm').on('submit', function(e) {
+            e.preventDefault();
+            let id = $('#checkcall_id').val();
 
-<style>
-    .document-card {
-        background: #fff;
-        border-radius: 12px;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-        overflow: hidden;
-        transition: all 0.3s ease;
-        height: 100%;
-    }
+            $.ajax({
+                url: `/checkcalls/${id}`, // Your update route
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    location.reload(); // Refresh table
+                },
+                error: function(xhr) {
+                    alert('Error updating check call');
+                }
+            });
+        });
 
-    .document-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-    }
+        $(document).on('click', '.delete-checkcall-btn', function() {
+            if (!confirm('Are you sure you want to delete this check call?')) return;
+            let id = $(this).data('id');
 
-    .document-image-wrapper {
-        position: relative;
-        width: 70%;
-        margin: 0 auto;
-        aspect-ratio: 1;
-        overflow: hidden;
-        background: #f8f9fa;
-    }
+            $.ajax({
+                url: `/checkcalls/${id}`,
+                type: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function() {
+                    location.reload();
+                },
+                error: function() {
+                    alert('Error deleting check call');
+                }
+            });
+        });
+    </script>
 
-    .document-image {
-        width: 100%;
-        height: 100%;
-        transition: transform 0.3s ease;
-    }
-
-    .document-card:hover .document-image {
-        transform: scale(1.05);
-    }
-
-    .document-overlay {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background: rgba(0, 0, 0, 0.7);
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        opacity: 0;
-        transition: opacity 0.3s ease;
-    }
-
-    .document-card:hover .document-overlay {
-        opacity: 1;
-    }
-
-    .view-btn {
-        background: #fff;
-        color: #333;
-        width: 35px;
-        height: 35px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        font-size: 16px;
-        transition: all 0.3s ease;
-    }
-
-    .view-btn:hover {
-        background: #007bff;
-        color: #fff;
-        transform: scale(1.1);
-    }
-
-    .document-label {
-        padding: 10px;
-        background: #fff;
-        text-align: center;
-        border-top: 1px solid #e9ecef;
-    }
-
-    .document-label h6 {
-        color: #333;
-        font-weight: 600;
-        font-size: 12px;
-        text-transform: uppercase;
-        letter-spacing: 0.5px;
-    }
-
-    /* Responsive adjustments */
-    @media (max-width: 768px) {
+    <style>
         .document-card {
-            margin-bottom: 15px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            height: 100%;
         }
 
-        .document-label {
-            padding: 8px;
-        }
-
-        .document-label h6 {
-            font-size: 10px;
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
         }
 
         .document-image-wrapper {
-            width: 80%;
+            position: relative;
+            width: 70%;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            overflow: hidden;
+            background: #f8f9fa;
         }
-    }
 
-    @media (max-width: 576px) {
-        .col-md-4 {
-            flex: 0 0 50%;
-            max-width: 50%;
+        .document-image {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
         }
-    }
-</style>
 
-<script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"
-    async defer></script>
+        .document-card:hover .document-image {
+            transform: scale(1.05);
+        }
+
+        .document-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .document-card:hover .document-overlay {
+            opacity: 1;
+        }
+
+        .view-btn {
+            background: #fff;
+            color: #333;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn:hover {
+            background: #007bff;
+            color: #fff;
+            transform: scale(1.1);
+        }
+
+        .document-label {
+            padding: 10px;
+            background: #fff;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .document-label h6 {
+            color: #333;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .document-card {
+                margin-bottom: 15px;
+            }
+
+            .document-label {
+                padding: 8px;
+            }
+
+            .document-label h6 {
+                font-size: 10px;
+            }
+
+            .document-image-wrapper {
+                width: 80%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .col-md-4 {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+        }
+    </style>
+
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"
+        async defer></script>

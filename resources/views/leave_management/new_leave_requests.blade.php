@@ -42,7 +42,7 @@
                 <thead>
                     <tr>
                         <th><input type="checkbox" id="selectAll"></th>
-                        <th>ID</th>
+                        <th>#</th>
                         <th>Reason</th>
                         <th>Staff Name</th>
                         <th>Type</th>
@@ -57,29 +57,51 @@
         </div>
     </div>
 
-    <!-- Reject Modal -->
-    <div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog">
-            <form id="rejectForm">
-                @csrf
-                <input type="hidden" id="leave_id" name="leave_id">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h5 class="modal-title">Reject Leave</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                    </div>
-                    <div class="modal-body">
-                        <label for="reason">Reason for rejection:</label>
-                        <textarea class="form-control" name="reason" id="reason" required></textarea>
-                    </div>
-                    <div class="modal-footer">
-                        <button type="submit" class="btn btn-danger">Reject</button>
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <!-- Delete Modal -->
+    <div class="modal fade" id="delete_modal">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                        <i class="ti ti-trash-x fs-36"></i>
+                    </span>
+                    <h4 class="mb-1">Confirm Delete</h4>
+                    <p class="mb-3">This action cannot be undone. Are you sure you want to delete?</p>
+                    <div class="d-flex justify-content-center">
+                        <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
                     </div>
                 </div>
-            </form>
+            </div>
         </div>
     </div>
+
+    <!-- Reject Modal -->
+<div class="modal fade" id="rejectModal" style="margin-left:50px;">
+    <div class="modal-dialog modal-dialog-centered mx-auto" style="max-width: 450px;">
+        <form id="rejectForm">
+            @csrf
+            <input type="hidden" id="leave_id" name="leave_id">
+            <div class="modal-content">
+                <div class="modal-body text-center">
+                    <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                        <i class="ti ti-x fs-36"></i>
+                    </span>
+                    <h4 class="mb-1">Reject Leave</h4>
+                    <p class="mb-3">Please provide a reason for rejection.</p>
+                    <textarea class="form-control mb-3" name="reason" id="reason" rows="3" required></textarea>
+                    <div class="d-flex justify-content-center">
+                        <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-danger">Reject</button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+
 
     <!-- Toast -->
     <div class="position-fixed top-0 end-0 p-3" style="z-index: 1100">
@@ -296,30 +318,58 @@
     </div>
 
 
-    <!-- Delete Modal -->
-    <div class="modal fade" id="delete_modal">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-body text-center">
-                    <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
-                        <i class="ti ti-trash-x fs-36"></i>
-                    </span>
-                    <h4 class="mb-1">Confirm Delete</h4>
-                    <p class="mb-3">This action cannot be undone. Are you sure you want to delete?</p>
-                    <div class="d-flex justify-content-center">
-                        <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
-                        <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+    <div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm"> <!-- modal-sm makes it smaller -->
+            <form id="approveForm">
+                @csrf
+                <input type="hidden" id="approve_leave_id" name="leave_id">
+                <div class="modal-content text-center"> <!-- center all content -->
+                    <div class="modal-body">
+                        <span class="avatar avatar-xl  text-success mb-3 d-inline-block">
+                            <i class="ti ti-check fs-36"></i>
+                        </span>
+                        <h4 class="mb-1">Confirm Approval</h4>
+                        <p class="mb-3">Are you sure you want to approve the leave?</p>
+                        <div class="d-flex justify-content-center gap-2">
+                            <button type="submit" class="btn btn-success btn-sm">Approve</button>
+                            <button type="button" class="btn btn-secondary btn-sm"
+                                data-bs-dismiss="modal">Cancel</button>
+                        </div>
                     </div>
                 </div>
-            </div>
+            </form>
         </div>
     </div>
+
+    {{-- approval confirmation --}}
+    {{-- <div class="modal fade" id="approveModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="approveForm">
+            @csrf
+            <input type="hidden" id="approve_leave_id" name="leave_id">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Approve Leave</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to approve this leave?
+                </div>
+                <div class="modal-footer">
+                    <button type="submit" class="btn btn-success">Approve</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div> --}}
 
 @endsection
 
 @section('scripts')
     <script>
         $(document).ready(function() {
+            // Initialize DataTable
             var table = $('#pendingLeavesTable').DataTable({
                 processing: true,
                 serverSide: true,
@@ -330,7 +380,11 @@
                         searchable: false
                     },
                     {
-                        data: 'id'
+                        data: 'DT_RowIndex',
+                        name: 'DT_RowIndex',
+                        title: '#',
+                        orderable: false,
+                        searchable: false
                     },
                     {
                         data: 'reason'
@@ -359,9 +413,16 @@
                         data: 'actions',
                         orderable: false,
                         searchable: false
-                    },
+                    }
                 ]
             });
+
+            // Initialize Bootstrap 5 modals
+            const rejectModalEl = document.getElementById('rejectModal');
+            const rejectModal = new bootstrap.Modal(rejectModalEl);
+
+            const approveModalEl = document.getElementById('approveModal');
+            const approveModal = new bootstrap.Modal(approveModalEl);
 
             // Select all checkboxes
             $('#selectAll').on('click', function() {
@@ -374,11 +435,7 @@
                 const selected = $('.dT-row-checkbox:checked').map(function() {
                     return this.value;
                 }).get();
-
-                if (selected.length === 0) {
-                    toast_danger('Please select at least one leave to delete.');
-                    return;
-                }
+                if (!selected.length) return toast_danger('Please select at least one leave to delete.');
 
                 if (!confirm('Are you sure you want to delete the selected leaves?')) return;
 
@@ -389,9 +446,9 @@
                         ids: selected,
                         _token: '{{ csrf_token() }}'
                     },
-                    success: function(response) {
+                    success: function() {
                         toast_success('Selected leaves deleted successfully!');
-                        table.ajax.reload();
+                        table.ajax.reload(null, false);
                     },
                     error: function() {
                         toast_danger('Something went wrong during bulk delete.');
@@ -399,21 +456,85 @@
                 });
             });
 
+            // Open Reject Modal
+            $('#pendingLeavesTable').on('click', '.reject-btn', function() {
+                const leaveId = $(this).data('id');
+                $('#rejectModal #leave_id').val(leaveId);
+                $('#rejectModal #reason').val('');
+                rejectModal.show();
+            });
+
+            // Open Approve Modal
+            $('#pendingLeavesTable').on('click', '.approve-btn', function() {
+                const leaveId = $(this).data('id');
+                $('#approveModal #approve_leave_id').val(leaveId);
+                approveModal.show();
+            });
+
+            // Reject AJAX
+            $('#rejectForm').on('submit', function(e) {
+                e.preventDefault();
+                const leaveId = $('#rejectModal #leave_id').val();
+                const reason = $('#rejectModal #reason').val();
+
+                $.ajax({
+                    url: `/leaves/reject/${leaveId}`,
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}',
+                        reason
+                    },
+                    success: function() {
+                        toast_success('Leave rejected successfully!');
+                        table.ajax.reload(null, false);
+                        rejectModal.hide();
+                    },
+                    error: function() {
+                        toast_danger('Error rejecting leave.');
+                    }
+                });
+            });
+
+            // Approve AJAX
+            $('#approveForm').on('submit', function(e) {
+                e.preventDefault();
+                const leaveId = $('#approveModal #approve_leave_id').val();
+
+                $.ajax({
+                    url: `/leaves/approve/${leaveId}`,
+                    type: 'POST',
+                    data: {
+                        _token: '{{ csrf_token() }}'
+                    },
+                    success: function() {
+                        toast_success('Leave approved successfully!');
+                        table.ajax.reload(null, false);
+                        approveModal.hide();
+                    },
+                    error: function() {
+                        toast_danger('Error approving leave.');
+                    }
+                });
+            });
+
             // Toast helper functions
             function toast_success(message) {
-                let toastEl = $('#liveToast');
+                const toastEl = $('#liveToast');
                 toastEl.removeClass('text-bg-danger').addClass('text-bg-success');
                 $('#toastBody').text(message);
                 new bootstrap.Toast(toastEl[0]).show();
             }
 
             function toast_danger(message) {
-                let toastEl = $('#liveToast');
+                const toastEl = $('#liveToast');
                 toastEl.removeClass('text-bg-success').addClass('text-bg-danger');
                 $('#toastBody').text(message);
                 new bootstrap.Toast(toastEl[0]).show();
             }
         });
+
+
+
 
         $('#edit_leave_form').on('submit', function(e) {
             e.preventDefault();

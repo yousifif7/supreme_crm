@@ -49,7 +49,7 @@
                     <div class="dropdown">
                         <button class="btn btn-primary me-2" id="bulkDeleteBtn">Delete Selected</button>
                         <a href="javascript:void(0);"
-                            class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
+                            class="dropdown-toggle export_btn btn d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
                             <i class="ti ti-file-export me-1"></i>Export
                         </a>
@@ -99,6 +99,7 @@
         </div>
       
                 @include('security_boards.edit')
+                @include('security_boards.shiftmodal')
 
         <!-- Edit Shift -->
     
@@ -394,7 +395,53 @@
                 });
             }
         });
+        $(document).on("change", "#clientSelect", function() {
+            var $this = $(this);
+            const clientId = $(this).val();
+            if (!clientId) return;
 
+            var $siteSelect = $('#siteSelect');
+            $siteSelect.html('<option value="">--choose--</option>');
+
+            $.ajax({
+                url: `${baseUrl}/api/client/${clientId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+                    if (data.sites && data.sites.length > 0) {
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
+                        });
+                    } else {
+                        $siteSelect.append('<option value="">No sites found</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
+        });
+
+        $(document).on("change", "#StaffSelect", function() {
+            var $this = $(this);
+            const staffId = $(this).val();
+            if (!staffId) return;
+
+            $.ajax({
+                url: `${baseUrl}/api/staff/${staffId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                        '');
+                },
+                error: function(xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
+        });
 
     </script>
 

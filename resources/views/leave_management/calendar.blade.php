@@ -8,12 +8,20 @@
     <style>
         /* Container */
         #ukCalendar {
-            max-width: 1100px;
-            margin: 40px auto;
+            width: 100%;
+            /* full width of parent */
+            max-width: 100%;
+            /* remove fixed max-width */
+            margin: 20px auto;
+            /* keep top/bottom spacing */
             background: #fff;
             padding: 20px;
             border-radius: 16px;
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            flex: 1 1 auto;
+            /* allow flex growth */
+            min-height: 600px;
+            /* ensures calendar isn’t too short */
         }
 
         /* FullCalendar header */
@@ -55,8 +63,16 @@
 
         .holiday-event {
             background: #ff4d4f !important;
-            /* red highlight */
             color: #fff !important;
+        }
+
+        .content {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            padding: 0 20px;
+            /* optional */
         }
 
         /* Today’s highlight */
@@ -116,5 +132,4 @@
                 });
         });
     </script>
-
 @endsection
