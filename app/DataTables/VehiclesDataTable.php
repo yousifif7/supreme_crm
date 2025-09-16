@@ -95,7 +95,7 @@ public function html(): HtmlBuilder
         ->orderBy([2, 'DESC'])
         ->parameters([
             "scrollX" => true,
-            "pageLength" => 15,
+            "pageLength" => 25,
             "headerCallback" => "function(thead, data, start, end, display) {
                 $(thead).addClass('thead-light');
             }",

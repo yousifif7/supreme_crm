@@ -1,5 +1,6 @@
 @extends('layouts.app')
 @section('title', 'Pending Leaves')
+
 @section('contents')
     <div class="page-wrapper">
         <div class="content">

@@ -5,6 +5,20 @@
 
     <!-- Flatpickr CSS -->
     <style>
+        .gantt-timeline-header,
+        .gantt-row-content {
+            display: flex;
+            flex: 1;
+            min-width: 100%;
+        }
+
+        .day-header,
+        .day-column {
+            flex: 1;
+            min-width: 120px;
+            /* adjust: makes day/week fill more space */
+        }
+
         html {
             font-size: 80%;
         }
@@ -233,9 +247,15 @@
         }
 
         #ganttChart {
-            display: inline-block;
-            grid-template-columns: repeat(7, 1fr);
-            /* 7 days */
+            margin: 0 auto;
+            max-width: 1600px;
+            /* keep it readable on huge monitors */
+            width: 100%;
+            /* stretch to fill wrapper */
+        }
+
+        .gantt-wrapper {
+            width: 100%;
         }
 
         .day-header,
@@ -254,7 +274,7 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Scheduling - Gantt View</h2>
+                    <h2 class="mb-1">Scheduling</h2>
                 </div>
             </div>
 
@@ -302,7 +322,7 @@
                                 </div>
                             </div>
 
-                            <div class="gantt-container">
+                            <div class="gantt-container gantt-wrapper d-flex justify-content-center">
                                 <div id="ganttChart">
                                     <div class="text-center p-5">
                                         <div class="spinner-border" role="status"></div>
@@ -847,6 +867,10 @@
                         block: "nearest"
                     });
                 }
+                const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                const minWidthPerDay = ganttView === 'day' ? 400 : ganttView === 'week' ? 150 : 60;
+                $('#ganttChart .gantt-timeline-header, #ganttChart .gantt-row-content')
+                    .css('min-width', `${totalDays * minWidthPerDay}px`);
             }
 
             function filterGanttChart(searchTerm) {

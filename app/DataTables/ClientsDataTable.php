@@ -104,7 +104,7 @@ class ClientsDataTable extends DataTable
             // ->responsive(true)
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
             feather.replace();
             var api = this.api();

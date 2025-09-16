@@ -101,33 +101,36 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 if ($newShiftStart instanceof \Carbon\Carbon) {
                     $lastShift = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
                         ->whereNotNull('end_time')
-                        ->whereRaw("TIMESTAMP(shift_date, end_time) <= ?", [$newShiftStart])
                         ->orderByDesc('shift_date')
                         ->orderByDesc('end_time')
                         ->first();
 
                     if ($lastShift) {
-                        $lastShiftEnd = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->end_time);
-
-                        // handle overnight shifts
+                        // Build last shift start and end
                         $lastShiftStart = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->start_time);
+                        $lastShiftEnd   = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->end_time);
+
+                        // If shift crosses midnight (end <= start), add a day
                         if ($lastShiftEnd->lte($lastShiftStart)) {
                             $lastShiftEnd->addDay();
                         }
 
-                        $hoursDiff = $lastShiftEnd->diffInHours($newShiftStart, false);
+                        // Now compare only if lastShiftEnd is before the new shift start
+                        if ($lastShiftEnd->lte($newShiftStart)) {
+                            $hoursDiff = $lastShiftEnd->diffInHours($newShiftStart);
 
-                        \Log::info('12h check result', [
-                            'lastShiftEnd' => $lastShiftEnd,
-                            'newShiftStart' => $newShiftStart,
-                            'hoursDiff' => $hoursDiff,
-                        ]);
+                            \Log::info('12h check result', [
+                                'lastShiftEnd' => $lastShiftEnd->toDateTimeString(),
+                                'newShiftStart' => $newShiftStart->toDateTimeString(),
+                                'hoursDiff' => $hoursDiff,
+                            ]);
 
-                        if ($hoursDiff < 12) {
-                            $validator->errors()->add(
-                                $fieldName,
-                                $message ?: 'Staff must have at least 12 hours rest between shifts.'
-                            );
+                            if ($hoursDiff < 12) {
+                                $validator->errors()->add(
+                                    $fieldName,
+                                    $message ?: 'Staff must have at least 12 hours rest between shifts.'
+                                );
+                            }
                         }
                     }
                 }

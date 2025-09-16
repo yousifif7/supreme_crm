@@ -227,12 +227,9 @@ class ShiftController extends Controller
                 // ✅ Check SIA license expiry only if staff exists
                 if ($staffId) {
                     $staff = \App\Models\Employee::find($staffId);
-
-
-
                     $selectedDays = array_map('trim', explode(',', $dayString));
-                    // $newShiftHours = $this->calculateTotalWorkingHours($staffId, $from, $to, $start, $end, $breakMinutes, $selectedDays);
                     $newShiftHours = 0;
+
                     try {
                         $newShiftHours = $this->calculateTotalWorkingHours(
                             $staffId,
@@ -247,20 +244,32 @@ class ShiftController extends Controller
                         $validator->errors()->add('staff_id', $e->getMessage());
                     }
 
-                    // Get week start and end for that shift date
-                    $weekStart = $fromDate->startOfWeek(Carbon::MONDAY);
-                    $weekEnd = $toDate->endOfWeek(Carbon::SUNDAY);
+                    // Ensure $from and $start are valid
+                    if (!empty($from) && !empty($start)) {
+                        $shiftDateCarbon = \Carbon\Carbon::parse($from); // just the date part
+                        $newShiftStart   = \Carbon\Carbon::parse($from . ' ' . $start); // full datetime
 
+                        // Get week start and end for that shift date
+                        $weekStart = $shiftDateCarbon->copy()->startOfWeek(\Carbon\Carbon::MONDAY);
+                        $weekEnd   = $shiftDateCarbon->copy()->endOfWeek(\Carbon\Carbon::SUNDAY);
 
-                    // Fetch existing shifts for this staff in the same week
-                    $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staffId)
-                        ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                        ->sum('total_hours');
+                        // Fetch existing shifts for this staff in the same week
+                        $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staffId)
+                            ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                            ->sum('total_hours');
 
-                    // Check if adding new shift exceeds weekly limit
-                    $maxWeeklyHours = $staff->hour_per_week ?? 40;
-
-                    applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $fromDate);
+                        // Apply restrictions safely
+                        applyRestrictions(
+                            $staff,
+                            $validator,
+                            'staff_id',
+                            $newShiftHours,
+                            $shiftDateCarbon,
+                            $newShiftStart
+                        );
+                    } else {
+                        $validator->errors()->add('staff_id', 'Invalid shift date or start time for restriction check.');
+                    }
                 }
             });
 
@@ -428,6 +437,7 @@ class ShiftController extends Controller
         $data['start_time']          = $data['start_shift'];
         $data['end_time']            = $data['end_shift'];
 
+        // Normalize time format
         if (strlen($data['start_shift']) === 5) {
             $data['start_shift'] .= ':00';
         }
@@ -435,6 +445,7 @@ class ShiftController extends Controller
             $data['end_shift'] .= ':00';
         }
 
+        // Calculate total hours
         $data['total_hours'] = $this->calculateTotalHours(
             $data['start_shift'],
             $data['end_shift'],
@@ -442,18 +453,35 @@ class ShiftController extends Controller
         );
 
         $data['is_assign'] = $data['status_id'];
-        $shift->status = 'pending';
+        $shift->status     = 'pending';
+
         // ✅ Restrictions only if assigning to a staff member
         if (!empty($data['staff_id'])) {
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
             if ($staffUser) {
                 $staff = Employee::findOrFail($staffUser->id);
 
-                // Calculate total hours for this shift
                 $newShiftHours = $data['total_hours'];
 
-                // Apply restrictions
-                applyRestrictions($staff, $validator, 'staff_id', $newShiftHours, $data['shift_date'] ?? $shift->shift_date);
+                // Build new shift start/end
+                $shiftDate    = $data['shift_date'] ?? $shift->shift_date;
+                $newStartTime = \Carbon\Carbon::parse($shiftDate . ' ' . $data['start_shift']);
+                $newEndTime   = \Carbon\Carbon::parse($shiftDate . ' ' . $data['end_shift']);
+
+
+                if ($newEndTime->lte($newStartTime)) {
+                    $newEndTime->addDay();
+                }
+
+                // Apply restrictions (40hr, 20hr, 12hr rest, etc.)
+                applyRestrictions(
+                    $staff,
+                    $validator,
+                    'staff_id',
+                    $newShiftHours,
+                    $shiftDate,     // string date
+                    $newStartTime   // Carbon datetime
+                );
 
                 if ($validator->errors()->any()) {
                     return response()->json([
@@ -462,18 +490,11 @@ class ShiftController extends Controller
                 }
 
                 // Overlapping check
-                $newStart = \Carbon\Carbon::parse(($data['shift_date'] ?? $shift->shift_date) . ' ' . $data['start_shift']);
-                $newEnd   = \Carbon\Carbon::parse(($data['shift_date'] ?? $shift->shift_date) . ' ' . $data['end_shift']);
-
-                if ($newEnd->lte($newStart)) {
-                    $newEnd->addDay();
-                }
-
                 $overlap = ShiftDate::where('staff_id', $staff->user_id)
                     ->where('id', '!=', $shift->id) // ignore current shift
-                    ->where(function ($query) use ($newStart, $newEnd) {
-                        $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
-                            ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
+                    ->where(function ($query) use ($newStartTime, $newEndTime) {
+                        $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEndTime])
+                            ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStartTime]);
                     })
                     ->exists();
 
@@ -483,6 +504,7 @@ class ShiftController extends Controller
                     ], 422);
                 }
 
+                // Push notification for reassignment
                 send_push_notification(
                     $staff->user_id,
                     'Shift reassigned',
@@ -492,6 +514,7 @@ class ShiftController extends Controller
             }
         }
 
+        // ✅ Update shift
         $shift->update($data);
 
         return response()->json(['message' => 'Shift updated successfully']);

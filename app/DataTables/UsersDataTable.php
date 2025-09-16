@@ -111,7 +111,7 @@ class UsersDataTable extends DataTable
             ->orderBy([6, 'DESC'])
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();

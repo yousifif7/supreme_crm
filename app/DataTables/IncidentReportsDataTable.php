@@ -90,7 +90,7 @@ class IncidentReportsDataTable extends DataTable
             ->orderBy([9, 'DESC']) // created_at column index
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();

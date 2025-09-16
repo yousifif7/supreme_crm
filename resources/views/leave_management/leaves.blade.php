@@ -1,5 +1,14 @@
 @extends('layouts.app')
 @section('title', 'CRM - Leaves')
+
+@section('styles')
+<style>
+    .dt-column-title{
+    font-weight: bolder;
+    color:black;
+}
+</style>
+@endsection
 @section('contents')
     <!-- Page Wrapper -->
     <div id="all-workers" class="page-wrapper">
