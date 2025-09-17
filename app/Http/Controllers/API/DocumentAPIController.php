@@ -131,39 +131,59 @@ class DocumentAPIController extends Controller
         $alerts = [];
 
         /**
-         * 1. Document Expiry Alerts
+         * 1. Document Expiry Alerts (latest per type)
          */
+        $documentTypes = [
+            'sia_licence_file',
+            'passport_file',
+            'proof_of_address_file',
+            'ni_letter_file',
+            'first_aid_certificate_file',
+            'act_certificate_file',
+        ];
 
-        $expiringSoon = $user->documents()
-            ->whereDate('expiry_date', '>=', now())        // Only future or today
-            ->whereDate('expiry_date', '<=', now()->addDays(30))
-            ->get();
+        foreach ($documentTypes as $type) {
+            // get the latest document of this type
+            $doc = $user->documents()
+                ->where('document_type', $type)
+                ->orderByDesc('expiry_date')
+                ->first();
 
-        foreach ($expiringSoon as $doc) {
-            $cacheKey = "document_expiry_sent:user:{$user->id}:doc:{$doc->id}";
-
-            if (!Cache::has($cacheKey)) {
+            if ($doc && $doc->expiry_date) {
                 $expiryDate = Carbon::parse($doc->expiry_date);
-                $daysRemaining =(int) now()->diffInDays($expiryDate); // default absolute diff
 
-                send_push_notification(
-                    $user->id,
-                    'Document Expiry Alert',
-                    "Your {$doc->document_type} is about to expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
-                    [
-                        'type' => 'document_expiry',
-                        'document_id' => $doc->id,
-                        'expiry_date' => $doc->expiry_date,
-                        'days_remaining' => $daysRemaining,
-                    ]
-                );
+                // Only consider if within next 30 days
+                if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
+                    $cacheKey = "document_expiry_sent:user:{$user->id}:doc:{$doc->id}";
 
-                Cache::put($cacheKey, true, 604800); // cache for 7 days
+                    if (!Cache::has($cacheKey)) {
+                        $daysRemaining = now()->diffInDays($expiryDate);
+
+                        $alert = [
+                            'type' => 'document_expiry',
+                            'document_id' => $doc->id,
+                            'title' => 'Document Expiry Alert',
+                            'message' => "Your {$doc->document_type} is about to expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
+                            'expiry_date' => $doc->expiry_date,
+                            'days_remaining' => $daysRemaining,
+                        ];
+
+                        $alerts[] = $alert;
+
+                        // Send push notification
+                        send_push_notification(
+                            $user->id,
+                            $alert['title'],
+                            $alert['message'],
+                            $alert
+                        );
+
+                        // Cache for 30 days (until expiry), not just 7 days
+                        Cache::put($cacheKey, true, $expiryDate->diffInSeconds(now()));
+                    }
+                }
             }
         }
-
-        $alerts = array_merge($alerts, $expiringSoon->toArray());
-
         /**
          * 2. Patrol Alerts (5 min notification / 50 min missed)
          */

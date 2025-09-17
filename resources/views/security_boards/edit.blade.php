@@ -1,4 +1,6 @@
 <!-- Edit Shift -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
 <div class="modal fade" id="edit_shift">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
@@ -63,35 +65,36 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
-                                                <input type="time" name="start_shift" id="start_shift"
-                                                    class="form-control">
-                                                <span class="text-danger form-error" id="error_start_shift"></span>
+                                                <input type="text" name="start_shift" id="start_shift" placeholder="HH:MM"
+                                                    class="form-control time-input" value="{{ old('start_shift.0') }}">
+                                                <span class="text-danger form-error error_start_shift"></span>
                                             </div>
                                         </div>
+
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">End <span class="text-danger">*</span></label>
-                                                <input type="time" name="end_shift" id="end_shift"
-                                                    class="form-control">
-                                                <span class="text-danger form-error" id="error_end_shift"></span>
+                                                <input type="text" name="end_shift" id="end_shift"
+                                                    class="form-control time-input" placeholder="HH:MM">
+                                                <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book on <span
                                                         class="text-danger">*</span></label>
-                                                <input type="time" name="book_on" id="book_on" class="form-control"
-                                                    value="{{ date('h:i') }}">
-                                                <span class="text-danger form-error" id="error_book_on"></span>
+                                                <input type="text" name="book_on" id="book_on" class="form-control"
+                                                    value="{{ date('H:i') }}">
+                                                <span class="text-danger form-error time-input" id="error_book_on"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book off <span
                                                         class="text-danger">*</span></label>
-                                                <input type="time" name="book_off" id="book_off"
-                                                    class="form-control" value="{{ date('h:i') }}">
-                                                <span class="text-danger form-error" id="error_book_off"></span>
+                                                <input type="text" name="book_off" id="book_off"
+                                                    class="form-control" value="{{ date('H:i') }}">
+                                                <span class="text-danger form-error time-input" id="error_book_off"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -207,6 +210,18 @@
                 // Re-enable button after response
                 submitButton.prop('disabled', false).html('Update');
             }
+        });
+    });
+
+        document.addEventListener("DOMContentLoaded", function() {
+        // Apply Flatpickr to all inputs with class .time-input
+        flatpickr("input.time-input", {
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: "H:i", // Save as 24h format
+            time_24hr: true,
+            minuteIncrement: 5,
+            allowInput: true
         });
     });
 </script>

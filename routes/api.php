@@ -121,6 +121,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages/conversations/{conversation}', [MessageApiController::class, 'getMessages']);
     Route::post('/messages', [MessageApiController::class, 'sendMessage']);
     Route::post('/messages/mark-read', [MessageApiController::class, 'markRead']);
+    Route::post('/create-conversation', [MessageApiController::class, 'createConversation']);
+    Route::get('/users/search', [MessageApiController::class, 'searchUsers']);
 });
 
 //GPS Tracking api controller routes

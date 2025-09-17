@@ -283,7 +283,6 @@ class ChatController extends Controller
             );
         }
 
-
         return response()->json($message, 201);
     }
 
