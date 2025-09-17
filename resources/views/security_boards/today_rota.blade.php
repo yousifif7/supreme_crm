@@ -2,48 +2,148 @@
 @section('title', "CRM - Today's Rota")
 @section('styles')
     <style>
-        /* DayGrid event container */
+        .datepic .fc-prev-button,
+        .datepic .fc-next-button {
+            font-size: 14px !important;
+            padding: 4px 6px !important;
+            height: 28px !important;
+            width: 34px !important;
+            border-radius: 6px !important;
+            background-color: #5489C4 !important;
+            color: #fff !important;
+            border: none !important;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .datepic .fc-prev-button:hover,
+        .datepic .fc-next-button:hover {
+            opacity: 0.85 !important;
+            transform: translateY(-1px);
+        }
+
+        /* FullCalendar view buttons */
+        .fc-toolbar button {
+            border: none !important;
+            border-radius: 6px !important;
+            padding: 6px 12px !important;
+            margin-right: 5px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            color: #fff !important;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        /* Assign colors */
+        .fc-dayGridDay-button {
+            background-color: #80BFFF !important;
+        }
+
+        .fc-dayGridWeek-button {
+            background-color: #5489C4 !important;
+        }
+
+        .fc-dayGridMonth-button {
+            background-color: #69CF83 !important;
+        }
+
+        /* Active button highlight */
+        .fc-toolbar button.fc-button-active {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Hover effect */
+        .fc-toolbar button:hover {
+            opacity: 0.85 !important;
+        }
+
+        /* Event/shift boxes */
+        /* Container for each event (shift) */
+        /* Ensure text wraps inside the box */
+        ._schedule-box-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 13px;
+            min-height: 50px;
+            width: 95%;
+            margin: 0 auto;
+            color: #000;
+            text-align: center;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            cursor: pointer;
+            line-height: 1.3;
+            word-break: break-word;
+            /* allow long words to wrap */
+            white-space: normal;
+            /* enable text wrapping */
+        }
+
+        .fc .fc-daygrid-event-harness,
+        .fc .fc-daygrid-event {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Optional: remove any hover effect applied by FullCalendar */
+        .fc .fc-daygrid-event:hover {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        ._schedule-box-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Increase spacing in calendar header for clarity */
+        .fc .fc-col-header-cell {
+            padding: 6px 4px !important;
+            font-size: 0.85rem;
+        }
+
+        /* Stack events neatly */
         .fc-daygrid-day-events {
             display: flex !important;
-            flex-wrap: wrap;
-            gap: 4px;
-            /* reduce gap */
-            justify-content: flex-start;
-            align-items: flex-start;
+            flex-direction: column;
+            gap: 8px !important;
+            /* more space between boxes */
+            padding: 4px 0 !important;
         }
 
-        /* Each event harness */
-        .fc-daygrid-event-harness {
-            flex: 0 1 120px;
-            /* set fixed width for events, auto-wrap */
+        /* Hide urgent red lines */
+        .urgent-indicator {
+            display: none !important;
         }
 
-        /* Event block */
-        .fc-daygrid-event {
-            display: block !important;
-            width: 100% !important;
-            box-sizing: border-box;
-            margin: 0 !important;
-            padding: 0 !important;
+        .fc-daygrid-day-frame {
+            padding: 6px 4px !important;
+            min-height: 90px;
+            /* taller day cells */
         }
 
-        /* Event content */
         .fc-event-custom {
-            padding: 6px 8px;
             border-radius: 6px;
-            font-size: 13px;
-            line-height: 1.2;
-            color: #fff;
-            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            text-overflow: ellipsis;
+            padding: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
         }
 
-        /* Optional: hover effect */
         .fc-event-custom:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 3px 5px rgba(0, 0, 0, 0.15);
+            transform: scale(1.04);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+            filter: brightness(1.05);
         }
+        .fc .fc-day-today {
+    background-color: #fff !important;
+}
     </style>
 
 @endsection
@@ -889,20 +989,24 @@
                             const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
                             const container = document.createElement('div');
-                            container.classList.add('fc-event-custom');
+                            container.classList.add(
+                            'fc-event-custom'); // 👈 our hover style will target this
                             container.style.backgroundColor = bgColor;
-                            container.style.color = (bgColor === '#F8F9FA' || bgColor ===
-                                '#FFF9C4') ? '#000' : '#fff';
+                            container.style.color =
+                                (bgColor === '#F8F9FA' || bgColor === '#FFF9C4') ? '#000' : '#fff';
 
                             container.innerHTML = `
-        <b>${client}</b><br>
-        <small>${staff}</small><br>
-        <small>${site}</small><br>
-        <small>${startTime} - ${endTime}</small>
+        <div class="event-body text-dark">
+            <b>${client}</b><br>
+            <b><small>${staff}</small><br>
+            <small>${site}</small><br>
+            <small class="text-light">${startTime} - ${endTime}</small></b>
+        </div>
     `;
 
                             return {
-                                domNodes: [container]
+                                domNodes: [container],
+                                text: '' // 👈 ensures FullCalendar doesn't add its dot
                             };
                         },
 

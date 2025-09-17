@@ -60,7 +60,7 @@ class ShiftsDataTable extends DataTable
     return ShiftDate::getStatusBadge($shiftDate->is_assign);
 })->filterColumn('client_name', function($query, $keyword) {
                 $query->whereHas('shift.client', function($q) use ($keyword) {
-                    $q->where('client_name', 'like', "%$keyword%");
+                    $q->where('name', 'like', "%$keyword%");
                 });
             })
             ->filterColumn('site_name', function($query, $keyword) {
