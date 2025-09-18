@@ -46,19 +46,33 @@ class IncidentReportsDataTable extends DataTable
                 return $report->formatted_address ?? 'N/A';
             })
             ->editColumn('police_notified', fn($report) => $report->police_notified ? 'Yes' : 'No')
-            ->editColumn('status', fn($report) => ucfirst(str_replace('_', ' ', $report->status)))
+            ->editColumn('status', function ($report) {
+                $status = ucfirst(str_replace('_', ' ', $report->status));
+                if ($report->status === 'draft') {
+                    return '
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-success btn-approve" data-id="' . $report->id . '">
+                    Approve
+                </button>
+                <button class="btn btn-sm btn-danger btn-reject" data-id="' . $report->id . '">
+                    Reject
+                </button>
+            </div>
+        ';
+                }
+                return $status;
+            })
             ->addColumn('files', function ($report) {
                 $html = '';
                 foreach ($report->media as $media) {
-                    $html .= '<a href="' . asset($media->file_url) . '" target="_blank" class="d-block mb-1">'
-                        . basename($media->file_url) . '</a>';
+                    $html .= '<a href="' . asset($media->file_url) . '" target="_blank" class="d-block mb-1 btn btn-sm text-light btn-secondary">Show</a>';
                 }
                 return $html;
             })
             ->editColumn('created_at', fn($report) => $report->created_at?->format('Y-m-d'))
             ->filterColumn('category', fn($query, $keyword) => $query->where('category', 'like', "%{$keyword}%"))
             ->filterColumn('severity', fn($query, $keyword) => $query->where('severity', 'like', "%{$keyword}%"))
-            ->rawColumns(['actions', 'checkbox', 'number', 'files'])
+            ->rawColumns(['actions', 'checkbox', 'number', 'files', 'status'])
             ->setRowId('id');
     }
 

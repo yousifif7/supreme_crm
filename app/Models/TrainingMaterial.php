@@ -15,14 +15,19 @@ class TrainingMaterial extends Model
         'content_url',
         'pdf_url',
         'required',
-        'expiry_date',
+        'implementation_date',
+        'deadline',
     ];
 
 
-    public function acknowledgements()
+    public function acknowledgedUsers()
     {
-
-        return $this->hasMany(TrainingAcknowledgement::class, 'training_material_id');
+        return $this->belongsToMany(
+            User::class,
+            'training_acknowledgements',
+            'training_material_id',
+            'user_id'
+        )->withTimestamps();
     }
 
     public function shiftDates()

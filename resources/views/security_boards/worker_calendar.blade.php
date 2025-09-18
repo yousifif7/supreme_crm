@@ -65,34 +65,31 @@
         /* Event/shift boxes */
         /* Container for each event (shift) */
         /* Ensure text wraps inside the box */
-        ._schedule-box-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            min-height: 50px;
-            width: 95%;
-            margin: 0 auto;
-            color: #000;
-            text-align: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            line-height: 1.3;
-            word-break: break-word;
-            /* allow long words to wrap */
-            white-space: normal;
-            /* enable text wrapping */
-        }
+._schedule-box-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    min-height: 50px;
+    width: 95%;
+    margin: 0 auto;
+    color: #212529; /* darker text for contrast */
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* softer shadow */
+    cursor: pointer;
+    line-height: 1.3;
+    word-break: break-word;
+    white-space: normal;
+    transition: all 0.2s ease;
+}
 
-        .fc .fc-daygrid-event-harness,
-        .fc .fc-daygrid-event {
-            background: transparent !important;
-            border: none !important;
-            box-shadow: none !important;
-        }
+._schedule-box-container:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
 
         /* Optional: remove any hover effect applied by FullCalendar */
         .fc .fc-daygrid-event:hover {
@@ -445,40 +442,39 @@
                         },
 
                         // 🔸 Render events with images, icons, time, and urgency
-                        eventContent: function(info) {
-                            const event = info.event;
-                            const props = event.extendedProps;
-                            const bgClass = event.classNames?.[0] || 'bg-secondary';
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+ eventContent: function(info) {
+    const props = info.event.extendedProps;
+    const startTime = props.start_time_str || '';
+    const endTime = props.end_time_str || '';
+    const bgClass = info.event.classNames?.[0] || 'bg-secondary';
+    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                            const startTime = event.start?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            }) || '';
-                            const endTime = event.end?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            }) || '';
+    // Function to pick readable text color based on bg color
+    function getContrastColor(hexColor) {
+        const c = hexColor.startsWith('#') ? hexColor.substring(1) : hexColor;
+        const r = parseInt(c.substr(0,2),16);
+        const g = parseInt(c.substr(2,2),16);
+        const b = parseInt(c.substr(4,2),16);
+        const luminance = (0.299*r + 0.587*g + 0.114*b);
+        return luminance > 186 ? '#000' : '#fff';
+    }
 
-                            const container = document.createElement('div');
-                            container.className = `_schedule-box-container ${bgClass}`;
-                            container.style.backgroundColor = bgColor;
+    const textColor = getContrastColor(bgColor);
 
-                            container.innerHTML = `
-        ${props.urgent ? '<span class="urgent-indicator bg-danger"></span>' : ''}
-        <div class="flex-grow-1">
-            <strong>${event.title}</strong>
-            <span class="text-muted">${props.location || ''}</span>
-            <span class="text-muted">${startTime} - ${endTime}</span>
-        </div>
+    const container = document.createElement('div');
+    container.className = `_schedule-box-container ${bgClass}`;
+    container.style.backgroundColor = bgColor;
+    container.style.color = textColor; // make text readable
+
+    container.innerHTML = `
+        <div style="font-weight: 600; color:${textColor};"><strong>${info.event.title}</strong></div>
+        <div style="color:${textColor}; font-size:0.85rem;">${startTime} - ${endTime} (${props.duration})</div>
+        <div style="color:${textColor}; font-size:0.85rem;">${props.location || ''}</div>
     `;
 
-                            return {
-                                domNodes: [container]
-                            };
-                        },
+    return { domNodes: [container] };
+},
+
 
 
                         eventClick: function(info) {

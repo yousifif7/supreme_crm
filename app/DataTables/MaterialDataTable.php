@@ -31,6 +31,9 @@ class MaterialDataTable extends DataTable
                 <a class="text-danger deleteMaterial" data-id="' . $row->id . '" title="Delete">
                     <i class="ti ti-trash"></i>
                 </a>
+                <a class="text-success showAcknowledged" data-id="' . $row->id . '" title="Acknowledged">
+                    <i class="ti ti-list"></i>
+                </a>
             ';
             })
             ->rawColumns(['checkbox', 'pdf_url', 'action']);
@@ -50,6 +53,9 @@ class MaterialDataTable extends DataTable
             ->minifiedAjax()
             ->dom('Bfrtip') // enables export/search
             ->orderBy(0)
+            ->parameters([
+                "pageLength" => 25,
+            ])
             ->buttons([
                 'excel',
                 'csv',
@@ -74,7 +80,8 @@ class MaterialDataTable extends DataTable
             Column::make('title'),
             Column::make('description'),
             Column::make('type'),
-            Column::make('expiry_date')->title('Expiry Date'),
+            Column::make('implementation_date')->title('Implementation Date')->addClass('text-center'),
+            Column::make('deadline')->title('Deadline')->addClass('text-center'),
             Column::make('pdf_url')->title('File'),
 
             Column::computed('action')

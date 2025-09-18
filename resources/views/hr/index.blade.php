@@ -70,7 +70,8 @@
                         <div class="modal-body">
                             <p><strong>Description:</strong> <span id="viewDescription"></span></p>
                             <p><strong>Type:</strong> <span id="viewType"></span></p>
-                            <p><strong>Expiry:</strong> <span id="viewExpiry"></span></p>
+                            <p><strong>Implementation Date:</strong> <span id="viewImplementation_date"></span></p>
+                            <p id="viewImplementation_dateRow"><strong>Implementation Date:</strong> <span id="viewImplementation_dateRow"></span></p>
                             <p><strong>File:</strong> <span id="viewFile"></span></p>
                         </div>
                     </div>
@@ -78,7 +79,7 @@
             </div>
         </div>
 
-        <!-- Add Client -->
+        <!-- Add material -->
         <div class="modal fade" id="add_leave">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content">
@@ -124,12 +125,21 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="col-md-6">
+                                        <div class="col-md-6" id="implementation-wrapper" style="display: none;">
                                             <div class="mb-3">
-                                                <label class="form-label">Expiry Date <span
+                                                <label class="form-label">Implementation Date <span
                                                         class="text-danger">*</span></label>
-                                                <input type="date" name="expiry_date" class="form-control">
-                                                <span class="text-danger form-error" id="error_expiry_date"></span>
+                                                <input type="date" name="implementation_date" class="form-control">
+                                                <span class="text-danger form-error"
+                                                    id="error_implementation_date"></span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6" id="deadline-wrapper" style="display: none;">
+                                            <div class="mb-3">
+                                                <label class="form-label">Deadline <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="date" name="deadline" class="form-control">
+                                                <span class="text-danger form-error" id="error_deadline"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
@@ -199,8 +209,13 @@
                                 <input type="text" name="type" id="editType" class="form-control">
                             </div>
                             <div class="mb-2">
-                                <label>Expiry Date</label>
-                                <input type="date" name="expiry_date" id="editExpiry" class="form-control">
+                                <label>Implementation date</label>
+                                <input type="date" name="implementation_date" id="editimplementation_date"
+                                    class="form-control">
+                            </div>
+                            <div class="mb-2">
+                                <label>Deadline</label>
+                                <input type="date" name="deadline" id="edit_deadline" class="form-control">
                             </div>
                             <div class="mb-2">
                                 <label>PDF URL</label>
@@ -217,6 +232,20 @@
         </div>
 
 
+        <div class="modal fade" id="acknowledgedModal" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Acknowledged Users</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- JS will fill here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- /Page Wrapper -->
     @endsection
     @section('scripts')
@@ -228,6 +257,31 @@
                 $('.rowCheckbox').prop('checked', $(this).is(':checked'));
             });
 
+            $(document).ready(function() {
+                $('#deadline-wrapper').hide();
+                $('select[name="type"]').on('change', function() {
+                    const type = $(this).val();
+                    if (type === 'training') {
+                        $('#deadline-wrapper').show();
+                    } else {
+                        $('#deadline-wrapper').hide();
+                        $('#deadline-wrapper input').val('');
+                    }
+                });
+            });
+
+            $(document).ready(function() {
+                $('#implementation-wrapper').hide();
+                $('select[name="type"]').on('change', function() {
+                    const type = $(this).val();
+                    if (type === 'policy') {
+                        $('#implementation-wrapper').show();
+                    } else {
+                        $('#implementation-wrapper').hide();
+                        $('#implementation-wrapper input').val('');
+                    }
+                });
+            });
             // Add Material AJAX
             $('#add_material_form').on('submit', function(e) {
                 e.preventDefault();
@@ -276,22 +330,51 @@
                     $('#viewTitle').text(data.title);
                     $('#viewDescription').text(data.description);
                     $('#viewType').text(data.type);
-                    $('#viewExpiry').text(data.expiry_date);
                     $('#viewFile').html(data.pdf_url ?
                         `<a href="${data.pdf_url}" target="_blank">Download</a>` : '—');
+
+                    if (data.type === 'training' && data.deadline) {
+                        $('#viewDeadline').text(data.deadline);
+                        $('#viewDeadlineRow').show();
+                    } else {
+                        $('#viewDeadlineRow').hide();
+                    }
+                    if (data.type === 'policy' && data.deadline) {
+                        $('#viewImplementation_date').text(data.implementation_date);
+                        $('#viewImplementation_dateRow').show();
+                    } else {
+                        $('#viewImplementation_dateRow').hide();
+                    }
+
                     $('#viewMaterialModal').modal('show');
                 }).fail(() => toast_danger('Failed to fetch material details.'));
             });
 
+            $(document).on('click', '.showAcknowledged', function() {
+                let id = $(this).data('id');
+
+                $.get(`/show/acknowledged/${id}`, function(data) {
+                    let list = data.users.map((u, i) => `<li>${i + 1}. ${u.name}</li>`).join('');
+
+                    $('#acknowledgedModal .modal-body').html(`
+            <h6 class="mb-3">${data.title}</h6>
+            <ul class="list-unstyled">${list || '<li>No acknowledgements yet.</li>'}</ul>
+        `);
+
+                    $('#acknowledgedModal').modal('show');
+                }).fail(() => toast_danger('Failed to fetch acknowledgements.'));
+            });
             // Edit
             $(document).on('click', '.editMaterial', function() {
+                e.preventDefault();
+                e.stopPropagation();
                 let id = $(this).data('id');
                 $.get(`/materials/${id}`, function(data) {
                     $('#editMaterialId').val(data.id);
                     $('#editTitle').val(data.title);
                     $('#editDescription').val(data.description);
                     $('#editType').val(data.type);
-                    $('#editExpiry').val(data.expiry_date);
+                    $('#editimplementation_date').val(data.implementation_date);
                     $('#editPdf').val(data.pdf_url);
                     $('#editMaterialModal').modal('show');
                 }).fail(() => toast_danger('Failed to fetch material details.'));
@@ -342,6 +425,30 @@
                         toast_danger('Failed to delete material.');
                     }
                 });
+            });
+
+
+            $(document).on('click', '.showAcknowledged', function() {
+
+                let id = $(this).data('id');
+
+                $.get(`/show/acknowledged/${id}`, function(data) {
+                    let list = $('#acknowledgedList');
+                    list.empty();
+
+                    if (data.length === 0) {
+                        list.append('<li class="list-group-item text-muted">No users acknowledged yet.</li>');
+                    } else {
+                        data.forEach(item => {
+                            let user = item.user; // 👈 if relation is `user`
+                            list.append(
+                                `<li class="list-group-item">${user.first_name??'N/A'} (${user.last_name})</li>`
+                            );
+                        });
+                    }
+
+                    $('#acknowledgedModal').modal('show');
+                }).fail(() => toast_danger('Failed to fetch acknowledged users.'));
             });
         </script>
     @endsection

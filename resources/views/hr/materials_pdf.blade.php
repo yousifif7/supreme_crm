@@ -36,7 +36,8 @@
                 <th>Material Title</th>
                 <th>Material Description</th>
                 <th>Material Type</th>
-                <th>Expiry Date</th>
+                <th>Implementation Date</th>
+                <th>Deadline</th>
             </tr>
         </thead>
         <tbody>
@@ -46,7 +47,8 @@
                     <td>{{ $material->title }}</td>
                     <td>{{ $material->description }}</td>
                     <td>{{ $material->type }}</td>
-                    <td>{{ $material->expiry_date }}</td>
+                    <td>{{ $material->implementation_date }}</td>
+                    <td>{{ $material->deadline }}</td>
                 </tr>
             @endforeach
         </tbody>

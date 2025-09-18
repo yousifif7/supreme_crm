@@ -45,10 +45,10 @@
         }
 
         .gantt-sidebar-header {
-            width: 115px;
+            width: 140px;
             min-width: 100px;
             padding: 10px;
-            font-size: 13px;
+            font-size: 16px;
             /* slightly larger */
             font-weight: 800;
             /* heavier than bold */
@@ -82,7 +82,7 @@
         }
 
         .gantt-row-sidebar {
-            width: 115px;
+            width: 140px;
             min-height: 100px;
             min-width: 100px;
             padding: 12px;
@@ -92,7 +92,7 @@
             font-style: bold;
             flex-direction: column;
             justify-content: center;
-            font-size: 10px;
+            font-size: 13px;
         }
 
         .gantt-row-content {
@@ -400,6 +400,7 @@
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
             @include('security_boards.edit');
+            @include('security_boards.multi-edit');
         </div>
 
         <!-- Add Shift Success -->
@@ -840,17 +841,27 @@
                         if (cell.length) {
                             shifts.forEach((shift, index) => {
                                 const bar = $(`
-                            <div class="gantt-bar shift-${shift.color_class}" style="position: relative; top: ${index * 5}px; z-index: ${100 - index};" 
-                                data-shift-id="${shift.id}" title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
-                                ${shift.title}<br>${shift.formatted_time}<br>${shift.staff_name}
-                            </div>
-                        `);
+                        <div class="gantt-bar shift-${shift.color_class}" 
+                             style="position: relative; top: ${index * 5}px; z-index: ${100 - index};" 
+                             data-shift-id="${shift.id}" title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
+                            ${shift.title}<br>${shift.formatted_time}<small><small>${shift.duration}</small></small><br>${shift.staff_name}
+                        </div>
+                    `);
+
+                                // Checkbox outside the bar
+                                const checkbox = $(
+                                    `<input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" style="display:none; margin-right:5px;">`
+                                );
+                                cell.append(checkbox);
                                 cell.append(bar);
+
                                 bar.on('click', function() {
-                                    const shiftId = $(this).data('shift-id');
-                                    window.open(
-                                        `${baseUrl}/shift-dates/${shiftId}/view`,
-                                        '_blank');
+                                    if (!selectionMode) {
+                                        const shiftId = $(this).data('shift-id');
+                                        window.open(
+                                            `${baseUrl}/shift-dates/${shiftId}/view`,
+                                            '_blank');
+                                    }
                                 });
                             });
                         }
@@ -953,6 +964,143 @@
             // Initial data load
             loadAllShiftsData();
         });
+
+        let selectionMode = false; // global
+        let selectedShiftIds = [];
+
+        // Toggle selection mode
+        $('#enableSelectBtn').on('click', function() {
+            selectionMode = !selectionMode;
+            $(this).text(selectionMode ? 'Cancel Select' : 'Select');
+            $('#editSelectedBtn').prop('disabled', !selectionMode);
+
+            // Show/hide checkboxes
+            $('.multi-shift-checkbox').each(function() {
+                $(this).css('display', selectionMode ? 'inline-block' : 'none');
+                if (!selectionMode) this.checked = false;
+            });
+
+            // Reset selected IDs
+            if (!selectionMode) {
+                selectedShiftIds = [];
+                $('#selectedShiftsCount').text(0);
+            }
+        });
+
+        // Track checkbox changes
+        $(document).on('change', '.multi-shift-checkbox', function() {
+            const shiftId = $(this).data('id');
+            if (this.checked) selectedShiftIds.push(shiftId);
+            else selectedShiftIds = selectedShiftIds.filter(id => id != shiftId);
+
+            $('#selectedShiftsCount').text(selectedShiftIds.length);
+        });
+
+        // Open multi-edit modal
+        $('#editSelectedBtn').on('click', function() {
+            if (selectedShiftIds.length === 0) {
+                alert('Please select at least one shift.');
+                return;
+            }
+
+            $.ajax({
+                url: `${baseUrl}/shifts/multi-edit`, // your multi-edit route
+                method: 'POST',
+                data: {
+                    shift_ids: selectedShiftIds,
+                },
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(data) {
+                    let html = '';
+                    data.shifts.forEach(shift => {
+                        html += `
+            <div class="mb-2">
+                <strong>${shift.title}</strong><br>
+                Start: <input type="time" class="edit-start-time" data-id="${shift.id}" value="${shift.start_time}">
+                End: <input type="time" class="edit-end-time" data-id="${shift.id}" value="${shift.end_time}">
+            </div>
+        `;
+                    });
+                    $('#multiEditContent').html(html);
+                    $('#multiEditModal').modal('show');
+                },
+                error: function() {
+                    toast_danger('Failed to load selected shifts.');
+                }
+            });
+        });
+
+        // Save changes from multi-edit modal
+$(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
+    e.preventDefault();
+
+    if (!selectedShiftIds.length) {
+        toast_danger('No shifts selected.');
+        return;
+    }
+
+    // Clear previous hidden shift inputs
+    $('#multiEditShiftInputs').empty();
+
+    // Add hidden inputs for each selected shift
+    selectedShiftIds.forEach(id => {
+        $('<input>').attr({
+            type: 'hidden',
+            name: 'shift_ids[]',
+            value: id
+        }).appendTo('#multiEditShiftInputs');
+    });
+
+    $.ajax({
+        url: `${baseUrl}/shifts/multi-assign`,
+        type: 'POST',
+        data: $(this).serialize(),
+        success: function(res) {
+            toast_success('Shifts updated successfully!');
+
+            // Hide modal
+            $('#multiEditModal').modal('hide');
+
+            // Reset selection and form
+            selectedShiftIds = [];
+            $('#selectedShiftsCount').text(0);
+            selectionMode = false;
+            $('#enableSelectBtn').text('Select');
+            $('#editSelectedBtn').prop('disabled', true);
+            $('#multiEditForm')[0].reset();
+            $('.selec2_assign_modal').val(null).trigger('change');
+
+            // Reload all shifts data
+            loadAllShiftsData();
+        },
+        error: function(xhr) {
+            $('#multiEditErrors').addClass('d-none').empty();
+
+            if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                let messages = Object.values(xhr.responseJSON.errors).flat();
+                messages.forEach(msg => $('#multiEditErrors').append(`<div>${msg}</div>`));
+                $('#multiEditErrors').removeClass('d-none');
+            } else if (xhr.responseJSON?.error) {
+                $('#multiEditErrors').html(xhr.responseJSON.error).removeClass('d-none');
+            } else {
+                $('#multiEditErrors').html('An unexpected error occurred.').removeClass('d-none');
+            }
+        }
+    });
+});
+
+
+        function customMatcher(params, data) {
+            if ($.trim(params.term) === '') return data;
+            let term = params.term.toLowerCase();
+            let first = $(data.element).data('first') || '';
+            let last = $(data.element).data('last') || '';
+            let full = (first + ' ' + last).trim();
+            if (first.includes(term) || last.includes(term) || full.includes(term)) return data;
+            return null;
+        }
     </script>
 
     <script>

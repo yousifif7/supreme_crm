@@ -70,4 +70,5 @@ class IncidentReport extends Model
         }
         return null;
     }
+    
 }

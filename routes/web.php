@@ -33,6 +33,7 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
+use App\Models\TrainingMaterial;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -200,6 +201,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
 
+    Route::post('/shifts/multi-assign', [ShiftController::class, 'multiAssign'])
+        ->name('shifts.multi-assign');
+
+    Route::post('/shifts/multi-edit', [ShiftController::class, 'multiEdit'])->name('shifts.multiEdit');
+
     Route::get('/shift-dates/{shiftDate}/view', [ShiftController::class, 'view'])
         ->name('shiftDates.view');
 
@@ -209,6 +215,8 @@ Route::middleware('auth')->group(function () {
     Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
 
     Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');
+
+    Route::get('show/acknowledged/{id}', [TrainingController::class, 'showAcknowledged'])->name('show.acknowledged');
 
     Route::post('/shift/bookon/store', [ShiftController::class, 'storeBookon'])->name('shift.bookon.store');
     Route::post('/shift/bookoff/store', [ShiftController::class, 'storeBookoff'])->name('shift.bookoff.store');
@@ -407,6 +415,7 @@ Route::prefix('incidents')->group(function () {
     Route::post('/store', [IncidentReportController::class, 'store'])->name('incidents.store');
     Route::delete('/{id}', [IncidentReportController::class, 'destroy'])->name('incidents.destroy'); // delete
     Route::post('bulkdelete', [IncidentReportController::class, 'bulkdelete'])->name('incidents.bulkdelete'); // delete
+    Route::post('/{id}/status', [IncidentReportController::class, 'updateStatus'])->name('incidents.updateStatus');
 });
 
 Route::prefix('dobs')->group(function () {

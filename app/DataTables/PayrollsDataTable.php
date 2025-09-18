@@ -100,25 +100,25 @@ class PayrollsDataTable extends DataTable
     {
         return [
             Column::computed('checkbox')
-                ->title('<input type="checkbox" id="payrolls-select-all">')->addClass('text-center px-2 fw-bold'),
+                ->title('<input type="checkbox" id="payrolls-select-all">')->addClass('px-2 fw-bold'),
 
             Column::computed('number')->title('#')->width(30)
-                ->addClass('px-2')->orderable(false)->searchable(false)->addClass('text-center px-2 fw-bold'),
+                ->addClass('px-2')->orderable(false)->searchable(false)->addClass('px-2 fw-bold'),
 
-            Column::computed('payroll_no')->title('Payroll No')->addClass('ps-0')->addClass('text-center px-2 fw-bold'),
-            Column::make('employee_name')->title('Employee Name')->addClass('text-center px-2 fw-bold'),
-            Column::make('site_name')->title('Site Name')->addClass('text-center px-2 fw-bold'),
-            Column::make('issue_date')->title('Issue Date')->addClass('text-center px-2 fw-bold'),
-            Column::make('due_date')->title('Due Date')->addClass('text-center px-2 fw-bold'),
-            Column::make('total_shift_hours')->title('Total Shift Hours')->addClass('text-center px-2 fw-bold'),
-            Column::make('net_amount')->title('Net Amount')->addClass('text-center px-2 fw-bold'),
-            Column::make('total_amount')->title('Total Amount')->addClass('text-center px-2 fw-bold'),
-            Column::make('ssp_days')->title('SSP Days')->addClass('text-center px-2 fw-bold'),
-            Column::make('ssp_amount')->title('SSP Amount')->addClass('text-center px-2 fw-bold'),
-            Column::make('holiday_hours')->title('Holiday Hours')->addClass('text-center px-2 fw-bold'),
-            Column::make('holiday_amount')->title('Holiday Amount')->addClass('text-center px-2 fw-bold'),
-            Column::make('unpaid_leave_hours')->title('Unpaid Leave Hours')->addClass('text-center px-2 fw-bold'),
-            Column::make('unpaid_leave_amount')->title('Unpaid Leave Amount')->addClass('text-center px-2 fw-bold'),
+            Column::computed('payroll_no')->title('Payroll No')->addClass('ps-0')->addClass('px-2 fw-bold'),
+            Column::make('employee_name')->title('Employee Name')->addClass('px-2 fw-bold')->searchable(true),
+            Column::make('site_name')->title('Site Name')->addClass('px-2 fw-bold'),
+            Column::make('issue_date')->title('Issue Date')->addClass('px-2 fw-bold'),
+            Column::make('due_date')->title('Due Date')->addClass('px-2 fw-bold'),
+            Column::make('total_shift_hours')->title('Total Shift Hours')->addClass('px-2 fw-bold'),
+            Column::make('net_amount')->title('Net Amount')->addClass('px-2 fw-bold'),
+            Column::make('total_amount')->title('Total Amount')->addClass('px-2 fw-bold'),
+            Column::make('ssp_days')->title('SSP Days')->addClass('px-2 fw-bold'),
+            Column::make('ssp_amount')->title('SSP Amount')->addClass('px-2 fw-bold'),
+            Column::make('holiday_hours')->title('Holiday Hours')->addClass('px-2 fw-bold'),
+            Column::make('holiday_amount')->title('Holiday Amount')->addClass('px-2 fw-bold'),
+            Column::make('unpaid_leave_hours')->title('Unpaid Leave Hours')->addClass('px-2 fw-bold'),
+            Column::make('unpaid_leave_amount')->title('Unpaid Leave Amount')->addClass('px-2 fw-bold'),
 
         ];
     }

@@ -52,7 +52,7 @@ class IncidentReportController extends Controller
             'severity' => $data['severity'],
             'title' => $data['title'],
             'description' => $data['description'],
-            'location' => json_encode($data['location']),
+            'location' => $data['location'],
             'police_notified' => $data['police_notified'] ? 1 : 0,
             'police_reference' => $data['police_reference'] ?? null,
             'immediate_action_taken' => $data['immediate_action_taken'] ?? null,

@@ -28,7 +28,17 @@ class IncidentReportController extends Controller
     public function show($id)
     {
         $report = IncidentReport::with(['media', 'people'])->findOrFail($id);
-        return response()->json($report); // formatted_address will be included automatically
+        return response()->json([
+            'id' => $report->id,
+            'title' => $report->title,
+            'category' => $report->category,
+            'severity' => $report->severity,
+            'status' => $report->status,
+            'description' => $report->description,
+            'police_notified' => (bool) $report->police_notified,
+            'formatted_address' => $report->formatted_address, // <--- add this
+            'media' => $report->media->map(fn($m) => ['file_url' => $m->file_url]),
+        ]);
     }
 
     /**
@@ -43,6 +53,7 @@ class IncidentReportController extends Controller
             'title' => $incident->title,
             'category' => $incident->category,
             'severity' => $incident->severity,
+            'status' => $incident->status,
             'description' => $incident->description,
             'police_notified' => (bool) $incident->police_notified,
             'formatted_address' => $incident->formatted_address, // <--- add this
@@ -57,6 +68,7 @@ class IncidentReportController extends Controller
             'severity' => 'required|string|max:50',
             'description' => 'nullable|string',
             'police_notified' => 'boolean',
+            'status' => 'required',
         ]);
 
         $incident = IncidentReport::findOrFail($id);
@@ -64,6 +76,7 @@ class IncidentReportController extends Controller
             'title',
             'category',
             'severity',
+            'status',
             'description',
             'police_notified'
         ]));
@@ -144,7 +157,7 @@ class IncidentReportController extends Controller
             'severity' => $data['severity'],
             'title' => $data['title'],
             'description' => $data['description'],
-            'location' => json_encode($data['location']),
+            'location' => $data['location'],
             'police_notified' => $data['police_notified'],
             'police_reference' => $data['police_reference'] ?? null,
             'immediate_action_taken' => $data['immediate_action_taken'] ?? null,
@@ -204,5 +217,14 @@ class IncidentReportController extends Controller
             'message' => 'Incident report created successfully',
             'incident_id' => $report->id
         ], 201);
+    }
+
+    public function updateStatus(Request $request, $id)
+    {
+        $report = IncidentReport::findOrFail($id);
+        $report->status = $request->input('status');
+        $report->save();
+
+        return response()->json(['message' => 'Incident status updated successfully']);
     }
 }

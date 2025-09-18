@@ -164,6 +164,17 @@
                         </div>
 
                         <div class="mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select id="status" name="status" class="form-select">
+                                <option value="draft">Draft</option>
+                                <option value="under_review">Under Review</option>
+                                <option value="approved">Approved</option>
+                                <option value="rejected">Rejected</option>
+                            </select>
+                            <span class="text-danger" id="error_status"></span>
+                        </div>
+
+                        <div class="mb-3">
                             <label for="severity" class="form-label">Severity</label>
                             <select class="form-select" id="severity" name="severity">
                                 <option value="">Select Severity</option>
@@ -306,10 +317,68 @@
     </div>
 
 
+    <!-- Approve Modal -->
+    <div class="modal fade" id="approveModal" tabindex="-1" aria-labelledby="approveModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="approveModalLabel">Confirm Approval</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to approve this incident report?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="approveConfirmBtn">Yes, Approve</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal -->
+    <div class="modal fade" id="rejectModal" tabindex="-1" aria-labelledby="rejectModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="rejectModalLabel">Confirm Rejection</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to reject this incident report?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="rejectConfirmBtn">Yes, Reject</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
 @endsection
 @section('scripts')
     <script>
         let selectedIncidentId = null;
+
+        function renderStatusBadge(status) {
+            let colorClass = 'secondary'; // default gray
+            switch (status) {
+                case 'draft':
+                    colorClass = 'warning';
+                    break;
+                case 'under_review':
+                    colorClass = 'info';
+                    break;
+                case 'approved':
+                    colorClass = 'success';
+                    break;
+                case 'rejected':
+                    colorClass = 'danger';
+                    break;
+            }
+            return `<span class="badge bg-${colorClass}">${status.replace('_', ' ').toUpperCase()}</span>`;
+        }
 
         // SHOW INCIDENT
         function showIncident(id) {
@@ -318,17 +387,18 @@
                 type: 'GET',
                 success: function(res) {
                     let html = `
-                <p><strong>Title:</strong> ${res.title}</p>
-                <p><strong>Category:</strong> ${res.category}</p>
-                <p><strong>Severity:</strong> ${res.severity}</p>
-                <p><strong>Description:</strong> ${res.description}</p>
-                <p><strong>Location:</strong> ${res.formatted_address ?? 'N/A'}</p>
-                <p><strong>Police Notified:</strong> ${res.police_notified ? 'Yes' : 'No'}</p>
-                <p><strong>Files:</strong></p>
-                <ul>
-                    ${res.media.map(file => `<li><a href="${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
-                </ul>
-            `;
+        <p><strong>Title:</strong> ${res.title}</p>
+        <p><strong>Category:</strong> ${res.category}</p>
+        <p><strong>Severity:</strong> ${res.severity}</p>
+        <p><strong>Description:</strong> ${res.description}</p>
+        <p><strong>Location:</strong> ${res.formatted_address ?? 'N/A'}</p>
+        <p><strong>Police Notified:</strong> ${res.police_notified ? 'Yes' : 'No'}</p>
+        <p><strong>Status:</strong> ${renderStatusBadge(res.status)}</p>
+        <p><strong>Files:</strong></p>
+        <ul>
+            ${res.media.map(file => `<li><a href="${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`).join('')}
+        </ul>
+    `;
                     $('#incidentModalBody').html(html);
                     $('#incidentModal').modal('show');
                 },
@@ -343,15 +413,14 @@
                 url: '/incidents/' + id + '/edit',
                 type: 'GET',
                 success: function(res) {
-                    // Fill form fields
                     $('#incident_id').val(res.id);
                     $('#title').val(res.title);
                     $('#category').val(res.category);
                     $('#severity').val(res.severity);
                     $('#description').val(res.description);
                     $('#police_notified').prop('checked', res.police_notified);
+                    $('#status').val(res.status); // populate status select
 
-                    // Example if you want to preview location & files
                     $('#location_preview').text(res.formatted_address ?? 'N/A');
                     let filesHtml = res.media.map(file =>
                         `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`
@@ -359,7 +428,6 @@
                     $('#files_preview').html(filesHtml);
 
                     $('#incidentEditModal').modal('show');
-
                 },
                 error: function() {
                     alert('Unable to load incident for editing.');
@@ -480,16 +548,75 @@
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },
                 success: function(response) {
-                    toastr.success(response.message);
-                    $('#incidentCreateModal').modal('hide');
+                    let modalEl = document.getElementById('incidentCreateModal');
+                    let modal = bootstrap.Modal.getInstance(modalEl);
+                    if (!modal) {
+                        modal = new bootstrap.Modal(modalEl);
+                    }
+                    modal.hide();
+
                     $('#createIncidentForm')[0].reset();
-                    $('#incidentsTable').DataTable().ajax.reload();
+                    toastr.success(response.message);
+                    $('#incident_reports-table').DataTable().ajax.reload();
                 },
                 error: function(xhr) {
                     console.error(xhr.responseText);
                     toastr.error('Failed to create incident');
                 }
             });
+        });
+
+        $(function() {
+            let selectedIncidentId = null;
+
+            // Delegated handlers for dynamic content
+            $(document).on('click', '.btn-approve', function() {
+                selectedIncidentId = $(this).data('id');
+                new bootstrap.Modal(document.getElementById('approveModal')).show();
+            });
+
+            $(document).on('click', '.btn-reject', function() {
+                selectedIncidentId = $(this).data('id');
+                new bootstrap.Modal(document.getElementById('rejectModal')).show();
+            });
+
+            $('#approveConfirmBtn').on('click', function() {
+                if (!selectedIncidentId) {
+                    toastr.error('No incident selected');
+                    return;
+                }
+                updateIncidentStatus(selectedIncidentId, 'approved');
+            });
+
+            $('#rejectConfirmBtn').on('click', function() {
+                if (!selectedIncidentId) {
+                    toastr.error('No incident selected');
+                    return;
+                }
+                updateIncidentStatus(selectedIncidentId, 'under_review'); // or 'rejected'
+            });
+
+            function updateIncidentStatus(id, status) {
+                $.ajax({
+                    url: `/incidents/${id}/status`,
+                    type: 'POST',
+                    data: {
+                        status: status,
+                        _token: $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        toastr.success(response.message);
+                        $('#incident_reports-table').DataTable().ajax.reload();
+                        bootstrap.Modal.getInstance(document.getElementById('approveModal'))?.hide();
+                        bootstrap.Modal.getInstance(document.getElementById('rejectModal'))?.hide();
+                        selectedIncidentId = null;
+                    },
+                    error: function(xhr) {
+                        toastr.error('Failed to update status');
+                        console.error(xhr.responseText);
+                    }
+                });
+            }
         });
     </script>
     <script>

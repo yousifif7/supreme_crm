@@ -78,7 +78,8 @@ class TrainingController extends Controller
             'description' => 'required|string',
             'pdf_url' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048', // max 2MB
             'type' => 'required|string',
-            'expiry_date' => 'required|date',
+            'implementation_date' => 'nullable|date',
+            'deadline' => 'nullable|date',
         ]);
 
         $filePath = null;
@@ -98,7 +99,8 @@ class TrainingController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'],
             'type' => $validated['type'],
-            'expiry_date' => $validated['expiry_date'],
+            'implementation_date' => $validated['implementation_date'],
+            'deadline' => $validated['deadline'],
             'pdf_url' => $filePath, // correct variable
         ]);
 
@@ -168,5 +170,21 @@ class TrainingController extends Controller
         $ids = $request->ids;
         TrainingMaterial::whereIn('id', $ids)->delete();
         return response()->json(['success' => true, 'message' => 'Material deleted succesfully']);
+    }
+
+    public function showAcknowledged($id)
+    {
+        $material = TrainingMaterial::with('acknowledgedUsers')->findOrFail($id);
+
+        return response()->json([
+            'title' => $material->title,
+            'users' => $material->acknowledgedUsers->map(function ($user) {
+                return [
+                    'id' => $user->id,
+                    'name' => $user->first_name . ' ' . $user->last_name,
+                    'email' => $user->email,
+                ];
+            })
+        ]);
     }
 }

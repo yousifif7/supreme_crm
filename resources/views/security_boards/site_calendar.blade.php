@@ -62,27 +62,25 @@
         /* Event/shift boxes */
         /* Container for each event (shift) */
         /* Ensure text wraps inside the box */
-        ._schedule-box-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            padding: 10px 12px;
-            border-radius: 8px;
-            font-size: 13px;
-            min-height: 50px;
-            width: 95%;
-            margin: 0 auto;
-            color: #000;
-            text-align: center;
-            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-            line-height: 1.3;
-            word-break: break-word;
-            /* allow long words to wrap */
-            white-space: normal;
-            /* enable text wrapping */
-        }
+._schedule-box-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 13px;
+    min-height: 50px;
+    width: 95%;
+    margin: 2px auto; /* spacing between events */
+    color: #000;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer;
+    line-height: 1.3;
+    word-break: break-word;
+    white-space: normal;
+    padding: 8px 10px;
+}
 
         .fc .fc-daygrid-event-harness,
         .fc .fc-daygrid-event {
@@ -109,13 +107,11 @@
         }
 
         /* Stack events neatly */
-        .fc-daygrid-day-events {
-            display: flex !important;
-            flex-direction: column;
-            gap: 8px !important;
-            /* more space between boxes */
-            padding: 4px 0 !important;
-        }
+.fc-daygrid-day-events {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px !important; /* stack events neatly */
+}   
 
         /* Hide urgent red lines */
         .urgent-indicator {
@@ -433,38 +429,43 @@
                             return highlightDates.includes(dateStr) ? ['highlight-day'] : [];
                         },
 
-                        eventContent: function(info) {
-                            const event = info.event;
-                            const props = event.extendedProps;
+eventContent: function(info) {
+    const event = info.event;
+    const props = event.extendedProps;
 
-                            const startTime = event.start?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            }) || '';
-                            const endTime = event.end?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            }) || '';
+    const startTime = props.startTime || '';
+    const endTime = props.endTime || '';
 
-                            const bgClass = event.classNames?.[0] || 'bg-secondary';
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+    const bgClass = event.classNames?.[0] || 'bg-secondary';
+    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                            const container = document.createElement('div');
-                            container.className = '_schedule-box-container';
-                            container.style.backgroundColor = bgColor;
+    // Determine text color for readability
+    let textColor = '#212529'; // default dark
+    // Simple check for darker backgrounds (you can extend this)
+    const darkBackgrounds = ['#3a87ad', '#5489C4', '#4e73df', '#2a4d69']; 
+    if (darkBackgrounds.includes(bgColor)) {
+        textColor = '#fff';
+    }
 
-                            container.innerHTML = `
-        <div style="word-wrap: break-word;">${event.title}</div>
-        <div style="font-size:0.85rem; color:#555;">${startTime} - ${endTime}</div>
+    const container = document.createElement('div');
+    container.className = '_schedule-box-container';
+    container.style.backgroundColor = bgColor;
+    container.style.color = textColor; // set readable font
+    container.style.margin = '2px 0';
+    container.style.padding = '8px 10px';
+
+    container.innerHTML = `
+        <div style="word-wrap: break-word; font-weight: 600;">${event.title}</div>
+        <div style="font-size:0.85rem; color:${textColor};">
+            ${startTime} - ${endTime} (${props.duration})
+        </div>
     `;
 
-                            return {
-                                domNodes: [container]
-                            };
-                        },
-
+    return {
+        domNodes: [container]
+    };
+},
+    
                         eventClick: function(info) {
                             // create a button with data-toggle="ajax-modal" in body and click it
                             const button = document.createElement('button');

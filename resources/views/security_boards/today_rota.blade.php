@@ -141,9 +141,10 @@
             z-index: 10;
             filter: brightness(1.05);
         }
+
         .fc .fc-day-today {
-    background-color: #fff !important;
-}
+            background-color: #fff !important;
+        }
     </style>
 
 @endsection
@@ -966,49 +967,52 @@
 
                         events: data, // Today's shifts
 
-                        eventContent: function(info) {
-                            const event = info.event;
-                            const props = event.extendedProps;
+ eventContent: function(info) {
+    const props = info.event.extendedProps;
+    const startTime = props.start_time_str || '';
+    const endTime = props.end_time_str || '';
+    const client = props.client || '';
+    const site = props.site || '';
+    const staff = props.staff || '';
 
-                            const startTime = event.start?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            }) || '';
-                            const endTime = event.end?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                                hour12: false
-                            }) || '';
+    const bgClass = info.event.classNames?.[0] || 'bg-secondary';
+    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                            const client = props.client || '';
-                            const site = props.site || '';
-                            const staff = props.staff || '';
+    // Automatically pick readable text color
+    function getContrastColor(hexColor) {
+        // Remove hash if present
+        const c = hexColor.startsWith('#') ? hexColor.substring(1) : hexColor;
+        // Convert to RGB
+        const r = parseInt(c.substr(0,2),16);
+        const g = parseInt(c.substr(2,2),16);
+        const b = parseInt(c.substr(4,2),16);
+        // Calculate luminance
+        const luminance = (0.299*r + 0.587*g + 0.114*b);
+        return luminance > 186 ? '#000' : '#fff'; // dark text if light bg, white text if dark bg
+    }
 
-                            const bgClass = event.classNames?.[0] || 'bg-secondary';
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+    const textColor = getContrastColor(bgColor);
 
-                            const container = document.createElement('div');
-                            container.classList.add(
-                            'fc-event-custom'); // 👈 our hover style will target this
-                            container.style.backgroundColor = bgColor;
-                            container.style.color =
-                                (bgColor === '#F8F9FA' || bgColor === '#FFF9C4') ? '#000' : '#fff';
+    const container = document.createElement('div');
+    container.classList.add('fc-event-custom');
+    container.style.backgroundColor = bgColor;
+    container.style.color = textColor;
 
-                            container.innerHTML = `
-        <div class="event-body text-dark">
-            <b>${client}</b><br>
-            <b><small>${staff}</small><br>
-            <small>${site}</small><br>
-            <small class="text-light">${startTime} - ${endTime}</small></b>
+    container.innerHTML = `
+        <div class="event-body">
+            <b style="color:${textColor}">${client}</b><br>
+            <b><small style="color:${textColor}">${staff}</small><br>
+            <small style="color:${textColor}">${site}</small><br>
+            <small style="color:${textColor}">${startTime} - ${endTime} <small>(${props.duration})</small></small></b>
         </div>
     `;
 
-                            return {
-                                domNodes: [container],
-                                text: '' // 👈 ensures FullCalendar doesn't add its dot
-                            };
-                        },
+    return {
+        domNodes: [container],
+        text: '' // ensures FullCalendar doesn't add its default dot
+    };
+},
+
 
                         eventClick: function(info) {
                             // create a button with data-toggle="ajax-modal" in body and click it

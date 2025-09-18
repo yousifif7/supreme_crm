@@ -356,7 +356,7 @@
                                                 value="{{ $shiftDate->id }}">
 
                                             <input type="text" id="absentee_start_time" name="absentee_start_time"
-                                                placeholder="HH:MM" class="form-control mb-2">
+                                                placeholder="HH:MM" class="form-control mb-2" value="{{\Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time )->format('H:i')}}">
 
                                             <button type="submit" class="btn btn-primary">Set book on time</button>
                                         </form>
@@ -389,7 +389,7 @@
                                             <input type="hidden" id="book_off_id" name="book_off_id"
                                                 value="{{ $shiftDate->id }}">
                                             <input type="text" id="absentee_end_time" name="absentee_end_time"
-                                                placeholder="HH:MM" class="form-control mb-2">
+                                                placeholder="HH:MM" class="form-control mb-2" value="{{\Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time )->format('H:i')}}">
                                             <button type="submit" class="btn btn-danger">Set book off time</button>
                                         </form>
                                     </div>
@@ -621,7 +621,7 @@
                                         <tr>
                                             <td>{{ $checkcall?->name }}</td>
                                             <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($scheduled_time->started_at ?? '')->format('H:i') }}
+                                            <td>{{ \Carbon\Carbon::parse($checkcall->scheduled_time)->format('H:i') }}
                                             </td>
                                             <td>
                                                 @if ($checkcall->status == 'pending')

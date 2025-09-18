@@ -149,6 +149,11 @@ class User extends Authenticatable
         return $this->hasMany(Document::class);
     }
 
+    public function acknowledgments()
+    {
+        return $this->hasMany(TrainingAcknowledgement::class,'user_id');
+    }
+
     public function profilePictureUrl()
     {
         return $this->profile_picture ? '/uploads/profile_pics/' . $this->profile_picture : 'uploads/no.png';
