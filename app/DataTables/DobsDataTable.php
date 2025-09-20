@@ -19,6 +19,7 @@ class DobsDataTable extends DataTable
                 $user = User::find($row->user_id);
                 return $user ? $user->first_name . ' ' . $user->last_name : 'Unknown';
             })
+            ->addIndexColumn()
             ->addColumn('actions', function ($row) {
                 return '
         <div class="action-icon d-inline-flex">
@@ -34,8 +35,8 @@ class DobsDataTable extends DataTable
         </div>';
             })
             ->addColumn('address', function ($row) {
-                $shiftdate= ShiftDate::find($row->shift_id);
-                return $shiftdate? $shiftdate->shift->site->address : 'Unknown';
+                $shiftdate = ShiftDate::find($row->shift_id);
+                return $shiftdate ? $shiftdate->shift->site->address : 'Unknown';
             })
             ->addColumn('files', function ($row) {
                 $html = '';
@@ -75,6 +76,7 @@ class DobsDataTable extends DataTable
                 ->addClass('text-center px-2')
                 ->orderable(false)
                 ->searchable(false),
+            Column::computed('DT_RowIndex')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
             Column::computed('user')->title('Guard'),
             Column::make('title')->title('Title'),
             Column::make('entry_type')->title('Type'),

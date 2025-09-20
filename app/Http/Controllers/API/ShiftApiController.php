@@ -215,7 +215,7 @@ class ShiftApiController extends Controller
             'start_date' => 'required|date|after_or_equal:today',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'reason'     => 'required|string',
-            'type'       => 'required|in:annual_holiday,sick_leave,unpaid_leave,other_leave',
+            'type'       => 'required|in:annual_leave,sick_leave,unpaid_leave,other_leave',
             'hours'      => 'nullable|numeric|min:0',
             'shift_id'   => 'nullable',
         ]);
@@ -226,7 +226,6 @@ class ShiftApiController extends Controller
         $start = Carbon::parse($request->start_date);
         $end   = Carbon::parse($request->end_date);
         $totalDays = $end->diffInDays($start) + 1;
-
         $hoursPerDay = $request->hours ?? 8;
         $totalHours  = $totalDays * $hoursPerDay;
 
@@ -235,42 +234,59 @@ class ShiftApiController extends Controller
         $holidayHours  = 0;
         $unpaidHours   = 0;
 
-        if ($request->type === 'sick_leave') {
-            $waitingDays = 3;
-            $sspRate = 23.75;
+        switch ($request->type) {
+            case 'sick_leave':
+                $weeklyPay = $employee->weekly_pay ?? 0;
+                $sickPay   = $this->calculateSickPay($employee, $start, $end, $weeklyPay);
 
-            $sspPaidDays = max($totalDays - $waitingDays, 0);
-            $unpaidHours = min($waitingDays, $totalDays) * $hoursPerDay;
-            $paid = $sspPaidDays > 0;
-        }
+                $sspPaidDays = $sickPay['paid_days'];
+                $unpaidHours = $sickPay['unpaid_days'] * $hoursPerDay;
+                $paid        = $sspPaidDays > 0;
+                break;
 
-        if ($request->type === 'annual_leave') {
-            $holidayBalance = $employee->holiday_balance ?? 0; // in hours
-            if ($totalHours > $holidayBalance) {
-                $holidayHours = $holidayBalance;
-                $unpaidHours  = $totalHours - $holidayBalance;
-                $paid = $holidayBalance > 0;
-            } else {
-                $holidayHours = $totalHours;
-            }
+            case 'annual_leave':
+                $holidayBalance = $employee->holiday_balance ?? 0; // in hours
+                if ($totalHours > $holidayBalance) {
+                    $holidayHours = $holidayBalance;
+                    $unpaidHours  = $totalHours - $holidayBalance;
+                    $paid = $holidayBalance > 0;
+                } else {
+                    $holidayHours = $totalHours;
+                    $paid = $holidayHours > 0;
+                }
+                break;
+
+            case 'unpaid_leave':
+                $unpaidHours = $totalHours;
+                $paid = false;
+                break;
+
+            case 'other_leave':
+                $paid = $request->paid ?? false;
+                if ($paid) {
+                    $holidayHours = $totalHours;
+                } else {
+                    $unpaidHours = $totalHours;
+                }
+                break;
         }
 
         $leave = LeaveRequest::create([
-            'user_id'        => $user->id,
-            'employee_id'    => $employee->id,
-            'shift_id'       => $request->shift_id,
-            'start_date'     => $request->start_date,
-            'end_date'       => $request->end_date,
-            'reason'         => $request->reason,
-            'type'           => $request->type,
-            'hours'          => $totalHours,
-            'approved_hours' => $totalHours - $unpaidHours,
-            'paid'           => $paid,
-            'ssp_paid_days'  => $sspPaidDays,
+            'user_id'          => $user->id,
+            'employee_id'      => $employee->id,
+            'shift_id'         => $request->shift_id,
+            'start_date'       => $request->start_date,
+            'end_date'         => $request->end_date,
+            'reason'           => $request->reason,
+            'type'             => $request->type,
+            'hours'            => $totalHours,
+            'approved_hours'   => $totalHours - $unpaidHours,
+            'paid'             => $paid,
+            'ssp_paid_days'    => $sspPaidDays,
             'holiday_days_used' => $holidayHours,
-            'unpaid_days'    => $unpaidHours / $hoursPerDay,
-            'amount_paid'    => $sspPaidDays * 23.75, // only for sick leave
-            'status'         => 'pending',
+            'unpaid_days'      => $unpaidHours / $hoursPerDay,
+            'amount_paid'      => $sspPaidDays * 23.75,
+            'status'           => 'pending',
         ]);
 
         // Notifications
@@ -281,15 +297,6 @@ class ShiftApiController extends Controller
             'Leave Request by ' . $employee->fore_name . ' ' . $employee->sur_name,
             "/leaves"
         );
-
-        Notification::create([
-            'user_id' => $user->id,
-            'employee_id' => auth::id(),
-            'type' => 'alert',
-            'title' => 'Leave Requested',
-            'message' => 'You have submitted a leave request.',
-            'read' => false,
-        ]);
 
         send_push_notification(
             $user->id,

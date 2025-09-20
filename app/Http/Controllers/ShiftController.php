@@ -16,6 +16,7 @@ use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
+use App\Models\LeaveRequest;
 use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
@@ -226,7 +227,7 @@ class ShiftController extends Controller
 
                 // ✅ Check SIA license expiry only if staff exists
                 if ($staffId) {
-                    $staff = \App\Models\Employee::find($staffId);
+                    $staff = \App\Models\Employee::where('user_id', $staffId)->first();
                     $selectedDays = array_map('trim', explode(',', $dayString));
                     $newShiftHours = 0;
 
@@ -259,14 +260,18 @@ class ShiftController extends Controller
                             ->sum('total_hours');
 
                         // Apply restrictions safely
-                        applyRestrictions(
-                            $staff,
-                            $validator,
-                            'staff_id',
-                            $newShiftHours,
-                            $shiftDateCarbon,
-                            $newShiftStart
-                        );
+                        if (!$staff) {
+                            $validator->errors()->add('staff_id', 'Selected staff does not exist.');
+                        } else {
+                            applyRestrictions(
+                                $staff,
+                                $validator,
+                                'staff_id',
+                                $newShiftHours,
+                                $shiftDateCarbon,
+                                $newShiftStart
+                            );
+                        }
                     } else {
                         $validator->errors()->add('staff_id', 'Invalid shift date or start time for restriction check.');
                     }
@@ -312,6 +317,19 @@ class ShiftController extends Controller
             foreach ($period as $date) {
                 if (in_array($date->format('D'), $selectedDays)) {
 
+                    if (!empty($data['staff_id'])) {
+                        $leave = LeaveRequest::where('user_id', $data['staff_id'])
+                            ->where('status', 'approved')
+                            ->whereDate('start_date', '<=', $date->format('Y-m-d'))
+                            ->whereDate('end_date', '>=', $date->format('Y-m-d'))
+                            ->first();
+
+                        if ($leave) {
+                            return response()->json([
+                                'error' => "Staff has an approved leave from {$leave->start_date} to {$leave->end_date} on {$date->format('Y-m-d')}."
+                            ], 422);
+                        }
+                    }
                     // Create ShiftDate
                     $shiftDate = ShiftDate::create([
                         'shift_id'    => $shift->id,
@@ -358,13 +376,15 @@ class ShiftController extends Controller
                     for ($n = 0; $n < (int) $numberOfCheckCalls; $n++) {
                         $checkTime  = $start->copy()->addHours($n);
                         $patrolTime = $start->copy()->addHours($n);
-
-                        CheckCall::create([
-                            'shift_id'       => $shiftDate->id,
-                            'name'           => 'Auto CheckCall ' . ($n + 1),
-                            'scheduled_time' => $checkTime->format('Y-m-d H:i'),
-                            'status'         => 'pending',
-                        ]);
+                        
+                         if (request()->has('auto_checkcall_enabled') && request('auto_checkcall_enabled')) {
+                             CheckCall::create([
+                                 'shift_id'       => $shiftDate->id,
+                                 'name'           => 'Auto CheckCall ' . ($n + 1),
+                                 'scheduled_time' => $checkTime->format('Y-m-d H:i'),
+                                 'status'         => 'pending',
+                             ]);
+                         }
 
                         Patrol::create([
                             'shift_id'              => $shiftDate->id,
@@ -459,6 +479,20 @@ class ShiftController extends Controller
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
             if ($staffUser) {
                 $staff = Employee::findOrFail($staffUser->id);
+
+
+                $shiftDateValue = $data['shift_date'] ?? $shift->shift_date;
+                $leave = LeaveRequest::where('user_id', $data['staff_id'])
+                    ->where('status', 'approved')
+                    ->whereDate('start_date', '<=', $shiftDateValue)
+                    ->whereDate('end_date', '>=', $shiftDateValue)
+                    ->first();
+
+                if ($leave) {
+                    return response()->json([
+                        'errors' => "Staff has an approved leave from {$leave->start_date} to {$leave->end_date}."
+                    ], 422);
+                }
 
                 $newShiftHours = $data['total_hours'];
 
@@ -1092,6 +1126,21 @@ class ShiftController extends Controller
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift     = Shift::findOrFail($shiftDate->shift_id);
 
+        // ====== 1️⃣ Check for approved leave ======
+        $leave = LeaveRequest::where('user_id', $staffId)
+            ->where('status', 'approved')
+            ->whereDate('start_date', '<=', $shiftDate->shift_date)
+            ->whereDate('end_date', '>=', $shiftDate->shift_date)
+            ->first();
+
+        if ($leave) {
+            return response()->json([
+                'errors' => [
+                    'leave' => ["Staff has an approved leave from {$leave->start_date} to {$leave->end_date}."]
+                ]
+            ], 422);
+        }
+
         $start        = $shift->start_shift ?? null;
         $end          = $shift->end_shift ?? null;
         $from         = $shift->from_shift ?? null;
@@ -1416,11 +1465,14 @@ class ShiftController extends Controller
     public function multiAssign(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'shift_ids' => 'required|array',
+            'shift_ids'   => 'required|array',
             'shift_ids.*' => 'exists:shift_dates,id',
-            'staff_id'  => 'required|exists:users,id',
-            'start_times' => 'array',          // optional array of start times keyed by shift ID
-            'end_times'   => 'array',          // optional array of end times keyed by shift ID
+            'staff_id'    => 'nullable|exists:users,id',
+            'start_times' => 'nullable|array', // optional keyed by shift ID
+            'end_times'   => 'nullable|array', // optional keyed by shift ID
+            'book_on'     => 'nullable|array', // optional keyed by shift ID
+            'book_off'    => 'nullable|array', // optional keyed by shift ID
+            'shift_dates'    => 'nullable|array', // optional keyed by shift ID
         ]);
 
         if ($validator->fails()) {
@@ -1435,11 +1487,30 @@ class ShiftController extends Controller
 
         foreach ($request->shift_ids as $shiftId) {
             $shiftDate = ShiftDate::findOrFail($shiftId);
-            $shift = Shift::findOrFail($shiftDate->shift_id);
+            $shift     = Shift::findOrFail($shiftDate->shift_id);
 
-            // Use provided start/end times if available, else default
+            // ====== 1️⃣ Check for approved leave ======
+            $leave = LeaveRequest::where('user_id', $staffId)
+                ->where('status', 'approved')
+                ->where(function ($query) use ($shiftDate) {
+                    $query->whereDate('start_date', '<=', $shiftDate->shift_date)
+                        ->whereDate('end_date', '>=', $shiftDate->shift_date);
+                })
+                ->first();
+
+            if ($leave) {
+                $errors["shift_{$shiftId}"] = ["Staff has an approved leave from {$leave->start_date} to {$leave->end_date}."];
+                continue;
+            }
+
+            // Use provided start/end times if available
             $newStart = $request->start_times[$shiftId] ?? $shiftDate->start_time;
             $newEnd   = $request->end_times[$shiftId] ?? $shiftDate->end_time;
+            $newDate = $request->shift_dates[$shiftId] ?? $shiftDate->shift_date;
+            
+            // Use provided book_on/book_off if available
+            $bookOn  = $request->book_on[$shiftId] ?? null;
+            $bookOff = $request->book_off[$shiftId] ?? null;
 
             $newShiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $newStart);
             $newShiftEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $newEnd);
@@ -1472,7 +1543,7 @@ class ShiftController extends Controller
 
             if ($validator->errors()->any()) {
                 $errors[$shiftId] = $validator->errors()->toArray();
-                continue; // skip this shift
+                continue;
             }
 
             // Check for overlapping shifts
@@ -1488,14 +1559,24 @@ class ShiftController extends Controller
                 continue;
             }
 
-            // Assign shift
-            $shiftDate->staff_id = $staffUser->user_id;
-            $shiftDate->is_assign = 1;
-            $shiftDate->status = 'pending';
-            $shiftDate->start_time = $newStart;  // update start
-            $shiftDate->end_time   = $newEnd;    // update end
+            // Assign shift and extra fields
+            $shiftDate->staff_id            = $staffUser->user_id;
+            $shiftDate->is_assign           = 1;
+            $shiftDate->status              = 'pending';
+            $shiftDate->start_time          = $newStart;
+            $shiftDate->end_time            = $newEnd;
+            $shiftDate->absentee_start_time = $bookOn;
+            $shiftDate->absentee_end_time   = $bookOff;
+            $shiftDate->shift_date          = $newDate;           // ✅ add this
+
+            // Normalize time format for hours calculation
+            $startCalc = strlen($newStart) === 5 ? $newStart . ':00' : $newStart;
+            $endCalc   = strlen($newEnd) === 5 ? $newEnd . ':00' : $newEnd;
+            $shiftDate->total_hours = $this->calculateTotalHours($startCalc, $endCalc, 'H:i:s');
+
             $shiftDate->save();
 
+            // Push notification
             send_push_notification(
                 $staffUser->user_id,
                 'Shift assigned',
@@ -1506,9 +1587,13 @@ class ShiftController extends Controller
             $updatedShifts[] = $shiftDate->id;
         }
 
+        if (!empty($errors) && empty($updatedShifts)) {
+            return response()->json(['errors' => $errors], 422);
+        }
+
         return response()->json([
             'updated' => $updatedShifts,
-            'errors' => $errors
+            'errors'  => $errors
         ]);
     }
 

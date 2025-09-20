@@ -82,9 +82,9 @@
 
         <!-- /Page Wrapper -->
         <!-- Add Employee -->
-      @include('employees.create')
+        @include('employees.create')
         <!-- /Add Employee -->
-      @include('employees.edit')
+        @include('employees.edit')
 
         <!-- Generate Employee Payroll -->
         <div class="modal fade" id="generate_payroll">
@@ -119,8 +119,8 @@
                                                             id="payrollerror_employee_name"></span>
                                                     </div>
 
-                                                  
-  <div class="mb-3">
+
+                                                    <div class="mb-3">
                                                         <label class="form-label">Employee Site <span
                                                                 class="text-danger">*</span></label>
                                                         <select class="form-select" name="site_id" id="payroll_site_id">
@@ -181,7 +181,7 @@
         <!-- /Generate Employee Payroll-->
 
         <!-- Edit Employee -->
-     
+
         <!-- /Edit Employee -->
 
         <!-- Add Employee Success -->
@@ -419,6 +419,14 @@
                             <tr>
                                 <th>Passport Expiry</th>
                                 <td id="passport_expiry_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Driving Licence</th>
+                                <td id="driving_licence_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Driving Licence Expiry</th>
+                                <td id="driving_licence_expiry_detail"></td>
                             </tr>
                             <tr>
                                 <th>Address Group</th>
@@ -1044,7 +1052,7 @@
         }
 
         function viewEmployeeDetail(id) {
-            $.get(`${baseUrl}/employees/${id}/w`, function(data) {
+            $.get(`${baseUrl}/employees/${id}/view`, function(data) {
                 $('#employee_name_heading').text(`${data.fore_name} ${data.sur_name}`);
                 $('#full_name_detail').text(`${data.fore_name} ${data.sur_name}`);
                 $('#email_detail').text(data.email);
@@ -1065,13 +1073,14 @@
                 $('#nationality_detail').text(data.nationality);
                 $('#passport_no_detail').text(data.passport_no);
                 $('#passport_expiry_detail').text(data.passport_expiry);
-                // $('#employment_start_date').text(data.employment_start_date);
-                // $('#employment_end_date').text(data.employment_end_date);
+                $('#driving_licence_detail').text(data.driving_licence_number ?? 'N/A');
+                $('#driving_licence_expiry_detail').text(data.driving_licence_expiry ?? 'N/A');
                 $('#address_group_detail').text(data.address_group);
                 $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(
-                    `${data.bank_name ?? 'N/A'} / ${data.account_name} / ${data.account_number}`);
-                $('#other_info_detail').text(data.other_info);
+                    `${data.bank_name ?? 'N/A'} / ${data.account_name ?? 'N/A'} / ${data.account_number ?? 'N/A'}`
+                    );
+                $('#other_info_detail').text(data.other_info ?? '');
 
                 // Main documents mapping
                 const documentTypes = {
@@ -1079,8 +1088,9 @@
                     passport_file: "Passport",
                     proof_of_address_file: "Proof of Address",
                     ni_letter_file: "NI Letter",
-                    first_aid_certificate_file: "Right to work",
-                    act_certificate_file: "ACT Certificate"
+                    first_aid_certificate_file: "Right to Work",
+                    act_certificate_file: "ACT Certificate",
+                    driving_licence_file: "Driving Licence"
                 };
 
                 let documentHtml = "";
@@ -1090,7 +1100,6 @@
                     const fileName = data[field];
                     if (fileName) {
                         hasDocs = true;
-                        // Adjust folder path as needed for your setup
                         const url = `${baseUrl}/documents/${fileName}`;
                         documentHtml += `<div class="mb-1">
                     <strong>${label}:</strong> 
@@ -1153,18 +1162,16 @@
             });
         }
     </script>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    // Get hash from URL (without the '#' symbol)
-    let hashId = window.location.hash.substring(1);
-    // If the hash is a number, call the function
-    if (hashId && !isNaN(hashId)) {
-        viewEmployeeDetail(hashId);
-    }
-});
-
-
-</script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Get hash from URL (without the '#' symbol)
+            let hashId = window.location.hash.substring(1);
+            // If the hash is a number, call the function
+            if (hashId && !isNaN(hashId)) {
+                viewEmployeeDetail(hashId);
+            }
+        });
+    </script>
 
     {!! $dataTable->scripts() !!}
 @endsection

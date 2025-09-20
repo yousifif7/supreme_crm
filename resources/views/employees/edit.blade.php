@@ -35,16 +35,16 @@
                                    placeholder="Enter Surname" required>
                                <span class="text-danger form-error" id="error_surname"></span>
                            </div>
-                                                               <div class="col-md-4 mb-3">
-        <label class="form-label">Employment Start Date</label>
-        <input type="date" name="employment_start_date" class="form-control bg-yellow" id="employment_start_date"
-            placeholder="Employment start date">
-    </div>
-                                    <div class="col-md-4 mb-3">
-        <label class="form-label">Employment End Date</label>
-        <input type="date" name="employment_end_date" class="form-control bg-yellow" id="employment_end_date"
-            placeholder="Employment end date">
-                                </div>
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label">Employment Start Date</label>
+                               <input type="date" name="employment_start_date" class="form-control bg-yellow"
+                                   id="employment_start_date" placeholder="Employment start date">
+                           </div>
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label">Employment End Date</label>
+                               <input type="date" name="employment_end_date" class="form-control bg-yellow"
+                                   id="employment_end_date" placeholder="Employment end date">
+                           </div>
                            <div class="col-md-4 mb-3">
                                <label class="form-label">Gender</label>
                                <select class="form-select bg-yellow" name="gender" id="gender">
@@ -97,9 +97,9 @@
                            </div>
                            <div class="col-md-4 mb-3">
                                <label class="form-label">SIA Licence</label>
-                               <input type="text" name="sia_licence" id="sia_licence" class="form-control bg-yellow"
-                                   placeholder="Enter SIA Licence"> <span class="text-danger form-error"
-                                   id="error_sia_licence"></span>
+                               <input type="text" name="sia_licence" id="sia_licence"
+                                   class="form-control bg-yellow" placeholder="Enter SIA Licence"> <span
+                                   class="text-danger form-error" id="error_sia_licence"></span>
                            </div>
                            <div class="col-md-4 mb-3">
                                <label class="form-label">SIA Expiry</label>
@@ -114,6 +114,17 @@
                                        <option value="{{ $license->name }}">{{ $license->name }}</option>
                                    @endforeach
                                </select>
+                           </div>
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label">Driving Licence Number</label>
+                               <input type="text" name="driving_licence_number" class="form-control bg-yellow"
+                                   placeholder="Enter Driving Licence"> <span class="text-danger form-error"
+                                   id="error_sia_licence"></span>
+                           </div>
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label">Driving Licence Expiry</label>
+                               <input type="date" name="driving_licence_expiry" class="form-control bg-yellow"
+                                   placeholder="Enter driving Expiry">
                            </div>
                            <div class="col-md-4 mb-3">
                                <label class="form-label">Date of Entry / Re-entry</label>
@@ -471,6 +482,14 @@
                                <label class="form-label" for="proof_of_address_file">Proof of address</label>
                                <input type="file" name="proof_of_address_file" accept=".jpg,.jpeg,.png,.pdf"
                                    id="proof_of_address_file" class="form-control">
+                               <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
+                                   Pdf)</span>
+                           </div>
+
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label" for="driving_licence_file">Driving Licence File</label>
+                               <input type="file" name="driving_licence_file" accept=".jpg,.jpeg,.png,.pdf"
+                                   class="form-control">
                                <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
                                    Pdf)</span>
                            </div>

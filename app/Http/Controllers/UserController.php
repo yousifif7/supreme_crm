@@ -31,7 +31,8 @@ class UserController extends Controller
     public function dashboard()
 {
         $shifts = ShiftDate::where('shift_date', Carbon::today()->toDateString())->with('shift.staff')->get();
-        $invoices = Invoice::all();
+        $invoices = Invoice::with(['client', 'site'])
+            ->whereNotNull('client_id')->get();
         $review = ShiftDate::where('is_assign', '1')->count();
         $clients = Client::all();
         $staffs = User::role('security_staff')->get();

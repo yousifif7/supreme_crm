@@ -63,8 +63,9 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
-                                                <input type="text" name="start_shift[]" id="start_shift" placeholder="HH:MM"
-                                                    class="form-control time-input" value="{{ old('start_shift.0') }}">
+                                                <input type="text" name="start_shift[]" id="start_shift"
+                                                    placeholder="HH:MM" class="form-control time-input"
+                                                    value="{{ old('start_shift.0') }}">
                                                 <span class="text-danger form-error error_start_shift"></span>
                                             </div>
                                         </div>
@@ -183,7 +184,8 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Select Staff</label>
-                                                <select class="form-select" name="staff_id[]" id="StaffSelect">
+                                                <select class="form-select StaffSelect" name="staff_id[]"
+                                                    id="StaffSelect">
                                                     <option value="">--choose--</option>
                                                     @foreach ($staffs as $staff)
                                                         <option value="{{ $staff->id }}">
@@ -315,6 +317,14 @@
                                                     <label class="form-label mb-0">Restrict start shift
                                                         location check </label>
                                                 </div>
+                                                <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
+                                                    <div class="form-check form-switch mb-3">
+                                                        <input class="form-check-input" type="checkbox"
+                                                            id="autoCheckcallToggle" checked>
+                                                        <label class="form-check-label form-label"
+                                                            for="autoCheckcallToggle">Enable Auto Checkcalls</label>
+                                                    </div>
+                                                </div>
 
                                                 <div class="checkcall-section" id="checkcall-section0">
                                                     <h5>Check Calls</h5>
@@ -378,6 +388,25 @@
             time_24hr: true,
             minuteIncrement: 5,
             allowInput: true
+        });
+    });
+
+    function customMatcher(params, data) {
+        if ($.trim(params.term) === '') return data;
+
+        let term = params.term.toLowerCase();
+        let text = data.text.toLowerCase();
+
+        return text.includes(term) ? data : null;
+    }
+
+    $(document).ready(function() {
+        $('.StaffSelect').select2({
+            placeholder: "--choose--",
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#add_shift'), // make sure this matches your modal ID
+            minimumResultsForSearch: 0 // force search bar for single select
         });
     });
 </script>

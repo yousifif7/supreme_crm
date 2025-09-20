@@ -46,6 +46,7 @@ class EmployeeController extends Controller
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string|unique:employees,ni_number',
             'sia_licence' => 'nullable|string|unique:employees,sia_licence',
+            'driving_licence_number' => 'nullable|string|unique:employees,sia_licence',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'entry_date' => 'nullable',
@@ -53,6 +54,7 @@ class EmployeeController extends Controller
             'service_type' => 'nullable',
             'visa_type' => 'nullable',
             'visa_expiry' => 'nullable',
+            'driving_licence_expiry' => 'nullable',
             'place_work' => 'nullable',
             'hour_per_ek' => 'nullable',
             'passport_no' => 'nullable',
@@ -98,6 +100,7 @@ class EmployeeController extends Controller
             'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'driving_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
             'fixed_pay' => 'nullable',
@@ -134,6 +137,7 @@ class EmployeeController extends Controller
         }
 
         $data = $validator->validated();
+        
         // ✅ Handle the checkbox manually
         // Handle files...
         if ($request->hasFile('profile_picture')) {
@@ -150,7 +154,7 @@ class EmployeeController extends Controller
             $data['signature'] = $fileName;
         }
 
-        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
+        $documents = ['sia_licence_file', 'passport_file','driving_licence_file','proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
         foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
@@ -198,7 +202,7 @@ class EmployeeController extends Controller
         $user = User::create([
             'name' => $data['fore_name'],
             'first_name' => $data['fore_name'],
-            'last_name' => '',
+            'last_name' => $data['sur_name'],
             'username' => $data['email'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -255,6 +259,8 @@ class EmployeeController extends Controller
             'sia_licence' => 'nullable|string',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
+            'driving_licence_number' => 'nullable|string',
+            'driving_licence_expiry' => 'nullable|string',
             'entry_date' => 'nullable',
             'dob' => 'nullable',
             'service_type' => 'nullable',
@@ -305,7 +311,7 @@ class EmployeeController extends Controller
             'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-
+            'driving_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
             'fixed_pay' => 'nullable',
@@ -584,6 +590,9 @@ class EmployeeController extends Controller
             'additional_files' => $employee->additional_files,
             'employment_start_date' => $employee->employment_start_date,
             'employment_end_date' => $employee->employment_end_date,
+            'driving_licence_expiry' => $employee->driving_licence_expiry,
+            'driving_licence_file' => $employee->driving_licence_file,
+            'driving_licence_number' => $employee->driving_licence_number,
         ]);
     }
     public function print($id)

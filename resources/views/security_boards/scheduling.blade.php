@@ -296,6 +296,8 @@
                                 <div class="row">
                                     <div class="col-md-8">
                                         <div class="input-group">
+                                            <input id="enableSelectBtn" class="form-field" name="Multi_Select"
+                                                type="checkbox" style="margin:5px; font-size:15px;">
                                             <input type="text" id="ganttSearch" class="form-control"
                                                 placeholder="Search sites or shifts...">
                                             <button class="btn btn-outline-secondary" type="button" id="ganttSearchBtn">
@@ -557,14 +559,26 @@
     </script>
     <script>
         $(document).ready(function() {
+            let autoCheckcallEnabled = true; // default ON
+
+            // Toggle listener
+            $('#autoCheckcallToggle').change(function() {
+                autoCheckcallEnabled = $(this).is(':checked');
+                const message = autoCheckcallEnabled ? 'Auto checkcalls enabled' :
+                    'Auto checkcalls disabled';
+                toast_success(message);
+            });
+
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
                 $("[id^='error_']").text('');
                 let form = this;
                 let formData = new FormData(form);
-                let submitButton = $('#saveshift');
 
-                // Disable button and show loading
+                // Add the auto checkcall state to formData
+                formData.append('auto_checkcall_enabled', autoCheckcallEnabled ? 1 : 0);
+
+                let submitButton = $('#saveshift');
                 submitButton.prop('disabled', true).html('Saving...');
 
                 $.ajax({
@@ -578,19 +592,8 @@
                     },
                     success: function(response) {
                         closeBsModal('#add_shift');
-
                         toast_success(response.message ?? 'Shift created successfully!');
-                        // if (response.redirect_url) {
-                        //     $('#latest_shift_link').attr('href', response.redirect_url);
-                        // }
-                        // $('#success_modal').modal('show');
                         location.reload();
-
-                        // if (response.redirect_url) {
-                        //     window.location.href = response.redirect_url;
-                        // } else {
-                        //     // fallback: just refresh Gantt chart if no URL is provided
-                        // }
                     },
                     error: function(xhr) {
                         console.log("Status:", xhr.status);
@@ -972,7 +975,7 @@
         $('#enableSelectBtn').on('click', function() {
             selectionMode = !selectionMode;
             $(this).text(selectionMode ? 'Cancel Select' : 'Select');
-            $('#editSelectedBtn').prop('disabled', !selectionMode);
+            $('#editSelectedBtn').prop('hidden', !selectionMode);
 
             // Show/hide checkboxes
             $('.multi-shift-checkbox').each(function() {
@@ -1033,63 +1036,118 @@
         });
 
         // Save changes from multi-edit modal
-$(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
-    e.preventDefault();
+        $(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
+            e.preventDefault();
 
-    if (!selectedShiftIds.length) {
-        toast_danger('No shifts selected.');
-        return;
-    }
-
-    // Clear previous hidden shift inputs
-    $('#multiEditShiftInputs').empty();
-
-    // Add hidden inputs for each selected shift
-    selectedShiftIds.forEach(id => {
-        $('<input>').attr({
-            type: 'hidden',
-            name: 'shift_ids[]',
-            value: id
-        }).appendTo('#multiEditShiftInputs');
-    });
-
-    $.ajax({
-        url: `${baseUrl}/shifts/multi-assign`,
-        type: 'POST',
-        data: $(this).serialize(),
-        success: function(res) {
-            toast_success('Shifts updated successfully!');
-
-            // Hide modal
-            $('#multiEditModal').modal('hide');
-
-            // Reset selection and form
-            selectedShiftIds = [];
-            $('#selectedShiftsCount').text(0);
-            selectionMode = false;
-            $('#enableSelectBtn').text('Select');
-            $('#editSelectedBtn').prop('disabled', true);
-            $('#multiEditForm')[0].reset();
-            $('.selec2_assign_modal').val(null).trigger('change');
-
-            // Reload all shifts data
-            loadAllShiftsData();
-        },
-        error: function(xhr) {
-            $('#multiEditErrors').addClass('d-none').empty();
-
-            if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                let messages = Object.values(xhr.responseJSON.errors).flat();
-                messages.forEach(msg => $('#multiEditErrors').append(`<div>${msg}</div>`));
-                $('#multiEditErrors').removeClass('d-none');
-            } else if (xhr.responseJSON?.error) {
-                $('#multiEditErrors').html(xhr.responseJSON.error).removeClass('d-none');
-            } else {
-                $('#multiEditErrors').html('An unexpected error occurred.').removeClass('d-none');
+            if (!selectedShiftIds.length) {
+                toast_danger('No shifts selected.');
+                return;
             }
-        }
-    });
-});
+
+            // Clear previous hidden shift inputs
+            $('#multiEditShiftInputs').empty();
+
+            // Add hidden inputs for each selected shift
+            selectedShiftIds.forEach(id => {
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'shift_ids[]',
+                    value: id
+                }).appendTo('#multiEditShiftInputs');
+
+                let startTime = $('#multiAssignStartTime').val();
+                let endTime = $('#multiAssignEndTime').val();
+                let bookOn = $('#multiAssignBookOn').val();
+                let bookOff = $('#multiAssignBookOff').val();
+                let shiftDate = $('.multiAssignDateInput')
+                    .val(); // single date input for all selected shifts
+
+                if (startTime) $('<input>').attr({
+                    type: 'hidden',
+                    name: `start_times[${id}]`,
+                    value: startTime
+                }).appendTo('#multiEditShiftInputs');
+                if (endTime) $('<input>').attr({
+                    type: 'hidden',
+                    name: `end_times[${id}]`,
+                    value: endTime
+                }).appendTo('#multiEditShiftInputs');
+                if (bookOn) $('<input>').attr({
+                    type: 'hidden',
+                    name: `book_on[${id}]`,
+                    value: bookOn
+                }).appendTo('#multiEditShiftInputs');
+                if (bookOff) $('<input>').attr({
+                    type: 'hidden',
+                    name: `book_off[${id}]`,
+                    value: bookOff
+                }).appendTo('#multiEditShiftInputs');
+                if (shiftDate) $('<input>').attr({
+                    type: 'hidden',
+                    name: `shift_dates[${id}]`,
+                    value: shiftDate
+                }).appendTo('#multiEditShiftInputs');
+            });
+
+            $.ajax({
+                url: `${baseUrl}/shifts/multi-assign`,
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(res) {
+                    if (res.updated.length) {
+                        toast_success('Shifts updated successfully!');
+                    }
+
+                    if (res.errors && Object.keys(res.errors).length) {
+                        let messages = [];
+                        for (const [shiftId, errs] of Object.entries(res.errors)) {
+                            messages.push(`Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`);
+                        }
+                        toast_danger(messages.join('<br>'));
+                    }
+
+                    if (res.updated.length) {
+                        // Only reset UI if something actually updated
+                        $('#multiEditModal').modal('hide');
+                        selectedShiftIds = [];
+                        $('#selectedShiftsCount').text(0);
+                        selectionMode = false;
+                        $('#enableSelectBtn').text('Select');
+                        $('#editSelectedBtn').prop('disabled', true);
+                        $('#multiEditForm')[0].reset();
+                        $('.selec2_assign_modal').val(null).trigger('change');
+                        location.reload();
+                    }
+                },
+                error: function(xhr) {
+                    if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                        let collectMessages = (obj) => {
+                            let msgs = [];
+                            Object.values(obj).forEach(val => {
+                                if (Array.isArray(val)) {
+                                    msgs.push(...val);
+                                } else if (typeof val === 'object') {
+                                    msgs.push(...collectMessages(val)); // dive deeper
+                                }
+                            });
+                            return msgs;
+                        };
+
+                        let messages = collectMessages(xhr.responseJSON.errors);
+                        if (messages.length) {
+                            messages.forEach(msg => toast_danger(msg));
+                        } else {
+                            toast_danger('Validation failed, but no message returned.');
+                        }
+                    } else if (xhr.responseJSON?.error) {
+                        toast_danger(xhr.responseJSON.error);
+                    } else {
+                        toast_danger('An unexpected error occurred.');
+                    }
+                }
+            });
+        });
+
 
 
         function customMatcher(params, data) {
@@ -1163,6 +1221,18 @@ $(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', funct
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
+            });
+        });
+
+        document.addEventListener("DOMContentLoaded", function() {
+            // Apply Flatpickr to all inputs with class .time-input
+            flatpickr("input.time-input", {
+                enableTime: true,
+                noCalendar: true,
+                dateFormat: "H:i", // Save as 24h format
+                time_24hr: true,
+                minuteIncrement: 5,
+                allowInput: true
             });
         });
 

@@ -20,7 +20,7 @@ class DocumentAPIController extends Controller
     public function upload(Request $request)
     {
         $request->validate([
-            'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file',
+            'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file,driving_licence_file',
             'file' => 'required|array',
             'file.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB per file
             'expiry_date' => 'required|date',
@@ -59,7 +59,8 @@ class DocumentAPIController extends Controller
                 'proof_of_address_file' => 'proof_of_address_file',
                 'ni_letter_file' => 'ni_letter_file',
                 'first_aid_certificate_file' => 'first_aid_certificate_file',
-                'act_certificate_file' => 'act_certificate_file'
+                'act_certificate_file' => 'act_certificate_file',
+                'driving_licence_file' => 'driving_licence_file'
             ];
 
             $user = $request->user();
@@ -140,6 +141,7 @@ class DocumentAPIController extends Controller
             'ni_letter_file',
             'first_aid_certificate_file',
             'act_certificate_file',
+            'driving_licence_file',
         ];
 
         foreach ($documentTypes as $type) {

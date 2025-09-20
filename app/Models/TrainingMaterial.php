@@ -17,6 +17,7 @@ class TrainingMaterial extends Model
         'required',
         'implementation_date',
         'deadline',
+        'acknowledge_by_date',
     ];
 
 

@@ -80,6 +80,7 @@ class TrainingController extends Controller
             'type' => 'required|string',
             'implementation_date' => 'nullable|date',
             'deadline' => 'nullable|date',
+            'acknowledge_by_date' => 'nullable|date',
         ]);
 
         $filePath = null;
@@ -101,6 +102,7 @@ class TrainingController extends Controller
             'type' => $validated['type'],
             'implementation_date' => $validated['implementation_date'],
             'deadline' => $validated['deadline'],
+            'acknowledge_by_date' => $validated['acknowledge_by_date'],
             'pdf_url' => $filePath, // correct variable
         ]);
 

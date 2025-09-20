@@ -80,8 +80,9 @@ class MaterialDataTable extends DataTable
             Column::make('title'),
             Column::make('description'),
             Column::make('type'),
+            Column::make('acknowledge_by_date')->title('Acknowledge by Date')->addClass('text-center'),
             Column::make('implementation_date')->title('Implementation Date')->addClass('text-center'),
-            Column::make('deadline')->title('Deadline')->addClass('text-center'),
+            Column::make('deadline')->title('Complete By Date')->addClass('text-center'),
             Column::make('pdf_url')->title('File'),
 
             Column::computed('action')

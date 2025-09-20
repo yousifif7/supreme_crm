@@ -21,14 +21,8 @@
                 <div onclick="window.location='{{ url('employees') }}'" class="active-workers">&#9679; Active
                     Security Staff ({{ $staffs->count() }})</div>
 
-
             </div>
-
         </div>
-
-
-
-
     </div>
     <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
 
@@ -38,13 +32,10 @@
             </button>
         </div>
 
-        <div class="right  mt-4">
+        <div class="right mt-4">
             @yield('filter')
             @if (Request::is('scheduling*'))
-                <div class="gantt-controls">
-                    <button id="enableSelectBtn" class="add_btn btn btn-white">Select</button>
-                    <button id="editSelectedBtn" class="add_btn btn btn-white" disabled>Edit</button>
-                </div>
+                <button id="editSelectedBtn" class="btn add-btn btn-success" hidden style="background: gray;">Multiple Edit</button>
                 <button type="button" class="add_btn btn btn-white" data-bs-toggle="modal"
                     data-bs-target="#filterModal">
                     Filter

@@ -55,6 +55,17 @@ class PayrollsDataTable extends DataTable
                 // You can include more action buttons here if needed
                 return $deleteBtn;
             })
+            ->filterColumn('employee_name', function ($query, $keyword) {
+                $query->whereHas('securityStaff', function ($q) use ($keyword) {
+                    $q->where('first_name', 'like', "%{$keyword}%")
+                        ->orWhere('last_name', 'like', "%{$keyword}%");
+                });
+            })
+            ->filterColumn('site_name', function ($query, $keyword) {
+                $query->whereHas('site', function ($q) use ($keyword) {
+                    $q->where('site_name', 'like', "%{$keyword}%");
+                });
+            })
             ->rawColumns(['checkbox', 'number', 'payroll_no', 'action', 'status']);
     }
 

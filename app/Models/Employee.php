@@ -96,6 +96,9 @@ class Employee extends Model
         'ni_letter_file',
         'first_aid_certificate_file',
         'act_certificate_file',
+        'driving_licence_number',
+        'driving_licence_expiry',
+        'driving_licence_file',
         'additional_files',
     ];
 
@@ -105,6 +108,7 @@ class Employee extends Model
         'dob' => 'date',
         'visa_expiry' => 'date',
         'passport_expiry' => 'date',
+        'driving_licence_expiry' => 'date',
         'biometric_residence_permit_expiry' => 'date',
         'license_expiry' => 'date',
         'holiday_from' => 'date',
@@ -149,7 +153,8 @@ class Employee extends Model
             'proof_of_address_file',
             'ni_letter_file',
             'first_aid_certificate_file',
-            'act_certificate_file'
+            'act_certificate_file',
+            'driving_licence_file'
         ];
 
         if (!in_array($file_name, $documents)) {
