@@ -457,6 +457,21 @@
                         </tbody>
                     </table>
                 </div>
+                <div class="container modal-body mt-4">
+                    <h6>Weekly Availability</h6>
+                    <table class="table table-bordered" id="availability_table">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Start</th>
+                                <th>End</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Filled dynamically -->
+                        </tbody>
+                    </table>
+                </div>
 
                 <div class="modal-footer">
                     <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Close</button>
@@ -1079,7 +1094,7 @@
                 $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(
                     `${data.bank_name ?? 'N/A'} / ${data.account_name ?? 'N/A'} / ${data.account_number ?? 'N/A'}`
-                    );
+                );
                 $('#other_info_detail').text(data.other_info ?? '');
 
                 // Main documents mapping
@@ -1153,6 +1168,24 @@
             <h6>Additional Documents</h6>
             ${additionalHtml}
         `);
+
+                // Days of week mapping
+                const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+                let availabilityHtml = '';
+                if (Array.isArray(data.availability) && data.availability.length === 7) {
+                    data.availability.forEach(day => {
+                        availabilityHtml += `<tr>
+            <td>${daysOfWeek[day.day_of_week]}</td>
+            <td>${day.start}</td>
+            <td>${day.end}</td>
+        </tr>`;
+                    });
+                } else {
+                    availabilityHtml = `<tr><td colspan="3" class="text-muted">No availability set.</td></tr>`;
+                }
+
+                $('#availability_table tbody').html(availabilityHtml);
 
                 // Show the Bootstrap modal
                 let modal = new bootstrap.Modal(document.getElementById('viewEmployeeDetailModal'));

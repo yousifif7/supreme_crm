@@ -125,7 +125,7 @@
                                             class="ti ti-door-exit text-white fs-20"></i></span>
                                 </div>
                                 @php
-                                    $leaves = App\Models\LeaveRequest::where('status','pending')->get();
+                                    $leaves = App\Models\LeaveRequest::where('status', 'pending')->get();
                                 @endphp
                                 <div class="ms-3">
                                     <a href="/leaves/pending">
@@ -142,7 +142,9 @@
                 <div class="col-xl-12">
                     <div class="card custom-card">
                         <div class="card-header">
-                            <div class="card-title"><h3><b>Live Tracking</b></h3></div>
+                            <div class="card-title">
+                                <h3><b>Live Tracking</b></h3>
+                            </div>
                         </div>
                         <div class="">
                             <div id="map" style="height: 700px; width: 100%;"></div>
@@ -447,7 +449,9 @@
                                 @forelse ($bookings as $booking)
                                     @php
                                         // $shift= App\Models\Shift::find($alarm->shift_id);
-                                        $staff = App\Models\User::role('security_staff')->where('id',$booking->user_id)->first();
+                                        $staff = App\Models\User::role('security_staff')
+                                            ->where('id', $booking->user_id)
+                                            ->first();
                                     @endphp
                                     <tr>
                                         <td>{{ $staff->first_name ?? 'N/A' }}
@@ -711,20 +715,18 @@
     </script>
 
 
-
-
     <script>
         const locations = @json($locations ?? []);
 
         const iconByServiceId = {
-            1: '/guard_icons/alarm_response.svg',
-            2: '/guard_icons/doghandlers.svg',
-            3: '/guard_icons/event_staff.svg',
-            4: '/guard_icons/key_holding.svg',
-            5: '/guard_icons/mobile_patrol.svg',
-            6: '/guard_icons/static_guard.svg',
-            7: '/guard_icons/fire_warden.svg',
-            8: '/guard_icons/close_protection.svg',
+            1: '/guard_icons/alarm_response.png',
+            2: '/guard_icons/doghandlers.png',
+            3: '/guard_icons/event_staff.png',
+            4: '/guard_icons/key_holding.png',
+            5: '/guard_icons/mobile_patrol.png',
+            6: '/guard_icons/event_staff.png',
+            7: '/guard_icons/fire_warden.png',
+            8: '/guard_icons/close_protection.png',
         };
 
         const nameByServiceId = {
@@ -739,8 +741,7 @@
         };
 
         let map;
-        let userMarkers = [];
-        let markerLabels = [];
+        let customMarkers = [];
         let currentInfoWindow = null;
 
         function initMap() {
@@ -759,77 +760,79 @@
 
                 const latLng = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
                 const username = `${loc.user.first_name} ${loc.user.last_name}` ?? 'Unknown';
-                const serviceTypeId = loc.service_type_id ?? 6; // default static guard
+                const serviceTypeId = loc.service_type_id ?? 6;
                 const iconUrl = iconByServiceId[serviceTypeId];
                 const serviceTypeName = nameByServiceId[serviceTypeId];
 
-                // Marker
-                const marker = new google.maps.Marker({
-                    position: latLng,
-                    map,
-                    title: username,
-                    icon: {
-                        url: iconUrl,
-                        scaledSize: new google.maps.Size(50, 50), // adjust size
-                        scaledSize: new google.maps.Size(80, 80), // bigger icon
-                        origin: new google.maps.Point(0, 0),
-                        anchor: new google.maps.Point(30, 60) // bottom center for bigger icon
+                class CustomMarker extends google.maps.OverlayView {
+                    constructor(position) {
+                        super();
+                        this.position = position;
+                        this.div = null;
                     }
-                });
 
-                // Label overlay
-                const labelDiv = document.createElement("div");
-                labelDiv.className = "user-label";
-                labelDiv.innerHTML = `<span style="margin-left:10px;">${username}</span>`; // padding
+                    onAdd() {
+                        this.div = document.createElement("div");
+                        this.div.className = "custom-marker";
+                        this.div.innerHTML = `
+                    <div class="pin">
+                        <div class="circle">
+                            <img src="${iconUrl}" alt="${serviceTypeName}" />
+                        </div>
+                        <div class="triangle"></div>
+                        <span class="username">${username}</span>
+                    </div>
+                `;
 
-                const label = new google.maps.OverlayView();
-                label.onAdd = function() {
-                    this.getPanes().overlayImage.appendChild(labelDiv);
-                };
-                label.draw = function() {
-                    const projection = this.getProjection();
-                    const pos = projection.fromLatLngToDivPixel(marker.getPosition());
-                    if (pos) {
-                        labelDiv.style.left = (pos.x) + "px";
-                        labelDiv.style.top = (pos.y - 40) + "px"; // above icon
+                        this.div.addEventListener("click", () => {
+                            if (currentInfoWindow) currentInfoWindow.close();
+                            currentInfoWindow = new google.maps.InfoWindow({
+                                content: `
+                            <div style="min-width:220px">
+                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                                    <img src="${iconUrl}" width="32" height="32">
+                                    <div>
+                                        <div><strong>${username}</strong></div>
+                                        <div style="font-size:12px;color:#444;">${serviceTypeName}</div>
+                                    </div>
+                                </div>
+                                <div style="font-size:12px;line-height:1.4;">
+                                    <div><strong>Accuracy:</strong> ${loc.accuracy ?? 'N/A'} m</div>
+                                    <div><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>
+                                    <div><strong>Timestamp:</strong> ${loc.timestamp ?? ''}</div>
+                                </div>
+                            </div>
+                        `,
+                                position: latLng
+                            });
+                            currentInfoWindow.open(map);
+                            currentInfoWindow.addListener("closeclick", () => {
+                                currentInfoWindow = null;
+                            });
+                        });
+
+                        const panes = this.getPanes();
+                        panes.overlayMouseTarget.appendChild(this.div);
                     }
-                };
-                label.onRemove = function() {
-                    if (labelDiv.parentNode) labelDiv.parentNode.removeChild(labelDiv);
-                };
-                label.setMap(map);
 
-                marker.addListener("click", () => {
-                    if (currentInfoWindow) currentInfoWindow.close();
+                    draw() {
+                        const projection = this.getProjection();
+                        const pos = projection.fromLatLngToDivPixel(this.position);
+                        if (pos && this.div) {
+                            this.div.style.left = pos.x + "px";
+                            this.div.style.top = (pos.y - 40) + "px"; // adjust for arrow
+                        }
+                    }
 
-                    currentInfoWindow = new google.maps.InfoWindow({
-                        content: `
-          <div style="min-width:220px">
-            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-              <img src="${iconUrl}" class="user-icon" alt="${serviceTypeName}" width="32" height="32">
-              <div>
-                <div><strong>${username}</strong></div>
-                <div style="font-size:12px;color:#444;">${serviceTypeName}</div>
-              </div>
-            </div>
-            <div style="font-size:12px;line-height:1.4;">
-              <div><strong>Accuracy:</strong> ${loc.accuracy ?? 'N/A'} m</div>
-              <div><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>
-              <div><strong>Timestamp:</strong> ${loc.timestamp ?? ''}</div>
-            </div>
-          </div>
-        `,
-                        position: latLng
-                    });
-                    currentInfoWindow.open(map);
+                    onRemove() {
+                        if (this.div && this.div.parentNode) this.div.parentNode.removeChild(this.div);
+                        this.div = null;
+                    }
+                }
 
-                    currentInfoWindow.addListener("closeclick", () => {
-                        currentInfoWindow = null;
-                    });
-                });
-
-                userMarkers.push(marker);
-                markerLabels.push(label);
+                const marker = new CustomMarker(latLng);
+                marker.setMap(map);
+                customMarkers.push(marker);
                 bounds.extend(latLng);
             });
 
@@ -837,16 +840,67 @@
         }
     </script>
 
-    <style>
-        .user-label {
-            position: absolute;
-            font-weight: bold;
-            color: red;
-            white-space: nowrap;
-            pointer-events: none;
-        }
-    </style>
+<style>
+.custom-marker {
+    position: absolute;
+    cursor: pointer;
+    transform: translate(-50%, -100%);
+    display: flex;
+    align-items: flex-end;
+}
 
+.pin-wrapper {
+    position: relative;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+.pin {
+    position: relative;
+    width: 32px;
+    height: 32px;
+}
+
+.circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 4px rgba(0,0,0,0.5);
+    z-index: 2;
+}
+
+.circle img {
+    width: 24px;
+    height: 24px;
+}
+
+.triangle {
+    position: absolute;
+    bottom: -8px; /* points below the circle */
+    left: 50%;
+    transform: translateX(-50%);
+    width: 0;
+    height: 0;
+    border-left: 6px solid transparent;
+    border-right: 6px solid transparent;
+    border-top: 8px solid red; /* same as circle */
+    z-index: 1;
+}
+
+.username {
+    margin-left: 6px;
+    font-size: 12px;
+    font-weight: 600;
+    color: #000;
+    white-space: nowrap;
+    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
+}
+</style>
 
     <!-- Google Maps JS API (with Visualization library for heatmap) -->
     <script src="https://maps.googleapis.com/maps/api/js?key={{ $apiKey }}&libraries=visualization&callback=initMap"

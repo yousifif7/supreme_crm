@@ -137,7 +137,7 @@ class EmployeeController extends Controller
         }
 
         $data = $validator->validated();
-        
+
         // ✅ Handle the checkbox manually
         // Handle files...
         if ($request->hasFile('profile_picture')) {
@@ -154,7 +154,7 @@ class EmployeeController extends Controller
             $data['signature'] = $fileName;
         }
 
-        $documents = ['sia_licence_file', 'passport_file','driving_licence_file','proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
+        $documents = ['sia_licence_file', 'passport_file', 'driving_licence_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
         foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
@@ -550,51 +550,62 @@ class EmployeeController extends Controller
             })
         ]);
     }
+    
     public function view($id)
     {
-        $employee = Employee::findOrFail($id);
+        // Find employee by user_id instead of employee ID
+        $employee = Employee::find($id);
+
+        // Get guard availability
+        $availability = \App\Models\Availability::where('user_id', $employee->user_id)
+            ->orderBy('day_of_week')
+            ->get(['day_of_week', 'start_time as start', 'end_time as end']);
 
         return response()->json([
-            'fore_name'       => $employee->fore_name,
-            'sur_name'        => $employee->sur_name,
-            'email'           => $employee->email,
-            'gender'          => $employee->gender,
-            'ni_number'       => $employee->ni_number,
-            'sia_licence'     => $employee->sia_licence,
-            'sia_expiry'      => $employee->sia_expiry,
-            'licence_type'    => $employee->licence_type,
-            'entry_date'      => $employee->entry_date,
-            'dob'             => $employee->dob,
-            'service_type'    => $employee->service_type,
-            'visa_type'       => $employee->visa_type,
-            'visa_expiry'     => $employee->visa_expiry,
-            'place_work'      => $employee->place_work,
-            'contact'         => $employee->contact,
-            'emergency_contact' => $employee->emergency_contact,
-            'job_title'       => $employee->job_title,
-            'nationality'     => $employee->nationality,
-            'passport_no'     => $employee->passport_no,
-            'passport_expiry' => $employee->passport_expiry,
-            'address_group'   => $employee->address_group,
-            'guard_rate'      => $employee->guard_rate,
-            'bank_name'       => $employee->bank_name,
-            'account_name'    => $employee->account_name,
-            'account_number'  => $employee->account_number,
-            'other_info'      => $employee->other_info,
-            'sia_licence_file' => $employee->sia_licence_file,
-            'passport_file' => $employee->passport_file,
-            'proof_of_address_file' => $employee->proof_of_address_file,
-            'ni_letter_file' => $employee->ni_letter_file,
-            'first_aid_certificate_file' => $employee->first_aid_certificate_file,
-            'act_certificate_file' => $employee->act_certificate_file,
-            'additional_files' => $employee->additional_files,
-            'employment_start_date' => $employee->employment_start_date,
-            'employment_end_date' => $employee->employment_end_date,
-            'driving_licence_expiry' => $employee->driving_licence_expiry,
-            'driving_licence_file' => $employee->driving_licence_file,
-            'driving_licence_number' => $employee->driving_licence_number,
+            'fore_name'       => $employee?->fore_name,
+            'sur_name'        => $employee?->sur_name,
+            'email'           => $employee?->email,
+            'gender'          => $employee?->gender,
+            'ni_number'       => $employee?->ni_number,
+            'sia_licence'     => $employee?->sia_licence,
+            'sia_expiry'      => $employee?->sia_expiry,
+            'licence_type'    => $employee?->licence_type,
+            'entry_date'      => $employee?->entry_date,
+            'dob'             => $employee?->dob,
+            'service_type'    => $employee?->service_type,
+            'visa_type'       => $employee?->visa_type,
+            'visa_expiry'     => $employee?->visa_expiry,
+            'place_work'      => $employee?->place_work,
+            'contact'         => $employee?->contact,
+            'emergency_contact' => $employee?->emergency_contact,
+            'job_title'       => $employee?->job_title,
+            'nationality'     => $employee?->nationality,
+            'passport_no'     => $employee?->passport_no,
+            'passport_expiry' => $employee?->passport_expiry,
+            'address_group'   => $employee?->address_group,
+            'guard_rate'      => $employee?->guard_rate,
+            'bank_name'       => $employee?->bank_name,
+            'account_name'    => $employee?->account_name,
+            'account_number'  => $employee?->account_number,
+            'other_info'      => $employee?->other_info,
+            'sia_licence_file' => $employee?->sia_licence_file,
+            'passport_file' => $employee?->passport_file,
+            'proof_of_address_file' => $employee?->proof_of_address_file,
+            'ni_letter_file' => $employee?->ni_letter_file,
+            'first_aid_certificate_file' => $employee?->first_aid_certificate_file,
+            'act_certificate_file' => $employee?->act_certificate_file,
+            'additional_files' => $employee?->additional_files,
+            'employment_start_date' => $employee?->employment_start_date,
+            'employment_end_date' => $employee?->employment_end_date,
+            'driving_licence_expiry' => $employee?->driving_licence_expiry,
+            'driving_licence_file' => $employee?->driving_licence_file,
+            'driving_licence_number' => $employee?->driving_licence_number,
+
+            // Add availability here
+            'availability' => $availability
         ]);
     }
+
     public function print($id)
     {
         $employee = Employee::findOrFail($id);

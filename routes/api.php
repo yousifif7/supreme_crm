@@ -16,6 +16,7 @@ use App\Http\Controllers\API\MessageApiController;
 use App\Http\Controllers\API\ProfileAPIController;
 use App\Http\Controllers\API\DocumentAPIController;
 use App\Http\Controllers\API\LocationAPIController;
+use App\Http\Controllers\API\AvailabilityController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\IncidentReportController;
 use App\Http\Controllers\API\EmergencyAlertAPIController;
@@ -72,6 +73,8 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shifts/{shiftDate_id}/book-on', [ShiftApiController::class, 'bookOn']);
     Route::post('/shifts/{shiftDate_id}/book-off', [ShiftApiController::class, 'bookOff']);
 
+    Route::get('/shifts/calendar', [ShiftApiController::class, 'calendar']);
+
     Route::get('/alarms/booking', [ShiftApiController::class, 'getBookingAlarms']);
     Route::post('/alarms/{alarm_id}/acknowledge', [ShiftApiController::class, 'acknowledgeAlarm']);
 
@@ -123,6 +126,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/messages/mark-read', [MessageApiController::class, 'markRead']);
     Route::post('/create-conversation', [MessageApiController::class, 'createConversation']);
     Route::get('/users/search', [MessageApiController::class, 'searchUsers']);
+    Route::get('/users/roles', [MessageApiController::class, 'roles']);
 });
 
 //GPS Tracking api controller routes
@@ -184,5 +188,10 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/admin/messages/{message_id}', [AdminAPIController::class, 'deleteMessage']);
     Route::put('/admin/dob/{entry_id}/edit', [AdminAPIController::class, 'editDOBEntry']);
     Route::post('/admin/alarms/{alarm_id}/override', [AdminAPIController::class, 'overrideMissedAlarm']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/availability', [AvailabilityController::class, 'index']);
+    Route::put('/availability', [AvailabilityController::class, 'update']);
 });
 

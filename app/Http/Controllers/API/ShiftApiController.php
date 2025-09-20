@@ -35,7 +35,7 @@ class ShiftApiController extends Controller
         $query = ShiftDate::with([
             'shift.site',
             'trainings' => function ($q) use ($userId) {
-                $q->with(['acknowledgements' => function ($q2) use ($userId) {
+                $q->with(['acknowledgedUsers' => function ($q2) use ($userId) {
                     $q2->where('user_id', $userId);
                 }]);
             },
@@ -71,7 +71,7 @@ class ShiftApiController extends Controller
             $trainings = $shiftDate->trainings->map(function ($training) {
                 // Because we eager-loaded only this user's acknowledgements,
                 // there will be at most one item in the collection (or none).
-                $ack = $training->acknowledgements->first();
+                $ack = $training->acknowledgedUsers->first();
 
                 $acknowledged = false;
                 $acknowledgedAt = null;
@@ -927,5 +927,37 @@ class ShiftApiController extends Controller
             'available_hours' => $availableHours,
             'unpaid_hours'    => max($unpaidHours, 0),
         ]);
+    }
+
+    public function calendar()
+    {
+        $userId = Auth::id();
+
+        // Fetch shifts for this user
+        $shifts = ShiftDate::where('staff_id', $userId)
+            ->orderBy('shift_date')
+            ->get(['id', 'shift_date', 'start_time', 'end_time']);
+
+        // Transform to calendar format
+        $calendarShifts = $shifts->map(function ($shift) {
+            $startDateTime = \Carbon\Carbon::parse($shift->shift_date . ' ' . $shift->start_time)->toIso8601String();
+            $endDateTime   = \Carbon\Carbon::parse($shift->shift_date . ' ' . $shift->end_time)->toIso8601String();
+
+            // Handle overnight shifts (end_time < start_time)
+            if (\Carbon\Carbon::parse($shift->end_time)->lt(\Carbon\Carbon::parse($shift->start_time))) {
+                $endDateTime = \Carbon\Carbon::parse($shift->shift_date)
+                    ->addDay()
+                    ->setTimeFromTimeString($shift->end_time)
+                    ->toIso8601String();
+            }
+
+            return [
+                'id'        => $shift->id,
+                'startTime' => $startDateTime,
+                'endTime'   => $endDateTime,
+            ];
+        });
+
+        return response()->json($calendarShifts);
     }
 }

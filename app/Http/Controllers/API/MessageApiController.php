@@ -271,4 +271,20 @@ class MessageApiController extends Controller
 
         return response()->json($users);
     }
+
+    public function roles()
+    {
+        $roles = Role::all();
+
+        $result = [];
+
+        foreach ($roles as $role) {
+            $result[] = [
+                'id'   => $role->id,
+                'role' => $role->name,
+            ];
+        }
+
+        return $result;
+    }
 }
