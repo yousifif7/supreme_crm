@@ -17,23 +17,26 @@ use Illuminate\Support\Facades\Storage;
 
 class DocumentAPIController extends Controller
 {
+
     public function upload(Request $request)
     {
         $request->validate([
-            'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file,driving_licence_file',
+            'document_type' => 'required|in:sia_licence_file,passport_file,proof_of_address_file,ni_letter_file,first_aid_certificate_file,act_certificate_file,driving_licence_file,other',
             'file' => 'required|array',
             'file.*' => 'file|mimes:pdf,jpg,jpeg,png|max:10240', // 10MB per file
-            'expiry_date' => 'required|date',
+            'expiry_date' => 'nullable|date', // Only required for fixed documents
             'description' => 'nullable|string',
         ]);
 
         $documents = [];
         $destinationPath = public_path('documents');
 
-        // Ensure the directory exists
         if (!file_exists($destinationPath)) {
             mkdir($destinationPath, 0755, true);
         }
+
+        $user = $request->user();
+        $employee = $user->employee;
 
         foreach ($request->file('file') as $file) {
             $fileName = time() . '_' . uniqid() . '_' . $file->getClientOriginalName();
@@ -42,7 +45,7 @@ class DocumentAPIController extends Controller
             $filePath = 'documents/' . $fileName;
 
             $document = Document::create([
-                'user_id' => $request->user()->id,
+                'user_id' => $user->id,
                 'document_type' => $request->document_type,
                 'file_path' => $filePath,
                 'expiry_date' => $request->expiry_date,
@@ -52,28 +55,25 @@ class DocumentAPIController extends Controller
 
             $documents[] = $document;
 
-            // Sync to employee table if applicable
-            $syncToEmployeeTable = [
-                'sia_licence_file' => 'sia_licence_file',
-                'passport_file' => 'passport_file',
-                'proof_of_address_file' => 'proof_of_address_file',
-                'ni_letter_file' => 'ni_letter_file',
-                'first_aid_certificate_file' => 'first_aid_certificate_file',
-                'act_certificate_file' => 'act_certificate_file',
-                'driving_licence_file' => 'driving_licence_file'
-            ];
+            // Sync to employee table
+            if ($employee) {
+                if ($request->document_type === 'other') {
+                    // Add to additional_files array
+                    $additionalFiles = $employee->additional_files ?? [];
+                    $additionalFiles[] = $fileName;
+                    $employee->update([
+                        'additional_files' => $additionalFiles
+                    ]);
+                } else {
+                    // Fixed documents
+                    $employee->update([
+                        $request->document_type => basename($filePath),
+                        // Update expiry if defined
+                        $this->expiryFields[$request->document_type] ?? null => $request->expiry_date
+                    ]);
+                }
 
-            $user = $request->user();
-            $employee = $user->employee;
-
-            if ($employee && isset($syncToEmployeeTable[$request->document_type])) {
-                $employeeColumn = $syncToEmployeeTable[$request->document_type];
-
-                $employee->update([
-                    $employeeColumn => basename($filePath),
-                    'licence_expiry' => $request->expiry_date
-                ]);
-
+                // Send notification (dashboard / push)
                 Notify::toDashboard(
                     null,
                     'alert',
@@ -83,7 +83,7 @@ class DocumentAPIController extends Controller
                 );
 
                 Notification::create([
-                    'user_id' => Auth::id(),
+                    'user_id' => $user->id,
                     'employee_id' => null,
                     'type' => 'alert',
                     'title' => 'Document Uploaded',

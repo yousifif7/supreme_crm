@@ -15,10 +15,11 @@ class DocumentController extends Controller
         'passport_file'             => 'Passport',
         'proof_of_address_file'     => 'Proof of Address',
         'ni_letter_file'            => 'NI Letter',
-        'first_aid_certificate_file'=> 'First Aid Certificate',
+        'first_aid_certificate_file' => 'First Aid Certificate',
         'act_certificate_file'      => 'ACT Certificate',
         'profile_picture'           => 'Profile Picture',
         'driving_licence_file'      => 'Driving Licence', // Added
+        'other' => 'others'
     ];
 
     // Mapping of document fields to their expiry fields
@@ -29,53 +30,80 @@ class DocumentController extends Controller
         'driving_licence_file'  => 'driving_licence_expiry', //Added
     ];
 
-public function report(Request $request)
+  public function report(Request $request)
 {
-    $hasFilters = $request->anyFilled(['document_field', 'department_id', 'status', 'expiry_status', 'upload_status']);
-    
+    $hasFilters = $request->anyFilled([
+        'document_field', 
+        'department_id', 
+        'status', 
+        'expiry_status', 
+        'upload_status', 
+        'other_document'
+    ]);
+
     $employees = collect();
-    $documentFields = [];
-    $departmentId = null;
-    $status = null;
-    $expiryStatus = null;
-    $uploadStatus = null;
+    $selectedDocumentFields = (array) $request->input('document_field', []);
+    $departmentId = $request->input('department_id');
+    $status = $request->input('status');
+    $expiryStatus = $request->input('expiry_status');
+    $uploadStatus = $request->input('upload_status');
+    $otherDocument = $request->input('other_document');
 
     if ($hasFilters) {
-        $documentFields = (array) $request->input('document_field', []);
-        $departmentId   = $request->input('department_id');
-        $status         = $request->input('status');
-        $expiryStatus   = $request->input('expiry_status');
-        $uploadStatus   = $request->input('upload_status');
-
         $query = Employee::with('department');
 
-        // Apply document filters for ALL selected documents
-        if (!empty($documentFields)) {
-            foreach ($documentFields as $field) {
-                $query->where(function ($q) use ($field, $uploadStatus, $expiryStatus) {
-                    if ($uploadStatus === 'uploaded') {
-                        $q->whereNotNull($field);
-                    } elseif ($uploadStatus === 'missing') {
-                        $q->whereNull($field);
-                    }
+        // Handle built-in document fields first
+        foreach ($selectedDocumentFields as $field) {
+            if ($field === 'other') continue; // Skip "Other" for now
+            $query->where(function ($q) use ($field, $uploadStatus, $expiryStatus) {
+                // Uploaded/missing filter
+                if ($uploadStatus === 'uploaded') {
+                    $q->whereNotNull($field);
+                } elseif ($uploadStatus === 'missing') {
+                    $q->whereNull($field);
+                }
 
-                    // Expiry handling (only if uploaded and has expiry field)
-                    if ($uploadStatus !== 'missing' && $this->hasExpiryField($field) && $expiryStatus) {
-                        $expiryField = $this->getExpiryField($field);
-                        if ($expiryStatus === 'expired') {
-                            $q->whereDate($expiryField, '<', now());
-                        } elseif ($expiryStatus === 'valid') {
-                            $q->whereDate($expiryField, '>=', now());
-                        }
+                // Expiry filter
+                if ($uploadStatus !== 'missing' && $this->hasExpiryField($field) && $expiryStatus) {
+                    $expiryField = $this->getExpiryField($field);
+                    if ($expiryStatus === 'expired') {
+                        $q->whereDate($expiryField, '<', now());
+                    } elseif ($expiryStatus === 'valid') {
+                        $q->whereDate($expiryField, '>=', now());
                     }
-                });
-            }
+                }
+            });
         }
 
+        // Handle "Other" / additional_files
+        if (in_array('other', $selectedDocumentFields)) {
+            $query->where(function ($q) use ($otherDocument, $uploadStatus) {
+                if ($uploadStatus === 'uploaded') {
+                    if ($otherDocument) {
+                        $q->whereJsonContains('additional_files', $otherDocument);
+                    } else {
+                        $q->whereJsonLength('additional_files', '>', 0);
+                    }
+                } elseif ($uploadStatus === 'missing') {
+                    if ($otherDocument) {
+                        $q->where(function ($q2) use ($otherDocument) {
+                            $q2->whereNull('additional_files')
+                               ->orWhereRaw("NOT JSON_CONTAINS(additional_files, ?)", [json_encode($otherDocument)]);
+                        });
+                    } else {
+                        $q->where(function ($q2) {
+                            $q2->whereNull('additional_files')
+                               ->orWhereJsonLength('additional_files', 0);
+                        });
+                    }
+                }
+            });
+        }
+
+        // Department & employee status filters
         if ($departmentId) {
             $query->where('department_id', $departmentId);
         }
-
         if ($status) {
             $query->where('status', $status);
         }
@@ -84,19 +112,19 @@ public function report(Request $request)
     }
 
     return view('employees.doc_report', [
-        'employees'       => $employees,
-        'documentFields'  => $this->documentFields,
-        'departments'     => Department::all(),
-        'documentField'   => $documentFields,
-        'departmentId'    => $departmentId,
-        'status'          => $status,
-        'expiryFields'    => $this->expiryFields,
-        'expiryStatus'    => $expiryStatus,
-        'uploadStatus'    => $uploadStatus,
-        'hasFilters'      => $hasFilters,
+        'employees' => $employees,
+        'documentFields' => $this->documentFields,
+        'departments' => Department::all(),
+        'documentField' => $selectedDocumentFields,
+        'departmentId' => $departmentId,
+        'status' => $status,
+        'expiryFields' => $this->expiryFields,
+        'expiryStatus' => $expiryStatus,
+        'uploadStatus' => $uploadStatus,
+        'otherDocument' => $otherDocument,
+        'hasFilters' => $hasFilters,
     ]);
 }
-
 
     // Check if a document field has a corresponding expiry field
     protected function hasExpiryField($field)

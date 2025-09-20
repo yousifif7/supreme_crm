@@ -147,6 +147,7 @@ class Employee extends Model
     }
     public function fileUrl($file_name, $preview_only = false)
     {
+        // Fixed documents
         $documents = [
             'sia_licence_file',
             'passport_file',
@@ -157,37 +158,64 @@ class Employee extends Model
             'driving_licence_file'
         ];
 
-        if (!in_array($file_name, $documents)) {
-            return '/uploads/no.png'; // fallback for unknown column
-        }
+        // 🔹 Handle standard documents
+        if (in_array($file_name, $documents)) {
+            $file = $this->$file_name;
 
-        $file = $this->$file_name;
+            if (!$file) {
+                return '/uploads/no.png';
+            }
 
-        if (!$file) {
-            return '/uploads/no.png';
-        }
+            if (str_starts_with($file, 'documents/') || str_starts_with($file, 'uploads/')) {
+                if ($preview_only && str_ends_with($file, '.pdf')) {
+                    return '/uploads/PDF_file_icon.svg';
+                }
+                return asset($file);
+            }
 
-        // 🔹 If file already has "documents/" or "uploads/" path saved in DB
-        if (str_starts_with($file, 'documents/') || str_starts_with($file, 'uploads/')) {
+            $path = 'uploads/' . $file_name . '/' . $file;
+
+            if (!file_exists(public_path($path))) {
+                $path = 'documents/' . $file;
+            }
+
             if ($preview_only && str_ends_with($file, '.pdf')) {
                 return '/uploads/PDF_file_icon.svg';
             }
-            return asset($file);
+
+            return asset($path);
         }
 
-        // 🔹 Handle dashboard upload (stored just as filename)
-        $path = 'uploads/' . $file_name . '/' . $file;
+        // 🔹 Handle "Other" / additional files
+        if ($this->additional_files && is_array($this->additional_files)) {
+            // Search for a match by filename
+            foreach ($this->additional_files as $file) {
+                // Use partial match (optional) or exact match
+                if ($file === $file_name || str_contains($file, $file_name)) {
+                    // Determine path
+                    if (str_starts_with($file, 'documents/') || str_starts_with($file, 'uploads/')) {
+                        if ($preview_only && str_ends_with($file, '.pdf')) {
+                            return '/uploads/PDF_file_icon.svg';
+                        }
+                        return asset($file);
+                    }
 
-        // 🔹 Handle app upload (stored as filename but should live in /documents)
-        if (!file_exists(public_path($path))) {
-            $path = 'documents/' . $file;
+                    $path = 'uploads/other/' . $file; // store "other" uploads in uploads/other
+                    if (!file_exists(public_path($path))) {
+                        $path = 'documents/' . $file;
+                    }
+
+                    if ($preview_only && str_ends_with($file, '.pdf')) {
+                        return '/uploads/PDF_file_icon.svg';
+                    }
+
+                    return asset($path);
+                }
+            }
         }
 
-        if ($preview_only && str_ends_with($file, '.pdf')) {
-            return '/uploads/PDF_file_icon.svg';
-        }
-
-        return asset($path);
+        // 🔹 Fallback if nothing matches
+        return '/uploads/no.png';
     }
 
     public function shifts()
