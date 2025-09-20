@@ -94,10 +94,12 @@ class ShiftApiController extends Controller
                     'pdf_url'                 => $training->pdf_url,
                     'content_url'             => $training->content_url ?? null,
                     'required'                => (bool) ($training->required ?? false),
-                    'expiry_date'             => $training->expiry_date,
                     'acknowledged'            => $acknowledged,
                     'acknowledged_at'         => $acknowledgedAt,
                     'completion_time_seconds' => $completionSeconds,
+                    'implementation_date' => $training->implementation_date,
+                    'complete_by_date' => $training->deadline,
+                    'acknowledge_by_date' => $training->acknowledge_by_date,
                     'created_at'              => $training->created_at,
                     'updated_at'              => $training->updated_at,
                 ];

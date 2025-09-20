@@ -20,12 +20,12 @@ class TrainingController extends Controller
     {
         $userId = Auth::id();
 
-        $materials = TrainingMaterial::with(['acknowledgements' => function ($query) use ($userId) {
+        $materials = TrainingMaterial::with(['acknowledgedUsers' => function ($query) use ($userId) {
             $query->where('user_id', $userId);
         }])->get();
 
         $response = $materials->map(function ($material) use ($userId) {
-            $ack = $material->acknowledgements->first();
+            $ack = $material->acknowledgedUsers->first();
             return [
                 'id' => $material->id,
                 'title' => $material->title,
@@ -34,7 +34,9 @@ class TrainingController extends Controller
                 'pdf_url' => $material->pdf_url,
                 'required' => $material->required,
                 'acknowledged' => $ack ? true : false,
-                'expiry_date' => $material->expiry_date,
+                'implementation_date' => $material->implementation_date,
+                'complete_by_date' => $material->deadline,
+                'acknowledge_by_date' => $material->acknowledge_by_date,
                 'created_at' => $material->created_at,
             ];
         });
