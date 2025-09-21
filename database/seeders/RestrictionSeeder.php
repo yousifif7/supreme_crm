@@ -40,6 +40,7 @@ $otherChecks = [
     ['max_weekly_hours_check', 'hour_per_week', 'The guard cannot be assigned more than 40 hours in a week.'],
     ['student_visa_hours_check', 'visa_type', 'The guard cannot be assigned more than 20 hours a week.'],
     ['min_rest_hours_check', 'min_break_hours', 'The guard had a shift within the latest 12 hours.'],
+    ['staff_availability_hours', 'availability', 'The guard cannot be assigned out of his availability hours.'],
 ];
 
 

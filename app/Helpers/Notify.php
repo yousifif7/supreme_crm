@@ -4,6 +4,7 @@ use App\Models\User;
 use ExponentPhpSDK\Expo;
 use App\Models\ShiftDate;
 use App\Models\DeviceToken;
+use App\Models\Availability;
 use App\Models\Notification;
 use ExponentPhpSDK\ExpoRegistrar;
 use Illuminate\Support\Facades\Http;
@@ -131,6 +132,42 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                                     $message ?: 'Staff must have at least 12 hours rest between shifts.'
                                 );
                             }
+                        }
+                    }
+                }
+            case 'staff_availability_hours':
+                if ($shiftDate && $newShiftStart && $newShiftHours > 0) {
+                    // Get day of week from shift date (0=Sunday ... 6=Saturday)
+                    $dayOfWeek = \Carbon\Carbon::parse($shiftDate)->dayOfWeek;
+
+                    $availability = \App\Models\Availability::where('user_id', $entity->user_id)
+                        ->where('day_of_week', $dayOfWeek)
+                        ->first();
+
+                    if (!$availability) {
+                        // No availability set for this day
+                        $validator->errors()->add(
+                            $fieldName,
+                            $restriction->error_message ?? 'No availability set for this day.'
+                        );
+                    } else {
+                        $shiftHours = is_numeric($newShiftHours) ? (float) $newShiftHours : 0;
+                        $shiftEnd = $newShiftStart->copy()->addHours($shiftHours);
+
+                        $availableStart = \Carbon\Carbon::parse($shiftDate . ' ' . $availability->start_time);
+                        $availableEnd   = \Carbon\Carbon::parse($shiftDate . ' ' . $availability->end_time);
+
+                        // Handle overnight availability (end <= start)
+                        if ($availableEnd->lte($availableStart)) {
+                            $availableEnd->addDay();
+                        }
+
+                        // Shift must fully fit within availability
+                        if ($newShiftStart->lt($availableStart) || $shiftEnd->gt($availableEnd)) {
+                            $validator->errors()->add(
+                                $fieldName,
+                                $restriction->error_message ?? 'Shift falls outside the staff availability hours.'
+                            );
                         }
                     }
                 }
