@@ -184,16 +184,19 @@
                               </li>
                           @endcan
 
-                          @can('Read Holiday Managment')
+                          @can('Read HR Managment')
                               <li class="submenu">
                                   <a href="javascript:void(0);"
-                                      class="{{ request()->is('leaves*') || request()->is('calendar') ? 'subdrop' : '' }}">
-                                      <i class="ti ti-door-exit"></i>
-                                      <span>Holiday Mgt.</span>
+                                      class="{{ request()->is('leaves*') || request()->is('calendar') || request()->is('hr') || request()->is('leaves/pending') ? 'subdrop' : '' }}">
+                                      <i class="fa fa-phone"></i>
+                                      <span>HR Managment</span>
                                       <span class="menu-arrow"></span>
                                   </a>
-                                  <ul
-                                      style="display: {{ request()->is('leaves') || request()->is('calendar') ? 'block' : 'none' }};">
+                                  <ul style="display: {{ request()->is('leaves*') || request()->is('calendar') || request()->is('hr') || request()->is('leaves/pending')  ? 'block' : 'none' }};">
+                                      <li class="{{ request()->is('hr') ? 'active' : '' }}">
+                                          <a href="{{ route('materials.index') }}">
+                                              <i class="fa fa-phone"></i>HR</a>
+                                      </li>
                                       <li class="{{ request()->is('leaves') ? 'active' : '' }}">
                                           <a href="{{ route('leaves.index') }}">
                                               <i class="ti ti-door-exit"></i>Leaves </a>
@@ -219,14 +222,14 @@
                               </li>
                           @endcan
 
-                          @can('Read HR Managment')
+                          {{-- @can('Read HR Managment')
                               <li class="{{ request()->is('hr*') ? 'active' : '' }}">
                                   <a href="{{ url('hr') }}">
                                       <i class="fa fa-phone"></i>
                                       <span>HR</span>
                                   </a>
                               </li>
-                          @endcan
+                          @endcan --}}
 
                           @can('Read Chat')
                               <li class="{{ request()->is('chat*') ? 'active' : '' }}">

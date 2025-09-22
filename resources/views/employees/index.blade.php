@@ -704,8 +704,7 @@
                     $('#emergency_contact').val(data.employee.emergency_contact);
                     $('#job_title').val(data.employee.job_title);
                     $('#nationality').val(data.employee.nationality);
-                    $('#pin').val(data.employee.pin);
-                    $('#reference_to_emp').val(data.employee.reference_to_emp);
+                    $('#reference_to_emp').val(data.employee.reference_number);
                     $('#next_kin').val(data.employee.next_kin);
                     $('#relation_with_kin').val(data.employee.relation_with_kin);
                     $('#kin_address').val(data.employee.kin_address);
@@ -716,7 +715,6 @@
                     $('#share_code_expiry').val(data.employee.share_code_expiry);
                     $('#biometric_residence_permit').val(data.employee.biometric_residence_permit);
                     $('#biometric_residence_permit_expiry').val(data.employee.biometric_residence_permit_expiry);
-                    $('#brp_status1').val(data.employee.brp_status);
                     $('#settlement').val(data.employee.settlement);
                     $('#tags').val(data.employee.tags);
                     $('#department_id').val(data.employee.department_id);

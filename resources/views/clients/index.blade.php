@@ -91,23 +91,22 @@
         </div>
 
         <!-- Add Client -->
-      
+
         <!-- /Add Client -->
 
         <!-- Generate Client Invoice -->
-     
+
         <!-- /Generate Client Invoice-->
- @include('clients.invoice_model')
+        @include('clients.invoice_model')
         <!-- Edit Client -->
-          @include('clients.create')
+        @include('clients.create')
         <!-- /Add Employee -->
-      @include('clients.edit')
+        @include('clients.edit')
 
         <!-- /Edit Client -->
 
         <!-- View Detail Modal -->
-        <div class="modal fade" id="viewDetailModal" tabindex="-1" aria-labelledby="clientDetailLabel"
-            aria-hidden="true">
+        <div class="modal fade" id="viewDetailModal" tabindex="-1" aria-labelledby="clientDetailLabel" aria-hidden="true">
             <div class="modal-dialog modal-dialog-centered modal-lg">
                 <div class="modal-content shadow rounded-3">
                     <div class="modal-header bg-primary text-white">
@@ -237,7 +236,8 @@
                         <select name="manager_id" id="manager_id" class="form-control select-manager">
                             <option value="">--choose--</option>
                             @foreach ($staffs as $staff)
-                                <option value="{{ $staff->id }}">{{ $staff->first_name }} {{ $staff->last_name }}</option>
+                                <option value="{{ $staff->id }}">{{ $staff->first_name }} {{ $staff->last_name }}
+                                </option>
                             @endforeach
                         </select>
                     </div>
@@ -398,40 +398,42 @@
                 });
             });
         });
-$(document).on("change", "#invoice_client_name", function() {
-    var $this = $(this);
-    const clientId = $(this).val();
-    if (!clientId) return;
+        $(document).on("change", "#invoice_client_name", function() {
+            var $this = $(this);
+            const clientId = $(this).val();
+            if (!clientId) return;
 
-    var $siteSelect = $('#invoice_site_id');
-    $siteSelect.html('<option value="">--choose--</option>');
+            var $siteSelect = $('#invoice_site_id');
+            $siteSelect.html('<option value="">--choose--</option>');
 
-    $.ajax({
-        url: `${baseUrl}/api/client/${clientId}`, // your existing API
-        method: 'GET',
-        dataType: 'json',
-        success: function(data) {
-            // If you have office_rate in form, you can fill it like before
-            $this.parents('.shift-group').find('.siteRate').val(data.client?.office_rate || '');
+            $.ajax({
+                url: `${baseUrl}/api/client/${clientId}`, // your existing API
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    // If you have office_rate in form, you can fill it like before
+                    $this.parents('.shift-group').find('.siteRate').val(data.client?.office_rate || '');
 
-            if (data.sites && data.sites.length > 0) {
-                $.each(data.sites, function(index, site) {
-                    $siteSelect.append(
-                        '<option value="' + site.id + '">' + site.site_name + '</option>'
-                    );
-                });
-            } else {
-                $siteSelect.append('<option value="">No sites found</option>');
-            }
-        },
-        error: function(xhr, status, error) {
-            console.error('Fetch error:', error);
-        }
-    });
+                    if (data.sites && data.sites.length > 0) {
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append(
+                                '<option value="' + site.id + '">' + site.site_name +
+                                '</option>'
+                            );
+                        });
+                    } else {
+                        $siteSelect.append('<option value="">No sites found</option>');
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Fetch error:', error);
+                }
+            });
 
-    // also update hidden client_id field
-    $('#invoice_client_id').val(clientId);
-});
+            // also update hidden client_id field
+            $('#invoice_client_id').val(clientId);
+        });
+
         function generateInvoice(record_id) {
             $.get(`${baseUrl}/generateinvoice/` + record_id, function(data) {
                 if (data.client) {
@@ -457,7 +459,7 @@ $(document).on("change", "#invoice_client_name", function() {
                     $('#client_id').val(data.client.id);
                     $('#client_name').val(data.client.client_name);
                     $('#username').val(data.client.username);
-                    $('#password').val(data.client.password);
+                    $('#password').val(''); // Leave blank for security
                     $('#address').val(data.client.address);
                     $('#contact_number').val(data.client.contact_number);
                     $('#contact_person').val(data.client.contact_person);
@@ -465,18 +467,24 @@ $(document).on("change", "#invoice_client_name", function() {
                     $('#invoice_terms').val(data.client.invoice_terms);
                     $('#payment_terms').val(data.client.payment_terms);
 
-                    // If you're using file inputs, note that .val() cannot set a file. You might just show the filename.
+                    // File previews
                     if (data.client.doc_1) {
                         $('#doc_1_preview').html('<a href="{{ asset('uploads/docs') }}/' + data.client.doc_1 +
                             '" target="_blank">View Doc 1</a>');
+                    } else {
+                        $('#doc_1_preview').html('');
                     }
                     if (data.client.doc_2) {
                         $('#doc_2_preview').html('<a href="{{ asset('uploads/docs') }}/' + data.client.doc_2 +
                             '" target="_blank">View Doc 2</a>');
+                    } else {
+                        $('#doc_2_preview').html('');
                     }
                     if (data.client.doc_3) {
                         $('#doc_3_preview').html('<a href="{{ asset('uploads/docs') }}/' + data.client.doc_3 +
                             '" target="_blank">View Doc 3</a>');
+                    } else {
+                        $('#doc_3_preview').html('');
                     }
 
                     $('#contract_start').val(data.client.contract_start);
@@ -485,8 +493,13 @@ $(document).on("change", "#invoice_client_name", function() {
                     $('#guard_rate').val(data.client.guard_rate);
                     $('#office_rate').val(data.client.office_rate);
                     $('#vat').val(data.client.vat);
+
                     $('#edit_client').modal('show');
+                } else {
+                    toast_danger('Failed to fetch client details.');
                 }
+            }).fail(function() {
+                toast_danger('An error occurred while fetching client data.');
             });
         }
         let selectedId = null;

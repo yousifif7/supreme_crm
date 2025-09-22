@@ -79,7 +79,12 @@ class EmployeeLeaveController extends Controller
             'status' => 'approved',
         ]);
 
-
+        send_push_notification(
+            $user->id,
+            'Leave Approved',
+            "An admin had made a leave for you from {$leave->start_date} to {$leave->end_date}",
+            ['leave' => $leave]
+        );
         return response()->json(['message' => 'Leave created successfully']);
     }
 
@@ -350,7 +355,7 @@ class EmployeeLeaveController extends Controller
         $leave->reject_reason = null;
         $leave->save();
 
-        $employee=User::find($leave->user_id);
+        $employee = User::find($leave->user_id);
         $employeeName = $employee->first_name . ' ' . $employee->last_name;
 
         $userId = $employee->id;

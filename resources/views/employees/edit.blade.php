@@ -219,16 +219,6 @@
                                    placeholder="Enter nationality">
                            </div>
                            <div class="col-md-4 mb-3">
-                               <label class="form-label" for="pin">P.I.N</label>
-                               <input type="text" name="pin" id="pin" class="form-control"
-                                   placeholder="Enter PIN">
-                           </div>
-                           <div class="col-md-4 mb-3">
-                               <label class="form-label" for="reference_to_emp">Reference</label>
-                               <input type="text" name="reference_to_emp" id="reference_to_emp"
-                                   class="form-control" placeholder="Enter Reference">
-                           </div>
-                           <div class="col-md-4 mb-3">
                                <label class="form-label" for="next_kin">Next of Kin</label>
                                <input type="text" name="next_kin" id="next_kin" class="form-control"
                                    placeholder="Enter next of kin">
@@ -519,6 +509,14 @@
                                    Pdf)</span>
                            </div>
 
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label" for="signature">Signature Of Applicant</label>
+                               <input type="file" name="signature" id="signature" class="form-control">
+                               <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
+                                   Pdf)</span>
+                           </div>
+
+
                            <h3 class="mt-2 mb-4">Additional Documents</h3>
 
 
@@ -556,11 +554,6 @@
                            <div class="col-md-4 mb-3">
                                <label class="form-label" for="inseam">Inseam</label>
                                <input type="text" name="inseam" id="inseam" class="form-control">
-                           </div>
-
-                           <div class="col-md-4 mb-3">
-                               <label class="form-label" for="signature">Signature Of Applicant</label>
-                               <input type="file" name="signature" id="signature" class="form-control">
                            </div>
 
                            <h3 class="mt-2 mb-4">Payroll Information</h3>

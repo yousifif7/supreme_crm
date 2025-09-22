@@ -27,8 +27,8 @@ class ShiftController extends Controller
 {
     public function index(ShiftsDataTable $dataTable)
     {
-        $clients = User::role('client')->get();
-        $sites = Site::all();
+        $clients = User::role('client')->orderBy('first_name', 'asc')->get();
+        $sites = Site::orderBy('site_name', 'asc')->get();
         $staffs = User::role('security_staff')->get();
         $subcontractors = User::role('subcontractor')->get();
         $users = User::all();

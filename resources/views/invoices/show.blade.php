@@ -212,8 +212,8 @@
                                             <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
                                             <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
                                             <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->rate, 2) }}$</td>
-                                            <td class="text-end">{{ number_format($item->amount, 2) }}$</td>
+                                            <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
+                                            <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -278,14 +278,14 @@
                             @endif
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
                                 <h5>Total Amount</h5>
-                                <h5>{{ number_format($invoice->net_amount, 2) }}$</h5>
+                                <h5>{{ number_format($invoice->net_amount, 2) }}£</h5>
                             </div>
                             @php
                                 $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
                                 $words = $formatter->format($invoice->net_amount);
                             @endphp
                             <p class="fs-12">
-                                Amount in Words : Dollar {{ ucwords($words) }} Only
+                                Amount in Words : EURO {{ ucwords($words) }} Only
                             </p>
                         </div>
                     </div>

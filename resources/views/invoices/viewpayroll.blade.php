@@ -132,7 +132,7 @@
                             <div class="row">
                                 <div class="col-md-6">
                                     <p>Total Hours Worked: <span class="text-dark">{{ $totalHours }}</span></p>
-                                    <p>Hourly Rate: <span class="text-dark">{{ $invoice->rate_per_hour }}$</span></p>
+                                    <p>Hourly Rate: <span class="text-dark">{{ $invoice->rate_per_hour }}£</span></p>
                                 </div>
                                 <div class="col-md-6">
                                     <p>Break Deduction (Hrs): <span class="text-dark">{{ $totalBreaks }}</span></p>
@@ -141,15 +141,15 @@
                                     <p>Total Billable Hours: <span
                                             class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
                                     <p>SSP Hours: <span class="text-dark">{{ $sspDays }}</span></p>
-                                    <p>SSP Amount: <span class="text-dark">{{ number_format($sspAmount, 2) }}$</span></p>
+                                    <p>SSP Amount: <span class="text-dark">{{ number_format($sspAmount, 2) }}£</span></p>
 
                                     <p>Holiday Hours: <span class="text-dark">{{ $holidayHours }}</span></p>
                                     <p>Holiday Amount: <span
-                                            class="text-dark">{{ number_format($holidayAmount, 2) }}$</span></p>
+                                            class="text-dark">{{ number_format($holidayAmount, 2) }}£</span></p>
 
                                     <p>Unpaid Leave Hours: <span class="text-dark">{{ $unpaidHours }}</span></p>
                                     <p>Unpaid Leave Deduction: <span
-                                            class="text-dark">{{ number_format($unpaidAmount, 2) }}$</span></p>
+                                            class="text-dark">{{ number_format($unpaidAmount, 2) }}£</span></p>
                                 </div>
                             </div>
 
@@ -181,8 +181,8 @@
                                             <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
                                             <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
                                             <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->rate, 2) }}$</td>
-                                            <td class="text-end">{{ number_format($item->amount, 2) }}$</td>
+                                            <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
+                                            <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -223,7 +223,7 @@
                                 $words = $formatter->format($invoice->net_amount);
                             @endphp
                             <p class="fs-12">
-                                Amount in Words: Dollar {{ ucwords($words) }} Only
+                                Amount in Words: EURO {{ ucwords($words) }} Only
                             </p>
                         </div>
                     </div>

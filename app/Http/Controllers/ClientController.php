@@ -157,6 +157,32 @@ class ClientController extends Controller
                 $data[$docField] = $fileName;
             }
         }
+
+        if ($request->email || $request->password) {
+            $user = User::role('client')->where('id', $client->user->id)->first();
+
+            if ($user) {
+                if ($request->email) {
+                    $user->email = $request->email;
+                    $client->email = $request->email;
+                }
+                if (!$request->email) {
+                    $user->email = $user->email;
+                    $client->email = $client->email;
+                }
+
+                if ($request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = Hash::make($request->password);
+                }
+                if (!$request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = $user->password;
+                }
+
+                $user->save();
+            }
+        }
         // update client
         $client->update($data);
 
