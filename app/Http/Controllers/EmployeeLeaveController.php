@@ -76,6 +76,7 @@ class EmployeeLeaveController extends Controller
             'end_date' => $request['end_date'],
             'reason' => $request['reason'],
             'type' => $request['type'],
+            'status' => 'approved',
         ]);
 
 

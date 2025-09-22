@@ -100,6 +100,7 @@ class Employee extends Model
         'driving_licence_expiry',
         'driving_licence_file',
         'additional_files',
+        'reference_number'
     ];
 
     protected $casts = [
@@ -117,6 +118,21 @@ class Employee extends Model
         'holiday_to_additional' => 'date',
         'additional_files' => 'array',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($employee) {
+            if (!$employee->reference_number) {
+                do {
+                    $ref = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                } while (Employee::where('reference_number', $ref)->exists());
+
+                $employee->reference_number = $ref;
+            }
+        });
+    }
 
     public function department(): BelongsTo
     {

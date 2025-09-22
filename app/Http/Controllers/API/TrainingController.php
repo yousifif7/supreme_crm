@@ -138,24 +138,23 @@ class TrainingController extends Controller
             'title' => 'required|string|max:255',
             'description' => 'required|string',
             'pdf_url' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,ppt,pptx,jpg,png|max:2048', // max 2MB
-            'material_type' => 'required|string',
-            'expiry_date' => 'required|date',
+            'type' => 'required|string',
+            'expiry_date' => 'nullable|date',
+            'implementation_date' => 'nullable|date',
+            'deadline' => 'nullable|date',
+            'acknowledge_by_date' => 'nullable|date',
         ]);
 
-        // Save file if uploaded
-        $filePath = null;
-
+        // If file uploaded, replace the old file
         if ($request->hasFile('pdf_url')) {
             $filePath = $request->file('pdf_url')->store('materials', 'public');
+            $validated['pdf_url'] = $filePath;
+        } else {
+            unset($validated['pdf_url']); // don’t overwrite with null if no file uploaded
         }
 
-        TrainingMaterial::create([
-            'title' => $validated['title'],
-            'description' => $validated['description'],
-            'type' => $validated['type'],
-            'expiry_date' => $validated['expiry_date'],
-            'pdf_url' => $filePath, // ✅ correct variable
-        ]);
+        // Update instead of create
+        $material->update($validated);
 
         return response()->json(['success' => true]);
     }
@@ -169,13 +168,6 @@ class TrainingController extends Controller
     }
 
     // Bulk delete
-    public function bulkDelete(Request $request)
-    {
-        $ids = $request->ids;
-        TrainingMaterial::whereIn('id', $ids)->delete();
-        return response()->json(['success' => true, 'message' => 'Material deleted succesfully']);
-    }
-
     public function showAcknowledged($id)
     {
         $material = TrainingMaterial::with('acknowledgedUsers')->findOrFail($id);
@@ -190,5 +182,17 @@ class TrainingController extends Controller
                 ];
             })
         ]);
+    }
+
+    public function bulkDelete(Request $request)
+    {
+        $request->validate([
+            'ids' => 'required|array',
+            'ids.*' => 'exists:training_materials,id',
+        ]);
+
+        TrainingMaterial::whereIn('id', $request->ids)->delete();
+
+        return response()->json(['message' => 'Selected Hr materials deleted.']);
     }
 }

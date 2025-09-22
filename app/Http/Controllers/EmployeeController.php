@@ -220,6 +220,7 @@ class EmployeeController extends Controller
         // unset($employeeData['username'], $employeeData['password']);
         unset($employeeData['password']);
 
+        unset($employeeData['reference_number']);
         // Save employee
         $employee = Employee::create($employeeData);
         if ($request->has('holidays')) {

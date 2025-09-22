@@ -183,27 +183,28 @@
             <!-- /Add Client -->
 
             <!-- Delete Material Modal -->
-            <div class="modal fade" id="deleteMaterialModal" tabindex="-1">
-                <div class="modal-dialog">
+            <div class="modal fade" id="deleteMaterialModal">
+                <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Confirm Delete</h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                        </div>
-                        <div class="modal-body">Are you sure you want to delete this material?</div>
-                        <div class="modal-footer">
-                            <button class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <div class="modal-body text-center">
+                            <span class="avatar avatar-xl bg-transparent-danger text-danger mb-3">
+                                <i class="ti ti-trash-x fs-36"></i>
+                            </span>
+                            <h4 class="mb-1">Confirm Delete</h4>
+                            <p class="mb-3">This action cannot be undone. Are you sure you want to delete?</p>
+                            <div class="d-flex justify-content-center">
+                                <button type="button" class="btn btn-light me-3" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" id="confirmDeleteBtn" class="btn btn-danger">Yes, Delete</button>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-
             <!-- Edit Material Modal -->
             <div class="modal fade" id="editMaterialModal" tabindex="-1">
                 <div class="modal-dialog">
-                    <form id="editMaterialForm">
+                    <form id="editMaterialForm" enctype="multipart/form-data">
                         @csrf
                         @method('PUT')
                         <div class="modal-content">
@@ -211,34 +212,63 @@
                                 <h5 class="modal-title">Edit Material</h5>
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
+
                             <div class="modal-body">
                                 <input type="hidden" name="id" id="editMaterialId">
+
                                 <div class="mb-2">
                                     <label>Title</label>
                                     <input type="text" name="title" id="editTitle" class="form-control" required>
+                                    <span class="text-danger form-error" id="error_title"></span>
                                 </div>
+
                                 <div class="mb-2">
                                     <label>Description</label>
                                     <textarea name="description" id="editDescription" class="form-control"></textarea>
+                                    <span class="text-danger form-error" id="error_description"></span>
                                 </div>
+
                                 <div class="mb-2">
                                     <label>Type</label>
-                                    <input type="text" name="type" id="editType" class="form-control">
+                                    <select name="type" id="editType" class="form-control">
+                                        <option value="">-- Select Type --</option>
+                                        <option value="policy">Policy</option>
+                                        <option value="training">Training</option>
+                                        <option value="general_guidelines">General Guidelines</option>
+                                    </select>
+                                    <span class="text-danger form-error" id="error_type"></span>
                                 </div>
-                                <div class="mb-2">
+
+                                <div id="edit-implementation-wrapper" class="mb-2" style="display:none;">
                                     <label>Implementation date</label>
-                                    <input type="date" name="implementation_date" id="editimplementation_date"
+                                    <input type="date" name="implementation_date" id="editImplementationDate"
                                         class="form-control">
+                                    <span class="text-danger form-error" id="error_implementation_date"></span>
                                 </div>
-                                <div class="mb-2">
+
+                                <div id="edit-deadline-wrapper" class="mb-2" style="display:none;">
                                     <label>Deadline</label>
-                                    <input type="date" name="deadline" id="edit_deadline" class="form-control">
+                                    <input type="date" name="deadline" id="editDeadline" class="form-control">
+                                    <span class="text-danger form-error" id="error_deadline"></span>
                                 </div>
+
+                                <div id="edit-acknowledge_by_date-wrapper" class="mb-2" style="display:none;">
+                                    <label>Acknowledge by date</label>
+                                    <input type="date" name="acknowledge_by_date" id="editAcknowledgeByDate"
+                                        class="form-control">
+                                    <span class="text-danger form-error" id="error_acknowledge_by_date"></span>
+                                </div>
+
                                 <div class="mb-2">
-                                    <label>PDF URL</label>
-                                    <input type="text" name="pdf_url" id="editPdf" class="form-control">
+                                    <label>Upload File (replace)</label>
+                                    <input type="file" name="pdf_url" id="editPdfFile" class="form-control"
+                                        accept=".pdf,.jpg,.jpeg,.png">
+                                    <div id="currentFile" class="mt-2"></div>
+                                    <span class="text-muted small">Leave blank to keep current file.</span>
+                                    <span class="text-danger form-error" id="error_pdf_url"></span>
                                 </div>
                             </div>
+
                             <div class="modal-footer">
                                 <button class="btn btn-primary" type="submit">Save Changes</button>
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -249,6 +279,7 @@
             </div>
 
 
+
             <div class="modal fade" id="acknowledgedModal" tabindex="-1">
                 <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
@@ -257,7 +288,7 @@
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                         </div>
                         <div class="modal-body">
-                            <!-- JS will fill here -->
+                            <ul id="acknowledgedList" class="list-group list-unstyled"></ul>
                         </div>
                     </div>
                 </div>
@@ -269,229 +300,279 @@
             {{ $dataTable->scripts() }}
 
             <script>
-                // Select All Checkbox
-                $(document).on('change', '#selectAll', function() {
-                    $('.rowCheckbox').prop('checked', $(this).is(':checked'));
-                });
+                $(function() {
+                    let selectedMaterialId = null;
 
-                $(document).ready(function() {
-                    $('#deadline-wrapper').hide();
-                    $('select[name="type"]').on('change', function() {
-                        const type = $(this).val();
-                        if (type === 'training') {
-                            $('#deadline-wrapper').show();
-                        } else {
-                            $('#deadline-wrapper').hide();
-                            $('#deadline-wrapper input').val('');
-                        }
+                    // ✅ Select All Checkbox
+                    $(document).on('change', '#selectAll', function() {
+                        $('.rowCheckbox').prop('checked', $(this).is(':checked'));
                     });
-                });
 
-                $(document).ready(function() {
-                    $('#implementation-wrapper').hide();
-                    $('select[name="type"]').on('change', function() {
-                        const type = $(this).val();
+                    // ✅ Show/Hide Fields Based on Type
+                    function toggleTypeFields(type, prefix = '') {
+                        const impl = $(`#${prefix}implementation-wrapper`);
+                        const dl = $(`#${prefix}deadline-wrapper`);
+                        const ack = $(`#${prefix}acknowledge_by_date-wrapper`);
+
+                        // hide all first
+                        impl.hide().find('input').prop('required', false).val('');
+                        dl.hide().find('input').prop('required', false).val('');
+                        ack.hide().find('input').prop('required', false).val('');
+
+                        // show based on type
+                        if (type === 'training') dl.show().find('input').prop('required', true);
                         if (type === 'policy') {
-                            $('#implementation-wrapper').show();
-                        } else {
-                            $('#implementation-wrapper').hide();
-                            $('#implementation-wrapper input').val('');
+                            impl.show().find('input').prop('required', true);
+                            ack.show().find('input').prop('required', true);
                         }
-                    });
-                });
-                $(document).ready(function() {
-                    $('#acknowledge_by_date-wrapper').hide();
-                    $('select[name="type"]').on('change', function() {
-                        const type = $(this).val();
-                        if (type === 'general_guidelines' || type === 'policy') {
-                            $('#acknowledge_by_date-wrapper').show();
-                        } else {
-                            $('#acknowledge_by_date-wrapper').hide();
-                            $('#acknowledge_by_date-wrapper input').val('');
-                        }
-                    });
-                });
-                // Add Material AJAX
-                $('#add_material_form').on('submit', function(e) {
-                    e.preventDefault();
+                        if (type === 'general_guidelines') ack.show().find('input').prop('required', true);
+                    }
 
-                    let formData = new FormData(this);
-                    let submitBtn = $(this).find('button[type="submit"]');
-                    submitBtn.prop('disabled', true).text('Saving...');
+                    // Add Modal: react to type change
+                    $(document).on('change', '#add_materials select[name="type"]', function() {
+                        toggleTypeFields($(this).val());
+                    });
+
+                    // Edit Modal: react to type change
+                    $(document).on('change', '#editMaterialForm select[name="type"]', function() {
+                        toggleTypeFields($(this).val(), 'edit-');
+                    });
+
+                    // ✅ Add Material AJAX
+                    $('#add_material_form').on('submit', function(e) {
+                        e.preventDefault();
+
+                        let formData = new FormData(this);
+                        let submitBtn = $(this).find('button[type="submit"]');
+                        submitBtn.prop('disabled', true).text('Saving...');
+
+                        $.ajax({
+                            url: $(this).attr('action'),
+                            type: 'POST',
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function() {
+                                $('#add_material_form')[0].reset();
+                                $('#addMaterialModal').modal('hide');
+                                toast_success('HR Material created successfully!');
+                                reloadDatatable('#materials-table');
+                            },
+                            error: function(xhr) {
+                                if (xhr.status === 422) {
+                                    let errors = xhr.responseJSON.errors;
+                                    $.each(errors, function(key, value) {
+                                        $('#error_' + key).text(value[0]);
+                                    });
+                                } else {
+                                    toast_danger('Something went wrong!');
+                                }
+                            },
+                            complete: function() {
+                                submitBtn.prop('disabled', false).text('Save');
+                            }
+                        });
+                    });
+
+                    // ✅ View Material
+                    $(document).on('click', '.viewMaterial', function() {
+                        let id = $(this).data('id');
+                        $.get(`/materials/${id}`, function(data) {
+                            $('#viewTitle').text(data.title);
+                            $('#viewDescription').text(data.description);
+                            $('#viewType').text(data.type);
+                            $('#viewFile').html(data.pdf_url ?
+                                `<a href="${data.pdf_url}" target="_blank">Download</a>` : '—');
+
+                            (data.type === 'training' && data.deadline) ?
+                            $('#viewDeadlineRow').show().find('#viewDeadline').text(data.deadline): $(
+                                '#viewDeadlineRow').hide();
+
+                            (data.type === 'policy' && data.implementation_date) ?
+                            $('#viewImplementationDateRow').show().find('#viewImplementationDate').text(data
+                                .implementation_date): $('#viewImplementationDateRow').hide();
+
+                            ((data.type === 'policy' || data.type === 'general_guidelines') && data
+                                .acknowledge_by_date) ?
+                            $('#acknowledgeByDateRow').show().find('#acknowledgeByDate').text(data
+                                .acknowledge_by_date): $('#acknowledgeByDateRow').hide();
+
+                            $('#viewMaterialModal').modal('show');
+                        }).fail(() => toast_danger('Failed to fetch material details.'));
+                    });
+
+                    // ✅ Show Acknowledged
+                    $(document).on('click', '.showAcknowledged', function() {
+                        let id = $(this).data('id');
+
+                        $.get(`/show/acknowledged/${id}`, function(data) {
+                            let list = $('#acknowledgedList').empty();
+
+                            if (!data.users || data.users.length === 0) {
+                                list.append(
+                                    '<li class="list-group-item text-muted">No acknowledgements yet.</li>'
+                                );
+                            } else {
+                                data.users.forEach((u, i) => {
+                                    list.append(
+                                        `<li class="list-group-item">${i + 1}. ${u.name}</li>`);
+                                });
+                            }
+
+                            $('#acknowledgedModal').modal('show');
+                        }).fail(() => toast_danger('Failed to fetch acknowledged users.'));
+                    });
+
+                    // ✅ Edit Modal Helper
+                    // function updateEditFieldsByType(type) {
+                    //     type = (type || '').trim().toLowerCase(); // normalize
+
+                    //     $('#implementation-wrapper, #deadline-wrapper, #acknowledge_by_date-wrapper').hide();
+                    //     $('#editImplementationDate, #editDeadline, #editAcknowledgeByDate').prop('required', false);
+
+                    //     if (type === 'policy') {
+                    //         $('#implementation-wrapper, #acknowledge_by_date-wrapper').show();
+                    //         $('#editImplementationDate, #editAcknowledgeByDate').prop('required', true);
+                    //     } else if (type === 'training') {
+                    //         $('#deadline-wrapper').show();
+                    //         $('#editDeadline').prop('required', true);
+                    //     } else if (type === 'general_guidelines') {
+                    //         $('#acknowledge_by_date-wrapper').show();
+                    //         $('#editAcknowledgeByDate').prop('required', true);
+                    //     }
+                    // }
+
+
+                    // ✅ Open Edit Modal
+                    $(document).on('click', '.editMaterial', function(e) {
+                        e.preventDefault();
+                        let id = $(this).data('id');
+
+                        $.get(`/materials/${id}`, function(data) {
+                            $('#editMaterialId').val(data.id);
+                            $('#editTitle').val(data.title || '');
+                            $('#editDescription').val(data.description || '');
+                            $('#editType').val(data.type || '');
+
+                            $('#editImplementationDate').val(data.implementation_date || '');
+                            $('#editDeadline').val(data.deadline || '');
+                            $('#editAcknowledgeByDate').val(data.acknowledge_by_date || '');
+
+                            if (data.pdf_url) {
+                                let fileName = data.pdf_url.split('/').pop();
+                                $('#currentFile').html(
+                                    `<small>Current File: <a href="${data.pdf_url}" target="_blank">${fileName}</a></small>`
+                                );
+                            } else {
+                                $('#currentFile').html('<small>No file uploaded.</small>');
+                            }
+
+                            // toggle fields based on type for Edit modal
+                            toggleTypeFields(data.type, 'edit-');
+
+                            $('.form-error').text('');
+                            $('#editMaterialModal').modal('show');
+                        }).fail(function() {
+                            toast_danger('Failed to fetch material details.');
+                        });
+                    });
+                    
+                    // when type changes in the modal
+                    $(document).on('change', '#editType', function() {
+                        updateEditFieldsByType($(this).val());
+                    });
+
+                    // ✅ Submit Edit
+                    $('#editMaterialForm').on('submit', function(e) {
+                        e.preventDefault();
+                        let id = $('#editMaterialId').val();
+                        let formData = new FormData(this);
+
+                        $.ajax({
+                            url: `/materials/${id}`,
+                            type: 'POST', // method spoofing
+                            data: formData,
+                            processData: false,
+                            contentType: false,
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                                'X-HTTP-Method-Override': 'PUT'
+                            },
+                            success: function() {
+                                $('#editMaterialModal').modal('hide');
+                                toast_success('Material updated successfully!');
+                                reloadDatatable('#materials-table');
+                            },
+                            error: function(xhr) {
+                                $('.form-error').text('');
+                                if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                    $.each(xhr.responseJSON.errors, function(key, value) {
+                                        $('#error_' + key).text(value[0]);
+                                    });
+                                } else {
+                                    toast_danger('Failed to update material.');
+                                }
+                            }
+                        });
+                    });
+
+                    // ✅ Delete
+                    $(document).on('click', '.deleteMaterial', function() {
+                        selectedMaterialId = $(this).data('id');
+                        $('#deleteMaterialModal').modal('show');
+                    });
+
+                    $('#confirmDeleteBtn').on('click', function() {
+                        if (!selectedMaterialId) return;
+                        $.ajax({
+                            url: `/materials/${selectedMaterialId}`,
+                            type: 'DELETE',
+                            headers: {
+                                'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                            },
+                            success: function() {
+                                $('#deleteMaterialModal').modal('hide');
+                                toast_success('HR material deleted successfully!');
+                                reloadDatatable('#materials-table');
+                            },
+                            error: function() {
+                                toast_danger('Failed to delete material.');
+                            }
+                        });
+                    });
+                });
+
+                // Bulk delete button
+                $('#bulkDeleteBtn').on('click', function() {
+                    const selected = $('.dT-row-checkbox:checked').map(function() {
+                        return this.value;
+                    }).get();
+
+                    if (selected.length === 0) {
+                        toast_danger('Please select at least one client to delete.');
+                        return;
+                    }
+
+                    if (!confirm('Are you sure you want to delete the selected employee?')) return;
 
                     $.ajax({
-                        url: $(this).attr('action'),
+                        url: '{{ route('materials.bulkDelete') }}',
                         type: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                        data: {
+                            ids: selected,
+                            _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            $('#add_material_form')[0].reset();
-                            $('#addMaterialModal').modal('hide');
-                            toast_success('HR Material created successfully!');
-                            reloadDatatable('#training_materials-table');
-                        },
-                        error: function(xhr) {
-                            if (xhr.status === 422) {
-                                let errors = xhr.responseJSON.errors;
-                                $.each(errors, function(key, value) {
-                                    $('#error_' + key).text(value[0]);
-                                });
-                            } else {
-                                toast_danger('Something went wrong!');
-                            }
-                        },
-                        complete: function() {
-                            submitBtn.prop('disabled', false).text('Save');
-                        }
-                    });
-                });
-
-                let selectedMaterialId = null;
-
-                // View
-                $(document).on('click', '.viewMaterial', function() {
-                    let id = $(this).data('id');
-                    $.get(`/materials/${id}`, function(data) {
-                        $('#viewTitle').text(data.title);
-                        $('#viewDescription').text(data.description);
-                        $('#viewType').text(data.type);
-                        $('#viewFile').html(data.pdf_url ?
-                            `<a href="${data.pdf_url}" target="_blank">Download</a>` :
-                            '—'
-                        );
-
-                        // Training deadline
-                        if (data.type === 'training' && data.deadline) {
-                            $('#viewDeadlineRow').show();
-                            $('#viewDeadline').text(data.deadline);
-                        } else {
-                            $('#viewDeadlineRow').hide();
-                        }
-
-                        // Policy implementation date
-                        if (data.type === 'policy' && data.implementation_date) {
-                            $('#viewImplementationDateRow').show();
-                            $('#viewImplementationDate').text(data.implementation_date);
-                        } else {
-                            $('#viewImplementationDateRow').hide();
-                        }
-
-                        // Policy or Guidelines acknowledge by date
-                        if ((data.type === 'policy' || data.type === 'general_guidelines') && data
-                            .acknowledge_by_date) {
-                            $('#acknowledgeByDateRow').show();
-                            $('#acknowledgeByDate').text(data.acknowledge_by_date);
-                        } else {
-                            $('#acknowledgeByDateRow').hide();
-                        }
-
-                        $('#viewMaterialModal').modal('show');
-                    }).fail(() => toast_danger('Failed to fetch material details.'));
-                });
-
-                $(document).on('click', '.showAcknowledged', function() {
-                    let id = $(this).data('id');
-
-                    $.get(`/show/acknowledged/${id}`, function(data) {
-                        let list = data.users.map((u, i) => `<li>${i + 1}. ${u.name}</li>`).join('');
-
-                        $('#acknowledgedModal .modal-body').html(`
-            <h6 class="mb-3">${data.title}</h6>
-            <ul class="list-unstyled">${list || '<li>No acknowledgements yet.</li>'}</ul>
-        `);
-
-                        $('#acknowledgedModal').modal('show');
-                    }).fail(() => toast_danger('Failed to fetch acknowledgements.'));
-                });
-                // Edit
-                $(document).on('click', '.editMaterial', function() {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    let id = $(this).data('id');
-                    $.get(`/materials/${id}`, function(data) {
-                        $('#editMaterialId').val(data.id);
-                        $('#editTitle').val(data.title);
-                        $('#editDescription').val(data.description);
-                        $('#editType').val(data.type);
-                        $('#editimplementation_date').val(data.implementation_date);
-                        $('#editPdf').val(data.pdf_url);
-                        $('#editMaterialModal').modal('show');
-                    }).fail(() => toast_danger('Failed to fetch material details.'));
-                });
-
-                $('#editMaterialForm').on('submit', function(e) {
-                    e.preventDefault();
-                    let id = $('#editMaterialId').val();
-                    $.ajax({
-                        url: `/materials/${id}`,
-                        type: 'PUT',
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        data: $(this).serialize(),
-                        success: function(resp) {
-                            $('#editMaterialModal').modal('hide');
-                            toast_success('Hr material edited successfully!');
-                            reloadDatatable('#training_materials-table');
-
+                            toast_success('Selected employees deleted successfully!');
+                            reloadDatatable('#materials-table');
                         },
                         error: function() {
-                            toast_danger('Failed to update material.');
+                            toast_danger('Something went wrong during bulk delete.');
                         }
                     });
-                });
-
-                // Delete
-                $(document).on('click', '.deleteMaterial', function() {
-                    selectedMaterialId = $(this).data('id');
-                    $('#deleteMaterialModal').modal('show');
-                });
-
-                $('#confirmDeleteBtn').on('click', function() {
-                    if (!selectedMaterialId) return;
-                    $.ajax({
-                        url: `/materials/${selectedMaterialId}`,
-                        type: 'DELETE',
-                        headers: {
-                            'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
-                        },
-                        success: function(resp) {
-                            $('#deleteMaterialModal').modal('hide');
-                            toast_success('Hr material Deleted succesfully!');
-                            reloadDatatable('training_materials-table');
-                        },
-                        error: function() {
-                            toast_danger('Failed to delete material.');
-                        }
-                    });
-                });
-
-
-                $(document).on('click', '.showAcknowledged', function() {
-
-                    let id = $(this).data('id');
-
-                    $.get(`/show/acknowledged/${id}`, function(data) {
-                        let list = $('#acknowledgedList');
-                        list.empty();
-
-                        if (data.length === 0) {
-                            list.append('<li class="list-group-item text-muted">No users acknowledged yet.</li>');
-                        } else {
-                            data.forEach(item => {
-                                let user = item.user; // 👈 if relation is `user`
-                                list.append(
-                                    `<li class="list-group-item">${user.first_name??'N/A'} (${user.last_name})</li>`
-                                );
-                            });
-                        }
-
-                        $('#acknowledgedModal').modal('show');
-                    }).fail(() => toast_danger('Failed to fetch acknowledged users.'));
                 });
             </script>
         @endsection

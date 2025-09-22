@@ -122,6 +122,7 @@
                             </p>
                             <p>Email: <span class="text-dark">{{ $staff?->email }}</span></p>
                             <p>Phone: <span class="text-dark">{{ $staff?->phone }}</span></p>
+                            <p>Reference Number: <span class="text-dark text-bold">{{ $staff?->employee->reference_number }}</span></p>
                             @if ($invoice->subcontractor)
                                 <p>Subcontractor: <span class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
                             @endif

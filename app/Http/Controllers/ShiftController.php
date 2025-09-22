@@ -345,6 +345,31 @@ class ShiftController extends Controller
                         ),
                     ]);
 
+                    if ($shift->staff_id) {
+                        $weekStart = now()->startOfWeek();
+                        $weekEnd   = now()->endOfWeek();
+
+                        $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
+                            ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                            ->sum('total_hours');
+
+                        $minWeeklyHours = $entity->hour_per_week ?? 40;
+
+                        $expectedHours = $totalWeekHours + $shiftDate->total_hours;
+
+                        $staff = User::find($shift->staff_id);
+                        if ($expectedHours < $minWeeklyHours) {
+                            // 👇 Instead of blocking, just trigger a notification
+                            Notify::toDashboard(
+                                null,
+                                'alert',
+                                'Worked Hours',
+                                "Guard {$staff->first_name} {$staff->last_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                                "#"
+                            );
+                        }
+                    }
+
                     if (!empty($data['training_id'])) {
                         $shiftDate->trainings()->sync($data['training_id']);
                     }
@@ -376,15 +401,15 @@ class ShiftController extends Controller
                     for ($n = 0; $n < (int) $numberOfCheckCalls; $n++) {
                         $checkTime  = $start->copy()->addHours($n);
                         $patrolTime = $start->copy()->addHours($n);
-                        
-                         if (request()->has('auto_checkcall_enabled') && request('auto_checkcall_enabled')) {
-                             CheckCall::create([
-                                 'shift_id'       => $shiftDate->id,
-                                 'name'           => 'Auto CheckCall ' . ($n + 1),
-                                 'scheduled_time' => $checkTime->format('Y-m-d H:i'),
-                                 'status'         => 'pending',
-                             ]);
-                         }
+
+                        if (request()->has('auto_checkcall_enabled') && request('auto_checkcall_enabled')) {
+                            CheckCall::create([
+                                'shift_id'       => $shiftDate->id,
+                                'name'           => 'Auto CheckCall ' . ($n + 1),
+                                'scheduled_time' => $checkTime->format('Y-m-d H:i'),
+                                'status'         => 'pending',
+                            ]);
+                        }
 
                         Patrol::create([
                             'shift_id'              => $shiftDate->id,
@@ -544,6 +569,28 @@ class ShiftController extends Controller
                     'An admin reassigned a shift for you, You have to respond!',
                     ['shift' => $shift],
                 );
+
+                $weekStart = now()->startOfWeek();
+                $weekEnd   = now()->endOfWeek();
+
+                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staff->id)
+                    ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                    ->sum('total_hours');
+
+                $minWeeklyHours = $entity->hour_per_week ?? 40;
+
+                $expectedHours = $totalWeekHours + $newShiftHours;
+
+                if ($expectedHours < $minWeeklyHours) {
+                    // 👇 Instead of blocking, just trigger a notification
+                    Notify::toDashboard(
+                        null,
+                        'alert',
+                        'Worked Hours',
+                        "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                        "#"
+                    );
+                }
             }
         }
 
@@ -1218,6 +1265,28 @@ class ShiftController extends Controller
             ['shiftDate' => $shiftDate],
         );
 
+        $weekStart = now()->startOfWeek();
+        $weekEnd   = now()->endOfWeek();
+
+        $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
+            ->whereBetween('shift_date', [$weekStart, $weekEnd])
+            ->sum('total_hours');
+
+        $minWeeklyHours = $entity->hour_per_week ?? 40;
+
+        $expectedHours = $totalWeekHours + $newShiftHours;
+
+        if ($expectedHours < $minWeeklyHours) {
+            // 👇 Instead of blocking, just trigger a notification
+            Notify::toDashboard(
+                null,
+                'alert',
+                'Worked Hours',
+                "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                "#"
+            );
+        }
+
         return response()->json(['success' => 'Shift assigned successfully!'], 200);
     }
 
@@ -1507,7 +1576,7 @@ class ShiftController extends Controller
             $newStart = $request->start_times[$shiftId] ?? $shiftDate->start_time;
             $newEnd   = $request->end_times[$shiftId] ?? $shiftDate->end_time;
             $newDate = $request->shift_dates[$shiftId] ?? $shiftDate->shift_date;
-            
+
             // Use provided book_on/book_off if available
             $bookOn  = $request->book_on[$shiftId] ?? null;
             $bookOff = $request->book_off[$shiftId] ?? null;
@@ -1627,6 +1696,39 @@ class ShiftController extends Controller
 
         return response()->json([
             'shifts' => $shiftData
+        ]);
+    }
+
+    public function override(Request $request)
+    {
+        // Only superadmin can override
+        if (!auth()->user()->hasRole('superadmin')) {
+            return response()->json(['error' => 'Not authorized'], 403);
+        }
+
+        $entityId = $request->entity_id;
+        $restrictionType = $request->restriction_type;
+        $shiftData = $request->shift_data ?? [];
+
+        // Log the override
+        \App\Models\RestrictionOverride::create([
+            'user_id' => auth()->id(),
+            'entity_id' => $entityId,
+            'entity_type' => \App\Models\Employee::class,
+            'restriction_type' => $restrictionType,
+            'reason' => 'Admin override via toast/button',
+        ]);
+
+        // Assign shift centrally
+        $shift = \App\Services\ShiftAssignmentService::assignShift(
+            $entityId,
+            $shiftData,
+            $restrictionType
+        );
+
+        return response()->json([
+            'message' => 'Restriction overridden and shift assigned successfully',
+            'shift_id' => $shift->id
         ]);
     }
 }

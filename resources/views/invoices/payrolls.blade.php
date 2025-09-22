@@ -14,7 +14,8 @@
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap">
                 <div class="me-2">
                     <div class="dropdown">
-                        <button onclick="bulkDelete('payrolls')" id="bulkDeletePayrollsBtn" class="btn btn-primary">Delete Selected</button>
+                        <button onclick="bulkDelete('payrolls')" id="bulkDeletePayrollsBtn" class="btn btn-primary">Delete
+                            Selected</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -68,12 +69,15 @@
                         @csrf
                         <div class="modal-body">
                             <div class="mb-3">
-                                <label for="employee_id" class="form-label">Select Staff</label>
-                                <select name="security_staff_id" id="employee_id" class="form-select select2_assign_modal"
-                                    required>
+                                <label for="security_staff_id" class="form-label">Select Staff</label>
+                                <select name="security_staff_id" id="security_staff_id"
+                                    class="form-select selec2_assign_modal" required>
                                     <option value="">-- Choose Staff --</option>
                                     @foreach ($staffs as $staff)
-                                        <option value="{{ $staff->id }}">{{ $staff->first_name }} {{ $staff->last_name }}
+                                        <option value="{{ $staff->id }}"
+                                            data-first="{{ strtolower($staff->first_name) }}"
+                                            data-last="{{ strtolower($staff->last_name) }}">
+                                            {{ $staff->first_name }} {{ $staff->last_name }}
                                         </option>
                                     @endforeach
                                 </select>
@@ -157,8 +161,15 @@
                     data: formData,
                     success: function(response) {
                         toast_success(response.message ?? "Payroll generated successfully");
-                        $('#generate_payroll').modal('hide');
-                        location.reload();
+
+                        // Bootstrap 5 way
+                        let modalEl = document.getElementById('generate_payroll');
+                        let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(
+                            modalEl);
+                        modal.hide();
+
+                        // reload table
+                        reloadDatatable('#payrolls-table');
                     },
                     error: function(xhr) {
                         $('.form-error').text('');
@@ -205,7 +216,7 @@
         $('#confirmDeleteBtn').on('click', function() {
             if (selectedId !== null && selectedTable !== null) {
                 let url =
-                `${baseUrl}/delete${selectedTable}/${selectedId}`; // e.g., /deleteinvoice/1 or /deletepayroll/2
+                    `${baseUrl}/delete${selectedTable}/${selectedId}`; // e.g., /deleteinvoice/1 or /deletepayroll/2
                 $.ajax({
                     url: `${baseUrl}/deleteinvoice/${selectedId}`,
                     type: 'DELETE',
@@ -257,12 +268,28 @@
             });
         }
 
+        function customMatcher(params, data) {
+            if ($.trim(params.term) === '') {
+                return data;
+            }
+
+            let term = params.term.toLowerCase();
+            let first = $(data.element).data('first') || '';
+            let last = $(data.element).data('last') || '';
+            let full = (first + ' ' + last).trim();
+
+            if (first.includes(term) || last.includes(term) || full.includes(term)) {
+                return data;
+            }
+
+            return null;
+        }
 
         $(document).ready(function() {
-            $('.select2_assign_modal').select2({
-                placeholder: "-- Choose Staff --",
-                allowClear: true,
-                width: '100%' // makes it match Bootstrap form width
+            $('.selec2_assign_modal').select2({
+                dropdownParent: $('#generate_payroll'),
+                matcher: customMatcher,
+                width: '100%'
             });
         });
 

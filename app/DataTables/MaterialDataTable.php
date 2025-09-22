@@ -31,6 +31,9 @@ class MaterialDataTable extends DataTable
                 <a class="text-danger deleteMaterial" data-id="' . $row->id . '" title="Delete">
                     <i class="ti ti-trash"></i>
                 </a>
+                <a class="text-gray editMaterial" data-id="' . $row->id . '" title="Edit">
+                    <i class="ti ti-pencil"></i>
+                </a>
                 <a class="text-success showAcknowledged" data-id="' . $row->id . '" title="Acknowledged">
                     <i class="ti ti-list"></i>
                 </a>

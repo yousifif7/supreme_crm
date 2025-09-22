@@ -64,8 +64,8 @@ class DobController extends Controller
             'title' => 'required|string',
             'description' => 'required|string',
             'media_files' => 'nullable|array',
-            'location.latitude' => 'required|numeric',
-            'location.longitude' => 'required|numeric',
+            'location.latitude' => 'nullable|numeric',
+            'location.longitude' => 'nullable|numeric',
             'timestamp' => 'nullable|date',
         ]);
 
@@ -107,20 +107,20 @@ class DobController extends Controller
             'title' => 'required|string',
             'description' => 'required|string',
             'media_files' => 'nullable|array',
-            'location.latitude' => 'required|numeric',
-            'location.longitude' => 'required|numeric',
+            'location.latitude' => 'nullable|numeric',
+            'location.longitude' => 'nullable|numeric',
             'timestamp' => 'nullable|date',
         ]);
 
         $dobEntry = DobEntry::findOrFail($id);
 
         $dobEntry->update([
-            'shift_id' => $data['shift_id'],
+            'shift_id' => $data['shift_id'] ?? 0,
             'entry_type' => $data['entry_type'],
             'title' => $data['title'],
             'description' => $data['description'],
-            'location' => json_encode($data['location']),
-            'timestamp' => $data['timestamp'],
+            'location' => $data['location'] ?? null,
+            'timestamp' => $data['timestamp'] ?? now(),
         ]);
 
         // Save new media if present

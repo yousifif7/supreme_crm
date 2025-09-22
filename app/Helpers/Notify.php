@@ -63,20 +63,20 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 }
                 break;
 
-            case 'max_weekly_hours_check':
-                $weekStart = now()->startOfWeek();
-                $weekEnd = now()->endOfWeek();
+            // case 'max_weekly_hours_check':
+            //     $weekStart = now()->startOfWeek();
+            //     $weekEnd = now()->endOfWeek();
 
-                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id) // FIXED
-                    ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                    ->sum('total_hours');
+            //     $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id) // FIXED
+            //         ->whereBetween('shift_date', [$weekStart, $weekEnd])
+            //         ->sum('total_hours');
 
-                $maxWeeklyHours = $entity->hour_per_week ?? 40;
+            //     $maxWeeklyHours = $entity->hour_per_week ?? 40;
 
-                if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
-                    $validator->errors()->add($fieldName, $message);
-                }
-                break;
+            //     if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
+            //         $validator->errors()->add($fieldName, $message);
+            //     }
+            //     break;
 
             case 'student_visa_hours_check':
                 if (strtolower($entity->visa_type) === 'student' && $shiftDate) {

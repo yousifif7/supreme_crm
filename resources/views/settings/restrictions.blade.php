@@ -3,7 +3,7 @@
 @section('contents')
 <div id="roles-wrapper" class="page-wrapper">
         <div class="content">
-            <div class="alert-box-container"></div>    <h3>Manage Restrictions</h3>
+            <div class="alert-box-container"></div><h3>Manage Restrictions</h3>
     @if(session('success'))
         <div class="alert alert-success">{{ session('success') }}</div>
     @endif
@@ -11,6 +11,7 @@
     <table class="table table-bordered">
         <thead>
             <tr>
+                <th>#</th>
                 <th>Entity</th>
                 <th>Field</th>
                 <th>Type</th>
@@ -20,8 +21,9 @@
             </tr>
         </thead>
         <tbody>
-        @foreach($restrictions as $restriction)
+        @foreach($restrictions as $index=> $restriction)
             <tr>
+                <td>{{ $index + 1}}</td>
                 <td>{{ class_basename($restriction->entity_type) }}</td>
                 <td>{{ $restriction->field_name }}</td>
                 <td>{{ $restriction->restriction_type }}</td>

@@ -344,12 +344,11 @@ Route::prefix('leaves')->group(function () {
     Route::post('reject/{leave}', [EmployeeLeaveController::class, 'reject'])->name('leaves.reject');
 });
 
-Route::post('/hr', [TrainingController::class, 'store'])->name('materials.store');
+Route::post('/hr/store', [TrainingController::class, 'store'])->name('materials.store');
 Route::get('/hr', [TrainingController::class, 'matsView'])->name('materials.index');
+Route::post('/hr/bulkdelete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
 Route::get('/calendar', [EmployeeLeaveController::class, 'calendar'])->name('calendar');
 
-Route::post('/materials/bulk-delete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
-// Update material (if needed)
 Route::put('materials/{id}', [TrainingController::class, 'update'])->name('materials.update');
 // Delete single material
 Route::delete('materials/{id}', [TrainingController::class, 'destroy'])->name('materials.destroy');
@@ -441,7 +440,8 @@ Route::get('/reports/employment', [EmployeeController::class, 'employmentReport'
 Route::get('/reports/employment/{employee}/pdf', [EmployeeController::class, 'exportEmploymentPdf'])
     ->name('reports.employment.pdf');
 
-
+Route::post('/restrictions/override', [ShiftController::class, 'override'])
+    ->name('restrictions.override');
 
 require __DIR__ . '/auth.php';
 
