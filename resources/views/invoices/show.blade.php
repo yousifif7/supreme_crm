@@ -164,7 +164,7 @@
                                     </p>
                                     <p class="mb-1">Total Hours Worked : <span
                                             class="text-dark">{{ $totalHours }}</span></p>
-                                    <p>Hourly Rate : <span class="text-dark">{{ $invoice->rate_per_hour }}$</span></p>
+                                    <p>Hourly Rate : <span class="text-dark">{{ $invoice->rate_per_hour }}£</span></p>
                                 </div>
                                 <div class="col-md-6">
                                     <p class="mb-1">Break Deduction (Hrs) : <span
@@ -285,7 +285,7 @@
                                 $words = $formatter->format($invoice->net_amount);
                             @endphp
                             <p class="fs-12">
-                                Amount in Words : EURO {{ ucwords($words) }} Only
+                                Amount in Words : UK POUND {{ ucwords($words) }} Only
                             </p>
                         </div>
                     </div>

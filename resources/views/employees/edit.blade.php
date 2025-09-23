@@ -68,6 +68,10 @@
                                        <span class="ti toggle-password ti-eye-off"></span>
                                    </div>
                                    <span class="text-danger form-error" id="error_password"></span>
+                                   <div id="passwordHelp" class="text-muted small">
+                                       Must be at least 8 characters, include uppercase, lowercase, number, and special
+                                       character.
+                                   </div>
                                </div>
                            </div>
                            <div class="col-md-4 mb-3">

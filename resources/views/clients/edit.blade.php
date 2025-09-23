@@ -113,26 +113,33 @@
                                           </div>
 
                                           <div class="col-md-6">
-                                            <div class="row">
-                                              <div class="col-md-6">
-                                                  <div class="mb-3">
-                                                      <div class="form-label">Email <span class="text-danger">*</span>
+                                              <div class="row">
+                                                  <div class="col-md-6">
+                                                      <div class="mb-3">
+                                                          <div class="form-label">Email <span
+                                                                  class="text-danger">*</span>
+                                                          </div>
+                                                          <input type="email" name="email" id="email"
+                                                              class="form-control" placeholder="Email">
+                                                          <span class="text-danger form-error"
+                                                              id="error_email"></span>
                                                       </div>
-                                                      <input type="email" name="email" id="email" class="form-control"
-                                                          placeholder="Email">
-                                                      <span class="text-danger form-error" id="error_email"></span>
+                                                  </div>
+                                                  <div class="col-md-6">
+                                                      <div class="mb-3">
+                                                          <div class="form-label">Password <span
+                                                                  class="text-danger">*</span></div>
+                                                          <input type="password" name="password" class="form-control"
+                                                              placeholder="••••••">
+                                                          <span class="text-danger form-error"
+                                                              id="error_password"></span>
+                                                          <div id="passwordHelp" class="text-muted small">
+                                                              Must be at least 8 characters, include uppercase,
+                                                              lowercase, number, and special character.
+                                                          </div>
+                                                      </div>
                                                   </div>
                                               </div>
-                                              <div class="col-md-6">
-                                                  <div class="mb-3">
-                                                      <div class="form-label">Password <span
-                                                              class="text-danger">*</span></div>
-                                                      <input type="password" name="password" class="form-control"
-                                                          placeholder="••••••">
-                                                      <span class="text-danger form-error" id="error_password"></span>
-                                                  </div>
-                                              </div>
-                                            </div>
                                               <div class="mb-3">
                                                   <label class="form-label">invoice terms </label>
                                                   <select class="form-select" name="invoice_terms"

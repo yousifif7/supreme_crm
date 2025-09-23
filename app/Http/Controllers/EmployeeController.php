@@ -122,7 +122,15 @@ class EmployeeController extends Controller
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
-            'password' => 'required|string|min:6',   // Add password validation
+            'password' => [
+                'required',
+                'string',
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
+            ],
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
             'employment_start_date' => 'nullable|date',
             'employment_end_date' => 'nullable|date|after:employment_start_date'
@@ -335,7 +343,14 @@ class EmployeeController extends Controller
             'terms.*.to' => 'nullable|date',
             'terms.*.entitlement' => 'nullable',
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
-            'password' => 'string|min:6',   // Add password validation
+            'password' => [
+                'string',
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
+            ],  // Add password validation
             'employment_start_date' => 'nullable|date',
             'employment_end_date' => 'nullable|date|after:employment_start_date'
         ]);
@@ -551,7 +566,7 @@ class EmployeeController extends Controller
             })
         ]);
     }
-    
+
     public function view($id)
     {
         // Find employee by user_id instead of employee ID

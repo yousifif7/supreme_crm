@@ -204,11 +204,11 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p>Hourly Rate</p>
-                                <p class="text-dark fw-medium">{{ $invoice->rate_per_hour }}$</p>
+                                <p class="text-dark fw-medium">{{ $invoice->rate_per_hour }}£</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p>Gross Pay (including SSP/Holiday)</p>
-                                <p class="text-dark fw-medium">{{ number_format($invoice->gross_amount, 2) }}$</p>
+                                <p class="text-dark fw-medium">{{ number_format($invoice->gross_amount, 2) }}£</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p>Unpaid Leave Deduction</p>
@@ -216,14 +216,14 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
                                 <h5>Net Pay</h5>
-                                <h5>{{ number_format($invoice->net_amount, 2) }}$</h5>
+                                <h5>{{ number_format($invoice->net_amount, 2) }}£</h5>
                             </div>
                             @php
                                 $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
                                 $words = $formatter->format($invoice->net_amount);
                             @endphp
                             <p class="fs-12">
-                                Amount in Words: EURO {{ ucwords($words) }} Only
+                                Amount in Words: UK POUND {{ ucwords($words) }} Only
                             </p>
                         </div>
                     </div>

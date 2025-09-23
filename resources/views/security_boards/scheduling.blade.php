@@ -296,8 +296,6 @@
                                 <div class="row">
                                     <div class="col-md-8">
                                         <div class="input-group">
-                                            <input id="enableSelectBtn" class="form-field" name="Multi_Select"
-                                                type="checkbox" style="margin:5px; font-size:15px;">
                                             <input type="text" id="ganttSearch" class="form-control"
                                                 placeholder="Search sites or shifts...">
                                             <button class="btn btn-outline-secondary" type="button" id="ganttSearchBtn">
@@ -401,7 +399,6 @@
             <!-- Add Rota -->
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
-            @include('security_boards.edit');
             @include('security_boards.multi-edit');
         </div>
 
@@ -430,9 +427,43 @@
                 </div>
             </div>
         </div>
-
-
     </div>
+
+
+    <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add/Edit Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="noteForm">
+                        @csrf
+                        <input type="hidden" id="shiftId" name="shift_id" value="">
+
+                        <div class="mb-3">
+                            <label for="noteType" class="form-label">Note For</label>
+                            <select class="form-select" id="noteType" name="note_type" required>
+                                <option value="guard">Guard</option>
+                                <option value="control">Control Room</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="noteText" class="form-label">Note</label>
+                            <textarea class="form-control" id="noteText" name="note" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveNoteBtn">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
@@ -839,25 +870,30 @@
                         if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
                         shiftsByDate[dateStr].push(shift);
                     });
+
                     Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
                         const cell = $(`#cell-${site.id}-${dateStr}`);
                         if (cell.length) {
                             shifts.forEach((shift, index) => {
                                 const bar = $(`
-                        <div class="gantt-bar shift-${shift.color_class}" 
-                             style="position: relative; top: ${index * 5}px; z-index: ${100 - index};" 
-                             data-shift-id="${shift.id}" title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
-                            ${shift.title}<br>${shift.formatted_time}<small><small>${shift.duration}</small></small><br>${shift.staff_name}
-                        </div>
-                    `);
+    <div class="gantt-bar shift-${shift.color_class}" 
+         style="position: relative; top: ${index*5}px; z-index:${100-index};" 
+         title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
+        ${shift.service_type ?? ''}<br>${shift.formatted_time}<small><small>${shift.duration}</small></small><br>${shift.staff_name}
+        <span class="note-icon" data-shift-id="${shift.id}" 
+              style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
+              📝
+        </span>
+    </div>
+`);
 
-                                // Checkbox outside the bar
                                 const checkbox = $(
                                     `<input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" style="display:none; margin-right:5px;">`
                                 );
                                 cell.append(checkbox);
                                 cell.append(bar);
 
+                                // Clicking bar opens shift details
                                 bar.on('click', function() {
                                     if (!selectionMode) {
                                         const shiftId = $(this).data('shift-id');
@@ -865,6 +901,19 @@
                                             `${baseUrl}/shift-dates/${shiftId}/view`,
                                             '_blank');
                                     }
+                                });
+
+                                // Clicking note icon opens modal (prevent bar click)
+                                bar.find('.note-icon').on('click', function(e) {
+                                    e.stopPropagation(); // prevent parent click
+                                    const shiftId = $(this).data('shift-id');
+                                    console.log("Open note modal for shift:",
+                                        shiftId);
+
+                                    // Open Bootstrap modal
+                                    $('#noteModal').modal('show');
+                                    $('#noteForm input[name="shift_id"]').val(
+                                        shiftId);
                                 });
                             });
                         }
@@ -974,7 +1023,7 @@
         // Toggle selection mode
         $('#enableSelectBtn').on('click', function() {
             selectionMode = !selectionMode;
-            $(this).text(selectionMode ? 'Cancel Select' : 'Select');
+            $(this).text(selectionMode ? 'Cancel Select' : 'Multi Select');
             $('#editSelectedBtn').prop('hidden', !selectionMode);
 
             // Show/hide checkboxes
@@ -1243,6 +1292,49 @@
             // Add active to the clicked one
             $(buttonId).addClass('active');
         }
+        let currentShiftId = null;
+
+        // Click note icon (dynamic)
+        // 1️⃣ Click note icon (dynamic) - always loads current note
+        $(document).on('click', '.note-icon', function(e) {
+            e.stopPropagation();
+            const shiftId = $(this).data('shift-id');
+            if (!shiftId) return;
+
+            $('#shiftId').val(shiftId); // store shift ID
+
+            // Get existing note via AJAX
+            $.get(`/shift-dates/${shiftId}/note`, function(data) {
+                $('#noteType').val(data?.note_type || 'guard');
+                $('#noteText').val(data?.note || '');
+                $('#noteModal').modal('show'); // open modal
+            });
+        });
+
+        // 2️⃣ Save or update note
+        $(document).on('click', '#saveNoteBtn', function(e) {
+            e.preventDefault();
+            const shiftId = $('#shiftId').val();
+            if (!shiftId) return;
+
+            $.ajax({
+                url: `/shift-dates/${shiftId}/note`,
+                type: 'POST',
+                data: $('#noteForm').serialize(), // form data includes note_type, note, shift_id, CSRF
+                success: function(res) {
+                    $('#noteModal').modal('hide');
+                    toast_success('Success on saving note!');
+                    // Mark the icon as "has note"
+                    $(`.note-icon[data-shift-id="${shiftId}"]`).css('color', '#0d6efd');
+
+                    console.log("Saved note:", res);
+                },
+                error: function(xhr) {
+                    console.error(xhr.responseText);
+                    toast_danger('Error saving note!');
+                }
+            });
+        });
     </script>
 
 @endsection

@@ -53,8 +53,11 @@ class ClientController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:6',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
             ],
         ]);
 
@@ -133,6 +136,15 @@ class ClientController extends Controller
             'guard_rate'      => 'nullable|numeric',
             'office_rate'     => 'nullable|numeric',
             'vat'  => 'nullable',
+            'password' => [
+                'required',
+                'string',
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -183,6 +195,7 @@ class ClientController extends Controller
                 $user->save();
             }
         }
+        unset($data['password']);
         // update client
         $client->update($data);
 

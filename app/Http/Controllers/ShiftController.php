@@ -14,13 +14,16 @@ use App\Models\Location;
 use Carbon\CarbonPeriod;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
+use App\Models\ShiftNote;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
 use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
+use Illuminate\Support\Facades\DB;
 use App\DataTables\ShiftsDataTable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
@@ -294,12 +297,17 @@ class ShiftController extends Controller
                 $data['is_assign'] = 1;
             }
 
+            $serviceType1 = DB::table('employee_types')->where('id', $request->service_type_1[$i])->first();
+            $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
+
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
                 'site_id'     => $request->site_id[$i],
                 'staff_id'    => $request->staff_id[$i] ?? null,
                 'start_shift' => $request->start_shift[$i],
                 'end_shift'   => $request->end_shift[$i],
+                'service_type_1'   => $serviceType1->name,
+                'service_type_2'   => $serviceType2->name,
             ]);
 
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
@@ -848,6 +856,7 @@ class ShiftController extends Controller
                 'end_date' => $sd->shift_date,
                 'start_time' => $sd->start_time,
                 'end_time' => $sd->end_time,
+                'service_type' => $sd->shift->service_type_2 ?? $sd->shift->service_type_1 ,
                 'formatted_time' => "{$startTime->format('H:i')} - {$endTime->format('H:i')}",
                 'duration' => "({$durationFormatted})",
                 'staff_name' => $staffName,
@@ -1731,4 +1740,32 @@ class ShiftController extends Controller
             'shift_id' => $shift->id
         ]);
     }
+
+    public function showNote($id)
+    {
+        $note = ShiftNote::where('shift_date_id', $id)->first();
+        return response()->json($note);
+    }
+
+public function storeNote(Request $request, $id)
+{
+    $request->validate([
+        'note_type' => 'required|in:guard,control,both',
+        'note' => 'required|string',
+    ]);
+
+    $note = ShiftNote::updateOrCreate(
+        ['shift_date_id' => $id],
+        [
+            'note_type' => $request->note_type,
+            'note'      => $request->note,
+            'user_id'   => Auth::id(),
+        ]
+    );
+
+    return response()->json([
+        'success' => true,
+        'note' => $note
+    ]);
+}
 }

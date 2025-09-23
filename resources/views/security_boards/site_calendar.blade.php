@@ -181,7 +181,6 @@
             @include('security_boards.shiftmodal');
             <!-- /Breadcrumb -->
 
-            @include('security_boards.edit')
         </div>
 
         <!-- Add Shift Success -->

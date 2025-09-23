@@ -178,7 +178,6 @@
                             <!-- /Event -->
 
 
-                            @include('security_boards.edit')
                         </div>
                     </div>
 

@@ -443,6 +443,10 @@ Route::get('/reports/employment/{employee}/pdf', [EmployeeController::class, 'ex
 Route::post('/restrictions/override', [ShiftController::class, 'override'])
     ->name('restrictions.override');
 
+    Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
+Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
+
+
 require __DIR__ . '/auth.php';
 
 // Route::get('/test-read-update', function () {

@@ -84,7 +84,7 @@
                                                 <label class="form-label">Book on <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="book_on" id="book_on" class="form-control"
-                                                    value="{{ date('H:i') }}">
+                                                    value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time )->format('H:i') }}">
                                                 <span class="text-danger form-error time-input" id="error_book_on"></span>
                                             </div>
                                         </div>
@@ -93,7 +93,7 @@
                                                 <label class="form-label">Book off <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="book_off" id="book_off"
-                                                    class="form-control" value="{{ date('H:i') }}">
+                                                    class="form-control" value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time )->format('H:i') }}">
                                                 <span class="text-danger form-error time-input" id="error_book_off"></span>
                                             </div>
                                         </div>

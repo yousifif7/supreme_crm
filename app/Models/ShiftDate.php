@@ -68,6 +68,11 @@ class ShiftDate extends Model
         return $this->belongsTo(User::class, 'staff_id');
     }
 
+    public function notes()
+    {
+        return $this->belongsTo(ShiftNote::class, 'shift_date_id');
+    }
+
     public function checkCalls()
     {
         return $this->hasMany(CheckCall::class, 'shift_id');

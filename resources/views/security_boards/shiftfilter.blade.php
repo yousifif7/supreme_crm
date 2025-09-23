@@ -25,7 +25,6 @@
         </div>
     </div>
     <div class="d-flex align-items-baseline justify-content-between flex-wrap gap-1">
-
         <div class="left mt-4">
             <button class="refresh_btn" onclick="window.location.reload()">
                 <i class="ti ti-reload"></i>Refresh
@@ -35,7 +34,10 @@
         <div class="right mt-4">
             @yield('filter')
             @if (Request::is('scheduling*'))
-                <button id="editSelectedBtn" class="btn add-btn btn-success" hidden style="background: gray;">Multiple Edit</button>
+                <button id="editSelectedBtn" class="btn add-btn btn-success" hidden style="background: gray;">Multiple
+                    Edit</button>
+                <button id="enableSelectBtn" class="btn add-btn btn-success" name="Multi_Select"
+                    style="background: gray;">Multi Select</button>
                 <button type="button" class="add_btn btn btn-white" data-bs-toggle="modal"
                     data-bs-target="#filterModal">
                     Filter
