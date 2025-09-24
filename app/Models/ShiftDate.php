@@ -68,7 +68,7 @@ class ShiftDate extends Model
         return $this->belongsTo(User::class, 'staff_id');
     }
 
-    public function notes()
+    public function note()
     {
         return $this->belongsTo(ShiftNote::class, 'shift_date_id');
     }

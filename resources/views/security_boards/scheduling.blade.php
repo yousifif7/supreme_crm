@@ -464,6 +464,43 @@
         </div>
     </div>
 
+    <div class="modal fade" id="viewNoteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Shift Note</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Note For:</strong> <span id="viewNoteType"></span></p>
+                    <p><strong>Note:</strong></p>
+                    <p id="viewNoteText" class="border rounded p-2 bg-light"></p>
+                </div>
+                <div class="modal-footer justify-content-between">
+                    <button type="button" class="btn btn-danger" id="deleteNoteBtn">Delete</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-sm">
+            <div class="modal-content text-center">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this note?</p>
+                </div>
+                <div class="modal-footer justify-content-center">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
@@ -877,13 +914,21 @@
                             shifts.forEach((shift, index) => {
                                 const bar = $(`
     <div class="gantt-bar shift-${shift.color_class}" 
+         data-shift-id="${shift.id}"
          style="position: relative; top: ${index*5}px; z-index:${100-index};" 
          title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
         ${shift.service_type ?? ''}<br>${shift.formatted_time}<small><small>${shift.duration}</small></small><br>${shift.staff_name}
-        <span class="note-icon" data-shift-id="${shift.id}" 
-              style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
-              📝
-        </span>
+
+        ${shift.note 
+            ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
+                                                            style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">
+                                                                📝
+                                                       </span>` 
+            : `<span class="note-icon" data-shift-id="${shift.id}" 
+                                                            style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
+                                                                📝
+                                                       </span>`
+        }
     </div>
 `);
 
@@ -905,15 +950,36 @@
 
                                 // Clicking note icon opens modal (prevent bar click)
                                 bar.find('.note-icon').on('click', function(e) {
-                                    e.stopPropagation(); // prevent parent click
+                                    e.stopPropagation();
                                     const shiftId = $(this).data('shift-id');
-                                    console.log("Open note modal for shift:",
-                                        shiftId);
 
-                                    // Open Bootstrap modal
+                                    $('#shiftId').val(shiftId);
+                                    $('#noteForm')[0].reset();
+                                    $('#noteType').val('guard');
+                                    $('#noteText').val('');
                                     $('#noteModal').modal('show');
-                                    $('#noteForm input[name="shift_id"]').val(
-                                        shiftId);
+                                });
+
+                                // View note icon
+                                bar.find('.view-note-icon').on('click', function(e) {
+                                    e.stopPropagation();
+                                    const shiftId = $(this).data('shift-id');
+
+                                    $('#shiftId').val(shiftId);
+
+                                    $.get(`/shift-dates/${shiftId}/note`, function(
+                                        data) {
+                                        if (data && data.note) {
+                                            $('#viewNoteText').text(data
+                                                .note);
+                                            $('#viewNoteType').text(data
+                                                .note_type);
+                                            $('#deleteNoteBtn').data(
+                                                'shift-id', shiftId);
+                                            $('#viewNoteModal').modal(
+                                                'show');
+                                        }
+                                    });
                                 });
                             });
                         }
@@ -1294,21 +1360,36 @@
         }
         let currentShiftId = null;
 
-        // Click note icon (dynamic)
-        // 1️⃣ Click note icon (dynamic) - always loads current note
-        $(document).on('click', '.note-icon', function(e) {
-            e.stopPropagation();
+        // Handle both add-note (📝) and view-note (👁️) icons
+        // Only global delegated click handler
+        $(document).on('click', '.note-icon, .view-note-icon', function(e) {
+            e.stopPropagation(); // Prevent the bar click from firing
+
             const shiftId = $(this).data('shift-id');
             if (!shiftId) return;
 
-            $('#shiftId').val(shiftId); // store shift ID
+            if ($(this).hasClass('note-icon')) {
+                // Add note modal
+                $('#shiftId').val(shiftId);
+                $('#noteForm')[0].reset();
+                $('#noteType').val('guard');
+                $('#noteText').val('');
+                $('#noteModal').modal('show');
+            } else if ($(this).hasClass('view-note-icon')) {
+                // View note modal
+                $('#shiftId').val(shiftId);
+                $.get(`/shift-dates/${shiftId}/note`, function(data) {
+                    if (data && data.note) {
+                        $('#viewNoteText').text(data.note);
+                        $('#viewNoteType').text(data.note_type);
 
-            // Get existing note via AJAX
-            $.get(`/shift-dates/${shiftId}/note`, function(data) {
-                $('#noteType').val(data?.note_type || 'guard');
-                $('#noteText').val(data?.note || '');
-                $('#noteModal').modal('show'); // open modal
-            });
+                        // store note ID on the Delete button
+                        $('#deleteNoteBtn').data('note-id', data.id);
+
+                        $('#viewNoteModal').modal('show');
+                    }
+                });
+            }
         });
 
         // 2️⃣ Save or update note
@@ -1332,6 +1413,41 @@
                 error: function(xhr) {
                     console.error(xhr.responseText);
                     toast_danger('Error saving note!');
+                }
+            });
+        });
+
+        // Click delete button (from view modal)
+        $(document).on('click', '#deleteNoteBtn', function() {
+            const noteId = $(this).data('note-id');
+            $('#confirmDeleteBtn').data('note-id', noteId);
+            $('#viewNoteModal').modal('hide');
+            $('#confirmDeleteModal').modal('show');
+        });
+
+        $(document).on('click', '#confirmDeleteBtn', function() {
+            const noteId = $(this).data('note-id');
+            // if (!noteId) return;
+
+            $.ajax({
+                url: `/shift-dates/${noteId}/note`, // route should accept note ID
+                type: 'DELETE',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function() {
+                    $('#confirmDeleteModal').modal('hide');
+                    toast_success('Note deleted!');
+                    $(`.view-note-icon[data-note-id="${noteId}"]`)
+                        .removeClass('view-note-icon')
+                        .addClass('note-icon')
+                        .html('📝')
+                        .css('color', '#555');
+                },
+                error: function(xhr) {
+                    $('#confirmDeleteModal').modal('hide');
+                    toast_danger('Error deleting note!');
+                    console.error(xhr.responseText);
                 }
             });
         });

@@ -445,6 +445,7 @@ Route::post('/restrictions/override', [ShiftController::class, 'override'])
 
     Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
 Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
+Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
 
 
 require __DIR__ . '/auth.php';

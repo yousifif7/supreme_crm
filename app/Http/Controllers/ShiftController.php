@@ -847,6 +847,8 @@ class ShiftController extends Controller
             // Client
             $client = User::find($shift->client_id);
 
+            $note = ShiftNote::where('shift_date_id',$sd->id)->first(); // or $sd->shiftNote, depending on your relationship
+
             $ganttData[] = [
                 'id' => $sd->id,
                 'site_id' => $shift->site_id ?? null,
@@ -869,6 +871,8 @@ class ShiftController extends Controller
                 'duration_hours' => $durationHours + ($durationMinutes / 60),
                 'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
                 'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
+                'note' => $note?->note ?? null,          // ✅ include note text
+                'note_type' => $note?->note_type ?? null // ✅ include note type
             ];
         }
 
@@ -1767,5 +1771,15 @@ public function storeNote(Request $request, $id)
         'success' => true,
         'note' => $note
     ]);
+}
+
+public function deleteNote($noteId)
+{
+    $note = ShiftNote::find($noteId);
+    if ($note) {
+        $note->delete();
+        return response()->json(['success' => true]);
+    }
+    return response()->json(['success' => false]);
 }
 }
