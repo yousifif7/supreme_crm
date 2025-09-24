@@ -10,6 +10,7 @@ use App\Models\Shift;
 use App\Models\Patrol;
 use App\Models\Employee;
 use App\Models\ShiftDate;
+use App\Models\ShiftNote;
 use App\Models\BookingAlarm;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
@@ -68,19 +69,17 @@ class ShiftApiController extends Controller
                 $category = 'upcoming';
             }
 
-            $trainings = $shiftDate->trainings->map(function ($training) {
-                // Because we eager-loaded only this user's acknowledgements,
-                // there will be at most one item in the collection (or none).
-                $ack = $training->acknowledgedUsers->first();
+            // Fetch the note for this shift
+            $note = ShiftNote::where('shift_date_id',$shiftDate->id)->first(); // assuming you have a relation: ShiftDate -> note
 
+            $trainings = $shiftDate->trainings->map(function ($training) {
+                $ack = $training->acknowledgedUsers->first();
                 $acknowledged = false;
                 $acknowledgedAt = null;
                 $completionSeconds = null;
 
                 if ($ack) {
-                    // Use acknowledged_at presence as the acknowledgement flag
                     $acknowledged = !empty($ack->acknowledged_at);
-                    // Convert to string so JSON is consistent; null if not present
                     $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
                     $completionSeconds = $ack->completion_time_seconds !== null
                         ? (int) $ack->completion_time_seconds
@@ -88,42 +87,48 @@ class ShiftApiController extends Controller
                 }
 
                 return [
-                    'id'                      => $training->id,
-                    'title'                   => $training->title,
-                    'description'             => $training->description,
-                    'pdf_url'                 => $training->pdf_url,
-                    'content_url'             => $training->content_url ?? null,
-                    'required'                => (bool) ($training->required ?? false),
-                    'acknowledged'            => $acknowledged,
-                    'acknowledged_at'         => $acknowledgedAt,
+                    'id' => $training->id,
+                    'title' => $training->title,
+                    'description' => $training->description,
+                    'pdf_url' => $training->pdf_url,
+                    'content_url' => $training->content_url ?? null,
+                    'required' => (bool) ($training->required ?? false),
+                    'acknowledged' => $acknowledged,
+                    'acknowledged_at' => $acknowledgedAt,
                     'completion_time_seconds' => $completionSeconds,
                     'implementation_date' => $training->implementation_date,
                     'complete_by_date' => $training->deadline,
                     'acknowledge_by_date' => $training->acknowledge_by_date,
-                    'created_at'              => $training->created_at,
-                    'updated_at'              => $training->updated_at,
+                    'created_at' => $training->created_at,
+                    'updated_at' => $training->updated_at,
                 ];
             });
 
             return [
-                'id'                   => $shiftDate->id,
-                'shift_id'             => $shiftDate->shift_id,
-                'site_id'              => $site?->id,
-                'site_name'            => $site?->site_name,
-                'site_address'         => $site?->address,
-                'start_time'           => $shiftDate->start_time,
-                'end_time'             => $shiftDate->end_time,
-                'shift_date'           => $shiftDate->shift_date,
-                'duties'               => $shift?->duties,
-                'supervisor_name'      => $shift?->supervisor_name,
-                'supervisor_contact'   => $shift?->supervisor_contact,
-                'status'               => $shiftDate->status,
-                'started_at'           => $shiftDate->absentee_start_time,
-                'ended_at'             => $shiftDate->absentee_end_time,
-                'briefing_pdf'         => $shift?->briefing_pdf_url,
-                'risk_assessment_pdf'  => $shift?->risk_assessment_pdf_url,
-                'category'             => $category,
-                'trainings'            => $trainings,
+                'id' => $shiftDate->id,
+                'shift_id' => $shiftDate->shift_id,
+                'site_id' => $site?->id,
+                'site_name' => $site?->site_name,
+                'site_address' => $site?->address,
+                'start_time' => $shiftDate->start_time,
+                'end_time' => $shiftDate->end_time,
+                'shift_date' => $shiftDate->shift_date,
+                'duties' => $shift?->duties,
+                'supervisor_name' => $shift?->supervisor_name,
+                'supervisor_contact' => $shift?->supervisor_contact,
+                'status' => $shiftDate->status,
+                'started_at' => $shiftDate->absentee_start_time,
+                'ended_at' => $shiftDate->absentee_end_time,
+                'briefing_pdf' => $shift?->briefing_pdf_url,
+                'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
+                'category' => $category,
+                'trainings' => $trainings,
+                // ✅ Add note info here
+                'note' => $note ? [
+                    'id' => $note->id,
+                    'note_type' => $note->note_type,
+                    'note' => $note->note,
+                ] : null,
             ];
         });
 
