@@ -80,7 +80,7 @@ class EmployeeLeaveController extends Controller
             'type' => $request['type'],
             'status' => 'approved',
         ]);
-        Logger::log(Auth::user(), 'Create', 'Approved a leave for Staff '.$employee->fore_name.' '.$employee->last_name);
+        Logger::log(Auth::user(), 'Create', 'Approved a leave for Staff ' . $employee->fore_name . ' ' . $employee->last_name);
 
         send_push_notification(
             $user->id,
@@ -222,7 +222,7 @@ class EmployeeLeaveController extends Controller
                     "/shift-dates/$shift->id/view",
                 );
             }
-            Logger::log(Auth::user(), 'Update', 'Approved a leave for Staff '.$employee->fore_name.' '.$employee->sur_name);
+            Logger::log(Auth::user(), 'Update', 'Approved a leave for Staff ' . $employee->fore_name . ' ' . $employee->sur_name);
 
             send_push_notification(
                 $userId,
@@ -240,7 +240,7 @@ class EmployeeLeaveController extends Controller
                 "An admin rejected a leave request from {$leave->start_date} to {$leave->end_date} requested by $employeeName . Reason: {$leave->reject_reason}",
                 "/leaves"
             );
-            Logger::log(Auth::user(), 'Update', 'Rejected a leave for Staff '.$employee->fore_name.' '.$employee->sur_name);
+            Logger::log(Auth::user(), 'Update', 'Rejected a leave for Staff ' . $employee->fore_name . ' ' . $employee->sur_name);
 
             send_push_notification(
                 $userId,
@@ -256,7 +256,7 @@ class EmployeeLeaveController extends Controller
     public function destroy($leaveId)
     {
         $leave = LeaveRequest::findOrFail($leaveId);
-        Logger::log(Auth::user(), 'Delete', 'A leave for Staff '.$leave->user->first_name.' '.$leave->user->last_name);
+        Logger::log(Auth::user(), 'Delete', 'A leave for Staff ' . $leave->user->first_name . ' ' . $leave->user->last_name);
 
         $leave->delete();
 
@@ -358,56 +358,140 @@ class EmployeeLeaveController extends Controller
 
     public function approve(LeaveRequest $leave)
     {
-        $leave->status = 'approved';
-        $leave->reject_reason = null;
+        $employee = Employee::find($leave->employee_id);
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found.'], 404);
+        }
+
+        // Calculate leave duration
+        $start = Carbon::parse($leave->start_date);
+        $end   = Carbon::parse($leave->end_date);
+        $totalDays   = $end->diffInDays($start) + 1;
+        $hoursPerDay = $leave->hours ? ($leave->hours / $totalDays) : 8;
+        $totalLeaveHours = $totalDays * $hoursPerDay;
+
+        // Calculate total hours worked from shifts (until leave start)
+        $firstShift = \App\Models\ShiftDate::where('staff_id', $employee->user_id)
+            ->orderBy('shift_date', 'asc')
+            ->first();
+
+        $startDate = $firstShift ? $firstShift->shift_date : $leave->start_date;
+
+        // Sum total worked hours from first shift to leave start
+        $totalWorkedHours = \App\Models\ShiftDate::where('staff_id', $employee->user_id)
+            ->whereBetween('shift_date', [$startDate, $leave->start_date])
+            ->sum('total_hours');
+
+        // Initialize variables
+        $paid = false;
+        $sspPaidDays = 0;
+        $holidayHours = 0;
+        $unpaidHours = 0;
+        $amountPaid = 0;
+
+        // Sick leave logic
+        if ($leave->type === 'sick_leave') {
+            $sspRate = 23.75;
+            $waitingDays = 3;
+            $sspPaidDays = max($totalDays - $waitingDays, 0);
+            $unpaidHours = min($waitingDays, $totalDays) * $hoursPerDay;
+            $paid = $sspPaidDays > 0;
+            $amountPaid = $sspPaidDays * $sspRate;
+        }
+
+        // Annual leave logic
+        if ($leave->type === 'annual_leave') {
+            $holidayBalance = $employee->holiday_balance ?? 0;
+            if ($totalLeaveHours > $holidayBalance) {
+                $holidayHours = $holidayBalance;
+                $unpaidHours  = $totalLeaveHours - $holidayBalance;
+                $paid = $holidayBalance > 0;
+            } else {
+                $holidayHours = $totalLeaveHours;
+                $unpaidHours = 0;
+                $paid = $holidayHours > 0;
+            }
+        }
+
+        // Unpaid or other leave
+        if ($leave->type === 'unpaid_leave') {
+            $unpaidHours = $totalLeaveHours;
+            $paid = false;
+        }
+
+        if ($leave->type === 'other_leave') {
+            $paid = $leave->paid ?? false;
+            if ($paid) {
+                $holidayHours = $totalLeaveHours;
+            } else {
+                $unpaidHours = $totalLeaveHours;
+            }
+        }
+
+        // Update leave record
+        $leave->status             = 'approved';
+        $leave->reject_reason      = null;
+        $leave->approved_by        = auth()->id();
+        $leave->approved_at        = now();
+        $leave->hours              = $totalLeaveHours;
+        $leave->approved_hours     = $totalLeaveHours - $unpaidHours;
+        $leave->paid               = $paid;
+        $leave->ssp_paid_days      = $sspPaidDays;
+        $leave->holiday_days_used  = $holidayHours;
+        $leave->unpaid_days        = $unpaidHours / $hoursPerDay;
+        $leave->amount_paid        = $amountPaid;
+        $leave->total_hours_worked = $totalWorkedHours; // new
         $leave->save();
 
-        $employee = User::find($leave->user_id);
-        $employeeName = $employee->first_name . ' ' . $employee->last_name;
+        $employeeName = $employee->fore_name . ' ' . $employee->sur_name;
+        $userId = $leave->user_id;
 
-        $userId = $employee->id;
-        if ($leave->status === 'approved') {
-            Notify::toDashboard(
-                null,
-                'alert',
-                'Leave Approved',
-                "An admin Approved a leave request from {$leave->start_date} to {$leave->end_date} requested by $employeeName",
-                "/leaves"
-            );
+        // Notifications
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Leave Approved',
+            "An admin approved a leave request from {$leave->start_date} to {$leave->end_date} requested by $employeeName",
+            "/leaves"
+        );
 
-            $shift = ShiftDate::find($leave->shift_id);
-            if ($shift) {
-                $shift->staff_id = null;
-                $shift->status = 'cancelled';
-                $shift->is_assign = 6;
-                $shift->save();
-
-                // $staff = User::role('security_staff')->where('id',$shift->staff_id)->first();
-                send_push_notification(
-                    $userId,
-                    'Removed from shift',
-                    "You have been removed from shift (ID: " . $shift->id . ' at ' . $shift->shift_date,
-                    ['shift' => $shift]
-                );
-
-                Notify::toDashboard(
-                    null,
-                    'alert',
-                    'Guard Removed from shift',
-                    "Guard " . $employeeName . ' Has been removed from shift due to leave accepted, Reassign the shift before ' . $shift->start_time,
-                    "/shift-dates/$shift->id/view",
-                );
-            }
+        // Handle shift cancellation if assigned
+        $shift = ShiftDate::find($leave->shift_id);
+        if ($shift) {
+            $shift->staff_id = null;
+            $shift->status = 'cancelled';
+            $shift->is_assign = 6;
+            $shift->save();
 
             send_push_notification(
                 $userId,
-                'Leave Approved',
-                "Your leave request has been approved by admin.",
-                ['leave' => $leave]
+                'Removed from shift',
+                "You have been removed from shift (ID: {$shift->id} at {$shift->shift_date})",
+                ['shift' => $shift]
+            );
+
+            Notify::toDashboard(
+                null,
+                'alert',
+                'Guard Removed from shift',
+                "Guard $employeeName has been removed from shift due to leave approved. Reassign before {$shift->start_time}",
+                "/shift-dates/{$shift->id}/view"
             );
         }
+
+        Logger::log(Auth::user(), 'Update', "Approved a leave for staff $employeeName");
+
+        send_push_notification(
+            $userId,
+            'Leave Approved',
+            "Your leave request has been approved by admin.",
+            ['leave' => $leave]
+        );
+
         return response()->json(['success' => true, 'message' => 'Leave approved']);
     }
+
+
 
     public function reject(Request $request, LeaveRequest $leave)
     {

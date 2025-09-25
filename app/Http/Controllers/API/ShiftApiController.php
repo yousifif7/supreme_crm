@@ -71,7 +71,7 @@ class ShiftApiController extends Controller
             }
 
             // Fetch the note for this shift
-            $note = ShiftNote::where('shift_date_id',$shiftDate->id)->first(); // assuming you have a relation: ShiftDate -> note
+            $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first(); // assuming you have a relation: ShiftDate -> note
 
             $trainings = $shiftDate->trainings->map(function ($training) {
                 $ack = $training->acknowledgedUsers->first();
@@ -220,7 +220,7 @@ class ShiftApiController extends Controller
     public function submitLeaveRequest(Request $request)
     {
         $request->validate([
-            'start_date' => 'required|date|after_or_equal:today',
+            'start_date' => 'required|date|after_or_equal:now',
             'end_date'   => 'required|date|after_or_equal:start_date',
             'reason'     => 'required|string',
             'type'       => 'required|in:annual_leave,sick_leave,unpaid_leave,other_leave',
@@ -231,9 +231,11 @@ class ShiftApiController extends Controller
         $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->firstOrFail();
 
+        // Parse full datetime instead of date only
         $start = Carbon::parse($request->start_date);
         $end   = Carbon::parse($request->end_date);
-        $totalDays = $end->diffInDays($start) + 1;
+
+        $totalDays   = $end->diffInDays($start) + 1;
         $hoursPerDay = $request->hours ?? 8;
         $totalHours  = $totalDays * $hoursPerDay;
 
@@ -283,8 +285,8 @@ class ShiftApiController extends Controller
             'user_id'          => $user->id,
             'employee_id'      => $employee->id,
             'shift_id'         => $request->shift_id,
-            'start_date'       => $request->start_date,
-            'end_date'         => $request->end_date,
+            'start_date'       => $start, // datetime
+            'end_date'         => $end,   // datetime
             'reason'           => $request->reason,
             'type'             => $request->type,
             'hours'            => $totalHours,
@@ -471,12 +473,12 @@ class ShiftApiController extends Controller
             ->first();
 
         if ($existingBooking) {
-            $shift= ShiftDate::find($existingBooking->shift_id);
-            if($shift?->is_assign!=4){
+            $shift = ShiftDate::find($existingBooking->shift_id);
+            if ($shift?->is_assign != 4) {
                 return response()->json([
                     'message' => 'You already have a booked on shift (ShiftDate ID: ' . $existingBooking->shift_id . ').'
                 ], 409);
-            } 
+            }
         }
 
         // ✅ Correct: find by ShiftDate ID
@@ -975,7 +977,7 @@ class ShiftApiController extends Controller
         return response()->json($calendarShifts);
     }
 
-        public function calculateSickPay(Employee $staff, Carbon $sickStart, Carbon $sickEnd, int $weeklyPay)
+    public function calculateSickPay(Employee $staff, Carbon $sickStart, Carbon $sickEnd, int $weeklyPay)
     {
         if ($weeklyPay < 123) {
             return ['eligible' => false, 'paid_days' => 0, 'unpaid_days' => $sickStart->diffInDays($sickEnd) + 1, 'amount' => 0];

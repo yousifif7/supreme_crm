@@ -327,18 +327,31 @@ class ShiftController extends Controller
                 if (in_array($date->format('D'), $selectedDays)) {
 
                     if (!empty($data['staff_id'])) {
+                        $shiftStart = Carbon::parse($date->format('Y-m-d') . ' ' . $data['start_shift']);
+                        $shiftEnd   = Carbon::parse($date->format('Y-m-d') . ' ' . $data['end_shift']);
+
                         $leave = LeaveRequest::where('user_id', $data['staff_id'])
                             ->where('status', 'approved')
-                            ->whereDate('start_date', '<=', $date->format('Y-m-d'))
-                            ->whereDate('end_date', '>=', $date->format('Y-m-d'))
+                            ->where(function ($query) use ($shiftStart, $shiftEnd) {
+                                $query->where(function ($q) use ($shiftStart, $shiftEnd) {
+                                    $q->where('start_date', '<=', $shiftEnd)
+                                        ->where('end_date', '>=', $shiftStart);
+                                });
+                            })
                             ->first();
 
                         if ($leave) {
                             return response()->json([
-                                'error' => "Staff has an approved leave from {$leave->start_date} to {$leave->end_date} on {$date->format('Y-m-d')}."
+                                'error' => "Staff has an approved leave from "
+                                    . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
+                                    . " to "
+                                    . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')
+                                    . " on "
+                                    . \Carbon\Carbon::parse($date)->format('Y-m-d') . "."
                             ], 422);
                         }
                     }
+
                     // Create ShiftDate
                     $shiftDate = ShiftDate::create([
                         'shift_id'    => $shift->id,
@@ -447,8 +460,7 @@ class ShiftController extends Controller
                         }
                     }
                 }
-                Logger::log(Auth::user(), 'Create', 'A Shift for site '.$shift->site->site_name.' Starting at: '.$shiftDate->start_time.' On '.$shiftDate->date);
-
+                Logger::log(Auth::user(), 'Create', 'A Shift for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->date);
             }
         }
 
@@ -518,15 +530,20 @@ class ShiftController extends Controller
 
 
                 $shiftDateValue = $data['shift_date'] ?? $shift->shift_date;
-                $leave = LeaveRequest::where('user_id', $data['staff_id'])
+                $leave = LeaveRequest::where('user_id', $staff->user_id)
                     ->where('status', 'approved')
-                    ->whereDate('start_date', '<=', $shiftDateValue)
-                    ->whereDate('end_date', '>=', $shiftDateValue)
+                    ->where('start_date', '<=', $shift->shift_date) // full datetime comparison
+                    ->where('end_date', '>=', $shift->shift_date)   // full datetime comparison
                     ->first();
 
                 if ($leave) {
                     return response()->json([
-                        'errors' => "Staff has an approved leave from {$leave->start_date} to {$leave->end_date}."
+                        'errors' => [
+                            'leave' => ['leave' => "Staff has an approved leave from "
+                                . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
+                                . " to "
+                                . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')]
+                        ]
                     ], 422);
                 }
 
@@ -850,7 +867,7 @@ class ShiftController extends Controller
             // Client
             $client = User::find($shift->client_id);
 
-            $note = ShiftNote::where('shift_date_id',$sd->id)->first(); // or $sd->shiftNote, depending on your relationship
+            $note = ShiftNote::where('shift_date_id', $sd->id)->first(); // or $sd->shiftNote, depending on your relationship
 
             $ganttData[] = [
                 'id' => $sd->id,
@@ -861,7 +878,7 @@ class ShiftController extends Controller
                 'end_date' => $sd->shift_date,
                 'start_time' => $sd->start_time,
                 'end_time' => $sd->end_time,
-                'service_type' => $sd->shift->service_type_2 ?? $sd->shift->service_type_1 ,
+                'service_type' => $sd->shift->service_type_2 ?? $sd->shift->service_type_1,
                 'formatted_time' => "{$startTime->format('H:i')} - {$endTime->format('H:i')}",
                 'duration' => "({$durationFormatted})",
                 'staff_name' => $staffName,
@@ -1192,14 +1209,17 @@ class ShiftController extends Controller
         // ====== 1️⃣ Check for approved leave ======
         $leave = LeaveRequest::where('user_id', $staffId)
             ->where('status', 'approved')
-            ->whereDate('start_date', '<=', $shiftDate->shift_date)
-            ->whereDate('end_date', '>=', $shiftDate->shift_date)
+            ->where('start_date', '<=', $shiftDate->shift_date) // full datetime comparison
+            ->where('end_date', '>=', $shiftDate->shift_date)   // full datetime comparison
             ->first();
 
         if ($leave) {
             return response()->json([
                 'errors' => [
-                    'leave' => ["Staff has an approved leave from {$leave->start_date} to {$leave->end_date}."]
+                    'leave' => "Staff has an approved leave from "
+                        . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
+                        . " to "
+                        . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')
                 ]
             ], 422);
         }
@@ -1575,17 +1595,32 @@ class ShiftController extends Controller
             $shift     = Shift::findOrFail($shiftDate->shift_id);
 
             // ====== 1️⃣ Check for approved leave ======
-            $leave = LeaveRequest::where('user_id', $staffId)
-                ->where('status', 'approved')
-                ->where(function ($query) use ($shiftDate) {
-                    $query->whereDate('start_date', '<=', $shiftDate->shift_date)
-                        ->whereDate('end_date', '>=', $shiftDate->shift_date);
-                })
-                ->first();
+            if ($staffId) {
+                $shiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . ($request->start_times[$shiftId] ?? $shiftDate->start_time));
+                $shiftEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . ($request->end_times[$shiftId] ?? $shiftDate->end_time));
 
-            if ($leave) {
-                $errors["shift_{$shiftId}"] = ["Staff has an approved leave from {$leave->start_date} to {$leave->end_date}."];
-                continue;
+                // Handle overnight shift
+                if ($shiftEnd->lte($shiftStart)) {
+                    $shiftEnd->addDay();
+                }
+
+                $leave = LeaveRequest::where('user_id', $staffId)
+                    ->where('status', 'approved')
+                    ->where(function ($query) use ($shiftStart, $shiftEnd) {
+                        $query->where(function ($q) use ($shiftStart, $shiftEnd) {
+                            $q->where('start_date', '<=', $shiftEnd)
+                                ->where('end_date', '>=', $shiftStart);
+                        });
+                    })
+                    ->first();
+
+                if ($leave) {
+                    $errors["shift_{$shiftId}"] = ['leave' => "Staff has an approved leave from "
+                        . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
+                        . " to "
+                        . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')];
+                    continue;
+                }
             }
 
             // Use provided start/end times if available
@@ -1754,35 +1789,35 @@ class ShiftController extends Controller
         return response()->json($note);
     }
 
-public function storeNote(Request $request, $id)
-{
-    $request->validate([
-        'note_type' => 'required|in:guard,control,both',
-        'note' => 'required|string',
-    ]);
+    public function storeNote(Request $request, $id)
+    {
+        $request->validate([
+            'note_type' => 'required|in:guard,control,both',
+            'note' => 'required|string',
+        ]);
 
-    $note = ShiftNote::updateOrCreate(
-        ['shift_date_id' => $id],
-        [
-            'note_type' => $request->note_type,
-            'note'      => $request->note,
-            'user_id'   => Auth::id(),
-        ]
-    );
+        $note = ShiftNote::updateOrCreate(
+            ['shift_date_id' => $id],
+            [
+                'note_type' => $request->note_type,
+                'note'      => $request->note,
+                'user_id'   => Auth::id(),
+            ]
+        );
 
-    return response()->json([
-        'success' => true,
-        'note' => $note
-    ]);
-}
-
-public function deleteNote($noteId)
-{
-    $note = ShiftNote::find($noteId);
-    if ($note) {
-        $note->delete();
-        return response()->json(['success' => true]);
+        return response()->json([
+            'success' => true,
+            'note' => $note
+        ]);
     }
-    return response()->json(['success' => false]);
-}
+
+    public function deleteNote($noteId)
+    {
+        $note = ShiftNote::find($noteId);
+        if ($note) {
+            $note->delete();
+            return response()->json(['success' => true]);
+        }
+        return response()->json(['success' => false]);
+    }
 }

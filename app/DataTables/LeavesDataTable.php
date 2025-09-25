@@ -41,8 +41,39 @@ class LeavesDataTable extends DataTable
             ->editColumn('unpaid_days', fn($leave) => $leave->unpaid_days)
             ->editColumn('amount_paid', fn($leave) => number_format($leave->amount_paid, 2))
             ->editColumn('created_at', fn($leave) => $leave->created_at?->format('Y-m-d'))
+            ->addColumn('total_hours_worked', function ($leave) {
+                if (!$leave->employee) return 0;
+
+                return $leave->total_hours_worked;
+            })
+            ->addColumn('accrued_leave', function ($leave) {
+                if (!$leave->employee) return '0 hrs';
+
+                $worked = \App\Models\ShiftDate::where('staff_id', $leave->user->id)
+                    ->where('shift_date', '<=', $leave->end_date)
+                    ->sum('total_hours');
+
+                return round($worked * 0.1207, 2) . ' hrs'; // UK formula
+            })
+            ->addColumn('paid_vs_unpaid', function ($leave) {
+                return ($leave->approved_hours ?? 0) . ' Paid / ' . ($leave->unpaid_days * 8) . ' Unpaid';
+            })
+            ->addColumn('entitlement', function ($leave) {
+                $emp = $leave->employee;
+                if (!$emp) return 'N/A';
+
+                $start = \Carbon\Carbon::parse($emp->start_date);
+                $daysWorked = $start->diffInDays(now());
+                $holidayDays = (28 / 365) * $daysWorked;
+                return round($holidayDays * 8, 2) . ' hrs';
+            })
+            ->addColumn('leave_balance', function ($leave) {
+                return $leave->employee?->holiday_balance
+                    ? $leave->employee->holiday_balance . ' hrs'
+                    : '0 hrs';
+            })
             ->filterColumn('reason', fn($query, $keyword) => $query->where('reason', 'like', "%{$keyword}%"))
-            ->rawColumns(['action', 'checkbox', 'number', 'reason'])
+            ->rawColumns(['action', 'checkbox', 'number', 'reason', 'entitlement', 'paid_vs_unpaid', 'accrued_leave', 'total_hours_worked', 'leave_balance'])
             ->setRowId('id');
     }
 
@@ -107,6 +138,7 @@ class LeavesDataTable extends DataTable
         return [
             Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::make('entitlement')->title('Entitlement (Pro-Rated hrs)'),
             Column::make('reason')->title('Details')->addClass('ps-0')->orderable(false),
             Column::make('staff_name')->title('Staff Name'), // new column
             Column::make('start_date')->title('Start date'),
@@ -116,6 +148,9 @@ class LeavesDataTable extends DataTable
             Column::make('hours')->title('Requested Hours'),
             Column::make('approved_hours')->title('Approved Hours'),
             Column::make('paid')->title('Paid'),
+            Column::make('total_hours_worked')->title('Total Hours Worked'),
+            Column::make('accrued_leave')->title('Accrued Leave (hrs)'),
+            Column::make('leave_balance')->title('Leave Balance'),
             Column::make('ssp_paid_days')->title('SSP Paid Days'),
             Column::make('unpaid_days')->title('Unpaid Days'),
             Column::make('amount_paid')->title('Amount Paid'),
