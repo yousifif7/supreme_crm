@@ -32,6 +32,7 @@ use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\RoadworthinessCheckController;
 use App\Models\TrainingMaterial;
 
@@ -447,6 +448,7 @@ Route::post('/restrictions/override', [ShiftController::class, 'override'])
 Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
 Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
 
+Route::get('/logs',[LogController::class,'index'])->name('logs.index');
 
 require __DIR__ . '/auth.php';
 
