@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\Logger;
 use App\Models\Employee;
 use Illuminate\Http\Request;
 use App\Models\IncidentMedia;
@@ -47,7 +48,6 @@ class IncidentReportController extends Controller
     public function edit($id)
     {
         $incident = IncidentReport::with('media')->findOrFail($id);
-
         return response()->json([
             'id' => $incident->id,
             'title' => $incident->title,
@@ -93,6 +93,8 @@ class IncidentReportController extends Controller
     public function destroy($id)
     {
         $report = IncidentReport::findOrFail($id);
+        Logger::log(Auth::user(), 'Delete', 'Incident report Deleted ');
+        
         $report->delete();
 
         return response()->json(['message' => 'Incident deleted successfully']);

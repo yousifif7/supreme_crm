@@ -7,6 +7,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
+use App\Helpers\Logger;
 use App\Models\Invoice;
 use App\Models\Employee;
 use Carbon\CarbonPeriod;
@@ -14,9 +15,10 @@ use App\Models\ShiftDate;
 use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
-use App\Services\PayrollCalculator;
-use App\DataTables\PayrollsDataTable;
 use App\Services\InvoiceService;
+use App\Services\PayrollCalculator;
+use Illuminate\Support\Facades\Auth;
+use App\DataTables\PayrollsDataTable;
 use Illuminate\Support\Facades\Validator;
 
 class PayrollController extends Controller
@@ -110,6 +112,8 @@ class PayrollController extends Controller
             ['invoice' => $invoice]
         );
 
+        Logger::log(Auth::user(), 'Create', 'Payroll NO. '.$invoice->ivoice_number.' Generated for Client '.$invoice->securityStaff->first_name.' '.$invoice->securityStaff->last_name);
+
         return response()->json([
             'message' => 'Payroll created successfully',
             'payroll' => $invoice,
@@ -196,6 +200,7 @@ class PayrollController extends Controller
     public function delete($id)
     {
         $payroll = Invoice::findOrFail($id);
+        Logger::log(Auth::user(), 'Create', 'Payroll NO. '.$payroll->ivoice_number.' Generated for Staff '.$payroll->securityStaff->first_name.' '.$payroll->securityStaff->last_name);
         $payroll->delete();
 
         return response()->json(['success' => true]);
@@ -205,10 +210,14 @@ class PayrollController extends Controller
     {
         $request->validate([
             'ids' => 'required|array',
-            'ids.*' => 'exists:pay_rolls,id',
+            'ids.*' => 'exists:invoices,id',
         ]);
 
-        Invoice::whereIn('id', $request->ids)->delete();
+        $invoices=Invoice::whereIn('id', $request->ids)->get();
+        foreach($invoices as $invoice){
+            Logger::log(Auth::user(), 'Create', 'Payroll NO. '.$invoice->ivoice_number.' Generated for Staff '.$invoice->securityStaff->first_name.' '.$invoice->securityStaff->last_name);
+            $invoice->delete();
+        }
 
         return response()->json(['message' => 'Selected payrolls deleted.']);
     }

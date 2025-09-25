@@ -31,6 +31,5 @@ class Shift extends Model
     {
         return $this->hasMany(ShiftDate::class);
     }
-
-
+    
 }

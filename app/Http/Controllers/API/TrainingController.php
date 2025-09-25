@@ -53,8 +53,8 @@ class TrainingController extends Controller
     public function acknowledge(Request $request, $id)
     {
         $request->validate([
-            'acknowledged_at' => 'required|date',
-            'completion_time_seconds' => 'required|integer|min:1',
+            'acknowledged_at' => 'date',
+            'completion_time_seconds' => 'integer|min:1',
         ]);
 
         $material = TrainingMaterial::findOrFail($id);
@@ -65,7 +65,7 @@ class TrainingController extends Controller
                 'training_material_id' => $id,
             ],
             [
-                'acknowledged_at' => $request->acknowledged_at,
+                'acknowledged_at' => now(),
                 'completion_time_seconds' => $request->completion_time_seconds,
             ]
         );

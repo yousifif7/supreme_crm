@@ -7,6 +7,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
+use App\Helpers\Logger;
 use App\Models\Invoice;
 use Carbon\CarbonPeriod;
 use App\Models\ShiftDate;
@@ -14,6 +15,7 @@ use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use App\Services\InvoiceService;
+use Illuminate\Support\Facades\Auth;
 use App\DataTables\InvoicesDataTable;
 use Illuminate\Support\Facades\Validator;
 use App\Http\Requests\GenerateInvoiceRequest;
@@ -113,6 +115,8 @@ class InvoiceController extends Controller
         $invoice->processed_by_payroll = true;
         $invoice->save();
 
+        Logger::log(Auth::user(), 'Create', 'Invoice NO. '.$invoice->ivoice_number.' Generated for Client '.$invoice->client->name);
+        
         return response()->json([
             'message' => 'Client invoice generated successfully',
             'invoice' => $invoice->load('items'),

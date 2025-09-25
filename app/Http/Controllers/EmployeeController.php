@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Helpers\Logger;
 use App\Models\Holiday;
 use App\Models\License;
 use App\Models\Employee;
@@ -13,6 +14,7 @@ use App\Models\EmployeeType;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\DataTables\EmployeesDataTable;
 use Illuminate\Support\Facades\Validator;
@@ -231,6 +233,8 @@ class EmployeeController extends Controller
         unset($employeeData['reference_number']);
         // Save employee
         $employee = Employee::create($employeeData);
+        Logger::log(Auth::user(), 'Create', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Created.');
+
         if ($request->has('holidays')) {
             foreach ($request->holidays as $holiday) {
                 Holiday::create([
@@ -464,6 +468,7 @@ class EmployeeController extends Controller
 
         // Now update employee record
         $updated = $employee->update($data);
+        Logger::log(Auth::user(), 'Update', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Updated.');
 
         if (!$updated) {
             return response()->json(['error' => 'Failed to update employee record.'], 500);
@@ -523,6 +528,8 @@ class EmployeeController extends Controller
         $employee = Employee::findOrFail($id);
         $empUser = User::role('security_staff')->find($employee->user_id);
 
+        Logger::log(Auth::user(), 'Delete', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Deleted.');
+
         $empUser->delete();
         $employee->delete();
 
@@ -545,6 +552,9 @@ class EmployeeController extends Controller
         // Delete related users (only security_staff role)
         User::role('security_staff')->whereIn('id', $userIds)->delete();
 
+        foreach($employees as $employee){
+            Logger::log(Auth::user(), 'Delete', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Deleted.');
+        }
         // Delete employees
         Employee::whereIn('id', $request->ids)->delete();
 

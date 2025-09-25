@@ -29,4 +29,12 @@ class Site extends Model
     {
         return $this->hasMany(PatrolCheckPoint::class, 'site_id');
     }
+
+    public function shifts() {
+        return $this->hasMany(Shift::class);
+    }
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

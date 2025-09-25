@@ -270,4 +270,9 @@ class Employee extends Model
 
         return $this->hasMany(Invoice::class);
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

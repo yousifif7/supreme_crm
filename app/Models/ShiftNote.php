@@ -12,4 +12,9 @@ class ShiftNote extends Model
     {
         return $this->belongsTo(ShiftDate::class,'shift_date_id');
     }
+    
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

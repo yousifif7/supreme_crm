@@ -2,16 +2,18 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\ClientsDataTable;
+use App\Models\User;
 use App\Models\Client;
+use App\Helpers\Logger;
 use App\Models\Company;
 use App\Models\Employee;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
+use App\DataTables\ClientsDataTable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Spatie\Permission\Models\Role;
 
 class ClientController extends Controller
 {
@@ -106,7 +108,9 @@ class ClientController extends Controller
         // unset($clientData['username'], $clientData['password']);
 
         // Create client
-        Client::create($clientData);
+        $client= Client::create($clientData);
+
+        Logger::log(Auth::user(), 'Created', 'A new client has been added');
 
         return response()->json(['message' => 'Client created successfully']);
     }
@@ -199,6 +203,8 @@ class ClientController extends Controller
         // update client
         $client->update($data);
 
+        Logger::log(Auth::user(), 'Updated', 'Client'.$client->client_name.' Updated');
+
         return response()->json(['message' => 'Client Update successfully']);
     }
     public function edit($id)
@@ -209,6 +215,7 @@ class ClientController extends Controller
     public function delete($id)
     {
         $client = Client::findOrFail($id);
+        Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
         $client->delete();
 
         return response()->json(['success' => true]);
@@ -220,7 +227,11 @@ class ClientController extends Controller
             'ids.*' => 'exists:clients,id',
         ]);
 
-        Client::whereIn('id', $request->ids)->delete();
+        $clients=Client::whereIn('id', $request->ids)->get();
+        foreach($clients as $client){
+            Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
+            $client->delete();
+        }
 
         return response()->json(['message' => 'Selected clients deleted.']);
     }
@@ -271,6 +282,9 @@ class ClientController extends Controller
         $client = Client::findOrFail($id);
         $client->manager_id = $request->manager_id;
         $client->save();
+        
+        Logger::log(Auth::user(), 'Update', 'Client '.$client->client_name.' Assigned a manager');
+
         return back()->with(['success' => 'Manager assigned successfully.']);
     }
 }

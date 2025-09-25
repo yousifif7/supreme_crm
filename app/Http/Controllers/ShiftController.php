@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
 use App\Models\Patrol;
+use App\Helpers\Logger;
 use App\Models\Employee;
 use App\Models\Location;
 use Carbon\CarbonPeriod;
@@ -306,8 +307,8 @@ class ShiftController extends Controller
                 'staff_id'    => $request->staff_id[$i] ?? null,
                 'start_shift' => $request->start_shift[$i],
                 'end_shift'   => $request->end_shift[$i],
-                'service_type_1'   => $serviceType1->name,
-                'service_type_2'   => $serviceType2->name,
+                'service_type_1'   => $serviceType1?->name,
+                'service_type_2'   => $serviceType2?->name,
             ]);
 
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
@@ -446,6 +447,8 @@ class ShiftController extends Controller
                         }
                     }
                 }
+                Logger::log(Auth::user(), 'Create', 'A Shift for site '.$shift->site->site_name.' Starting at: '.$shiftDate->start_time.' On '.$shiftDate->date);
+
             }
         }
 

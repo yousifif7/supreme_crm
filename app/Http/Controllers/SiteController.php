@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\SitesDataTable;
-use App\Models\Client;
-use App\Models\EmployeeType;
 use App\Models\Site;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
 use App\Models\User;
+use App\Models\Client;
+use App\Helpers\Logger;
+use App\Models\EmployeeType;
+use Illuminate\Http\Request;
+use App\DataTables\SitesDataTable;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Validator;
 
 class SiteController extends Controller
 {
@@ -95,6 +97,8 @@ class SiteController extends Controller
             }
         }
 
+        Logger::log(Auth::user(), 'Create', 'Site '.$site->site_name.' Created');
+
         return response()->json(['message' => 'Site created successfully']);
     }
 
@@ -149,6 +153,7 @@ class SiteController extends Controller
 
         // ✅ Update site
         $site->update($data);
+        Logger::log(Auth::user(), 'Update', 'Site '.$site->site_name.' Updated');
 
         // ✅ Sync employee types
         if ($request->has('employee_types')) {
@@ -220,6 +225,8 @@ class SiteController extends Controller
     public function delete($id)
     {
         $site = Site::findOrFail($id);
+        Logger::log(Auth::user(), 'Delete', 'Site '.$site->site_name.' Deleted');
+
         $site->delete();
 
         return response()->json(['success' => true]);
@@ -232,7 +239,11 @@ class SiteController extends Controller
             'ids.*' => 'exists:sites,id',
         ]);
 
-        Site::whereIn('id', $request->ids)->delete();
+        $sites = Site::whereIn('id', $request->ids)->get();
+        foreach($sites as $site){
+            Logger::log(Auth::user(), 'Delete', 'Site '.$site->site_name.' Deleted');
+            $site->delete();
+        }
 
         return response()->json(['message' => 'Selected sites deleted.']);
     }

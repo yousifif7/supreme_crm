@@ -9,6 +9,7 @@ use App\Models\Notification;
 use ExponentPhpSDK\ExpoRegistrar;
 use Illuminate\Support\Facades\Http;
 use ExponentPhpSDK\Repositories\ExpoFileDriver;
+use App\Models\Log;
 
 if (!function_exists('notify_users')) {
     function notify_users($title, $message, $type = 'notification', $action_url = null, $data = [], $users = null)
@@ -281,3 +282,4 @@ class Notify
         ]);
     }
 }
+

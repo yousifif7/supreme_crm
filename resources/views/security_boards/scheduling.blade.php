@@ -400,6 +400,7 @@
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
             @include('security_boards.multi-edit');
+
         </div>
 
         <!-- Add Shift Success -->
@@ -501,10 +502,19 @@
             </div>
         </div>
     </div>
+
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
     <script>
+        let container = document.getElementById('custom-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'custom-toast-container';
+            // Append to body as the last child
+            document.body.appendChild(container);
+        }
+
         document.addEventListener('DOMContentLoaded', function() {
             function initDaySelector(shiftGroup) {
                 const dayBoxes = shiftGroup.querySelectorAll('.day-box');
@@ -660,7 +670,12 @@
                     },
                     success: function(response) {
                         closeBsModal('#add_shift');
-                        toast_success(response.message ?? 'Shift created successfully!');
+                        // toast_success(response.message ?? 'Shift created successfully!');
+                        showToast(
+                            response.message ?? 'Shift created successfully!', // message
+                            'success', // type
+                            5000 // duration in ms
+                        );
                         location.reload();
                     },
                     error: function(xhr) {
@@ -678,9 +693,17 @@
                                     $('.error_' + key).eq(responseIndex).text(value[0]);
                             });
                         } else if (xhr.responseJSON?.error) {
-                            toast_danger(xhr.responseJSON.error);
+                            showToast(
+                                xhr.responseJSON.error, // message
+                                'error', // type
+                                5000 // duration in ms
+                            );
                         } else {
-                            toast_danger('An unexpected error occurred. Please try again.');
+                            showToast(
+                                'An unexpected error occurred. Please try again.', // message
+                                'error', // type
+                                5000 // duration in ms
+                            );
                         }
                     },
                     complete: function() {
@@ -921,13 +944,13 @@
 
         ${shift.note 
             ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                                            style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">
-                                                                📝
-                                                       </span>` 
+                                                                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">
+                                                                                                                        📝
+                                                                                                               </span>` 
             : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                                            style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
-                                                                📝
-                                                       </span>`
+                                                                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
+                                                                                                                        📝
+                                                                                                               </span>`
         }
     </div>
 `);
@@ -1210,7 +1233,11 @@
                 data: $(this).serialize(),
                 success: function(res) {
                     if (res.updated.length) {
-                        toast_success('Shifts updated successfully!');
+                        showToast(
+                            'Shifts updated successfully!', // message
+                            'success', // type
+                            5000 // duration in ms
+                        );
                     }
 
                     if (res.errors && Object.keys(res.errors).length) {
@@ -1218,7 +1245,11 @@
                         for (const [shiftId, errs] of Object.entries(res.errors)) {
                             messages.push(`Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`);
                         }
-                        toast_danger(messages.join('<br>'));
+                        showToast(
+                            messages.join('<br>'), // message
+                            'error', // type
+                            5000 // duration in ms
+                        );
                     }
 
                     if (res.updated.length) {
@@ -1252,17 +1283,28 @@
                         if (messages.length) {
                             messages.forEach(msg => toast_danger(msg));
                         } else {
-                            toast_danger('Validation failed, but no message returned.');
+                            showToast(
+                                'Validation failed, but no message returned.', // message
+                                'error', // type
+                                5000 // duration in ms
+                            );
                         }
                     } else if (xhr.responseJSON?.error) {
-                        toast_danger(xhr.responseJSON.error);
+                        showToast(
+                            xhr.responseJSON.error, // message
+                            'error', // type
+                            5000 // duration in ms
+                        );
                     } else {
-                        toast_danger('An unexpected error occurred.');
+                        showToast(
+                            'An unexpected error occurred.', // message
+                            'error', // type
+                            5000 // duration in ms
+                        );
                     }
                 }
             });
         });
-
 
 
         function customMatcher(params, data) {
@@ -1404,7 +1446,11 @@
                 data: $('#noteForm').serialize(), // form data includes note_type, note, shift_id, CSRF
                 success: function(res) {
                     $('#noteModal').modal('hide');
-                    toast_success('Success on saving note!');
+                    showToast(
+                        'Success on saving note!', // message
+                        'success', // type
+                        5000 // duration in ms
+                    );
                     // Mark the icon as "has note"
                     $(`.note-icon[data-shift-id="${shiftId}"]`).css('color', '#0d6efd');
 
@@ -1412,7 +1458,11 @@
                 },
                 error: function(xhr) {
                     console.error(xhr.responseText);
-                    toast_danger('Error saving note!');
+                    showToast(
+                        xhr.responseText, // message
+                        'error', // type
+                        5000 // duration in ms
+                    );
                 }
             });
         });
@@ -1437,7 +1487,11 @@
                 },
                 success: function() {
                     $('#confirmDeleteModal').modal('hide');
-                    toast_success('Note deleted!');
+                    showToast(
+                        'Note deleted!', // message
+                        'success', // type
+                        5000 // duration in ms
+                    );
                     $(`.view-note-icon[data-note-id="${noteId}"]`)
                         .removeClass('view-note-icon')
                         .addClass('note-icon')
@@ -1446,7 +1500,11 @@
                 },
                 error: function(xhr) {
                     $('#confirmDeleteModal').modal('hide');
-                    toast_danger('Error deleting note!');
+                    showToast(
+                        'Error deleting note!', // message
+                        'error', // type
+                        5000 // duration in ms
+                    );
                     console.error(xhr.responseText);
                 }
             });

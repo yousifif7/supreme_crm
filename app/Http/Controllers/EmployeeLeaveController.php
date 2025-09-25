@@ -5,12 +5,14 @@ namespace App\Http\Controllers;
 use Notify;
 use Carbon\Carbon;
 use App\Models\User;
+use App\Helpers\Logger;
 use App\Models\Employee;
 use App\Models\ShiftDate;
 use App\Models\LeaveRequest;
 use Illuminate\Http\Request;
 use App\Models\EmployeeLeave;
 use App\DataTables\LeavesDataTable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Yajra\DataTables\Facades\DataTables;
 use Illuminate\Support\Facades\Validator;
@@ -78,6 +80,7 @@ class EmployeeLeaveController extends Controller
             'type' => $request['type'],
             'status' => 'approved',
         ]);
+        Logger::log(Auth::user(), 'Create', 'Approved a leave for Staff '.$employee->fore_name.' '.$employee->last_name);
 
         send_push_notification(
             $user->id,
@@ -219,6 +222,7 @@ class EmployeeLeaveController extends Controller
                     "/shift-dates/$shift->id/view",
                 );
             }
+            Logger::log(Auth::user(), 'Update', 'Approved a leave for Staff '.$employee->fore_name.' '.$employee->sur_name);
 
             send_push_notification(
                 $userId,
@@ -236,6 +240,7 @@ class EmployeeLeaveController extends Controller
                 "An admin rejected a leave request from {$leave->start_date} to {$leave->end_date} requested by $employeeName . Reason: {$leave->reject_reason}",
                 "/leaves"
             );
+            Logger::log(Auth::user(), 'Update', 'Rejected a leave for Staff '.$employee->fore_name.' '.$employee->sur_name);
 
             send_push_notification(
                 $userId,
@@ -251,6 +256,8 @@ class EmployeeLeaveController extends Controller
     public function destroy($leaveId)
     {
         $leave = LeaveRequest::findOrFail($leaveId);
+        Logger::log(Auth::user(), 'Delete', 'A leave for Staff '.$leave->user->first_name.' '.$leave->user->last_name);
+
         $leave->delete();
 
         return response()->json(['success' => true]);

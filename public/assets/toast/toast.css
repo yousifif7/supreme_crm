@@ -1,0 +1,82 @@
+/* Toast container always on top of everything */
+#custom-toast-container {
+    position: fixed; /* stays relative to viewport, not modal parent */
+    top: 0;
+    left: 0;
+    width: 100vw;    /* full viewport width */
+    height: 100vh;   /* full viewport height */
+    display: flex;
+    align-items: center;  /* vertical center */
+    justify-content: center; /* horizontal center */
+    pointer-events: none;  /* allow clicks to pass through */
+    z-index: 2147483647;   /* max z-index, ensures above all modals */
+}
+
+/* Toast box */
+.custom-toast {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 28px;
+    min-width: 280px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s ease;
+    pointer-events: auto; /* allow hover/click on toast itself */
+}
+
+/* Show animation */
+.custom-toast.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Message styling */
+.custom-toast p {
+    margin: 0;
+    margin-top: 8px;
+    color: #555;
+    font-size: 14px;
+}
+
+/* Icon styling */
+.toast-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    margin: 0 auto;
+    font-size: 32px;
+    font-weight: bold;
+}
+
+/* Icon colors */
+.toast-icon.success {
+    background: rgba(76,175,80,0.15);
+    color: #4caf50;
+}
+.toast-icon.error {
+    background: rgba(244,67,54,0.15);
+    color: #f44336;
+}
+.toast-icon.info {
+    background: rgba(33,150,243,0.15);
+    color: #2196f3;
+}
+
+/* Optional border on toast itself */
+.custom-toast.success {
+    border-left: 6px solid #4caf50;
+}
+.custom-toast.error {
+    border-left: 6px solid #f44336;
+}
+.custom-toast.info {
+    border-left: 6px solid #2196f3;
+}

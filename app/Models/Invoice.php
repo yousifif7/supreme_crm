@@ -105,4 +105,9 @@ class Invoice extends Model
         
         return $prefix . '-' . date('Ymd') . '-' . str_pad($number, 6, '0', STR_PAD_LEFT);
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

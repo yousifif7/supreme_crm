@@ -70,5 +70,8 @@ class IncidentReport extends Model
         }
         return null;
     }
-    
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

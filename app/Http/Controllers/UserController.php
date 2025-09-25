@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use Notify;
 use Carbon\Carbon;
+use App\Models\Site;
 use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
+use App\Helpers\Logger;
 use App\Models\Invoice;
 use App\Models\Document;
 use App\Models\Employee;
@@ -24,6 +26,7 @@ use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -173,37 +176,53 @@ class UserController extends Controller
 
             $shift->update(['unassigned_shift_notified' => true]);
         }
+    // --- Users (latest locations) ---
+$userLocations = Location::with([
+        'user:id,first_name,last_name',
+        'user.employee:id,user_id,service_type',
+    ])
+    ->whereNotNull('latitude') // ensure only real locations
+    ->whereNotNull('longitude')
+    ->whereIn('id', function ($query) {
+        $query->select(DB::raw('MAX(id)'))
+            ->from('locations')
+            ->whereNotNull('user_id')
+            ->groupBy('user_id');
+    })
+    ->get()
+    ->map(function ($l) {
+        return [
+            'id' => 'user-'.$l->user_id,
+            'latitude' => (float) $l->latitude,
+            'longitude' => (float) $l->longitude,
+            'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
+            'type' => 'user',
+            'service_type_id' => optional(optional($l->user)->employee)->service_type,
+            'accuracy' => $l->accuracy,
+            'on_duty' => (bool) $l->on_duty,
+            'timestamp' => optional($l->created_at)->toDateTimeString(),
+        ];
+    });
 
-    $locations = Location::with([
-            'user:id,first_name,last_name',
-            'user.employee:id,user_id,service_type',
-        ])
-        ->whereIn('id', function ($query) {
-            $query->select(DB::raw('MAX(id)'))
-                ->from('locations')
-                ->whereNotNull('user_id')
-                ->groupBy('user_id');
-        })
-        ->get()
-        ->map(function ($l) {
-            return [
-                'id' => $l->id,
-                'user_id' => $l->user_id,
-                'latitude' => (float) $l->latitude,
-                'longitude' => (float) $l->longitude,
-                'accuracy' => $l->accuracy,
-                'on_duty' => (bool) $l->on_duty,
-                'timestamp' => optional($l->created_at)->toDateTimeString(),
-                'user' => [
-                    'id' => optional($l->user)->id,
-                    'first_name' => optional($l->user)->first_name ?? 'Unknown',
-                    'last_name' => optional($l->user)->last_name ?? '',
-                ],
-                'service_type_id' => optional(optional($l->user)->employee)->service_type,
-            ];
-        });
+    // --- Sites (pass postal codes only, no server-side geocoding) ---
+$sites = Site::whereHas('shifts', function($query) {
+    $query->whereHas('shiftDates',function($query){
+        $query->whereNotNull('staff_id');
+    });
+})->select('id', 'site_name', 'post_code')->get();
+
+$siteLocations = $sites->map(function($site) {
+    return [
+        'id' => 'site-'.$site->id,
+        'name' => $site->site_name,
+        'postalcode' => $site->post_code,
+        'type' => 'site',
+    ];
+});
+
+    // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('dashboard', compact('apiKey','siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','locations'));
+        return view('dashboard', compact('apiKey','siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','userLocations','siteLocations'));
     }
 
     public function index(UsersDataTable $dataTable)
@@ -263,6 +282,7 @@ class UserController extends Controller
         if (!empty($validated['roles'])) {
             $user->assignRole($validated['roles']);
         }
+        Logger::log(Auth::user(), 'Create', 'New user '.$user->first_name.' '.$user->last_name);
 
         return response()->json(['message' => 'User created successfully']);
     }
@@ -328,6 +348,7 @@ class UserController extends Controller
         if (!empty($validated['roles'])) {
             $user->syncRoles($validated['roles']);
         }
+        Logger::log(Auth::user(), 'Update', 'User '.$user->first_name.' '.$user->last_name.' Updated');
 
         return response()->json(['message' => 'User updated successfully']);
     }
@@ -336,6 +357,8 @@ class UserController extends Controller
     {
         // \Log::info("Destroy called for user: " . $userId);
         $user = User::findOrFail($userId);
+        Logger::log(Auth::user(), 'Delete', 'User '.$user->first_name.' '.$user->last_name.' Deleted');
+
         $user->forceDelete();
 
         // $stillExists = User::find($userId);
@@ -349,7 +372,11 @@ class UserController extends Controller
             'ids.*' => 'exists:users,id',
         ]);
 
-        User::whereIn('id', $request->ids)->delete();
+        $users= User::whereIn('id', $request->ids)->get();
+        foreach($users as $user){
+            Logger::log(Auth::user(), 'Delete', 'User '.$user->first_name.' '.$user->last_name.' Deleted');
+            $user->delete();
+        }
 
         return response()->json(['message' => 'Selected users deleted.']);
     }

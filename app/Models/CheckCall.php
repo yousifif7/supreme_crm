@@ -21,4 +21,9 @@ class CheckCall extends Model
     {
         return $this->belongsTo(Employee::class);
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

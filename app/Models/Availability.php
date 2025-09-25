@@ -35,4 +35,9 @@ class Availability extends Model
     {
         return \Carbon\Carbon::createFromFormat('H:i:s', $value)->format('H:i');
     }
+
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

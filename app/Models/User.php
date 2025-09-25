@@ -61,6 +61,17 @@ class User extends Authenticatable
         ];
     }
 
+    public function acknowledgedMaterials()
+{
+    return $this->belongsToMany(
+        TrainingMaterial::class,
+        'training_acknowledgements',
+        'user_id',
+        'training_material_id'
+    )->withPivot('acknowledged_at') // ✅ add this too
+     ->withTimestamps();
+}
+
     public function site()
     {
         return $this->hasMany(Site::class, 'client_id');
@@ -179,4 +190,9 @@ class User extends Authenticatable
             return '/uploads/no.png';
         }
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

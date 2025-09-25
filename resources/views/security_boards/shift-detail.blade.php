@@ -153,35 +153,35 @@
         }
 
         /* .btn-outline-assign {
-                                                                                                                                        background: #fff;
-                                                                                                                                        color: #28a745;
-                                                                                                                                        border: 2px solid #28a745;
-                                                                                                                                        border-radius: 6px;
-                                                                                                                                        padding: 8px 16px;
-                                                                                                                                        font-weight: 600;
-                                                                                                                                        transition: all 0.2s;
-                                                                                                                                    }
+                                                                                                                                                                    background: #fff;
+                                                                                                                                                                    color: #28a745;
+                                                                                                                                                                    border: 2px solid #28a745;
+                                                                                                                                                                    border-radius: 6px;
+                                                                                                                                                                    padding: 8px 16px;
+                                                                                                                                                                    font-weight: 600;
+                                                                                                                                                                    transition: all 0.2s;
+                                                                                                                                                                }
 
-                                                                                                                                    .btn-outline-assign:hover {
-                                                                                                                                        background: #28a745;
-                                                                                                                                        color: #fff;
-                                                                                                                                        box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                                                                                                                                    }
+                                                                                                                                                                .btn-outline-assign:hover {
+                                                                                                                                                                    background: #28a745;
+                                                                                                                                                                    color: #fff;
+                                                                                                                                                                    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+                                                                                                                                                                }
 
-                                                                                                                                    .btn-assign-pill {
-                                                                                                                                        background-color: #28a745;
-                                                                                                                                        color: #fff;
-                                                                                                                                        border-radius: 50px;
-                                                                                                                                        padding: 8px 22px;
-                                                                                                                                        font-weight: bold;
-                                                                                                                                        transition: all 0.2s;
-                                                                                                                                    }
+                                                                                                                                                                .btn-assign-pill {
+                                                                                                                                                                    background-color: #28a745;
+                                                                                                                                                                    color: #fff;
+                                                                                                                                                                    border-radius: 50px;
+                                                                                                                                                                    padding: 8px 22px;
+                                                                                                                                                                    font-weight: bold;
+                                                                                                                                                                    transition: all 0.2s;
+                                                                                                                                                                }
 
-                                                                                                                                    .btn-assign-pill:hover {
-                                                                                                                                        background-color: #218838;
-                                                                                                                                        color:while;
-                                                                                                                                        transform: scale(1.05);
-                                                                                                                                    } */
+                                                                                                                                                                .btn-assign-pill:hover {
+                                                                                                                                                                    background-color: #218838;
+                                                                                                                                                                    color:while;
+                                                                                                                                                                    transform: scale(1.05);
+                                                                                                                                                                } */
     </style>
 @endsection
 @section('contents')
@@ -350,13 +350,14 @@
                                             </div>
 
                                         </div>
-                                        <form id="bookonForm" action="{{ route('shift.bookon.store') }}">
+                                        <form id="bookonForm" action="{{ route('shift.bookon.store') }}" method="GET">
                                             @csrf
                                             <input type="hidden" id="book_on_id" name="book_on_id"
                                                 value="{{ $shiftDate->id }}">
 
                                             <input type="text" id="absentee_start_time" name="absentee_start_time"
-                                                placeholder="HH:MM" class="form-control mb-2" value="{{\Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time )->format('H:i')}}">
+                                                placeholder="HH:MM" class="form-control mb-2"
+                                                value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}">
 
                                             <button type="submit" class="btn btn-primary">Set book on time</button>
                                         </form>
@@ -384,12 +385,14 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <form id="bookoffForm" action="{{ route('shift.bookoff.store') }}">
+                                        <form id="bookoffForm" action="{{ route('shift.bookoff.store') }}"
+                                            method="post">
                                             @csrf
                                             <input type="hidden" id="book_off_id" name="book_off_id"
                                                 value="{{ $shiftDate->id }}">
                                             <input type="text" id="absentee_end_time" name="absentee_end_time"
-                                                placeholder="HH:MM" class="form-control mb-2" value="{{\Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time )->format('H:i')}}">
+                                                placeholder="HH:MM" class="form-control mb-2"
+                                                value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}">
                                             <button type="submit" class="btn btn-danger">Set book off time</button>
                                         </form>
                                     </div>
@@ -844,39 +847,51 @@
         $apiKey = env('GOOGLE_MAPS_API_KEY');
     @endphp
     <script>
-        $(document).off('submit', '#bookonForm, #bookoffForm').on('submit', '#bookonForm, #bookoffForm', function(e) {
-            e.preventDefault();
-            var actionUrl = $(this).attr('action');
+        $(document).off('submit', '#bookonForm, #bookoffForm')
+            .on('submit', '#bookonForm, #bookoffForm', function(e) {
+                e.preventDefault(); // prevent default form submission
 
-            $.ajax({
-                url: actionUrl,
-                type: 'POST',
-                data: $(this).serialize(),
-                dataType: 'json', // ensures proper parsing
-                success: function(response) {
-                    if (response.success) {
-                        // Use a toast or alert instead of hidden div
-                        toast_success(response
-                            .success); // create a toast_success function if you don't have one
-                        closeBsModal('#eventModal'); // close the modal AFTER showing toast
-                    } else {
-                        toast_danger('Unexpected response from server.');
-                    }
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON) {
-                        if (xhr.responseJSON.error) {
-                            toast_danger(xhr.responseJSON.error);
-                        } else if (xhr.responseJSON.errors) {
-                            let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            toast_danger(messages);
+                const $form = $(this);
+                const actionUrl = $form.attr('action');
+
+                $.ajax({
+                    url: actionUrl,
+                    type: 'POST',
+                    data: $form.serialize(),
+                    dataType: 'json', // ensures proper JSON parsing
+                    success: function(response) {
+                        if (response.success) {
+                            // Show success toast
+                            showToast(response.success, 'success', 5000);
+                            // Close modal if needed
+                            closeBsModal('#eventModal');
+                        } else if (response.error) {
+                            // Show error toast
+                            showToast(response.error, 'error', 5000);
+                        } else {
+                            // Unexpected response
+                            showToast('Unexpected response from server.', 'error', 5000);
                         }
-                    } else {
-                        toast_danger('An unexpected error occurred while assigning the shift.');
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422 && xhr.responseJSON) {
+                            // Validation errors
+                            const errors = xhr.responseJSON.errors;
+                            if (errors) {
+                                const messages = Object.values(errors).flat().join('\n');
+                                showToast(messages, 'error', 5000);
+                            } else if (xhr.responseJSON.error) {
+                                showToast(xhr.responseJSON.error, 'error', 5000);
+                            }
+                        } else {
+                            // Other errors
+                            showToast('An unexpected error occurred while assigning the shift.', 'error',
+                                5000);
+                        }
                     }
-                }
+                });
             });
-        });
+
 
         $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
             $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
@@ -942,6 +957,11 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function() {
+                    showToast(
+                        "Check call deleted succesfully", // message
+                        'success', // type
+                        5000 // duration in ms
+                    );
                     location.reload();
                 },
                 error: function() {
@@ -965,7 +985,11 @@
                     // closeBsModal('#assignShiftModal');
                     // closeBsModal('#globalModal');
                     // $('#success_modal').modal('show');
-                    toast_success(response.success);
+                    showToast(
+                        response.success, // message
+                        'success', // type
+                        5000 // duration in ms
+                    );
                     location.reload();
                 },
                 error: function(xhr) {
@@ -976,10 +1000,18 @@
                         } else if (xhr.responseJSON.errors) {
                             // Multiple field errors
                             let messages = Object.values(xhr.responseJSON.errors).flat().join('\n');
-                            toast_danger(messages);
+                            showToast(
+                                messages, // message
+                                'error', // type
+                                5000 // duration in ms
+                            );
                         }
                     } else {
-                        toast_danger('An unexpected error occurred while assigning the shift.');
+                        showToast(
+                            'An unexpected error occurred while assigning the shift.', // message
+                            'error', // type
+                            5000 // duration in ms
+                        );
                     }
                 }
             });
@@ -1189,11 +1221,19 @@
                         } else if (patrol.status === "completed") {
                             statusCell.html('<p class="bg-success text-center">Completed</p>');
                         }
-                        toast_success("Update failed!");
+                        showToast(
+                            "Updated successfully!", // message
+                            'success', // type
+                            5000 // duration in ms
+                        );
 
                     },
                     error: function() {
-                        toast_danger("Update failed!");
+                        showToast(
+                            "Update failed!", // message
+                            'error', // type
+                            5000 // duration in ms
+                        );
                     }
                 });
             });

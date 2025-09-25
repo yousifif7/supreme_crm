@@ -716,7 +716,8 @@
 
 
     <script>
-        const locations = @json($locations ?? []);
+        const userLocations = @json($userLocations ?? []);
+        const siteLocations = @json($siteLocations ?? []);
 
         const iconByServiceId = {
             1: '/guard_icons/alarm_response.png',
@@ -740,167 +741,236 @@
             8: 'Close Protection',
         };
 
+        const siteIconHTML = '<i class="fas fa-building" style="color:#2c3e50;font-size:16px;"></i>';
+
         let map;
         let customMarkers = [];
         let currentInfoWindow = null;
+        let geocoder;
 
         function initMap() {
+            // --- Init map centered on England ---
             map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 4,
+                zoom: 10,
                 center: {
-                    lat: 0,
-                    lng: 0
+                    lat: 51.50632911888075,
+                    lng: -0.08967956053966389
                 },
+                gestureHandling: "auto", // user can drag/zoom
+                mapTypeControl: true,
+                streetViewControl: false,
             });
 
-            const bounds = new google.maps.LatLngBounds();
+            geocoder = new google.maps.Geocoder();
 
-            locations.forEach(loc => {
-                if (!loc.user_id || isNaN(parseFloat(loc.latitude)) || isNaN(parseFloat(loc.longitude))) return;
+            // --- Add user markers ---
+            userLocations.forEach(loc => {
+                const lat = parseFloat(loc.latitude);
+                const lng = parseFloat(loc.longitude);
+                if (isNaN(lat) || isNaN(lng)) return;
 
-                const latLng = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
-                const username = `${loc.user.first_name} ${loc.user.last_name}` ?? 'Unknown';
+                const latLng = new google.maps.LatLng(lat, lng);
+                const username = loc.name ?? 'Unknown';
                 const serviceTypeId = loc.service_type_id ?? 6;
-                const iconUrl = iconByServiceId[serviceTypeId];
-                const serviceTypeName = nameByServiceId[serviceTypeId];
+                const iconUrl = iconByServiceId[serviceTypeId] ?? null;
+                const serviceName = nameByServiceId[serviceTypeId] ?? 'Service';
 
-                class CustomMarker extends google.maps.OverlayView {
-                    constructor(position) {
-                        super();
-                        this.position = position;
-                        this.div = null;
+                addCustomMarker(latLng, iconUrl, username, serviceName, loc, false);
+            });
+
+            // --- Add site markers (geocode postal codes) ---
+            siteLocations.forEach(loc => {
+                if (!loc.postalcode) return;
+
+                geocoder.geocode({
+                    address: loc.postalcode
+                }, (results, status) => {
+                    if (status === 'OK' && results[0]) {
+                        const latLng = results[0].geometry.location;
+                        addCustomMarker(latLng, siteIconHTML, loc.name, 'Site Location', loc, true);
                     }
+                });
+            });
+        }
 
-                    onAdd() {
-                        this.div = document.createElement("div");
-                        this.div.className = "custom-marker";
+        function addCustomMarker(latLng, icon, displayName, serviceName, loc, isSite) {
+            class CustomMarker extends google.maps.OverlayView {
+                constructor(position) {
+                    super();
+                    this.position = position;
+                    this.div = null;
+                }
+
+                onAdd() {
+                    this.div = document.createElement("div");
+                    this.div.className = "custom-marker";
+
+                    if (isSite) {
+                        this.div.innerHTML = `<div class="site-marker">${icon}</div>`;
+                    } else {
+                        const iconHTML = icon ?
+                            `<img src="${icon}" alt="${serviceName}" style="width:24px;height:24px;border-radius:50%">` :
+                            `<div style="width:20px;height:20px;background:red;border-radius:50%"></div>`;
+
                         this.div.innerHTML = `
                     <div class="pin">
-                        <div class="circle">
-                            <img src="${iconUrl}" alt="${serviceTypeName}" />
-                        </div>
+                        <div class="circle">${iconHTML}</div>
                         <div class="triangle"></div>
-                        <span class="username">${username}</span>
+                        <span class="username">${displayName}</span>
                     </div>
                 `;
+                    }
 
-                        this.div.addEventListener("click", () => {
-                            if (currentInfoWindow) currentInfoWindow.close();
-                            currentInfoWindow = new google.maps.InfoWindow({
-                                content: `
-                            <div style="min-width:220px">
-                                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
-                                    <img src="${iconUrl}" width="32" height="32">
-                                    <div>
-                                        <div><strong>${username}</strong></div>
-                                        <div style="font-size:12px;color:#444;">${serviceTypeName}</div>
-                                    </div>
-                                </div>
-                                <div style="font-size:12px;line-height:1.4;">
-                                    <div><strong>Accuracy:</strong> ${loc.accuracy ?? 'N/A'} m</div>
-                                    <div><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>
-                                    <div><strong>Timestamp:</strong> ${loc.timestamp ?? ''}</div>
-                                </div>
-                            </div>
-                        `,
-                                position: latLng
-                            });
-                            currentInfoWindow.open(map);
-                            currentInfoWindow.addListener("closeclick", () => {
-                                currentInfoWindow = null;
-                            });
+                    this.div.addEventListener("click", () => {
+                        if (currentInfoWindow) currentInfoWindow.close();
+
+                        const content = isSite ?
+                            `
+        <div style="
+            max-width: 180px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: #fefefe;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            color: #34495e;
+        ">
+            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color:#2c3e50;">
+                <i class="fas fa-building" style="margin-right:4px;color:#2980b9;"></i>
+                ${loc.name}
+            </div>
+            <div><strong>Postal Code:</strong> ${loc.postalcode}</div>
+        </div>
+    ` :
+                            `
+        <div style="
+            max-width: 200px;
+            font-family: 'Segoe UI', sans-serif;
+            font-size: 12px;
+            line-height: 1.3;
+            padding: 6px 10px;
+            border-radius: 8px;
+            background: #fefefe;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            color: #34495e;
+        ">
+            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color:#2c3e50;">
+                ${displayName}
+            </div>
+            <div><strong>Service:</strong> ${serviceName}</div>
+            <div><strong>Accuracy:</strong> ${loc.accuracy ?? 'N/A'} m</div>
+            <div><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>
+            <div><strong>Timestamp:</strong> ${loc.timestamp ?? ''}</div>
+        </div>
+    `;
+
+                        currentInfoWindow = new google.maps.InfoWindow({
+                            content: content,
+                            position: latLng
                         });
 
-                        const panes = this.getPanes();
-                        panes.overlayMouseTarget.appendChild(this.div);
-                    }
+                        currentInfoWindow.open(map);
+                        currentInfoWindow.addListener("closeclick", () => currentInfoWindow = null);
+                    });
 
-                    draw() {
-                        const projection = this.getProjection();
-                        const pos = projection.fromLatLngToDivPixel(this.position);
-                        if (pos && this.div) {
-                            this.div.style.left = pos.x + "px";
-                            this.div.style.top = (pos.y - 40) + "px"; // adjust for arrow
-                        }
-                    }
 
-                    onRemove() {
-                        if (this.div && this.div.parentNode) this.div.parentNode.removeChild(this.div);
-                        this.div = null;
+                    const panes = this.getPanes();
+                    panes.overlayMouseTarget.appendChild(this.div);
+                }
+
+                draw() {
+                    const projection = this.getProjection();
+                    const pos = projection.fromLatLngToDivPixel(this.position);
+                    if (pos && this.div) {
+                        this.div.style.left = pos.x + "px";
+                        this.div.style.top = (pos.y - (isSite ? 10 : 20)) + "px";
                     }
                 }
 
-                const marker = new CustomMarker(latLng);
-                marker.setMap(map);
-                customMarkers.push(marker);
-                bounds.extend(latLng);
-            });
+                onRemove() {
+                    if (this.div && this.div.parentNode) this.div.parentNode.removeChild(this.div);
+                    this.div = null;
+                }
+            }
 
-            map.fitBounds(bounds);
+            const marker = new CustomMarker(latLng);
+            marker.setMap(map);
+            customMarkers.push(marker);
         }
     </script>
 
-<style>
-.custom-marker {
-    position: absolute;
-    cursor: pointer;
-    transform: translate(-50%, -100%);
-    display: flex;
-    align-items: flex-end;
-}
+    <style>
+        .custom-marker {
+            position: absolute;
+            cursor: pointer;
+            transform: translate(-50%, -100%);
+            display: flex;
+            align-items: flex-end;
+        }
 
-.pin-wrapper {
-    position: relative;
-    display: flex;
-    flex-direction: row;
-    align-items: flex-end;
-}
+        .pin-wrapper {
+            position: relative;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-end;
+        }
 
-.pin {
-    position: relative;
-    width: 32px;
-    height: 32px;
-}
+        .pin {
+            position: relative;
+            width: 32px;
+            height: 32px;
+        }
 
-.circle {
-    width: 32px;
-    height: 32px;
-    border-radius: 50%;
-    border: 2px solid #fff;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 0 0 4px rgba(0,0,0,0.5);
-    z-index: 2;
-}
+        .circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            border: 2px solid #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+            z-index: 2;
+        }
 
-.circle img {
-    width: 24px;
-    height: 24px;
-}
+        .circle img {
+            width: 24px;
+            height: 24px;
+        }
 
-.triangle {
-    position: absolute;
-    bottom: -8px; /* points below the circle */
-    left: 50%;
-    transform: translateX(-50%);
-    width: 0;
-    height: 0;
-    border-left: 6px solid transparent;
-    border-right: 6px solid transparent;
-    border-top: 8px solid red; /* same as circle */
-    z-index: 1;
-}
+        .triangle {
+            position: absolute;
+            bottom: -8px;
+            /* points below the circle */
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-top: 8px solid red;
+            /* same as circle */
+            z-index: 1;
+        }
 
-.username {
-    margin-left: 6px;
-    font-size: 12px;
-    font-weight: 600;
-    color: #000;
-    white-space: nowrap;
-    text-shadow: 1px 1px 2px rgba(255,255,255,0.8);
-}
-</style>
+        .username {
+            margin-left: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            color: #000;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+        }
+
+        .site-marker {
+            font-size: 16px;
+            color: #2c3e50;
+            cursor: pointer;
+            transform: translate(-50%, -50%);
+        }
+    </style>
 
     <!-- Google Maps JS API (with Visualization library for heatmap) -->
     <script src="https://maps.googleapis.com/maps/api/js?key={{ $apiKey }}&libraries=visualization&callback=initMap"

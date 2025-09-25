@@ -8,6 +8,7 @@ use App\Models\Site;
 use App\Models\User;
 use App\Models\Shift;
 use App\Models\Patrol;
+use App\Helpers\Logger;
 use App\Models\Employee;
 use App\Models\ShiftDate;
 use App\Models\ShiftNote;
@@ -470,13 +471,16 @@ class ShiftApiController extends Controller
             ->first();
 
         if ($existingBooking) {
-            return response()->json([
-                'message' => 'You already have a booked on shift (ShiftDate ID: ' . $existingBooking->shift_id . ').'
-            ], 409);
+            $shift= ShiftDate::find($existingBooking->shift_id);
+            if($shift?->is_assign!=4){
+                return response()->json([
+                    'message' => 'You already have a booked on shift (ShiftDate ID: ' . $existingBooking->shift_id . ').'
+                ], 409);
+            } 
         }
 
         // ✅ Correct: find by ShiftDate ID
-        $shiftDate = ShiftDate::with('trainings.acknowledgements')->find($shiftDate_id);
+        $shiftDate = ShiftDate::with('trainings.acknowledgedUsers')->find($shiftDate_id);
 
         if (!$shiftDate) {
             return response()->json([
@@ -490,11 +494,12 @@ class ShiftApiController extends Controller
             ], 422);
         }
 
-        // ✅ Block booking if trainings not acknowledged
+        // Block booking if trainings not acknowledged
         foreach ($shiftDate->trainings as $training) {
-            $ack = $training->acknowledgements->firstWhere('user_id', $user->id);
+            // Check if THIS user acknowledged THIS training
+            $ack = $training->acknowledgedUsers->firstWhere('id', $user->id);
 
-            if (!$ack || !$ack->acknowledged_at) {
+            if (!$ack || !$ack->pivot->acknowledged_at) {
                 return response()->json([
                     'message' => "You must acknowledge all training/policies before booking on. Pending: {$training->title}"
                 ], 422);
@@ -525,6 +530,8 @@ class ShiftApiController extends Controller
             'read' => false,
             'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
+
+        Logger::log($shiftDate, 'Booked On', ' booked on shift (ID: ' . $shiftDate->id . ') starting at ' . $shiftDate->start_time);
 
         Notification::create([
             'user_id' => $user->id,
@@ -966,5 +973,41 @@ class ShiftApiController extends Controller
         });
 
         return response()->json($calendarShifts);
+    }
+
+        public function calculateSickPay(Employee $staff, Carbon $sickStart, Carbon $sickEnd, int $weeklyPay)
+    {
+        if ($weeklyPay < 123) {
+            return ['eligible' => false, 'paid_days' => 0, 'unpaid_days' => $sickStart->diffInDays($sickEnd) + 1, 'amount' => 0];
+        }
+
+        $totalDays = $sickStart->diffInDays($sickEnd) + 1;
+        $unpaid = min(3, $totalDays);
+        $paid = max(0, $totalDays - 3);
+        $paid = min($paid, 196); // 28 weeks
+
+        return [
+            'eligible' => true,
+            'total_days' => $totalDays,
+            'unpaid_days' => $unpaid,
+            'paid_days' => $paid,
+            'amount' => $paid * 23.75,
+        ];
+    }
+
+    /**
+     * Holiday entitlement
+     */
+    public function calculateHoliday(Employee $staff, float $workedHours, string $type = 'accrual')
+    {
+        if ($type === 'accrual') {
+            return ['holiday_hours' => round($workedHours * 0.1207, 2)];
+        }
+
+        $startDate = Carbon::parse($staff->start_date ?? now());
+        $daysWorked = $startDate->diffInDays(now());
+        $holidayDays = (28 / 365) * $daysWorked;
+
+        return ['holiday_hours' => round($holidayDays * 8, 2)];
     }
 }

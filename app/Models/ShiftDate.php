@@ -97,4 +97,9 @@ class ShiftDate extends Model
     {
         return $this->hasMany(Location::class, 'shiftdate_id');
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

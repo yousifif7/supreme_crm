@@ -16,5 +16,8 @@ class Patrol extends Model
     {
         return $this->belongsTo(ShiftDate::class);
     }
-
+public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

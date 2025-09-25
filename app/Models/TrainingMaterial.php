@@ -21,15 +21,16 @@ class TrainingMaterial extends Model
     ];
 
 
-    public function acknowledgedUsers()
-    {
-        return $this->belongsToMany(
-            User::class,
-            'training_acknowledgements',
-            'training_material_id',
-            'user_id'
-        )->withTimestamps();
-    }
+public function acknowledgedUsers()
+{
+    return $this->belongsToMany(
+        User::class,
+        'training_acknowledgements',
+        'training_material_id',
+        'user_id'
+    )->withPivot('acknowledged_at') // ✅ add this
+     ->withTimestamps();
+}
 
     public function shiftDates()
     {
