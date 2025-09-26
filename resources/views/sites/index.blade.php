@@ -343,47 +343,63 @@
                 });
             });
 
-            $('#add_site-form').on('submit', function(e) {
-                e.preventDefault();
-                $("[id^='error_']").text('');
-                let form = $(this)[0];
-                let formData = new FormData(form);
-                let submitButton = $('#savesite'); // Add an ID to your submit button
+            $(document).ready(function() {
 
-                // Disable button and show loading
-                submitButton.prop('disabled', true).html('Saving...');
+                // Initialize map
+                initSiteMap();
 
-                $.ajax({
-                    url: $(this).attr('action'),
-                    method: 'POST',
-                    data: formData,
-                    processData: false,
-                    contentType: false,
-                    headers: {
-                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                    },
-                    success: function(response) {
-                        closeBsModal('#add_site');
-                        toast_success('Sites Added Successfully')
-                        reloadDatatable('#sites-table');
-                    },
-                    error: function(xhr) {
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
+                $('#add_site-form').on('submit', function(e) {
+                    e.preventDefault();
+                    $("[id^='error_']").text('');
 
-                            $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
-                            });
-                        } else {
-                            toast_danger('An error occurred. Please try again.');
-                        }
-                    },
-                    complete: function() {
-                        // Re-enable button after response
-                        submitButton.prop('disabled', false).html('Save');
+                    const form = this;
+                    const formData = new FormData(form);
+                    const submitButton = $('#savesite');
+                    submitButton.prop('disabled', true).html('Saving...');
+
+                    if (siteMarker) {
+                        const p = siteMarker.getLatLng();
+                        $('#latitude').val(p.lat);
+                        $('#longitude').val(p.lng);
                     }
+
+                    $.ajax({
+                        url: $(form).attr('action'),
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        },
+                        success: function(response) {
+                            closeBsModal('#add_site');
+                            toast_success(response.message ||
+                                'Site created successfully');
+                            reloadDatatable('#sites-table');
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 422) {
+                                const errors = xhr.responseJSON.errors;
+                                $.each(errors, function(key, value) {
+                                    $('#error_' + key).text(value[0]);
+                                });
+                            } else {
+                                toast_danger('An error occurred. Please try again.');
+                            }
+                        },
+                        complete: function() {
+                            submitButton.prop('disabled', false).html('Save');
+                        }
+                    });
+                });
+
+                // Optional: re-render map on modal show
+                $('#add_site').on('shown.bs.modal', function() {
+                    setTimeout(() => editMap.invalidateSize(), 300);
                 });
             });
+            
             $('#edit_site-form').on('submit', function(e) {
                 e.preventDefault();
 
@@ -515,13 +531,13 @@
                 checkpointsHtml = `<ul class="list-group">`;
                 data.checkpoints.forEach(cp => {
                     checkpointsHtml += `
-                                                    <li class="list-group-item">
-                                                        <strong>${cp.name}</strong><br>
-                                                        Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
-                                                        QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
-                                                        Required: ${cp.required ? 'Yes' : 'No'}
-                                                    </li>
-                                                `;
+                                                            <li class="list-group-item">
+                                                                <strong>${cp.name}</strong><br>
+                                                                Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
+                                                                QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
+                                                                Required: ${cp.required ? 'Yes' : 'No'}
+                                                            </li>
+                                                        `;
                 });
                 checkpointsHtml += `</ul>`;
             } else {
@@ -596,31 +612,31 @@
         });
 
         let row = `
-                    <tr id="checkpoint_row_${index}">
-                        <td>
-                            <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
-                            <input type="text" class="form-control"
-                                   name="checkpoints[${index}][name]" 
-                                   value="${name}">
-                        </td>
-                        <td>
-                            <input type="text" class="form-control" 
-                                   name="checkpoints[${index}][latitude]" 
-                                   value="${lat}" readonly>
-                        </td>
-                        <td>
-                            <input type="text" class="form-control" 
-                                   name="checkpoints[${index}][longitude]" 
-                                   value="${lng}" readonly>
-                        </td>
-                        <td>
-                            <button type="button" class="btn btn-sm btn-danger" 
-                                    onclick="removeCheckpoint(${index})">
-                                Remove
-                            </button>
-                        </td>
-                    </tr>
-                `;
+                            <tr id="checkpoint_row_${index}">
+                                <td>
+                                    <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
+                                    <input type="text" class="form-control"
+                                           name="checkpoints[${index}][name]" 
+                                           value="${name}">
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" 
+                                           name="checkpoints[${index}][latitude]" 
+                                           value="${lat}" readonly>
+                                </td>
+                                <td>
+                                    <input type="text" class="form-control" 
+                                           name="checkpoints[${index}][longitude]" 
+                                           value="${lng}" readonly>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-danger" 
+                                            onclick="removeCheckpoint(${index})">
+                                        Remove
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
         $('#checkpointList').append(row);
 
         marker.on('dragend', function() {
@@ -713,11 +729,11 @@
                     data.logs.forEach(log => {
                         html +=
                             `<tr>
-                                                                                                                                                                                                                <td>${log.user_name}</td>
-                                                                                                                                                                                                                <td>${log.action}</td>
-                                                                                                                                                                                                                <td>${log.description}</td>
-                                                                                                                                                                                                                <td>${log.time}</td>
-                                                                                                                                                                                                            </tr>`;
+                                                                                                                                                                                                                        <td>${log.user_name}</td>
+                                                                                                                                                                                                                        <td>${log.action}</td>
+                                                                                                                                                                                                                        <td>${log.description}</td>
+                                                                                                                                                                                                                        <td>${log.time}</td>
+                                                                                                                                                                                                                    </tr>`;
                         });
                         html += '</tbody></table>';
                         modalBody.innerHTML = html;

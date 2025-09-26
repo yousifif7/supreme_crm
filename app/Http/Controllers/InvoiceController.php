@@ -63,7 +63,8 @@ class InvoiceController extends Controller
                 $request->date_from,
                 $request->date_to,
                 $request->due_date,
-                $request->notes
+                $request->notes,
+                $request->frequency // <-- new parameter
             );
         } catch (ModelNotFoundException $e) {
             return response()->json([
@@ -115,8 +116,8 @@ class InvoiceController extends Controller
         $invoice->processed_by_payroll = true;
         $invoice->save();
 
-        Logger::log(Auth::user(), 'Create', 'Invoice NO. '.$invoice->ivoice_number.' Generated for Client '.$invoice->client->name);
-        
+        Logger::log(Auth::user(), 'Create', 'Invoice NO. ' . $invoice->ivoice_number . ' Generated for Client ' . $invoice->client->name);
+
         return response()->json([
             'message' => 'Client invoice generated successfully',
             'invoice' => $invoice->load('items'),

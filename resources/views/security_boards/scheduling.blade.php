@@ -265,6 +265,67 @@
             text-align: center;
             box-sizing: border-box;
         }
+        
+        #custom-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2147483647; /* Max possible z-index to be above everything */
+}
+
+.custom-toast {
+    display: flex;
+    align-items: center;
+    background: #fff3cd;
+    border-left: 5px solid #ffc107;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    min-width: 300px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    font-family: Arial, sans-serif;
+}
+
+.custom-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.custom-toast .toast-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+.custom-toast .toast-content {
+    flex: 1;
+}
+
+.custom-toast .toast-content p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #856404;
+}
+
+.custom-toast .override-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    background-color: #dc3545; /* red for admin action */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.custom-toast .override-btn:hover {
+    background-color: #c82333;
+}
+
+
     </style>
 @endsection
 @section('contents')
@@ -749,6 +810,52 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
+        
+        function showRestrictionToast(message, onOverride) {
+    let container = document.getElementById('custom-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'custom-toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'custom-toast';
+
+    toast.innerHTML = `
+        <div class="toast-icon">⚠</div>
+        <div class="toast-content">
+            <p>${message}</p>
+            <button class="override-btn">Override Restriction</button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => toast.classList.add('show'), 50);
+
+    // Bind override button
+    toast.querySelector('.override-btn').addEventListener('click', function () {
+        if (typeof onOverride === 'function') {
+            onOverride();
+        }
+        // remove toast immediately
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) container.removeChild(toast);
+        }, 300);
+    });
+
+    // Auto remove if no action
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) container.removeChild(toast);
+        }, 300);
+    }, 5000);
+}
+
         document.addEventListener('DOMContentLoaded', function() {
             let allShiftsData = []; // Store all shifts data
             let currentWeekStart = getMonday(new Date()); // Start with current week (Monday)
@@ -1208,137 +1315,100 @@
         });
 
         // Save changes from multi-edit modal
-        $(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
-            e.preventDefault();
+$(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
+    e.preventDefault();
 
-            if (!selectedShiftIds.length) {
-                toast_danger('No shifts selected.');
-                return;
-            }
+    if (!selectedShiftIds.length) {
+        toast_danger('No shifts selected.');
+        return;
+    }
 
-            // Clear previous hidden shift inputs
-            $('#multiEditShiftInputs').empty();
+    // Clear previous hidden shift inputs
+    $('#multiEditShiftInputs').empty();
 
-            // Add hidden inputs for each selected shift
-            selectedShiftIds.forEach(id => {
-                $('<input>').attr({
-                    type: 'hidden',
-                    name: 'shift_ids[]',
-                    value: id
-                }).appendTo('#multiEditShiftInputs');
+    // Add hidden inputs for each selected shift
+    selectedShiftIds.forEach(id => {
+        $('<input>').attr({ type: 'hidden', name: 'shift_ids[]', value: id }).appendTo('#multiEditShiftInputs');
 
-                let startTime = $('#multiAssignStartTime').val();
-                let endTime = $('#multiAssignEndTime').val();
-                let bookOn = $('#multiAssignBookOn').val();
-                let bookOff = $('#multiAssignBookOff').val();
-                let shiftDate = $('.multiAssignDateInput')
-                    .val(); // single date input for all selected shifts
+        const startTime = $('#multiAssignStartTime').val();
+        const endTime = $('#multiAssignEndTime').val();
+        const bookOn = $('#multiAssignBookOn').val();
+        const bookOff = $('#multiAssignBookOff').val();
+        const shiftDate = $('.multiAssignDateInput').val();
 
-                if (startTime) $('<input>').attr({
-                    type: 'hidden',
-                    name: `start_times[${id}]`,
-                    value: startTime
-                }).appendTo('#multiEditShiftInputs');
-                if (endTime) $('<input>').attr({
-                    type: 'hidden',
-                    name: `end_times[${id}]`,
-                    value: endTime
-                }).appendTo('#multiEditShiftInputs');
-                if (bookOn) $('<input>').attr({
-                    type: 'hidden',
-                    name: `book_on[${id}]`,
-                    value: bookOn
-                }).appendTo('#multiEditShiftInputs');
-                if (bookOff) $('<input>').attr({
-                    type: 'hidden',
-                    name: `book_off[${id}]`,
-                    value: bookOff
-                }).appendTo('#multiEditShiftInputs');
-                if (shiftDate) $('<input>').attr({
-                    type: 'hidden',
-                    name: `shift_dates[${id}]`,
-                    value: shiftDate
-                }).appendTo('#multiEditShiftInputs');
-            });
+        if (startTime) $('<input>').attr({ type: 'hidden', name: `start_times[${id}]`, value: startTime }).appendTo('#multiEditShiftInputs');
+        if (endTime) $('<input>').attr({ type: 'hidden', name: `end_times[${id}]`, value: endTime }).appendTo('#multiEditShiftInputs');
+        if (bookOn) $('<input>').attr({ type: 'hidden', name: `book_on[${id}]`, value: bookOn }).appendTo('#multiEditShiftInputs');
+        if (bookOff) $('<input>').attr({ type: 'hidden', name: `book_off[${id}]`, value: bookOff }).appendTo('#multiEditShiftInputs');
+        if (shiftDate) $('<input>').attr({ type: 'hidden', name: `shift_dates[${id}]`, value: shiftDate }).appendTo('#multiEditShiftInputs');
+    });
 
-            $.ajax({
-                url: `${baseUrl}/shifts/multi-assign`,
-                type: 'POST',
-                data: $(this).serialize(),
-                success: function(res) {
-                    if (res.updated.length) {
-                        showToast(
-                            'Shifts updated successfully!', // message
-                            'success', // type
-                            5000 // duration in ms
-                        );
-                    }
+    const submitData = (override = false) => {
+        $.ajax({
+            url: override ? `${baseUrl}/shifts/multi-assign-override` : `${baseUrl}/shifts/multi-assign`,
+            type: 'POST',
+            data: $(this).serialize(),
+            success: function(res) {
+                if (res.updated.length) {
+                    showToast(override ? 'Shifts updated successfully (override)!' : 'Shifts updated successfully!', 'success', 5000);
 
-                    if (res.errors && Object.keys(res.errors).length) {
-                        let messages = [];
-                        for (const [shiftId, errs] of Object.entries(res.errors)) {
-                            messages.push(`Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`);
-                        }
-                        showToast(
-                            messages.join('<br>'), // message
-                            'error', // type
-                            5000 // duration in ms
-                        );
-                    }
-
-                    if (res.updated.length) {
-                        // Only reset UI if something actually updated
-                        $('#multiEditModal').modal('hide');
-                        selectedShiftIds = [];
-                        $('#selectedShiftsCount').text(0);
-                        selectionMode = false;
-                        $('#enableSelectBtn').text('Select');
-                        $('#editSelectedBtn').prop('disabled', true);
-                        $('#multiEditForm')[0].reset();
-                        $('.selec2_assign_modal').val(null).trigger('change');
-                        location.reload();
-                    }
-                },
-                error: function(xhr) {
-                    if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                        let collectMessages = (obj) => {
-                            let msgs = [];
-                            Object.values(obj).forEach(val => {
-                                if (Array.isArray(val)) {
-                                    msgs.push(...val);
-                                } else if (typeof val === 'object') {
-                                    msgs.push(...collectMessages(val)); // dive deeper
-                                }
-                            });
-                            return msgs;
-                        };
-
-                        let messages = collectMessages(xhr.responseJSON.errors);
-                        if (messages.length) {
-                            messages.forEach(msg => toast_danger(msg));
-                        } else {
-                            showToast(
-                                'Validation failed, but no message returned.', // message
-                                'error', // type
-                                5000 // duration in ms
-                            );
-                        }
-                    } else if (xhr.responseJSON?.error) {
-                        showToast(
-                            xhr.responseJSON.error, // message
-                            'error', // type
-                            5000 // duration in ms
-                        );
-                    } else {
-                        showToast(
-                            'An unexpected error occurred.', // message
-                            'error', // type
-                            5000 // duration in ms
-                        );
-                    }
+                    $('#multiEditModal').modal('hide');
+                    selectedShiftIds = [];
+                    $('#selectedShiftsCount').text(0);
+                    selectionMode = false;
+                    $('#enableSelectBtn').text('Select');
+                    $('#editSelectedBtn').prop('disabled', true);
+                    $('#multiEditForm')[0].reset();
+                    $('.selec2_assign_modal').val(null).trigger('change');
+                    location.reload();
                 }
-            });
+
+                if (res.errors && Object.keys(res.errors).length) {
+                    const messages = [];
+                    for (const [shiftId, errs] of Object.entries(res.errors)) {
+                        messages.push(`Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`);
+                    }
+                    showToast(messages.join('<br>'), 'error', 5000);
+                }
+            },
+            error: function(xhr) {
+                // Collect error messages recursively
+                const collectMessages = (obj) => {
+                    let msgs = [];
+                    Object.values(obj).forEach(val => {
+                        if (Array.isArray(val)) msgs.push(...val);
+                        else if (typeof val === 'object') msgs.push(...collectMessages(val));
+                    });
+                    return msgs;
+                };
+
+                if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                    const messages = collectMessages(xhr.responseJSON.errors);
+
+                    if (messages.length) {
+                        if (window.isSuperAdmin) {
+                            // Show restriction toast with override option
+                            showRestrictionToast(messages[0], () => {
+                                submitData(true); // retry with override
+                            });
+                        } else {
+                            messages.forEach(msg => showToast(msg, 'error', 5000));
+                        }
+                    } else {
+                        showToast('Validation failed, but no message returned.', 'error', 5000);
+                    }
+                } else if (xhr.responseJSON?.error) {
+                    showToast(xhr.responseJSON.error, 'error', 5000);
+                } else {
+                    showToast('An unexpected error occurred.', 'error', 5000);
+                }
+            }
         });
+    };
+
+    // Initial submit
+    submitData();
+});
 
 
         function customMatcher(params, data) {

@@ -87,7 +87,7 @@
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 2147483647; /* Max possible z-index to be above everything */
 }
 
 .custom-toast {

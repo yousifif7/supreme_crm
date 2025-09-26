@@ -14,7 +14,7 @@ use App\Models\LeaveRequest;
 
 class InvoiceService
 {
-    public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null)
+    public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null, $frequency = null)
     {
         $client = Client::where('user_id', $clientId)->first();
         $shift = Shift::where('client_id', $clientId)
@@ -65,6 +65,7 @@ class InvoiceService
             'total_deductions_hours' => $totalDeductionsHours,
             'gross_amount' => $grossAmount,
             'net_amount' => $netAmount,
+            'frequency' => $frequency, // <-- store frequency here
         ]);
 
         foreach ($invoiceItems as $itemData) {
@@ -73,6 +74,7 @@ class InvoiceService
 
         return $invoice;
     }
+
 
     public function generateSubcontractorInvoice($subcontractorId, $dateFrom, $dateTo, $dueDate, $notes = null)
     {

@@ -96,6 +96,16 @@
                             </div>
 
                             <div class="mb-3">
+                                <label class="form-label">Frequency <span class="text-danger">*</span></label>
+                                <select name="frequency" id="payroll_frequency" class="form-select">
+                                    <option value="">-- Select Frequency --</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="fortnightly">Fortnightly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                                <span class="text-danger form-error" id="payrollerror_frequency"></span>
+                            </div>
+                            <div class="mb-3">
                                 <label for="date_from" class="form-label">Start Date</label>
                                 <input type="date" name="date_from" id="date_from" class="form-control" required>
                                 <span class="text-danger form-error" id="payrollerror_date_from"></span>
@@ -153,6 +163,39 @@
             $('#btn-generate').on('click', function(e) {
                 e.preventDefault();
 
+                // Clear errors
+                $('.form-error').text('');
+
+                // Get frequency
+                let frequency = $('#payroll_frequency').val();
+
+                if(frequency){                    
+                    // Calculate dates
+                    const today = new Date();
+                    let fromDate, toDate;
+    
+                    if (frequency === 'weekly') {
+                        let lastMonday = new Date(today);
+                        lastMonday.setDate(today.getDate() - today.getDay() - 6); // last week's Monday
+                        let lastSunday = new Date(lastMonday);
+                        lastSunday.setDate(lastMonday.getDate() + 6);
+                        fromDate = lastMonday;
+                        toDate = lastSunday;
+                    } else if (frequency === 'fortnightly') {
+                        toDate = today;
+                        fromDate = new Date();
+                        fromDate.setDate(today.getDate() - 13);
+                    } else if (frequency === 'monthly') {
+                        toDate = today;
+                        fromDate = new Date();
+                        fromDate.setDate(today.getDate() - 29);
+                    }
+    
+                    // Inject dates into form before serializing
+                    $('#payroll_date_from').val(fromDate.toISOString().split('T')[0]);
+                    $('#payroll_date_to').val(toDate.toISOString().split('T')[0]);
+                }
+
                 let formData = $('#generate_payroll-form').serialize();
 
                 $.ajax({
@@ -162,13 +205,13 @@
                     success: function(response) {
                         toast_success(response.message ?? "Payroll generated successfully");
 
-                        // Bootstrap 5 way
+                        // Close modal
                         let modalEl = document.getElementById('generate_payroll');
                         let modal = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(
                             modalEl);
                         modal.hide();
 
-                        // reload table
+                        // Reload table
                         reloadDatatable('#payrolls-table');
                     },
                     error: function(xhr) {
@@ -190,6 +233,8 @@
             $.get(`${baseUrl}/generatepayroll/` + record_id, function(data) {
                 if (data.employee) {
                     $('#employee_id').val(record_id);
+
+                    $('#payroll_site_id').empty().append('<option value="">--choose--</option>');
                     $.each(data.sites, function(index, item) {
                         $('#payroll_site_id').append(
                             $('<option>', {
@@ -198,6 +243,7 @@
                             })
                         );
                     });
+
                     $('#payroll_employee_name').val(`${data.employee.first_name} ${data.employee.last_name}`);
                     $('#generate_payroll').modal('show');
                 }

@@ -103,12 +103,30 @@
                                          </div>
                                      </div>
                                      <div class="col-md-12 mb-3">
-                                         <label class="form-label">Checkpoints / Locations</label>
-                                         <button type="button" class="btn btn-sm btn-primary mb-2"
-                                             id="addCheckpointBtn">
-                                             + Add Checkpoint
-                                         </button>
-                                         <div id="checkpointsContainer"></div>
+                                         <label class="form-label">Site & Checkpoints</label>
+                                         <div id="editSiteMap" style="height: 350px; border-radius: 8px;"></div>
+
+                                         <!-- Hidden inputs for site coordinates -->
+                                         <input type="hidden" name="latitude" id="latitude">
+                                         <input type="hidden" name="longitude" id="longitude">
+
+                                         <!-- Checkpoints list -->
+                                         <div class="mt-3">
+                                             <h6>Checkpoints</h6>
+                                             <table class="table table-sm table-bordered" id="checkpointTable">
+                                                 <thead>
+                                                     <tr>
+                                                         <th>Name</th>
+                                                         <th>Latitude</th>
+                                                         <th>Longitude</th>
+                                                         <th>Action</th>
+                                                     </tr>
+                                                 </thead>
+                                                 <tbody id="checkpointList">
+                                                     <!-- dynamically filled -->
+                                                 </tbody>
+                                             </table>
+                                         </div>
                                      </div>
                                  </div> <!--part-1 -->
                                  <div class="col-md-6">
@@ -242,100 +260,174 @@
  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
  <script>
-     document.addEventListener("DOMContentLoaded", function() {
-         // Default map center (you can change)
-         var map = L.map('map').setView([51.505, -0.09], 13);
+     let editMap, siteMarker;
+     let checkpointMarkers = []; // store markers + indexes
 
-         // OpenStreetMap layer
-         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-             attribution: '&copy; OpenStreetMap contributors'
-         }).addTo(map);
-
-         var marker;
-
-         // On map click set marker and update inputs
-         map.on('click', function(e) {
-             var lat = e.latlng.lat.toFixed(6);
-             var lng = e.latlng.lng.toFixed(6);
-
-             // Update inputs
-             document.getElementById('latitude').value = lat;
-             document.getElementById('longitude').value = lng;
-
-             // Add or move marker
-             if (marker) {
-                 marker.setLatLng(e.latlng);
-             } else {
-                 marker = L.marker(e.latlng).addTo(map);
-             }
-         });
-     });
-
-     document.addEventListener("DOMContentLoaded", function() {
-         let checkpointIndex = 0;
-
-         // Add new checkpoint block
-         $('#addCheckpointBtn').on('click', function() {
-             checkpointIndex++;
-
-             let checkpointHtml = `
-            <div class="card p-3 mb-2 checkpoint-item" data-index="${checkpointIndex}">
-                <div class="row">
-                    <div class="col-md-4 mb-2">
-                        <input type="text" name="checkpoints[${checkpointIndex}][name]" 
-                               class="form-control" placeholder="Checkpoint Name" required>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <input type="text" name="checkpoints[${checkpointIndex}][latitude]" 
-                               class="form-control checkpoint-lat" placeholder="Latitude" required>
-                    </div>
-                    <div class="col-md-3 mb-2">
-                        <input type="text" name="checkpoints[${checkpointIndex}][longitude]" 
-                               class="form-control checkpoint-lng" placeholder="Longitude" required>
-                    </div>
-                    <div class="col-md-2 mb-2 d-flex align-items-center">
-                        <button type="button" class="btn btn-sm btn-danger removeCheckpoint">Remove</button>
-                    </div>
-                    <div class="col-12 mt-2">
-                        <div class="checkpoint-map" id="map-${checkpointIndex}" style="height:200px; border-radius:6px;"></div>
-                    </div>
-                </div>
-            </div>
-        `;
-
-             $('#checkpointsContainer').append(checkpointHtml);
-
-             initMap(`map-${checkpointIndex}`, checkpointIndex);
-         });
-
-         // Remove checkpoint block
-         $(document).on('click', '.removeCheckpoint', function() {
-             $(this).closest('.checkpoint-item').remove();
-         });
-
-         // Initialize Leaflet map for a checkpoint
-         function initMap(mapId, index) {
-             var map = L.map(mapId).setView([51.505, -0.09], 13);
+     function initEditMap(lat = 51.505, lng = -0.09, checkpoints = []) {
+         if (!editMap) {
+             // Init map once
+             editMap = L.map('editSiteMap').setView([lat, lng], 13);
 
              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                 //  attribution: '&copy; OpenStreetMap contributors'
-             }).addTo(map);
+                 attribution: '&copy; OpenStreetMap contributors'
+             }).addTo(editMap);
 
-             let marker;
+             // Site marker (main location)
+             siteMarker = L.marker([lat, lng], {
+                 draggable: true
+             }).addTo(editMap);
 
-             map.on('click', function(e) {
-                 let lat = e.latlng.lat.toFixed(6);
-                 let lng = e.latlng.lng.toFixed(6);
+             siteMarker.on('dragend', function() {
+                 let pos = siteMarker.getLatLng();
+                 $('#latitude').val(pos.lat);
+                 $('#longitude').val(pos.lng);
+             });
 
-                 $(`input[name="checkpoints[${index}][latitude]"]`).val(lat);
-                 $(`input[name="checkpoints[${index}][longitude]"]`).val(lng);
-
-                 if (marker) {
-                     marker.setLatLng(e.latlng);
-                 } else {
-                     marker = L.marker(e.latlng).addTo(map);
+             // Click on map → add checkpoint
+             editMap.on('click', function(e) {
+                 let cpName = prompt("Enter checkpoint name:");
+                 if (cpName) {
+                     addCheckpoint(cpName, e.latlng.lat, e.latlng.lng);
                  }
              });
+         } else {
+             // Reset view + site marker position
+             editMap.setView([lat, lng], 13);
+             siteMarker.setLatLng([lat, lng]);
          }
-     });
+
+         // Update hidden site coords
+         $('#latitude').val(lat);
+         $('#longitude').val(lng);
+
+         // Clear previous checkpoints
+         checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
+         checkpointMarkers = [];
+         $('#checkpointList').empty();
+
+         // Load checkpoints if editing
+         checkpoints.forEach(cp => {
+             addCheckpoint(cp.name, cp.latitude, cp.longitude, cp.id);
+         });
+
+         setTimeout(() => editMap.invalidateSize(), 300); // fix resizing bug
+     }
+
+     function addCheckpoint(name, lat, lng, id = null) {
+         let index = checkpointMarkers.length;
+
+         // Create marker
+         let marker = L.marker([lat, lng], {
+             draggable: true
+         }).addTo(editMap);
+
+         checkpointMarkers.push({
+             marker,
+             index
+         });
+
+         // Append row to table
+         let row = `
+        <tr id="checkpoint_row_${index}">
+            <td>
+                <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
+                <input type="text" class="form-control"
+                       name="checkpoints[${index}][name]" 
+                       value="${name}">
+            </td>
+            <td>
+                <input type="text" class="form-control" 
+                       name="checkpoints[${index}][latitude]" 
+                       value="${lat}" readonly>
+            </td>
+            <td>
+                <input type="text" class="form-control" 
+                       name="checkpoints[${index}][longitude]" 
+                       value="${lng}" readonly>
+            </td>
+            <td>
+                <button type="button" class="btn btn-sm btn-danger" 
+                        onclick="removeCheckpoint(${index})">
+                    Remove
+                </button>
+            </td>
+        </tr>
+    `;
+         $('#checkpointList').append(row);
+
+         // Update row when marker is dragged
+         marker.on('dragend', function() {
+             let pos = marker.getLatLng();
+             $(`#checkpoint_row_${index} input[name="checkpoints[${index}][latitude]"]`).val(pos.lat);
+             $(`#checkpoint_row_${index} input[name="checkpoints[${index}][longitude]"]`).val(pos.lng);
+         });
+     }
+
+     function removeCheckpoint(index) {
+         let cp = checkpointMarkers.find(c => c.index === index);
+         if (cp) {
+             editMap.removeLayer(cp.marker);
+             $(`#checkpoint_row_${index}`).remove();
+         }
+     }
+
+     // =============================
+     // DOM Ready + AJAX example
+     // =============================
+            $(document).ready(function() {
+
+                // Initialize map
+                initEditMap();
+
+                $('#add_site-form').on('submit', function(e) {
+                    e.preventDefault();
+                    $("[id^='error_']").text('');
+
+                    const form = this;
+                    const formData = new FormData(form);
+                    const submitButton = $('#savesite');
+                    submitButton.prop('disabled', true).html('Saving...');
+
+                    if (siteMarker) {
+                        const p = siteMarker.getLatLng();
+                        $('#latitude').val(p.lat);
+                        $('#longitude').val(p.lng);
+                    }
+
+                    $.ajax({
+                        url: $(form).attr('action'),
+                        method: 'POST',
+                        data: formData,
+                        processData: false,
+                        contentType: false,
+                        headers: {
+                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        },
+                        success: function(response) {
+                            closeBsModal('#add_site');
+                            toast_success(response.message ||
+                                'Site created successfully');
+                            reloadDatatable('#sites-table');
+                        },
+                        error: function(xhr) {
+                            if (xhr.status === 422) {
+                                const errors = xhr.responseJSON.errors;
+                                $.each(errors, function(key, value) {
+                                    $('#error_' + key).text(value[0]);
+                                });
+                            } else {
+                                toast_danger('An error occurred. Please try again.');
+                            }
+                        },
+                        complete: function() {
+                            submitButton.prop('disabled', false).html('Save');
+                        }
+                    });
+                });
+
+                // Optional: re-render map on modal show
+                $('#add_site').on('shown.bs.modal', function() {
+                    setTimeout(() => editMap.invalidateSize(), 300);
+                });
+            });
  </script>

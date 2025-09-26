@@ -135,6 +135,18 @@
                                                 </div>
 
                                                 <div class="mb-3">
+                                                    <label class="form-label">Frequency <span
+                                                            class="text-danger">*</span></label>
+                                                    <select name="frequency" id="invoice_frequency" class="form-select">
+                                                        <option value="">-- Select Frequency --</option>
+                                                        <option value="weekly">Weekly</option>
+                                                        <option value="fortnightly">Fortnightly</option>
+                                                        <option value="monthly">Monthly</option>
+                                                    </select>
+                                                    <span class="text-danger form-error"
+                                                        id="invoiceerror_frequency"></span>
+                                                </div>
+                                                <div class="mb-3">
                                                     <label class="form-label">Due Date <span
                                                             class="text-danger"></span></label>
                                                     <input type="date" name="due_date" id="invoice_due_date"
@@ -261,12 +273,40 @@
             $("[id^='invoiceerror_']").text('');
             let form = $(this)[0];
             let formData = new FormData(form);
-            let submitButton = $('#generateinvoice'); // Your submit button should have this ID
-
-            // Get the client ID from a hidden input field
+            let submitButton = $('#generateinvoice');
             let clientId = $('#invoice_client_id').val();
 
-            // Disable button and show loading
+            // Validate frequency
+            let frequency = $('#invoice_frequency').val();
+
+            // Calculate date_from and date_to based on frequency
+            if(frequency){
+                const today = new Date();
+                let fromDate, toDate;
+    
+                if (frequency === 'weekly') {
+                    // Last full week (Mon-Sun) before today
+                    let lastMonday = new Date(today);
+                    lastMonday.setDate(today.getDate() - today.getDay() - 6); // last week's Monday
+                    let lastSunday = new Date(lastMonday);
+                    lastSunday.setDate(lastMonday.getDate() + 6);
+                    fromDate = lastMonday;
+                    toDate = lastSunday;
+                } else if (frequency === 'fortnightly') {
+                    toDate = today;
+                    fromDate = new Date();
+                    fromDate.setDate(today.getDate() - 13); // last 14 days
+                } else if (frequency === 'monthly') {
+                    toDate = today;
+                    fromDate = new Date();
+                    fromDate.setDate(today.getDate() - 29); // last 30 days
+                }
+    
+                // Update formData with calculated dates
+                formData.set('date_from', fromDate.toISOString().split('T')[0]);
+                formData.set('date_to', toDate.toISOString().split('T')[0]);
+            }
+
             submitButton.prop('disabled', true).html('Updating...');
 
             $.ajax({
@@ -286,20 +326,16 @@
                 error: function(xhr) {
                     if (xhr.status === 422) {
                         let errors = xhr.responseJSON.errors;
-
                         let messages = [];
                         $.each(errors, function(key, value) {
                             messages.push(value[0]);
                         });
-
-                        // Show all validation messages in one toast
                         toast_danger(messages.join('<br>'));
                     } else {
                         toast_danger('An error occurred. Please try again.');
                     }
                 },
                 complete: function() {
-                    // Re-enable button after response
                     submitButton.prop('disabled', false).html('Generate');
                 }
             });

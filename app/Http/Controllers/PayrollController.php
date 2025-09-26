@@ -36,17 +36,41 @@ class PayrollController extends Controller
             'notes'             => 'nullable|string|max:355',
             'date_from'         => 'nullable|date',
             'date_to'           => 'nullable|date|after_or_equal:date_from',
+            'frequency'         => 'nullable|in:weekly,fortnightly,monthly',
         ]);
+
+        // 🟢 Handle frequency (override date range if frequency is set)
+        if (!empty($data['frequency'])) {
+            $today = Carbon::today();
+
+            switch ($data['frequency']) {
+                case 'weekly':
+                    // last full week (Mon–Sun)
+                    $startDate = $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY);
+                    $endDate   = $today->copy()->subWeek()->endOfWeek(Carbon::SUNDAY);
+                    break;
+
+                case 'fortnightly':
+                    $startDate = $today->copy()->subWeeks(2);
+                    $endDate   = $today;
+                    break;
+
+                case 'monthly':
+                    $startDate = $today->copy()->subDays(30);
+                    $endDate   = $today;
+                    break;
+            }
+        } else {
+            $startDate = Carbon::parse($data['date_from'] ?? now());
+            $endDate   = Carbon::parse($data['date_to'] ?? now());
+        }
 
         $staff = Employee::where('user_id', $data['security_staff_id'])->firstOrFail();
 
-        $startDate = Carbon::parse($data['date_from'] ?? now());
-        $endDate   = Carbon::parse($data['date_to'] ?? now());
-
-        // Base payroll calculations
+        // 🔹 Base payroll calculations
         $payroll = $calc->calculatePayroll($staff, $data['site_id'] ?? null, $startDate, $endDate);
 
-        // SSP & Holiday based on leave requests
+        // 🔹 Process leaves (SSP, Holiday, Unpaid)
         $leaves = LeaveRequest::where('user_id', $staff->user_id)
             ->where('status', 'approved')
             ->whereBetween('start_date', [$startDate, $endDate])
@@ -62,17 +86,17 @@ class PayrollController extends Controller
 
         foreach ($leaves as $leave) {
             if ($leave->ssp_days) {
-                $sspDays += $leave->ssp_days;
-                $sspAmount += $leave->ssp_days * 23.75; // SSP rate
+                $sspDays   += $leave->ssp_days;
+                $sspAmount += $leave->ssp_days * 23.75;
             }
 
             if ($leave->holiday_days_used) {
-                $holidayHours += $leave->holiday_days_used;
+                $holidayHours  += $leave->holiday_days_used;
                 $holidayAmount += $leave->holiday_days_used * $payroll['rate'];
             }
 
             if ($leave->unpaid_days) {
-                $unpaidHours += $leave->unpaid_days;
+                $unpaidHours  += $leave->unpaid_days;
                 $unpaidAmount += $leave->unpaid_days * $payroll['rate'];
             }
 
@@ -80,6 +104,7 @@ class PayrollController extends Controller
             $leave->save();
         }
 
+        // 🔹 Save payroll (as invoice with type=security_staff)
         $invoice = Invoice::create([
             'security_staff_id'      => $staff->user_id,
             'site_id'                => $data['site_id'] ?? null,
@@ -112,11 +137,15 @@ class PayrollController extends Controller
             ['invoice' => $invoice]
         );
 
-        Logger::log(Auth::user(), 'Create', 'Payroll NO. '.$invoice->ivoice_number.' Generated for Client '.$invoice->securityStaff->first_name.' '.$invoice->securityStaff->last_name);
+        Logger::log(
+            Auth::user(),
+            'Create',
+            'Payroll NO. ' . $invoice->invoice_number . ' generated for ' . $staff->first_name . ' ' . $staff->last_name
+        );
 
         return response()->json([
-            'message' => 'Payroll created successfully',
-            'payroll' => $invoice,
+            'message'   => 'Payroll created successfully',
+            'payroll'   => $invoice,
             'breakdown' => [
                 'ssp'     => ['amount' => $sspAmount, 'days' => $sspDays],
                 'holiday' => ['amount' => $holidayAmount, 'hours' => $holidayHours],
@@ -124,6 +153,7 @@ class PayrollController extends Controller
             ]
         ]);
     }
+
 
     public function update(Request $request, $id) {}
 
@@ -174,7 +204,7 @@ class PayrollController extends Controller
             $invoice->net_amount = $invoice->items->sum('amount') + $invoice->holiday_amount + $invoice->ssp_amount - $invoice->unpaid_leave_amount;
         }
 
-        $staff = User::role('security_staff')->where('id',$invoice->security_staff_id)->first();
+        $staff = User::role('security_staff')->where('id', $invoice->security_staff_id)->first();
         return view('invoices.viewpayroll', [
             'invoice' => $invoice,
             'staff' => $staff,
@@ -200,7 +230,7 @@ class PayrollController extends Controller
     public function delete($id)
     {
         $payroll = Invoice::findOrFail($id);
-        Logger::log(Auth::user(), 'Create', 'Payroll NO. '.$payroll->ivoice_number.' Generated for Staff '.$payroll->securityStaff->first_name.' '.$payroll->securityStaff->last_name);
+        Logger::log(Auth::user(), 'Create', 'Payroll NO. ' . $payroll->ivoice_number . ' Generated for Staff ' . $payroll->securityStaff->first_name . ' ' . $payroll->securityStaff->last_name);
         $payroll->delete();
 
         return response()->json(['success' => true]);
@@ -213,9 +243,9 @@ class PayrollController extends Controller
             'ids.*' => 'exists:invoices,id',
         ]);
 
-        $invoices=Invoice::whereIn('id', $request->ids)->get();
-        foreach($invoices as $invoice){
-            Logger::log(Auth::user(), 'Create', 'Payroll NO. '.$invoice->ivoice_number.' Generated for Staff '.$invoice->securityStaff->first_name.' '.$invoice->securityStaff->last_name);
+        $invoices = Invoice::whereIn('id', $request->ids)->get();
+        foreach ($invoices as $invoice) {
+            Logger::log(Auth::user(), 'Create', 'Payroll NO. ' . $invoice->ivoice_number . ' Generated for Staff ' . $invoice->securityStaff->first_name . ' ' . $invoice->securityStaff->last_name);
             $invoice->delete();
         }
 
