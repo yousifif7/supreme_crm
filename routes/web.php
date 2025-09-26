@@ -457,12 +457,35 @@ Route::post('/shifts/multi-assign-override', [ShiftController::class, 'multiAssi
 Route::post('/shifts/store-override', [ShiftController::class, 'storeOverride'])
     ->middleware('auth')
     ->name('shifts.store.override');
-    
+
 Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
 Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
 Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
 
-Route::get('/logs',[LogController::class,'index'])->name('logs.index');
+Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+
+
+Route::get('/clean', function () {
+    // Get all user_ids currently linked to subcontractors
+    $subcontractorUserIds = App\Models\Subcontractor::whereNotNull('user_id')->pluck('user_id')->toArray();
+
+    // Find users who have role 'subcontractor' but are not linked
+    $orphanUsers = App\Models\User::role('subcontractor')
+        ->whereNotIn('id', $subcontractorUserIds)
+        ->get();
+
+    $deletedCount = 0;
+
+    foreach ($orphanUsers as $user) {
+        $user->delete();
+        $deletedCount++;
+        \App\Helpers\Logger::log(auth()->user(), 'Delete', 'Orphaned subcontractor user ' . $user->name . ' deleted.');
+    }
+
+    return response()->json([
+        'message' => "$deletedCount orphaned subcontractor users deleted successfully."
+    ]);
+});
 
 require __DIR__ . '/auth.php';
 

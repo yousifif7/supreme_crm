@@ -325,7 +325,7 @@
                               <select class="form-select" name="subcontractor">
                                   @foreach ($subcontractors as $subcontractor)
                                       <option value="{{ $subcontractor->id }}">
-                                          {{ $subcontractor->first_name }} {{ $subcontractor->last_name }}</option>
+                                          {{ $subcontractor->name }}</option>
                                   @endforeach
                               </select>
                               <span class="text-danger form-error" id="error_subcontractor"></span>

@@ -146,8 +146,8 @@
                                 <h3><b>Live Tracking</b></h3>
                             </div>
                         </div>
-                        <div class="">
-                            <div id="map" style="height: 700px; width: 100%;"></div>
+                        <div class="" style="padding-bottom:0px;">
+                            <div id="map" style="height: 1000px; width: 100%;"></div>
                         </div>
                     </div>
                 </div>

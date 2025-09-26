@@ -90,15 +90,15 @@
         </div>
 
         <!-- Add Subcontractor -->
-      
+
         <!-- /Add Subcontractor -->
 
 
         <!-- Edit Subcontractor -->
-     
+
         <!-- /Edit Subcontractor -->
         <!-- View Subcontractor Detail Modal -->
-      
+
 
 
         <!-- Add Subcontractor Success -->
@@ -128,11 +128,12 @@
         <!-- /Add Subcontractor Success -->
 
 
- @include('subcontractors.invoice_model')
+        @include('subcontractors.invoice_model')
         <!-- Edit Client -->
-          @include('subcontractors.create')
+        @include('subcontractors.create')
         <!-- /Add Employee -->
-      @include('subcontractors.edit')
+        @include('subcontractors.edit')
+        @include('subcontractors.show')
 
 
         <!-- Delete Modal -->
@@ -181,7 +182,6 @@
 @endsection
 @section('scripts')
     <script>
-
         $(document).ready(function() {
             // Add Subcontractor
             $('#add_subcontractor-form').on('submit', function(e) {
@@ -263,7 +263,7 @@
                     }
                 });
             });
-             $('#generate_invoice-form').on('submit', function(e) {
+            $('#generate_invoice-form').on('submit', function(e) {
                 e.preventDefault();
 
                 $("[id^='invoiceerror_']").text('');
@@ -310,10 +310,10 @@
             });
         });
 
- function generateInvoice(record_id) {
-           $('#invoice_client_id').val(record_id);
-                    $('#generate_invoice').modal('show');
-              
+        function generateInvoice(record_id) {
+            $('#invoice_client_id').val(record_id);
+            $('#generate_invoice').modal('show');
+
         }
 
         function editSubcontractor(record_id) {
@@ -404,7 +404,7 @@
 
 
 
-        function viewSubcontractorDetail(id) {
+        window.viewSubcontractorDetail = function(id) {
             $.get(`${baseUrl}/subcontractors/${id}/view`, function(data) {
                 $('#subcontractor_name_heading').text(data.company_name);
                 $('#company_name_detail').text(data.company_name);
@@ -422,10 +422,16 @@
                 $('#vat_number_detail').text(data.vat_number ?? '-');
                 $('#status_detail').text(data.is_active ? 'Active' : 'Inactive');
 
-                new bootstrap.Modal(document.getElementById('viewSubcontractorDetailModal')).show();
+                // ✅ Make sure modal exists
+                const modalEl = document.getElementById('viewSubcontractorDetailModal');
+                if (modalEl) {
+                    const modal = bootstrap.Modal.getOrCreateInstance(modalEl); // safe Bootstrap 5 method
+                    modal.show();
+                } else {
+                    console.error('Modal element not found!');
+                }
             });
-        }
-
+        };
 
         function viewLogs(subcontractorId) {
             // Clear existing content

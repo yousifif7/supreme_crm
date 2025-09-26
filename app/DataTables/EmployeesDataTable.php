@@ -2,12 +2,13 @@
 
 namespace App\DataTables;
 
+use App\Models\User;
 use App\Models\Employee;
-use Illuminate\Database\Eloquent\Builder as QueryBuilder;
-use Yajra\DataTables\EloquentDataTable;
-use Yajra\DataTables\Html\Builder as HtmlBuilder;
 use Yajra\DataTables\Html\Column;
+use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
+use Yajra\DataTables\Html\Builder as HtmlBuilder;
+use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 
 class EmployeesDataTable extends DataTable
 {
@@ -61,7 +62,8 @@ class EmployeesDataTable extends DataTable
                 return $user->created_at?->format('Y-m-d');
             })
             ->editColumn('subcontractor', function ($employee) {
-                return $employee->subcontractorDetails->first_name ?? 'N/A';
+                $subcontractor= User::role('subcontractor')->where('id',$employee->subcontractor)->first();
+                return $subcontractor->name ?? 'N/A';
             })
             ->filterColumn('name', function ($query, $keyword) {
                 $query->where('fore_name', 'like', "%{$keyword}%")

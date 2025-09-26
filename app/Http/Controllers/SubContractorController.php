@@ -2,13 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\SubcontractorsDataTable;
-use App\Models\Subcontractor;
 use App\Models\User;
+use App\Helpers\Logger;
 use Illuminate\Http\Request;
+use App\Models\Subcontractor;
+use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Spatie\Permission\Models\Role;
+use App\DataTables\SubcontractorsDataTable;
 
 class SubContractorController extends Controller
 {
@@ -116,14 +118,24 @@ class SubContractorController extends Controller
         return response()->json(['subcontractor' => $subcontractor]);
     }
 
+    // Delete a single subcontractor along with related user
     public function delete($id)
     {
         $subcontractor = Subcontractor::findOrFail($id);
+
+        // Delete related user if exists
+        if ($subcontractor->user_id) {
+            User::where('id', $subcontractor->user_id)->delete();
+        }
+
+        Logger::log(Auth::user(), 'Delete', 'Subcontractor ' . $subcontractor->company_name . ' and related user deleted.');
+
         $subcontractor->delete();
 
-        return response()->json(['success' => true]);
+        return response()->json(['message' => 'Subcontractor and related user deleted successfully.']);
     }
 
+    // Bulk delete subcontractors along with their related users
     public function bulkDelete(Request $request)
     {
         $request->validate([
@@ -131,10 +143,25 @@ class SubContractorController extends Controller
             'ids.*' => 'exists:sub_contractors,id',
         ]);
 
+        // Get subcontractors
+        $subcontractors = Subcontractor::whereIn('id', $request->ids)->get();
+
+        // Collect related user IDs
+        $userIds = $subcontractors->pluck('user_id')->filter()->toArray();
+
+        // Delete related users
+        User::whereIn('id', $userIds)->delete();
+
+        foreach ($subcontractors as $sc) {
+            Logger::log(Auth::user(), 'Delete', 'Subcontractor ' . $sc->company_name . ' and related user deleted.');
+        }
+
+        // Delete subcontractors
         Subcontractor::whereIn('id', $request->ids)->delete();
 
-        return response()->json(['message' => 'Selected subcontractors deleted.']);
+        return response()->json(['message' => 'Selected subcontractors and related users deleted successfully.']);
     }
+
 
     public function getLogs($id)
     {

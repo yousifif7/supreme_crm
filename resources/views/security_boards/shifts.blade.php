@@ -98,8 +98,7 @@
             <!-- /Breadcrumb -->
         </div>
       
-                @include('security_boards.edit')
-                @include('security_boards.shiftmodal')
+            @include('security_boards.shiftmodal')
 
         <!-- Edit Shift -->
     
