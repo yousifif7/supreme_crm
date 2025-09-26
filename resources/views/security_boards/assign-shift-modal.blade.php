@@ -65,34 +65,58 @@
     });
 </script>
 <script>
-    $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
-        e.preventDefault();
+// $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
+//     e.preventDefault();
 
-        $.ajax({
-            url: `${baseUrl}/assign-shift`,
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(response) {
-                // On success, do nothing because normal redirect will handle it
-                location.reload();
-            },
-            error: function(xhr) {
-                $('#assignShiftErrors').addClass('d-none').empty();
+//     $.ajax({
+//         url: `${baseUrl}/assign-shift`,
+//         type: 'POST',
+//         data: $(this).serialize(),
+//         success: function(response) {
+//             showToast(response.success, 'success', 5000);
+//             location.reload();
+//         },
+//         error: function(xhr) {
+//             $('#assignShiftErrors').addClass('d-none').empty(); // clear old errors
 
-                if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                    let messages = Object.values(xhr.responseJSON.errors).flat();
-                    messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
-                    $('#assignShiftErrors').removeClass('d-none');
-                } else if (xhr.responseJSON?.error) {
-                    $('#assignShiftErrors').html(xhr.responseJSON.error).removeClass('d-none');
-                } else {
-                    $('#assignShiftErrors').html(
-                            'An unexpected error occurred while assigning the shift.')
-                        .removeClass('d-none');
-                }
-            }
-        });
-    });
+//             if (xhr.status === 422 && xhr.responseJSON?.errors) {
+//                 let messages = Object.values(xhr.responseJSON.errors).flat();
+//                 const restrictionMsg = messages[0]; // first error
+
+//                 if (window.isSuperAdmin) {
+//                     showRestrictionToast(restrictionMsg, () => {
+//                         // Clear errors before override
+//                         $('#assignShiftErrors').addClass('d-none').empty();
+
+//                         // Send override request
+//                         $.ajax({
+//                             url: `${baseUrl}/assign-shift-override`,
+//                             type: 'POST',
+//                             data: $('#assignShiftForm').serialize(),
+//                             success: function(res) {
+//                                 showToast(res.success, 'success', 5000);
+//                                 location.reload();
+//                             },
+//                             error: function(err) {
+//                                 showToast("Override failed. Try again.", "error", 5000);
+//                             }
+//                         });
+//                     });
+//                 } else {
+//                     showToast(restrictionMsg, 'error', 5000);
+//                 }
+
+//                 // Optional fallback in error div
+//                 messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
+//                 $('#assignShiftErrors').removeClass('d-none');
+//             } else if (xhr.responseJSON?.error) {
+//                 showToast(xhr.responseJSON.error, 'error', 5000);
+//             } else {
+//                 showToast('An unexpected error occurred while assigning the shift.', 'error', 5000);
+//             }
+//         }
+//     });
+// });
 </script>
 
 <script></script>

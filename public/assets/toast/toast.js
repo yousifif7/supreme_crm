@@ -28,8 +28,8 @@ function showToast(message, type = 'info', duration = 2500) {
 
     let iconHtml = '';
     if (type === 'success') iconHtml = `<div class="toast-icon success">✔</div>`;
-    if (type === 'error')   iconHtml = `<div class="toast-icon error">✖</div>`;
-    if (type === 'info')    iconHtml = `<div class="toast-icon info">ℹ</div>`;
+    if (type === 'error') iconHtml = `<div class="toast-icon error">✖</div>`;
+    if (type === 'info') iconHtml = `<div class="toast-icon info">ℹ</div>`;
 
     toast.innerHTML = `
         ${iconHtml}
@@ -49,3 +49,56 @@ function showToast(message, type = 'info', duration = 2500) {
         }, 300);
     }, duration);
 }
+
+/**
+ * Show a restriction error toast with override button
+ * @param {string} message - Restriction message
+ * @param {Function} onOverride - Callback when override is clicked
+ * @param {number} duration - Auto close in ms (optional, null = persistent)
+ */
+function showRestrictionToast(message, onOverride) {
+    let container = document.getElementById('custom-toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'custom-toast-container';
+        document.body.appendChild(container);
+    }
+
+    const toast = document.createElement('div');
+    toast.className = 'custom-toast';
+
+    toast.innerHTML = `
+        <div class="toast-icon">⚠</div>
+        <div class="toast-content">
+            <p>${message}</p>
+            <button class="override-btn">Override Restriction</button>
+        </div>
+    `;
+
+    container.appendChild(toast);
+
+    // Animate in
+    setTimeout(() => toast.classList.add('show'), 50);
+
+    // Bind override button
+    toast.querySelector('.override-btn').addEventListener('click', function () {
+        if (typeof onOverride === 'function') {
+            onOverride();
+        }
+        // remove toast immediately
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) container.removeChild(toast);
+        }, 300);
+    });
+
+    // Auto remove if no action
+    setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentNode) container.removeChild(toast);
+        }, 300);
+    }, 5000);
+}
+
+

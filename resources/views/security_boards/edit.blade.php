@@ -65,8 +65,9 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
-                                                <input type="text" name="start_shift" id="start_shift" placeholder="HH:MM"
-                                                    class="form-control time-input" value="{{ old('start_shift.0') }}">
+                                                <input type="text" name="start_shift" id="start_shift"
+                                                    placeholder="HH:MM" class="form-control time-input"
+                                                    value="{{ old('start_shift.0') }}">
                                                 <span class="text-danger form-error error_start_shift"></span>
                                             </div>
                                         </div>
@@ -84,8 +85,9 @@
                                                 <label class="form-label">Book on <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="book_on" id="book_on" class="form-control"
-                                                    value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time )->format('H:i') }}">
-                                                <span class="text-danger form-error time-input" id="error_book_on"></span>
+                                                    value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}">
+                                                <span class="text-danger form-error time-input"
+                                                    id="error_book_on"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -93,8 +95,10 @@
                                                 <label class="form-label">Book off <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="book_off" id="book_off"
-                                                    class="form-control" value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time )->format('H:i') }}">
-                                                <span class="text-danger form-error time-input" id="error_book_off"></span>
+                                                    class="form-control"
+                                                    value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}">
+                                                <span class="text-danger form-error time-input"
+                                                    id="error_book_off"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
@@ -116,7 +120,8 @@
                                                         ];
                                                     @endphp
                                                     @foreach ($statusLabels as $key => $label)
-                                                        <option value="{{ $key }}">{{ $label }}</option>
+                                                        <option value="{{ $key }}">{{ $label }}
+                                                        </option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error" id="error_status_id"></span>
@@ -166,12 +171,9 @@
 
         let form = $(this)[0];
         let formData = new FormData(form);
-        let submitButton = $('#editshift'); // Your submit button should have this ID
-
-        // Get the client ID from a hidden input field
+        let submitButton = $('#editshift');
         let shiftId = $(this).find('#shift_id').val();
 
-        // Disable button and show loading
         submitButton.prop('disabled', true).html('Updating...');
 
         $.ajax({
@@ -185,35 +187,49 @@
             },
             success: function(response) {
                 closeBsModal('#edit_shift');
-                toast_success('Shift Updated Successfully!');
+                showToast('Shift updated successfully!', 'success', 5000);
                 reloadDatatable('#shifts-table');
                 location.reload();
             },
             error: function(xhr) {
-                if (xhr.status === 422) {
-                    let errors = xhr.responseJSON.errors;
-
-                    // Loop through errors and show near inputs
-                    $.each(errors, function(key, value) {
-                        $('#error_' + key).text(value[0]);
-                    });
-
-                    // Also show the first error in a toast
-                    let firstError = Object.values(errors)[0][0];
-                    toast_danger(firstError);
-
+                if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                    let messages = Object.values(xhr.responseJSON.errors).flat();
+                    if (messages.length) {
+                        // Show restriction override button only for first error
+                        showRestrictionToast(messages[0], () => {
+                            // On override click
+                            $.ajax({
+                                url: `${baseUrl}/updateshift/${shiftId}/override`,
+                                method: 'POST',
+                                data: formData,
+                                processData: false,
+                                contentType: false,
+                                headers: {
+                                    'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                                },
+                                success: function(res) {
+                                    showToast('Shift updated with override!',
+                                        'success', 5000);
+                                    location.reload();
+                                },
+                                error: function(err) {
+                                    showToast('Override failed. Try again.',
+                                        'error', 5000);
+                                }
+                            });
+                        });
+                    }
                 } else {
-                    toast_danger('An error occurred. Please try again.');
+                    showToast('An error occurred. Please try again.', 'error', 5000);
                 }
             },
             complete: function() {
-                // Re-enable button after response
                 submitButton.prop('disabled', false).html('Update');
             }
         });
     });
 
-        document.addEventListener("DOMContentLoaded", function() {
+    document.addEventListener("DOMContentLoaded", function() {
         // Apply Flatpickr to all inputs with class .time-input
         flatpickr("input.time-input", {
             enableTime: true,

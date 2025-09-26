@@ -1750,39 +1750,6 @@ class ShiftController extends Controller
         ]);
     }
 
-    public function override(Request $request)
-    {
-        // Only superadmin can override
-        if (!auth()->user()->hasRole('superadmin')) {
-            return response()->json(['error' => 'Not authorized'], 403);
-        }
-
-        $entityId = $request->entity_id;
-        $restrictionType = $request->restriction_type;
-        $shiftData = $request->shift_data ?? [];
-
-        // Log the override
-        \App\Models\RestrictionOverride::create([
-            'user_id' => auth()->id(),
-            'entity_id' => $entityId,
-            'entity_type' => \App\Models\Employee::class,
-            'restriction_type' => $restrictionType,
-            'reason' => 'Admin override via toast/button',
-        ]);
-
-        // Assign shift centrally
-        $shift = \App\Services\ShiftAssignmentService::assignShift(
-            $entityId,
-            $shiftData,
-            $restrictionType
-        );
-
-        return response()->json([
-            'message' => 'Restriction overridden and shift assigned successfully',
-            'shift_id' => $shift->id
-        ]);
-    }
-
     public function showNote($id)
     {
         $note = ShiftNote::where('shift_date_id', $id)->first();
@@ -1819,5 +1786,339 @@ class ShiftController extends Controller
             return response()->json(['success' => true]);
         }
         return response()->json(['success' => false]);
+    }
+
+    public function assignWithOverride(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'shift_id' => 'required|exists:shift_dates,id',
+            'staff_id' => 'required|exists:users,id',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $staffId   = $request->staff_id;
+        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        $shiftDate = ShiftDate::findOrFail($request->shift_id);
+        $shift     = Shift::findOrFail($shiftDate->shift_id);
+
+        // ⚠ Skip restrictions entirely
+        // ✅ Still enforce overlap check to avoid double booking
+        $newStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+        $newEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+
+        if ($newEnd->lte($newStart)) {
+            $newEnd->addDay();
+        }
+
+        $overlap = ShiftDate::where('staff_id', $staffUser->user_id)
+            ->where(function ($query) use ($newStart, $newEnd) {
+                $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
+                    ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
+            })
+            ->exists();
+
+        if ($overlap) {
+            return response()->json([
+                'error' => 'This staff already has a shift during this time.'
+            ], 422);
+        }
+
+        // ✅ Force assign
+        $shiftDate->staff_id = $staffUser->user_id;
+        $shiftDate->is_assign = 1;
+        $shiftDate->status = 'pending';
+        $shiftDate->save();
+
+        send_push_notification(
+            $staffUser->user_id,
+            'Shift assigned (override)',
+            'An admin assigned a shift for you, overriding restrictions.',
+            ['shiftDate' => $shiftDate],
+        );
+
+        return response()->json(['success' => 'Shift assigned with override!'], 200);
+    }
+
+    public function multiAssignWithOverride(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'shift_ids'   => 'required|array',
+            'shift_ids.*' => 'exists:shift_dates,id',
+            'staff_id'    => 'required|exists:users,id',
+            'start_times' => 'nullable|array',
+            'end_times'   => 'nullable|array',
+            'book_on'     => 'nullable|array',
+            'book_off'    => 'nullable|array',
+            'shift_dates' => 'nullable|array',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $staffId   = $request->staff_id;
+        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        $updatedShifts = [];
+        $errors = [];
+
+        foreach ($request->shift_ids as $shiftId) {
+            $shiftDate = ShiftDate::findOrFail($shiftId);
+            $shift     = Shift::findOrFail($shiftDate->shift_id);
+
+            $newStart = $request->start_times[$shiftId] ?? $shiftDate->start_time;
+            $newEnd   = $request->end_times[$shiftId] ?? $shiftDate->end_time;
+            $newDate  = $request->shift_dates[$shiftId] ?? $shiftDate->shift_date;
+            $bookOn   = $request->book_on[$shiftId] ?? null;
+            $bookOff  = $request->book_off[$shiftId] ?? null;
+
+            $newShiftStart = \Carbon\Carbon::parse($newDate . ' ' . $newStart);
+            $newShiftEnd   = \Carbon\Carbon::parse($newDate . ' ' . $newEnd);
+            if ($newShiftEnd->lte($newShiftStart)) {
+                $newShiftEnd->addDay();
+            }
+
+            // ✅ Overlap check only
+            $overlap = ShiftDate::where('staff_id', $staffUser->user_id)
+                ->where(function ($query) use ($newShiftStart, $newShiftEnd) {
+                    $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newShiftEnd])
+                        ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newShiftStart]);
+                })
+                ->exists();
+
+            if ($overlap) {
+                $errors[$shiftId] = ['overlap' => 'This staff already has a shift during this time.'];
+                continue;
+            }
+
+            // ✅ Assign without restriction checks
+            $shiftDate->staff_id            = $staffUser->user_id;
+            $shiftDate->is_assign           = 1;
+            $shiftDate->status              = 'pending';
+            $shiftDate->start_time          = $newStart;
+            $shiftDate->end_time            = $newEnd;
+            $shiftDate->absentee_start_time = $bookOn;
+            $shiftDate->absentee_end_time   = $bookOff;
+            $shiftDate->shift_date          = $newDate;
+
+            // Recalculate total hours
+            $startCalc = strlen($newStart) === 5 ? $newStart . ':00' : $newStart;
+            $endCalc   = strlen($newEnd) === 5 ? $newEnd . ':00' : $newEnd;
+            $shiftDate->total_hours = $this->calculateTotalHours($startCalc, $endCalc, 'H:i:s');
+
+            $shiftDate->save();
+
+            send_push_notification(
+                $staffUser->user_id,
+                'Shift assigned (override)',
+                'An admin assigned a shift for you, overriding restrictions.',
+                ['shiftDate' => $shiftDate]
+            );
+
+            $updatedShifts[] = $shiftDate->id;
+        }
+
+        return response()->json([
+            'updated' => $updatedShifts,
+            'errors'  => $errors
+        ]);
+    }
+
+    public function updateWithOverride(Request $request, $id)
+    {
+        $shift = ShiftDate::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'status_id'   => 'nullable|integer',
+            'staff_id'    => 'nullable|integer',
+            'start_shift' => 'required',
+            'end_shift'   => 'required',
+            'book_on'     => 'nullable',
+            'book_off'    => 'nullable',
+            'shift_date'  => 'nullable|date',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+        $data['absentee_start_time'] = $data['book_on'] ?? null;
+        $data['absentee_end_time']   = $data['book_off'] ?? null;
+        $data['start_time']          = $data['start_shift'];
+        $data['end_time']            = $data['end_shift'];
+
+        // Normalize time format
+        if (strlen($data['start_shift']) === 5) $data['start_shift'] .= ':00';
+        if (strlen($data['end_shift']) === 5)   $data['end_shift']   .= ':00';
+
+        // Calculate total hours
+        $data['total_hours'] = $this->calculateTotalHours($data['start_shift'], $data['end_shift'], 'H:i:s');
+        $shift->status = 'pending';
+
+        // ⚠ Skip restrictions completely
+        if (!empty($data['staff_id'])) {
+            $staffUser = Employee::where('user_id', $data['staff_id'])->firstOrFail();
+            $shift->staff_id = $staffUser->user_id;
+        }
+
+        $shift->update($data);
+
+        // Send notification
+        if (!empty($data['staff_id'])) {
+            send_push_notification(
+                $staffUser->user_id,
+                'Shift updated (override)',
+                'An admin updated a shift for you, overriding restrictions.',
+                ['shift' => $shift]
+            );
+        }
+
+        return response()->json(['success' => 'Shift updated with override!']);
+    }
+
+    public function storeOverride(Request $request)
+    {
+        $shiftCount = count($request->client_id);
+
+        for ($i = 0; $i < $shiftCount; $i++) {
+            // Basic validation
+            $validator = Validator::make([
+                'client_id' => $request->client_id[$i],
+                'site_id' => $request->site_id[$i],
+                'company_id' => $request->company_id[$i] ?? null,
+                'staff_id' => $request->staff_id[$i] ?? null,
+                'training_id' => $request->training_id ?? [],
+                'start_shift' => $request->start_shift[$i],
+                'end_shift' => $request->end_shift[$i],
+                'break-mins_shift' => $request->{'break-mins_shift'}[$i] ?? null,
+                'from_shift' => $request->from_shift[$i] ?? null,
+                'to_shift' => $request->to_shift[$i] ?? null,
+                'days' => $request->days[$i] ?? "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+            ], [
+                'client_id' => 'required|integer',
+                'site_id' => 'required|integer',
+                'staff_id' => 'nullable|integer',
+                'start_shift' => 'required|date_format:H:i',
+                'end_shift' => 'required|date_format:H:i',
+                'from_shift' => 'required|date',
+                'to_shift' => 'required|date|after_or_equal:from_shift',
+                'training_id' => 'nullable|array',
+                'training_id.*' => 'exists:training_materials,id',
+            ]);
+
+            // Additional simple validations
+            $validator->after(function ($validator) use ($request, $i) {
+                $start = $request->start_shift[$i] ?? null;
+                $end = $request->end_shift[$i] ?? null;
+
+                if ($start && $end) {
+                    $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
+                    $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
+
+                    if ($startTime->eq($endTime)) {
+                        $validator->errors()->add("end_shift", "End time must not be the same as start time.");
+                    }
+                }
+            });
+
+            if ($validator->fails()) {
+                return response()->json(['errors' => $validator->errors(), 'index' => $i], 422);
+            }
+
+            $data = $validator->validated();
+
+            $data['days'] = json_encode([str_replace(['"', '[', ']'], '', $data['days'])]);
+            $data['is_assign'] = !empty($data['staff_id']) ? 1 : 0;
+
+            $serviceType1 = DB::table('employee_types')->where('id', $request->service_type_1[$i])->first();
+            $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
+
+            // Create main Shift
+            $shift = Shift::create([
+                'client_id'   => $request->client_id[$i],
+                'site_id'     => $request->site_id[$i],
+                'staff_id'    => $request->staff_id[$i] ?? null,
+                'start_shift' => $request->start_shift[$i],
+                'end_shift'   => $request->end_shift[$i],
+                'service_type_1' => $serviceType1?->name,
+                'service_type_2' => $serviceType2?->name,
+            ]);
+
+            // Expand to ShiftDates
+            $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
+            $selectedDays = array_map(function ($day) {
+                return ucfirst(substr(trim($day), 0, 3));
+            }, explode(',', $dayString));
+
+            $fromDate = Carbon::parse($request->from_shift[$i]);
+            $toDate   = Carbon::parse($request->to_shift[$i]);
+            $period   = CarbonPeriod::create($fromDate, $toDate);
+
+            foreach ($period as $date) {
+                if (!in_array($date->format('D'), $selectedDays)) continue;
+
+                $shiftDate = ShiftDate::create([
+                    'shift_id'    => $shift->id,
+                    'staff_id'    => $shift->staff_id ?? null,
+                    'shift_date'  => $date->format('Y-m-d'),
+                    'start_time'  => $request->start_shift[$i],
+                    'end_time'    => $request->end_shift[$i],
+                    'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
+                    'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
+                    'total_hours' => $this->calculateTotalHours(
+                        $request->start_shift[$i],
+                        $request->end_shift[$i]
+                    ),
+                ]);
+
+                if (!empty($data['training_id'])) {
+                    $trainingIds = is_array($data['training_id']) ? $data['training_id'] : [$data['training_id']];
+                    $shiftDate->trainings()->sync($trainingIds);
+                }
+
+                // Auto CheckCalls / Patrols
+                $startTime = Carbon::createFromFormat('H:i', $data['start_shift']);
+                $endTime   = Carbon::createFromFormat('H:i', $data['end_shift']);
+                $durationMinutes = ($endTime->diffInMinutes($startTime) + 1440) % 1440;
+                $durationMinutes = $durationMinutes ?: 1440; // handle exact 24h
+                $numberOfCheckCalls = ceil($durationMinutes / 60);
+
+                $site = Site::with('checkpoints')->find($shift->site_id);
+                $totalCheckpoints = $site->checkpoints->count() ?? 0;
+
+                for ($n = 0; $n < $numberOfCheckCalls; $n++) {
+                    $checkTime  = $startTime->copy()->addHours($n);
+                    $patrolTime = $startTime->copy()->addHours($n);
+
+                    if ($request->has('auto_checkcall_enabled') && $request->auto_checkcall_enabled) {
+                        CheckCall::create([
+                            'shift_id' => $shiftDate->id,
+                            'name' => 'Auto CheckCall ' . ($n + 1),
+                            'scheduled_time' => $checkTime->format('Y-m-d H:i'),
+                            'status' => 'pending',
+                        ]);
+                    }
+
+                    Patrol::create([
+                        'shift_id' => $shiftDate->id,
+                        'name' => 'Auto Patrol ' . ($n + 1),
+                        'summary' => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
+                        'start_time' => $patrolTime->format('Y-m-d H:i'),
+                        'status' => 'pending',
+                        'total_checkpoints' => $totalCheckpoints,
+                        'completed_checkpoints' => 0,
+                        'issues_reported' => 0,
+                        'completed_at' => null,
+                    ]);
+                }
+            }
+        }
+
+        return response()->json([
+            'message' => 'Shifts overridden successfully!',
+        ]);
     }
 }

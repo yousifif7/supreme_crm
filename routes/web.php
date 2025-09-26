@@ -441,10 +441,24 @@ Route::get('/reports/employment', [EmployeeController::class, 'employmentReport'
 Route::get('/reports/employment/{employee}/pdf', [EmployeeController::class, 'exportEmploymentPdf'])
     ->name('reports.employment.pdf');
 
-Route::post('/restrictions/override', [ShiftController::class, 'override'])
-    ->name('restrictions.override');
 
-    Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
+Route::post('/assign-shift-override', [ShiftController::class, 'assignWithOverride'])
+    ->middleware(['auth', 'can:assign-shift-override'])
+    ->name('assign.shift.override');
+
+Route::post('/updateshift/{id}/override', [ShiftController::class, 'updateWithOverride'])
+    ->middleware(['auth', 'can:assign-shift-override'])
+    ->name('assign.shift.override');
+
+Route::post('/shifts/multi-assign-override', [ShiftController::class, 'multiAssignWithOverride'])
+    ->middleware(['auth', 'can:assign-shift-override'])
+    ->name('assign.shift.override');
+
+Route::post('/shifts/store-override', [ShiftController::class, 'storeOverride'])
+    ->middleware('auth')
+    ->name('shifts.store.override');
+    
+Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
 Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
 Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
 

@@ -80,3 +80,65 @@
 .custom-toast.info {
     border-left: 6px solid #2196f3;
 }
+
+/* Base toast (you already have this, but ensure styles) */
+/* Add this CSS to your stylesheet */
+#custom-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 9999;
+}
+
+.custom-toast {
+    display: flex;
+    align-items: center;
+    background: #fff3cd;
+    border-left: 5px solid #ffc107;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    min-width: 300px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    font-family: Arial, sans-serif;
+}
+
+.custom-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.custom-toast .toast-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+.custom-toast .toast-content {
+    flex: 1;
+}
+
+.custom-toast .toast-content p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #856404;
+}
+
+.custom-toast .override-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    background-color: #dc3545; /* red for admin action */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.custom-toast .override-btn:hover {
+    background-color: #c82333;
+}
+

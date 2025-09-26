@@ -127,15 +127,16 @@
             min-height: 80px;
             /* give each cell some vertical space */
             position: relative;
-            padding: 2px;
+            padding: 5px;
+            padding-bottom: 10px;
         }
 
         .gantt-bar {
             background: #4e73df;
             color: #fff;
-            padding: 4px;
+            padding: 2px;
             border-radius: 4px;
-            margin-bottom: 2px;
+            margin-bottom: 5px;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
@@ -506,6 +507,11 @@
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
+
+    <script>
+        window.isSuperAdmin = @json(auth()->check() && auth()->user()->getRoleNames()->contains('superadmin'));
+    </script>
+
     <script>
         let container = document.getElementById('custom-toast-container');
         if (!container) {
@@ -670,19 +676,53 @@
                     },
                     success: function(response) {
                         closeBsModal('#add_shift');
-                        // toast_success(response.message ?? 'Shift created successfully!');
-                        showToast(
-                            response.message ?? 'Shift created successfully!', // message
-                            'success', // type
-                            5000 // duration in ms
-                        );
+                        showToast(response.message ?? 'Shift created successfully!', 'success',
+                            5000);
                         location.reload();
                     },
                     error: function(xhr) {
                         console.log("Status:", xhr.status);
                         console.log("Response:", xhr.responseText);
 
-                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                        // Check for override opportunity
+                        if (xhr.status === 422 && xhr.responseJSON?.override_message) {
+                            let overrideMessage = xhr.responseJSON.override_message;
+
+                            // Show override toast with confirmation button
+                            showOverrideToast(overrideMessage, () => {
+                                // Admin confirms override
+                                formData.append('override', 1);
+
+                                $.ajax({
+                                    url: $(form).attr('action'),
+                                    method: 'POST',
+                                    data: formData,
+                                    processData: false,
+                                    contentType: false,
+                                    headers: {
+                                        'X-CSRF-TOKEN': $(
+                                            'input[name="_token"]').val()
+                                    },
+                                    success: function(resp) {
+                                        closeBsModal('#add_shift');
+                                        showToast(resp.message ??
+                                            'Shift created successfully!',
+                                            'success', 5000);
+                                        location.reload();
+                                    },
+                                    error: function(err) {
+                                        showToast(
+                                            'Failed to override shift. Try again.',
+                                            'error', 7000);
+                                    },
+                                    complete: function() {
+                                        submitButton.prop('disabled', false)
+                                            .html('Save');
+                                    }
+                                });
+                            });
+
+                        } else if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             let errors = xhr.responseJSON.errors;
                             let responseIndex = xhr.responseJSON.index ?? 0;
                             $.each(errors, function(key, value) {
@@ -693,17 +733,10 @@
                                     $('.error_' + key).eq(responseIndex).text(value[0]);
                             });
                         } else if (xhr.responseJSON?.error) {
-                            showToast(
-                                xhr.responseJSON.error, // message
-                                'error', // type
-                                5000 // duration in ms
-                            );
+                            showToast(xhr.responseJSON.error, 'error', 5000);
                         } else {
-                            showToast(
-                                'An unexpected error occurred. Please try again.', // message
-                                'error', // type
-                                5000 // duration in ms
-                            );
+                            showToast('An unexpected error occurred. Please try again.',
+                                'error', 5000);
                         }
                     },
                     complete: function() {
@@ -711,6 +744,7 @@
                     }
                 });
             });
+
         });
     </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
@@ -944,13 +978,13 @@
 
         ${shift.note 
             ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                                                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">
-                                                                                                                        📝
-                                                                                                               </span>` 
+                                                                                                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">
+                                                                                                                                    📝
+                                                                                                                           </span>` 
             : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                                                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
-                                                                                                                        📝
-                                                                                                               </span>`
+                                                                                                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
+                                                                                                                                    📝
+                                                                                                                           </span>`
         }
     </div>
 `);
@@ -1510,5 +1544,6 @@
             });
         });
     </script>
+
 
 @endsection
