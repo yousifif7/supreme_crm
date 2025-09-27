@@ -42,7 +42,7 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/daterangepicker/daterangepicker.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/toast/toast.css')}}">
+    <link rel="stylesheet" href="{{ asset('assets/toast/toast.css') }}">
     <!-- Defer Theme Script -->
     {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
@@ -54,7 +54,7 @@
     <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet" type="text/css">
-    
+
     <style>
         * {
             font-family: 'Poppins', sans-serif;
@@ -112,6 +112,9 @@
         <div class="page-loader"></div>
     </div>
 
+    {{-- Sound for alerts --}}
+    <audio id="alert-sound" src="/sounds/alert.mp3" preload="auto"></audio>
+
 
     <!-- Main Wrapper -->
     <div class="main-wrapper">
@@ -143,6 +146,9 @@
                             <a id="toggle_btn" href="{{ url('dashboard') }}" class="btn btn-menubar me-1">
                                 <i class="ti ti-arrow-bar-to-left"></i>
                             </a>
+                            <button id="alert-bell" class="btn btn-light btn-sm" title="Toggle alert sounds">
+                                🔔
+                            </button>
                             <!-- Search -->
                             {{-- <div class="input-group input-group-flat d-inline-flex me-1">
                                 <span class="input-icon-addon">

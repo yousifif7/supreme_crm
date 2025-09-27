@@ -33,6 +33,9 @@ Route::get('/staff/{id}', [ShiftController::class, 'getStaff']);
 
 Route::get('/shift/{shiftDateId}/locations', [ShiftController::class, 'shiftLocations'])->name('shift.locations');
 
+
+Route::get('/dashboard-alerts', [AdminAPIController::class, 'dashboardAlerts']);
+
 //API routes for authentication api
 Route::prefix('auth')->group(function () {
     //Auth controller routes

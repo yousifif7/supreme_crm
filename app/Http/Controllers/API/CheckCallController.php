@@ -116,7 +116,7 @@ class CheckCallController extends Controller
                 $shiftdate = ShiftDate::find($checkCall->shift_id);
 
                 // Compose text
-                $text = "Time: " . date('Y-m-d H:i', strtotime($data['timestamp'])) .
+                $text = "Time: " .Carbon::now() .
                     "\nEmployee: " . $employee->fore_name . ' ' . $employee->sur_name .
                     "\nLat: " . $data['location']['latitude'] . "  " .
                     "Lng: " . $data['location']['longitude'] .
@@ -126,7 +126,7 @@ class CheckCallController extends Controller
                 $lines = explode("\n", $text);
 
                 // Use TTF font for larger text
-                $fontPath = public_path('fonts/arial.ttf'); // make sure this file exists
+                $fontPath = public_path('fonts/Arial.ttf'); // make sure this file exists
 
                 // Scale font size based on image width
                 $imgWidth = imagesx($img);
