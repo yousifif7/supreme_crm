@@ -12,6 +12,7 @@ use App\Models\Patrol;
 use App\Models\Message;
 use App\Models\DobEntry;
 use App\Models\CheckCall;
+use App\Models\ShiftDate;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
@@ -156,7 +157,7 @@ class AdminAPIController extends Controller
 
         //         if ($doc && $doc->expiry_date) {
         //             $expiryDate = Carbon::parse($doc->expiry_date);
-                    
+
         //             if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
         //                 $daysRemaining = now()->diffInDays($expiryDate);
         //                 $alerts[] = [
@@ -259,25 +260,24 @@ class AdminAPIController extends Controller
         $now = Carbon::now();
         $twentyFourHoursLater = $now->copy()->addDay();
 
-        $sites = Site::with(['shifts.shiftDates' => function ($query) use ($now, $twentyFourHoursLater) {
-            $query->whereNull('staff_id')
-                ->where('is_assign', 0)
-                ->whereBetween('start_time', [$now, $twentyFourHoursLater]); // within 24 hours
-        }])->get();
 
-        foreach ($sites as $site) {
-            foreach ($site->shifts as $shift) {
-                foreach ($shift->shiftDates as $shiftDate) {
-                    $alerts[] = [
-                        'type' => 'shift_unassigned',
-                        'shift_date_id' => $shiftDate->id,
-                        'shift_id' => $shift->id,
-                        'site_name' => $site->site_name,
-                        'title' => 'Unassigned Shift',
-                        'message' => "Shift at {$site->site_name} is unassigned and starts within 24 hours.",
-                        'scheduled_time' => $shiftDate->start_time,
-                    ];
-                }
+        $shiftDates = ShiftDate::whereNull('staff_id')
+            ->whereRaw("TIMESTAMP(shift_date, start_time) >= ?", [$now])
+            ->whereRaw("TIMESTAMP(shift_date, start_time) <= ?", [$twentyFourHoursLater])
+            ->get();
+
+
+        foreach ($shiftDates as $sd) {
+            if ($sd->shift && $sd->shift->site) {
+                $alerts[] = [
+                    'type' => 'shift_unassigned',
+                    'shift_date_id' => $sd->id,
+                    'shift_id' => $sd->shift->id,
+                    'site_name' => $sd->shift->site->site_name,
+                    'title' => 'Unassigned Shift',
+                    'message' => "Shift at {$sd->shift->site->site_name} is unassigned and starts within 24 hours.",
+                    'scheduled_time' => $sd->start_time,
+                ];
             }
         }
 
