@@ -43,6 +43,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/toast/toast.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/toast/alerts.css') }}">
     <!-- Defer Theme Script -->
     {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
@@ -410,6 +411,7 @@
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
+    <script src="{{ asset('assets/toast/alerts.js') }}" defer></script>
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
         if (addShiftBtn) {

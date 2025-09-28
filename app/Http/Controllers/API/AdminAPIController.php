@@ -134,50 +134,58 @@ class AdminAPIController extends Controller
     public function dashboardAlerts(Request $request)
     {
         $alerts = [];
-        $documentTypes = [
-            'sia_licence_file',
-            'passport_file',
-            'proof_of_address_file',
-            'ni_letter_file',
-            'first_aid_certificate_file',
-            'act_certificate_file',
-            'driving_licence_file',
-        ];
+        // $documentTypes = [
+        //     'sia_licence_file',
+        //     'passport_file',
+        //     'proof_of_address_file',
+        //     'ni_letter_file',
+        //     'first_aid_certificate_file',
+        //     'act_certificate_file',
+        //     'driving_licence_file',
+        // ];
 
-        // 1. Document Expiry Alerts (all users)
-        $users = User::with('documents')->get();
-        foreach ($users as $user) {
-            foreach ($documentTypes as $type) {
-                $doc = $user->documents()
-                    ->where('document_type', $type)
-                    ->orderByDesc('expiry_date')
-                    ->first();
+        // // 1. Document Expiry Alerts (all users)
+        // $users = User::with('documents')->get();
+        // foreach ($users as $user) {
+        //     foreach ($documentTypes as $type) {
+        //         $doc = $user->documents()
+        //             ->where('status','!=','rejected')
+        //             ->where('document_type', $type)
+        //             ->orderByDesc('expiry_date')
+        //             ->first();
 
-                if ($doc && $doc->expiry_date) {
-                    $expiryDate = Carbon::parse($doc->expiry_date);
-
-                    if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
-                        $daysRemaining = now()->diffInDays($expiryDate);
-                        $alerts[] = [
-                            'type' => 'document_expiry',
-                            'user_id' => $user->id,
-                            'user_name' => $user->name,
-                            'document_id' => $doc->id,
-                            'title' => 'Document Expiry Alert',
-                            'message' => "{$user->name}'s {$doc->document_type} will expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
-                            'expiry_date' => $doc->expiry_date,
-                            'days_remaining' => $daysRemaining,
-                        ];
-                    }
-                }
-            }
-        }
+        //         if ($doc && $doc->expiry_date) {
+        //             $expiryDate = Carbon::parse($doc->expiry_date);
+                    
+        //             if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
+        //                 $daysRemaining = now()->diffInDays($expiryDate);
+        //                 $alerts[] = [
+        //                     'type' => 'document_expiry',
+        //                     'user_id' => $user->id,
+        //                     'user_name' => $user->name,
+        //                     'document_id' => $doc->id,
+        //                     'title' => 'Document Expiry Alert',
+        //                     'message' => "{$user->name}'s {$doc->document_type} will expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
+        //                     'expiry_date' => $doc->expiry_date,
+        //                     'days_remaining' => $daysRemaining,
+        //                 ];
+        //             }
+        //         }
+        //     }
+        // }
 
         // 2. Patrol Alerts
-        $patrols = Patrol::with('shift.staff')->where('status', 'pending')->get();
+        $patrols = Patrol::where('status', 'pending')
+            ->whereHas('shift', function ($q) {
+                $q->whereNotNull('staff_id'); // only patrols where a shift is assigned to staff
+            })
+            ->with('shift.staff')
+            ->get();
+
         foreach ($patrols as $patrol) {
             $start = Carbon::parse($patrol->start_time);
             $diff = now()->diffInMinutes($start, false);
+            $userName = $patrol->shiftDate?->staff?->first_name ?? 'Unknown';
 
             if ($diff <= 5 && $diff > 0) {
                 $alerts[] = [
@@ -200,17 +208,25 @@ class AdminAPIController extends Controller
                     'user_name' => $patrol->shift->staff->name ?? '',
                     'patrol_id' => $patrol->id,
                     'title' => 'Missed Patrol',
-                    'message' => "{$patrol->shift->staff?->name} missed patrol: {$patrol->name}",
+                    'message' => "Staff {$userName} missed patrol: {$patrol->name}",
                     'scheduled_time' => $patrol->start_time,
                 ];
             }
         }
 
         // 3. Check Call Alerts
-        $checkCalls = CheckCall::with('shiftDate.staff')->where('status', 'pending')->get();
+        $checkCalls = CheckCall::where('status', 'pending')
+            ->whereHas('shiftDate', function ($q) {
+                $q->whereNotNull('staff_id'); // only check calls where the shiftDate is assigned
+            })
+            ->with('shiftDate.staff')
+            ->get();
+
         foreach ($checkCalls as $checkCall) {
             $scheduled = Carbon::parse($checkCall->scheduled_time);
             $diff = now()->diffInMinutes($scheduled, false);
+
+            $userName = $checkCall->shiftDate?->staff?->first_name ?? 'Unknown';
 
             if ($diff <= 5 && $diff > 0) {
                 $alerts[] = [
@@ -234,7 +250,7 @@ class AdminAPIController extends Controller
                     'checkcall_id' => $checkCall->id,
                     'shift_id' => $checkCall->shift_id,
                     'title' => 'Missed Check Call',
-                    'message' => " missed check call: {$checkCall->name}",
+                    'message' => "Staff {$userName} missed check call: {$checkCall->name}",
                     'scheduled_time' => $checkCall->scheduled_time,
                 ];
             }
@@ -245,7 +261,7 @@ class AdminAPIController extends Controller
 
         $sites = Site::with(['shifts.shiftDates' => function ($query) use ($now, $twentyFourHoursLater) {
             $query->whereNull('staff_id')
-                ->where('is_assign',0)
+                ->where('is_assign', 0)
                 ->whereBetween('start_time', [$now, $twentyFourHoursLater]); // within 24 hours
         }])->get();
 
