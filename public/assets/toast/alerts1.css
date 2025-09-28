@@ -1,8 +1,8 @@
 
 /* Blinking effect */
 @keyframes blink {
-    from { opacity: 1; }
-    to { opacity: 0.6; }
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
 }
 
 #dashboard-alert-container {
@@ -32,9 +32,11 @@
     position: relative;
 }
 
+/* Animate in */
 .dashboard-alert.show {
     opacity: 1;
     transform: translateY(0);
+    animation: blink 1s infinite; /* blinking effect */
 }
 
 .dashboard-alert .alert-content p {

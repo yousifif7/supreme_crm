@@ -43,7 +43,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/toast/toast.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/toast/alerts.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/toast/alerts1.css') }}">
     <!-- Defer Theme Script -->
     {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
@@ -114,7 +114,7 @@
     </div>
 
     {{-- Sound for alerts --}}
-    <audio id="alert-sound" src="/sounds/alert.mp3" preload="auto"></audio>
+    <audio id="alert-sound" src="/sounds/alert2.mp3" preload="auto"></audio>
 
 
     <!-- Main Wrapper -->
@@ -147,9 +147,11 @@
                             <a id="toggle_btn" href="{{ url('dashboard') }}" class="btn btn-menubar me-1">
                                 <i class="ti ti-arrow-bar-to-left"></i>
                             </a>
-                            <button id="alert-bell" class="btn btn-light btn-sm" title="Toggle alert sounds">
+                            {{-- <button id="alert-bell" class="btn btn-light btn-sm" title="Toggle alert sounds">
                                 🔔
-                            </button>
+                            </button> --}}
+
+
                             <!-- Search -->
                             {{-- <div class="input-group input-group-flat d-inline-flex me-1">
                                 <span class="input-icon-addon">
@@ -334,6 +336,19 @@
 
     <!-- jQuery -->
     <script>
+        let soundUnlocked = false;
+document.addEventListener('click', () => {
+    if (!soundUnlocked) {
+        const sound = document.getElementById('alert-sound');
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+            soundUnlocked = true;
+            console.log('Alert sound unlocked for autoplay.');
+        }).catch(e => console.warn('Sound still blocked:', e));
+    }
+}, { once: true });
+
         $(document).ready(function() {
             // Sidebar Menu
             $('.submenu > a').click(function(e) {
@@ -411,7 +426,7 @@
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
-    <script src="{{ asset('assets/toast/alerts.js') }}" defer></script>
+    <script src="{{ asset('assets/toast/alerts1.js') }}" defer></script>
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
         if (addShiftBtn) {

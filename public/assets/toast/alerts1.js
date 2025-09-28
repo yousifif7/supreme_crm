@@ -56,13 +56,13 @@ function showDashboardAlert(type, message, route) {
 async function fetchDashboardAlerts() {
     try {
         const response = await fetch(`${baseUrl}/api/dashboard-alerts`, {
-            headers: {
-                'Accept': 'application/json',
-                // 'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
+            headers: { 'Accept': 'application/json' },
+            credentials: 'include' // needed if using Laravel Sanctum
         });
 
-        // if (!response.ok) throw new Error('Failed to fetch alerts');
+        if (!response.ok) {
+            throw new Error(`Failed to fetch alerts: ${response.status}`);
+        }
 
         const data = await response.json();
 
@@ -71,8 +71,6 @@ async function fetchDashboardAlerts() {
                 let route = '/dashboard';
                 switch (alert.type) {
                     case 'patrol_missed':
-                        route = `/shift-dates/${alert.shift_id}/view`;
-                        break;
                     case 'checkcall_missed':
                         route = `/shift-dates/${alert.shift_id}/view`;
                         break;
@@ -86,8 +84,12 @@ async function fetchDashboardAlerts() {
                         route = `/panic/${alert.user_id}`;
                         break;
                 }
-                showDashboardAlert(alert.type, alert.message, route, null);
-                playBeep();
+
+                // Show toast alert
+                showDashboardAlert(alert.type, alert.message, route);
+
+                // Play sound automatically
+                playAlertSound();
             });
         }
     } catch (err) {
@@ -95,55 +97,22 @@ async function fetchDashboardAlerts() {
     }
 }
 
-// Load preference from localStorage
-let soundEnabled = localStorage.getItem('alertSoundEnabled') === 'true';
-
-// Update bell icon based on state
-const bell = document.getElementById('alert-bell');
-function updateBellIcon() {
-    bell.textContent = soundEnabled ? '🔔' : '🔕';
-}
-updateBellIcon();
-
-// Click to toggle sound
-bell.addEventListener('click', () => {
-    soundEnabled = !soundEnabled;
-    localStorage.setItem('alertSoundEnabled', soundEnabled);
-    updateBellIcon();
-});
-
-// Web Audio API beep
-let audioCtx;
-function playBeep(duration = 100, frequency = 440, volume = 0.2) {
-    if (!soundEnabled) return; // respect toggle
-
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-
-    const oscillator = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.value = frequency;
-    gainNode.gain.value = volume;
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-
-    oscillator.start();
-    setTimeout(() => oscillator.stop(), duration);
-}
-
-
 function playAlertSound() {
     const sound = document.getElementById('alert-sound');
-    if (sound) {
-        sound.currentTime = 0; // rewind
-        sound.play().catch(e => console.warn('Sound blocked:', e));
+    if (!sound) return;
+
+    // Reset and play
+    sound.currentTime = 0;
+    const playPromise = sound.play();
+
+    // Catch browser autoplay block
+    if (playPromise !== undefined) {
+        playPromise.catch(err => {
+            console.warn('Alert sound blocked:', err);
+        });
     }
 }
 
-// Run immediately, then repeat every 60 seconds
+// Fetch immediately, then repeat every 60 seconds
 fetchDashboardAlerts();
 setInterval(fetchDashboardAlerts, 60000);
