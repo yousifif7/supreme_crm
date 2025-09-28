@@ -317,6 +317,7 @@ Route::middleware('auth')->group(function () {
     Route::get('documents/report', [DocumentController::class, 'report'])->name('documents.report');
 
     //** End: documentation upload controller */
+    Route::get('/weekly-hours-alerts', [UserController::class, 'weeklyHoursNotification']);
 
     /** Begin: alert and remainder controller */
     Route::get('/alert_reminders/data', [AlertReminderController::class, 'data'])->name('reminders.data');

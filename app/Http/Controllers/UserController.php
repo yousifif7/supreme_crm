@@ -32,7 +32,7 @@ use Illuminate\Support\Facades\Validator;
 class UserController extends Controller
 {
     public function dashboard()
-{
+    {
         $shifts = ShiftDate::where('shift_date', Carbon::today()->toDateString())->with('shift.staff')->get();
         $invoices = Invoice::with(['client', 'site'])
             ->whereNotNull('client_id')->get();
@@ -176,53 +176,54 @@ class UserController extends Controller
 
             $shift->update(['unassigned_shift_notified' => true]);
         }
-    // --- Users (latest locations) ---
-$userLocations = Location::with([
-        'user:id,first_name,last_name',
-        'user.employee:id,user_id,service_type',
-    ])
-    ->whereNotNull('latitude') // ensure only real locations
-    ->whereNotNull('longitude')
-    ->whereIn('id', function ($query) {
-        $query->select(DB::raw('MAX(id)'))
-            ->from('locations')
-            ->whereNotNull('user_id')
-            ->groupBy('user_id');
-    })
-    ->get()
-    ->map(function ($l) {
-        return [
-            'id' => 'user-'.$l->user_id,
-            'latitude' => (float) $l->latitude,
-            'longitude' => (float) $l->longitude,
-            'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
-            'type' => 'user',
-            'service_type_id' => optional(optional($l->user)->employee)->service_type,
-            'accuracy' => $l->accuracy,
-            'on_duty' => (bool) $l->on_duty,
-            'timestamp' => optional($l->created_at)->toDateTimeString(),
-        ];
-    });
+        // --- Users (latest locations) ---
+        $userLocations = Location::with([
+            'user:id,first_name,last_name',
+            'user.employee:id,user_id,service_type',
+        ])
+            ->whereNotNull('latitude') // ensure only real locations
+            ->whereNotNull('longitude')
+            ->whereIn('id', function ($query) {
+                $query->select(DB::raw('MAX(id)'))
+                    ->from('locations')
+                    ->whereNotNull('user_id')
+                    ->groupBy('user_id');
+            })
+            ->get()
+            ->map(function ($l) {
+                return [
+                    'id' => 'user-' . $l->user_id,
+                    'latitude' => (float) $l->latitude,
+                    'longitude' => (float) $l->longitude,
+                    'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
+                    'type' => 'user',
+                    'service_type_id' => optional(optional($l->user)->employee)->service_type,
+                    'accuracy' => $l->accuracy,
+                    'on_duty' => (bool) $l->on_duty,
+                    'timestamp' => optional($l->created_at)->toDateTimeString(),
+                ];
+            });
 
-    // --- Sites (pass postal codes only, no server-side geocoding) ---
-$sites = Site::whereHas('shifts', function($query) {
-    $query->whereHas('shiftDates',function($query){
-        $query->whereNotNull('staff_id');
-    });
-})->select('id', 'site_name', 'post_code')->get();
+        // --- Sites (pass postal codes only, no server-side geocoding) ---
+        $sites = Site::whereHas('shifts', function ($query) {
+            $query->whereHas('shiftDates', function ($query) {
+                $query->whereNotNull('staff_id');
+            });
+        })->select('id', 'site_name', 'post_code')->get();
 
-$siteLocations = $sites->map(function($site) {
-    return [
-        'id' => 'site-'.$site->id,
-        'name' => $site->site_name,
-        'postalcode' => $site->post_code,
-        'type' => 'site',
-    ];
-});
+        $siteLocations = $sites->map(function ($site) {
+            return [
+                'id' => 'site-' . $site->id,
+                'name' => $site->site_name,
+                'postalcode' => $site->post_code,
+                'type' => 'site',
+            ];
+        });
 
-    // --- Merge users and sites for frontend ---
+        $this->weeklyHoursNotification();
+        // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('dashboard', compact('apiKey','siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage','userLocations','siteLocations'));
+        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage', 'userLocations', 'siteLocations'));
     }
 
     public function index(UsersDataTable $dataTable)
@@ -282,7 +283,7 @@ $siteLocations = $sites->map(function($site) {
         if (!empty($validated['roles'])) {
             $user->assignRole($validated['roles']);
         }
-        Logger::log(Auth::user(), 'Create', 'New user '.$user->first_name.' '.$user->last_name);
+        Logger::log(Auth::user(), 'Create', 'New user ' . $user->first_name . ' ' . $user->last_name);
 
         return response()->json(['message' => 'User created successfully']);
     }
@@ -322,7 +323,7 @@ $siteLocations = $sites->map(function($site) {
         }
 
         $validated = $validator->validated();
-        $validated['username'] = Str::slug($validated['first_name'] . $validated['last_name']).rand(1,100);
+        $validated['username'] = Str::slug($validated['first_name'] . $validated['last_name']) . rand(1, 100);
 
         if (!empty($validated['password'])) {
             $validated['password'] = Hash::make($validated['password']);
@@ -348,7 +349,7 @@ $siteLocations = $sites->map(function($site) {
         if (!empty($validated['roles'])) {
             $user->syncRoles($validated['roles']);
         }
-        Logger::log(Auth::user(), 'Update', 'User '.$user->first_name.' '.$user->last_name.' Updated');
+        Logger::log(Auth::user(), 'Update', 'User ' . $user->first_name . ' ' . $user->last_name . ' Updated');
 
         return response()->json(['message' => 'User updated successfully']);
     }
@@ -357,7 +358,7 @@ $siteLocations = $sites->map(function($site) {
     {
         // \Log::info("Destroy called for user: " . $userId);
         $user = User::findOrFail($userId);
-        Logger::log(Auth::user(), 'Delete', 'User '.$user->first_name.' '.$user->last_name.' Deleted');
+        Logger::log(Auth::user(), 'Delete', 'User ' . $user->first_name . ' ' . $user->last_name . ' Deleted');
 
         $user->forceDelete();
 
@@ -372,9 +373,9 @@ $siteLocations = $sites->map(function($site) {
             'ids.*' => 'exists:users,id',
         ]);
 
-        $users= User::whereIn('id', $request->ids)->get();
-        foreach($users as $user){
-            Logger::log(Auth::user(), 'Delete', 'User '.$user->first_name.' '.$user->last_name.' Deleted');
+        $users = User::whereIn('id', $request->ids)->get();
+        foreach ($users as $user) {
+            Logger::log(Auth::user(), 'Delete', 'User ' . $user->first_name . ' ' . $user->last_name . ' Deleted');
             $user->delete();
         }
 
@@ -420,5 +421,41 @@ $siteLocations = $sites->map(function($site) {
         $alarm->save();
 
         return response()->json(['success' => true]);
+    }
+
+    public function weeklyHoursNotification()
+    {
+        $today = \Carbon\Carbon::now();
+
+        // Only run on Thursday
+        if (!$today->isThursday()) {
+            return;
+        }
+
+        $weekStart = $today->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
+        $weekEnd = $today->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
+
+        $guards = \App\Models\Employee::where('status','Active')->orWhere('status','active')->get(); // adjust filtering if needed
+
+        foreach ($guards as $staff) {
+            $entity = $staff->entity;
+            $minWeeklyHours = $entity->hour_per_week ?? 40;
+
+            $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staff->user_id)
+                ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                ->sum('total_hours');
+
+            if ($totalWeekHours < $minWeeklyHours) {
+                $expectedHours = $totalWeekHours; // if you want to include future shifts, you can add $newShiftHours
+
+                Notify::toDashboard(
+                    null,
+                    'alert',
+                    'Worked Hours',
+                    "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                    "#"
+                );
+            }
+        }
     }
 }
