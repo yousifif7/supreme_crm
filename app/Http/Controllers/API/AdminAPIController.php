@@ -14,6 +14,7 @@ use App\Models\DobEntry;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use Illuminate\Http\Request;
+use App\Models\EmergencyAlert;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Validator;
 
@@ -135,50 +136,33 @@ class AdminAPIController extends Controller
     public function dashboardAlerts(Request $request)
     {
         $alerts = [];
-        // $documentTypes = [
-        //     'sia_licence_file',
-        //     'passport_file',
-        //     'proof_of_address_file',
-        //     'ni_letter_file',
-        //     'first_aid_certificate_file',
-        //     'act_certificate_file',
-        //     'driving_licence_file',
-        // ];
 
-        // // 1. Document Expiry Alerts (all users)
-        // $users = User::with('documents')->get();
-        // foreach ($users as $user) {
-        //     foreach ($documentTypes as $type) {
-        //         $doc = $user->documents()
-        //             ->where('status','!=','rejected')
-        //             ->where('document_type', $type)
-        //             ->orderByDesc('expiry_date')
-        //             ->first();
+        // --- 1. Emergency Alerts ---
+        $emergencyAlerts = EmergencyAlert::where('acknowledged_by_control', false)
+            ->with('user') // assuming EmergencyAlert has a relation to User
+            ->get();
+        
+        foreach ($emergencyAlerts as $alert) {
+            $user= User::find($alert->user_id);
+            $alerts[] = [
+                'type' => 'panic_button',
+                'alert_id' => $alert->id,
+                'user_id' => $alert->user_id,
+                'user_name' => $user?->first_name.' '.$user?->last_name ?? 'Unknown',
+                'latitude' => $alert->latitude,
+                'longitude' => $alert->longitude,
+                'address' => $alert->address,
+                'message' => $alert->message,
+                'enable_device_alarm' => $alert->enable_device_alarm,
+                'title' => 'Emergency Alert',
+                'timestamp' => $alert->timestamp,
+            ];
+        }
 
-        //         if ($doc && $doc->expiry_date) {
-        //             $expiryDate = Carbon::parse($doc->expiry_date);
-
-        //             if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
-        //                 $daysRemaining = now()->diffInDays($expiryDate);
-        //                 $alerts[] = [
-        //                     'type' => 'document_expiry',
-        //                     'user_id' => $user->id,
-        //                     'user_name' => $user->name,
-        //                     'document_id' => $doc->id,
-        //                     'title' => 'Document Expiry Alert',
-        //                     'message' => "{$user->name}'s {$doc->document_type} will expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
-        //                     'expiry_date' => $doc->expiry_date,
-        //                     'days_remaining' => $daysRemaining,
-        //                 ];
-        //             }
-        //         }
-        //     }
-        // }
-
-        // 2. Patrol Alerts
+        // --- 2. Patrol Alerts ---
         $patrols = Patrol::where('status', 'pending')
             ->whereHas('shift', function ($q) {
-                $q->whereNotNull('staff_id'); // only patrols where a shift is assigned to staff
+                $q->whereNotNull('staff_id');
             })
             ->with('shift.staff')
             ->get();
@@ -215,10 +199,10 @@ class AdminAPIController extends Controller
             }
         }
 
-        // 3. Check Call Alerts
+        // --- 3. Check Call Alerts ---
         $checkCalls = CheckCall::where('status', 'pending')
             ->whereHas('shiftDate', function ($q) {
-                $q->whereNotNull('staff_id'); // only check calls where the shiftDate is assigned
+                $q->whereNotNull('staff_id');
             })
             ->with('shiftDate.staff')
             ->get();
@@ -257,15 +241,14 @@ class AdminAPIController extends Controller
             }
         }
 
+        // --- 4. Unassigned Shifts ---
         $now = Carbon::now();
         $twentyFourHoursLater = $now->copy()->addDay();
-
 
         $shiftDates = ShiftDate::whereNull('staff_id')
             ->whereRaw("TIMESTAMP(shift_date, start_time) >= ?", [$now])
             ->whereRaw("TIMESTAMP(shift_date, start_time) <= ?", [$twentyFourHoursLater])
             ->get();
-
 
         foreach ($shiftDates as $sd) {
             if ($sd->shift && $sd->shift->site) {
@@ -280,19 +263,6 @@ class AdminAPIController extends Controller
                 ];
             }
         }
-
-        // 5. Panic Button Pressed
-        // $panicLogs = PanicLog::with('user')->where('resolved', false)->get();
-        // foreach ($panicLogs as $panic) {
-        //     $alerts[] = [
-        //         'type' => 'panic_button',
-        //         'user_id' => $panic->user_id,
-        //         'user_name' => $panic->user->name ?? '',
-        //         'title' => 'Panic Alert',
-        //         'message' => "{$panic->user->name} triggered the panic button at {$panic->created_at->format('H:i:s d-m-Y')}.",
-        //         'time' => $panic->created_at,
-        //     ];
-        // }
 
         return response()->json(['alerts' => $alerts]);
     }

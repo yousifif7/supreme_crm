@@ -71,34 +71,45 @@ function showRestrictionToast(message, onOverride) {
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
-            <button class="override-btn">Override Restriction</button>
+            <div class="toast-actions">
+                <button class="override-btn">Override Restriction</button>
+            </div>
         </div>
     `;
 
     container.appendChild(toast);
 
-    // Animate in
     setTimeout(() => toast.classList.add('show'), 50);
 
-    // Bind override button
+    // Step 1: Override clicked
     toast.querySelector('.override-btn').addEventListener('click', function () {
-        if (typeof onOverride === 'function') {
-            onOverride();
-        }
-        // remove toast immediately
-        toast.classList.remove('show');
-        setTimeout(() => {
-            if (toast.parentNode) container.removeChild(toast);
-        }, 300);
+        // Replace actions with confirmation buttons
+        const actions = toast.querySelector('.toast-actions');
+        actions.innerHTML = `
+            <button class="confirm-btn">Yes, Override</button>
+            <button class="cancel-btn">Cancel</button>
+        `;
+
+        // Step 2: Confirm override
+        actions.querySelector('.confirm-btn').addEventListener('click', function () {
+            if (typeof onOverride === 'function') {
+                onOverride();
+            }
+            closeToast();
+        });
+
+        // Step 2: Cancel override
+        actions.querySelector('.cancel-btn').addEventListener('click', function () {
+            closeToast();
+        });
     });
 
-    // Auto remove if no action
-    setTimeout(() => {
+    function closeToast() {
         toast.classList.remove('show');
         setTimeout(() => {
             if (toast.parentNode) container.removeChild(toast);
         }, 300);
-    }, 5000);
+    }
 }
 
 

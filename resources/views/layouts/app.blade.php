@@ -426,7 +426,7 @@ document.addEventListener('click', () => {
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
-    <script src="{{ asset('assets/toast/alerts1.js') }}" defer></script>
+    <script src="{{ asset('assets/toast/alerts.js') }}" defer></script>
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
         if (addShiftBtn) {
@@ -440,6 +440,7 @@ document.addEventListener('click', () => {
         }
     </script>
     <script>
+
         if (localStorage.getItem("successNotification")) {
             document.querySelector(".alert-box-container").innerHTML = localStorage.getItem("successNotification");
             localStorage.removeItem("successNotification");

@@ -61,7 +61,7 @@ Route::middleware('auth:sanctum')->prefix('documents')->group(function () {
     Route::post('/', [DocumentAPIController::class, 'upload']);
     Route::get('/', [DocumentAPIController::class, 'index']);
 });
-    Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('auth:sanctum');
+Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('auth:sanctum');
 
 //Shifts api controller routes
 //Should be authenticated
@@ -146,7 +146,9 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/emergency/alert', [EmergencyAlertAPIController::class, 'trigger']);
     Route::post('/emergency/{alert}/cancel', [EmergencyAlertAPIController::class, 'cancel']);
+
 });
+Route::post('/emergency-alerts/{id}/acknowledge', [EmergencyAlertAPIController::class, 'acknowledge']);
 
 //Invoice Managment api controller routes
 //Should be authenticated
@@ -156,7 +158,7 @@ Route::middleware('auth:sanctum')->prefix('invoices')->group(function () {
     Route::get('/', [InvoiceAPIController::class, 'getPayrolls'])->name('invoices.list');
     Route::post('{invoice}/confirm-revision', [InvoiceAPIController::class, 'confirmRevision']);
     Route::get('/{invoiceId}/pdf', [InvoiceAPIController::class, 'exportPayrollPdf'])
-    ->name('payrolls.exportPdf');
+        ->name('payrolls.exportPdf');
 });
 
 //Training & Bulletins Managment api controller routes
@@ -197,4 +199,3 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/availability', [AvailabilityController::class, 'index']);
     Route::put('/availability', [AvailabilityController::class, 'update']);
 });
-

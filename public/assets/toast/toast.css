@@ -142,3 +142,41 @@
     background-color: #c82333;
 }
 
+
+.custom-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1055;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.custom-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.custom-toast .toast-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+.custom-toast button {
+    padding: 5px 10px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.custom-toast .confirm-btn {
+    background: #d9534f;
+    color: #fff;
+}
+.custom-toast .cancel-btn {
+    background: #6c757d;
+    color: #fff;
+}

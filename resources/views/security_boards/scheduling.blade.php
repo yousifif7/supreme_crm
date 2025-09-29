@@ -750,8 +750,8 @@
                             let overrideMessage = xhr.responseJSON.override_message;
 
                             // Show override toast with confirmation button
-                            showOverrideToast(overrideMessage, () => {
-                                // Admin confirms override
+                            showRestrictionToast(overrideMessage, () => {
+                                // Admin confirmed override here
                                 formData.append('override', 1);
 
                                 $.ajax({
@@ -782,6 +782,7 @@
                                     }
                                 });
                             });
+
 
                         } else if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             let errors = xhr.responseJSON.errors;
@@ -825,35 +826,47 @@
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
-            <button class="override-btn">Override Restriction</button>
+            <div class="toast-actions">
+                <button class="override-btn">Override Restriction</button>
+            </div>
         </div>
     `;
 
             container.appendChild(toast);
 
-            // Animate in
             setTimeout(() => toast.classList.add('show'), 50);
 
-            // Bind override button
+            // Step 1: Override clicked
             toast.querySelector('.override-btn').addEventListener('click', function() {
-                if (typeof onOverride === 'function') {
-                    onOverride();
-                }
-                // remove toast immediately
-                toast.classList.remove('show');
-                setTimeout(() => {
-                    if (toast.parentNode) container.removeChild(toast);
-                }, 300);
+                // Replace actions with confirmation buttons
+                const actions = toast.querySelector('.toast-actions');
+                actions.innerHTML = `
+            <button class="confirm-btn">Yes, Override</button>
+            <button class="cancel-btn">Cancel</button>
+        `;
+
+                // Step 2: Confirm override
+                actions.querySelector('.confirm-btn').addEventListener('click', function() {
+                    if (typeof onOverride === 'function') {
+                        onOverride();
+                    }
+                    closeToast();
+                });
+
+                // Step 2: Cancel override
+                actions.querySelector('.cancel-btn').addEventListener('click', function() {
+                    closeToast();
+                });
             });
 
-            // Auto remove if no action
-            setTimeout(() => {
+            function closeToast() {
                 toast.classList.remove('show');
                 setTimeout(() => {
                     if (toast.parentNode) container.removeChild(toast);
                 }, 300);
-            }, 5000);
+            }
         }
+
 
         document.addEventListener('DOMContentLoaded', function() {
             let allShiftsData = []; // Store all shifts data
@@ -1104,9 +1117,9 @@
 
                             ${shift.note 
                                 ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
+                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
                                 : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
+                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
                         </div>
                     `);
 
@@ -1405,7 +1418,7 @@
                             for (const [shiftId, errs] of Object.entries(res.errors)) {
                                 messages.push(
                                     `Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`
-                                    );
+                                );
                             }
                             showToast(messages.join('<br>'), 'error', 5000);
                         }

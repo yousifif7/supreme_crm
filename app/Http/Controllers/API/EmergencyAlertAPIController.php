@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\EmergencyAlert;
@@ -27,7 +28,7 @@ class EmergencyAlertAPIController extends Controller
             'longitude' => $validated['location']['longitude'],
             'address' => $validated['location']['address'],
             'enable_device_alarm' => $validated['enable_device_alarm'],
-            'message' => $validated['message'] ?? null,
+            'message' => 'Emergency: ' . Auth::user()->first_name . ' ' . Auth::user()->last_name . ' Activated panic Alarm',
             'timestamp' => Carbon::now(),
             'acknowledged_by_control' => false
         ]);
@@ -37,6 +38,14 @@ class EmergencyAlertAPIController extends Controller
             'Emergency alert',
             'Energmency alert has been triggered from your device!',
             ['alert' => $alert]
+        );
+
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Panic button',
+            'Emergency alert button activated by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name . ' At ' . $alert->timestamp,
+            ""
         );
 
         return response()->json([
@@ -65,5 +74,25 @@ class EmergencyAlertAPIController extends Controller
         ]);
 
         return response()->json(['message' => 'Emergency alert cancelled']);
+    }
+
+    public function acknowledge($id)
+    {
+        $alert = EmergencyAlert::findOrFail($id);
+
+        if ($alert->acknowledged_by_control) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Alert already acknowledged'
+            ], 400);
+        }
+
+        $alert->update(['acknowledged_by_control' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Alert acknowledged successfully',
+            'alert_id' => $alert->id
+        ]);
     }
 }
