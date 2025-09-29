@@ -265,67 +265,67 @@
             text-align: center;
             box-sizing: border-box;
         }
-        
+
         #custom-toast-container {
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 2147483647; /* Max possible z-index to be above everything */
-}
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2147483647;
+            /* Max possible z-index to be above everything */
+        }
 
-.custom-toast {
-    display: flex;
-    align-items: center;
-    background: #fff3cd;
-    border-left: 5px solid #ffc107;
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    min-width: 300px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-    opacity: 0;
-    transform: translateX(100%);
-    transition: all 0.3s ease;
-    font-family: Arial, sans-serif;
-}
+        .custom-toast {
+            display: flex;
+            align-items: center;
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            min-width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            font-family: Arial, sans-serif;
+        }
 
-.custom-toast.show {
-    opacity: 1;
-    transform: translateX(0);
-}
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
 
-.custom-toast .toast-icon {
-    font-size: 20px;
-    margin-right: 12px;
-}
+        .custom-toast .toast-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
 
-.custom-toast .toast-content {
-    flex: 1;
-}
+        .custom-toast .toast-content {
+            flex: 1;
+        }
 
-.custom-toast .toast-content p {
-    margin: 0 0 8px 0;
-    font-size: 14px;
-    color: #856404;
-}
+        .custom-toast .toast-content p {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #856404;
+        }
 
-.custom-toast .override-btn {
-    padding: 6px 12px;
-    font-size: 13px;
-    font-weight: bold;
-    background-color: #dc3545; /* red for admin action */
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
+        .custom-toast .override-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            background-color: #dc3545;
+            /* red for admin action */
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
 
-.custom-toast .override-btn:hover {
-    background-color: #c82333;
-}
-
-
+        .custom-toast .override-btn:hover {
+            background-color: #c82333;
+        }
     </style>
 @endsection
 @section('contents')
@@ -810,19 +810,18 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-        
         function showRestrictionToast(message, onOverride) {
-    let container = document.getElementById('custom-toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'custom-toast-container';
-        document.body.appendChild(container);
-    }
+            let container = document.getElementById('custom-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'custom-toast-container';
+                document.body.appendChild(container);
+            }
 
-    const toast = document.createElement('div');
-    toast.className = 'custom-toast';
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
 
-    toast.innerHTML = `
+            toast.innerHTML = `
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
@@ -830,31 +829,31 @@
         </div>
     `;
 
-    container.appendChild(toast);
+            container.appendChild(toast);
 
-    // Animate in
-    setTimeout(() => toast.classList.add('show'), 50);
+            // Animate in
+            setTimeout(() => toast.classList.add('show'), 50);
 
-    // Bind override button
-    toast.querySelector('.override-btn').addEventListener('click', function () {
-        if (typeof onOverride === 'function') {
-            onOverride();
+            // Bind override button
+            toast.querySelector('.override-btn').addEventListener('click', function() {
+                if (typeof onOverride === 'function') {
+                    onOverride();
+                }
+                // remove toast immediately
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) container.removeChild(toast);
+                }, 300);
+            });
+
+            // Auto remove if no action
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) container.removeChild(toast);
+                }, 300);
+            }, 5000);
         }
-        // remove toast immediately
-        toast.classList.remove('show');
-        setTimeout(() => {
-            if (toast.parentNode) container.removeChild(toast);
-        }, 300);
-    });
-
-    // Auto remove if no action
-    setTimeout(() => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            if (toast.parentNode) container.removeChild(toast);
-        }, 300);
-    }, 5000);
-}
 
         document.addEventListener('DOMContentLoaded', function() {
             let allShiftsData = []; // Store all shifts data
@@ -1064,6 +1063,14 @@
                 $('#ganttChart').html(headerHtml + bodyHtml);
 
                 // Place shifts
+                // 1️⃣ Button click toggles all subcontractor names
+                $('#toggle-subcontractors-all').on('click', function() {
+                    const subs = $('.subcontractor-name'); // all subcontractor spans
+                    subs.toggle();
+                    $(this).text(subs.is(':visible') ? 'Hide Subcontractors' : 'Show Subcontractors');
+                });
+
+                // 2️⃣ Generate Gantt bars for each site and date
                 Object.values(sites).forEach(site => {
                     const shiftsByDate = {};
                     site.shifts.forEach(shift => {
@@ -1076,25 +1083,32 @@
                         const cell = $(`#cell-${site.id}-${dateStr}`);
                         if (cell.length) {
                             shifts.forEach((shift, index) => {
-                                const bar = $(`
-    <div class="gantt-bar shift-${shift.color_class}" 
-         data-shift-id="${shift.id}"
-         style="position: relative; top: ${index*5}px; z-index:${100-index};" 
-         title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
-        ${shift.service_type ?? ''}<br>${shift.formatted_time}<small><small>${shift.duration}</small></small><br>${shift.staff_name}
+                                // Extract subcontractor name from brackets
+                                const subcontractorMatch = shift.staff_name.match(
+                                    /\(([^)]+)\)/);
+                                const subcontractor = subcontractorMatch ?
+                                    subcontractorMatch[0] : '';
+                                const staffNameWithoutSub = subcontractorMatch ?
+                                    shift.staff_name.replace(subcontractor, '').trim() :
+                                    shift.staff_name;
 
-        ${shift.note 
-            ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                                                                                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">
-                                                                                                                                    📝
-                                                                                                                           </span>` 
-            : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                                                                                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">
-                                                                                                                                    📝
-                                                                                                                           </span>`
-        }
-    </div>
-`);
+                                const bar = $(`
+                        <div class="gantt-bar shift-${shift.color_class}" 
+                             data-shift-id="${shift.id}"
+                             style="position: relative; top: ${index*5}px; z-index:${100-index};" 
+                             title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
+                            ${shift.service_type ?? ''}<br>
+                            ${shift.formatted_time}<small><small>${shift.duration}</small></small><br>
+                            <span class="staff-name">${staffNameWithoutSub}</span>
+                            ${subcontractor ? `<span class="subcontractor-name" style="display:none; font-weight:bold;">${subcontractor}</span>` : ''}
+
+                            ${shift.note 
+                                ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
+                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
+                                : `<span class="note-icon" data-shift-id="${shift.id}" 
+                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
+                        </div>
+                    `);
 
                                 const checkbox = $(
                                     `<input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" style="display:none; margin-right:5px;">`
@@ -1116,7 +1130,6 @@
                                 bar.find('.note-icon').on('click', function(e) {
                                     e.stopPropagation();
                                     const shiftId = $(this).data('shift-id');
-
                                     $('#shiftId').val(shiftId);
                                     $('#noteForm')[0].reset();
                                     $('#noteType').val('guard');
@@ -1128,7 +1141,6 @@
                                 bar.find('.view-note-icon').on('click', function(e) {
                                     e.stopPropagation();
                                     const shiftId = $(this).data('shift-id');
-
                                     $('#shiftId').val(shiftId);
 
                                     $.get(`/shift-dates/${shiftId}/note`, function(
@@ -1149,7 +1161,6 @@
                         }
                     });
                 });
-
                 const todayStr = formatDate(new Date());
                 const todayCell = document.querySelector(`[data-date='${todayStr}']`);
 
@@ -1315,100 +1326,130 @@
         });
 
         // Save changes from multi-edit modal
-$(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
-    e.preventDefault();
+        $(document).off('submit', '#multiEditForm').on('submit', '#multiEditForm', function(e) {
+            e.preventDefault();
 
-    if (!selectedShiftIds.length) {
-        toast_danger('No shifts selected.');
-        return;
-    }
-
-    // Clear previous hidden shift inputs
-    $('#multiEditShiftInputs').empty();
-
-    // Add hidden inputs for each selected shift
-    selectedShiftIds.forEach(id => {
-        $('<input>').attr({ type: 'hidden', name: 'shift_ids[]', value: id }).appendTo('#multiEditShiftInputs');
-
-        const startTime = $('#multiAssignStartTime').val();
-        const endTime = $('#multiAssignEndTime').val();
-        const bookOn = $('#multiAssignBookOn').val();
-        const bookOff = $('#multiAssignBookOff').val();
-        const shiftDate = $('.multiAssignDateInput').val();
-
-        if (startTime) $('<input>').attr({ type: 'hidden', name: `start_times[${id}]`, value: startTime }).appendTo('#multiEditShiftInputs');
-        if (endTime) $('<input>').attr({ type: 'hidden', name: `end_times[${id}]`, value: endTime }).appendTo('#multiEditShiftInputs');
-        if (bookOn) $('<input>').attr({ type: 'hidden', name: `book_on[${id}]`, value: bookOn }).appendTo('#multiEditShiftInputs');
-        if (bookOff) $('<input>').attr({ type: 'hidden', name: `book_off[${id}]`, value: bookOff }).appendTo('#multiEditShiftInputs');
-        if (shiftDate) $('<input>').attr({ type: 'hidden', name: `shift_dates[${id}]`, value: shiftDate }).appendTo('#multiEditShiftInputs');
-    });
-
-    const submitData = (override = false) => {
-        $.ajax({
-            url: override ? `${baseUrl}/shifts/multi-assign-override` : `${baseUrl}/shifts/multi-assign`,
-            type: 'POST',
-            data: $(this).serialize(),
-            success: function(res) {
-                if (res.updated.length) {
-                    showToast(override ? 'Shifts updated successfully (override)!' : 'Shifts updated successfully!', 'success', 5000);
-
-                    $('#multiEditModal').modal('hide');
-                    selectedShiftIds = [];
-                    $('#selectedShiftsCount').text(0);
-                    selectionMode = false;
-                    $('#enableSelectBtn').text('Select');
-                    $('#editSelectedBtn').prop('disabled', true);
-                    $('#multiEditForm')[0].reset();
-                    $('.selec2_assign_modal').val(null).trigger('change');
-                    location.reload();
-                }
-
-                if (res.errors && Object.keys(res.errors).length) {
-                    const messages = [];
-                    for (const [shiftId, errs] of Object.entries(res.errors)) {
-                        messages.push(`Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`);
-                    }
-                    showToast(messages.join('<br>'), 'error', 5000);
-                }
-            },
-            error: function(xhr) {
-                // Collect error messages recursively
-                const collectMessages = (obj) => {
-                    let msgs = [];
-                    Object.values(obj).forEach(val => {
-                        if (Array.isArray(val)) msgs.push(...val);
-                        else if (typeof val === 'object') msgs.push(...collectMessages(val));
-                    });
-                    return msgs;
-                };
-
-                if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                    const messages = collectMessages(xhr.responseJSON.errors);
-
-                    if (messages.length) {
-                        if (window.isSuperAdmin) {
-                            // Show restriction toast with override option
-                            showRestrictionToast(messages[0], () => {
-                                submitData(true); // retry with override
-                            });
-                        } else {
-                            messages.forEach(msg => showToast(msg, 'error', 5000));
-                        }
-                    } else {
-                        showToast('Validation failed, but no message returned.', 'error', 5000);
-                    }
-                } else if (xhr.responseJSON?.error) {
-                    showToast(xhr.responseJSON.error, 'error', 5000);
-                } else {
-                    showToast('An unexpected error occurred.', 'error', 5000);
-                }
+            if (!selectedShiftIds.length) {
+                toast_danger('No shifts selected.');
+                return;
             }
-        });
-    };
 
-    // Initial submit
-    submitData();
-});
+            // Clear previous hidden shift inputs
+            $('#multiEditShiftInputs').empty();
+
+            // Add hidden inputs for each selected shift
+            selectedShiftIds.forEach(id => {
+                $('<input>').attr({
+                    type: 'hidden',
+                    name: 'shift_ids[]',
+                    value: id
+                }).appendTo('#multiEditShiftInputs');
+
+                const startTime = $('#multiAssignStartTime').val();
+                const endTime = $('#multiAssignEndTime').val();
+                const bookOn = $('#multiAssignBookOn').val();
+                const bookOff = $('#multiAssignBookOff').val();
+                const shiftDate = $('.multiAssignDateInput').val();
+
+                if (startTime) $('<input>').attr({
+                    type: 'hidden',
+                    name: `start_times[${id}]`,
+                    value: startTime
+                }).appendTo('#multiEditShiftInputs');
+                if (endTime) $('<input>').attr({
+                    type: 'hidden',
+                    name: `end_times[${id}]`,
+                    value: endTime
+                }).appendTo('#multiEditShiftInputs');
+                if (bookOn) $('<input>').attr({
+                    type: 'hidden',
+                    name: `book_on[${id}]`,
+                    value: bookOn
+                }).appendTo('#multiEditShiftInputs');
+                if (bookOff) $('<input>').attr({
+                    type: 'hidden',
+                    name: `book_off[${id}]`,
+                    value: bookOff
+                }).appendTo('#multiEditShiftInputs');
+                if (shiftDate) $('<input>').attr({
+                    type: 'hidden',
+                    name: `shift_dates[${id}]`,
+                    value: shiftDate
+                }).appendTo('#multiEditShiftInputs');
+            });
+
+            const submitData = (override = false) => {
+                $.ajax({
+                    url: override ? `${baseUrl}/shifts/multi-assign-override` :
+                        `${baseUrl}/shifts/multi-assign`,
+                    type: 'POST',
+                    data: $(this).serialize(),
+                    success: function(res) {
+                        if (res.updated.length) {
+                            showToast(override ? 'Shifts updated successfully (override)!' :
+                                'Shifts updated successfully!', 'success', 5000);
+
+                            $('#multiEditModal').modal('hide');
+                            selectedShiftIds = [];
+                            $('#selectedShiftsCount').text(0);
+                            selectionMode = false;
+                            $('#enableSelectBtn').text('Select');
+                            $('#editSelectedBtn').prop('disabled', true);
+                            $('#multiEditForm')[0].reset();
+                            $('.selec2_assign_modal').val(null).trigger('change');
+                            location.reload();
+                        }
+
+                        if (res.errors && Object.keys(res.errors).length) {
+                            const messages = [];
+                            for (const [shiftId, errs] of Object.entries(res.errors)) {
+                                messages.push(
+                                    `Shift ${shiftId}: ${Object.values(errs).flat().join(', ')}`
+                                    );
+                            }
+                            showToast(messages.join('<br>'), 'error', 5000);
+                        }
+                    },
+                    error: function(xhr) {
+                        // Collect error messages recursively
+                        const collectMessages = (obj) => {
+                            let msgs = [];
+                            Object.values(obj).forEach(val => {
+                                if (Array.isArray(val)) msgs.push(...val);
+                                else if (typeof val === 'object') msgs.push(...
+                                    collectMessages(val));
+                            });
+                            return msgs;
+                        };
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            const messages = collectMessages(xhr.responseJSON.errors);
+
+                            if (messages.length) {
+                                if (window.isSuperAdmin) {
+                                    // Show restriction toast with override option
+                                    showRestrictionToast(messages[0], () => {
+                                        submitData(true); // retry with override
+                                    });
+                                } else {
+                                    messages.forEach(msg => showToast(msg, 'error', 5000));
+                                }
+                            } else {
+                                showToast('Validation failed, but no message returned.', 'error',
+                                    5000);
+                            }
+                        } else if (xhr.responseJSON?.error) {
+                            showToast(xhr.responseJSON.error, 'error', 5000);
+                        } else {
+                            showToast('An unexpected error occurred.', 'error', 5000);
+                        }
+                    }
+                });
+            };
+
+            // Initial submit
+            submitData();
+        });
 
 
         function customMatcher(params, data) {

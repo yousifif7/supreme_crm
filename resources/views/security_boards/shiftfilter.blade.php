@@ -38,6 +38,9 @@
                     Edit</button>
                 <button id="enableSelectBtn" class="btn add-btn btn-success" name="Multi_Select"
                     style="background: gray;">Multi Select</button>
+                <button id="toggle-subcontractors-all" class="btn" style="background-color:gray; color:white;">
+                    Show Subcontractors
+                </button>
                 <button type="button" class="add_btn btn btn-white" data-bs-toggle="modal"
                     data-bs-target="#filterModal">
                     Filter
