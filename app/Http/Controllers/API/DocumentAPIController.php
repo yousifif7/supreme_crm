@@ -145,7 +145,6 @@ class DocumentAPIController extends Controller
         ];
 
         foreach ($documentTypes as $type) {
-            // get the latest document of this type
             $doc = $user->documents()
                 ->where('document_type', $type)
                 ->orderByDesc('expiry_date')
@@ -154,34 +153,27 @@ class DocumentAPIController extends Controller
             if ($doc && $doc->expiry_date) {
                 $expiryDate = Carbon::parse($doc->expiry_date);
 
-                // Only consider if within next 30 days
                 if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
-                    $cacheKey = "document_expiry_sent:user:{$user->id}:doc:{$doc->id}";
+                    // cache key includes date, so only once per day
+                    $today = now()->toDateString();
+                    $cacheKey = "document_expiry_sent:user:{$user->id}:doc:{$doc->id}:day:{$today}";
 
                     if (!Cache::has($cacheKey)) {
-                        $daysRemaining = now()->diffInDays($expiryDate);
+                        $daysRemaining =(int) now()->diffInDays($expiryDate); // always integer
 
                         $alert = [
                             'type' => 'document_expiry',
                             'document_id' => $doc->id,
                             'title' => 'Document Expiry Alert',
-                            'message' => "Your {$doc->document_type} is about to expire in {$daysRemaining} day(s) on {$doc->expiry_date}.",
-                            'expiry_date' => $doc->expiry_date,
+                            'message' => "Your {$doc->document_type} is about to expire in {$daysRemaining} day(s) on {$expiryDate->toDateString()}.",
+                            'expiry_date' => $expiryDate->toDateString(),
                             'days_remaining' => $daysRemaining,
                         ];
 
                         $alerts[] = $alert;
 
-                        // Send push notification
-                        send_push_notification(
-                            $user->id,
-                            $alert['title'],
-                            $alert['message'],
-                            $alert
-                        );
-
-                        // Cache for 30 days (until expiry), not just 7 days
-                        Cache::put($cacheKey, true, $expiryDate->diffInSeconds(now()));
+                        // Cache until end of day
+                        Cache::put($cacheKey, true, now()->endOfDay());
                     }
                 }
             }
