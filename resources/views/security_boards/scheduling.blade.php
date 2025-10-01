@@ -12,11 +12,12 @@
             min-width: 100%;
         }
 
-        .day-header,
-        .day-column {
+        .gantt-timeline-header,
+        .gantt-row-content {
+            display: flex;
             flex: 1;
-            min-width: 120px;
-            /* adjust: makes day/week fill more space */
+            width: 100%;
+            /* take full width */
         }
 
         html {
@@ -109,26 +110,34 @@
         }
 
 
+        .day-header,
+        .day-column {
+            flex: 1;
+            /* each day takes equal space */
+            min-width: 0;
+            /* allow shrink/stretch */
+            width: auto;
+            /* reset the fixed 100px */
+            box-sizing: border-box;
+        }
+
+
         .day-header {
             text-align: center;
             padding: 8px 5px;
-            width: 100px;
             font-size: 11px;
-            /* slightly larger */
             font-weight: 800;
-            /* stronger bold */
             color: #343a40;
-            /* darker text */
             background-color: #f8f9fa;
             border-bottom: 1px solid #dee2e6;
         }
 
         .day-cell {
+            flex: 1;
+            /* make the cell fill */
             min-height: 80px;
-            /* give each cell some vertical space */
             position: relative;
-            padding: 5px;
-            padding-bottom: 10px;
+            padding: 5px 10px;
         }
 
         .gantt-bar {
@@ -1127,9 +1136,9 @@
 
                             ${shift.note 
                                 ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
+                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
                                 : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
+                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
                         </div>
                     `);
 
@@ -1194,10 +1203,10 @@
                         block: "nearest"
                     });
                 }
-                const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-                const minWidthPerDay = ganttView === 'day' ? 400 : ganttView === 'week' ? 150 : 60;
-                $('#ganttChart .gantt-timeline-header, #ganttChart .gantt-row-content')
-                    .css('min-width', `${totalDays * minWidthPerDay}px`);
+                // const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
+                // const minWidthPerDay = ganttView === 'day' ? 400 : ganttView === 'week' ? 150 : 60;
+                // $('#ganttChart .gantt-timeline-header, #ganttChart .gantt-row-content')
+                //     .css('min-width', `${totalDays * minWidthPerDay}px`);
             }
 
             function filterGanttChart(searchTerm) {
@@ -1260,13 +1269,13 @@
                     if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
                             .client_id)) return false;
                     if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
-                    return false;
+                        return false;
                     if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
                         return false;
 
                     const shiftStart = new Date(shift.start_date);
                     if (filters.from_shift && shiftStart < new Date(filters.from_shift))
-                    return false;
+                        return false;
                     if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
                     return true;
                 });
