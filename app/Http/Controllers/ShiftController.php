@@ -427,6 +427,7 @@ class ShiftController extends Controller
                         if (request()->has('auto_checkcall_enabled') && request('auto_checkcall_enabled')) {
                             CheckCall::create([
                                 'shift_id'       => $shiftDate->id,
+                                'employee_id'       => $shiftDate->staff_id ?? null,
                                 'name'           => 'Auto CheckCall ' . ($n + 1),
                                 'scheduled_time' => $checkTime->format('Y-m-d H:i'),
                                 'status'         => 'pending',

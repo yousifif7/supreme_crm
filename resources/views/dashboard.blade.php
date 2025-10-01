@@ -159,7 +159,7 @@
             <div class="col-xxl-12 col-12 col-xl-12 d-flex">
                 <div class="card w-100">
                     <div class="card-header">
-                        <h5 class="fs-18"><b>Check Calls Monitoring</b></h5>
+                        <h5 class="fs-18"><b>Check Calls Monitoring for Today</b></h5>
                         <small>Filter by status: Pending | Missed | Completed</small>
                     </div>
                     <div class="card-body" style="max-height: 400px; overflow-y: auto;">
@@ -184,7 +184,7 @@
                                             ->first();
                                     @endphp
                                     <tr>
-                                        <td>{{ $checkCall->shift_id ?? 'N/A' }}</td>
+                                        <td>{{ $checkCall->shiftDate->shift->client?->name??''}} | {{ $checkCall->shiftDate->shift->site?->site_name ?? 'N/A' }}</td>
                                         <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                         <td>{{ $checkCall->name }}</td>
                                         <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('Y-m-d H:i') }}
@@ -456,7 +456,7 @@
                                     <tr>
                                         <td>{{ $staff->first_name ?? 'N/A' }}
                                             {{ $staff->last_name ?? '' }}</td>
-                                        <td>{{ $booking->shift_id }}</td>
+                                        <td>{{ $booking->shift->shift->client?->name??''}} | {{ $booking->shift->shift->site?->site_name ?? 'N/A' }}</td>
                                         <td>{{ ucfirst($booking->type) }}</td>
                                         <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('Y-m-d H:i') }}
                                         </td>

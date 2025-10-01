@@ -40,20 +40,31 @@ class UserController extends Controller
         $clients = Client::all();
         $staffs = User::role('security_staff')->get();
 
-        $checkCalls = CheckCall::whereIn('status', ['pending', 'missed', 'completed'])
+        $checkCalls = CheckCall::with('shiftDate')
+            ->whereIn('status', ['pending', 'missed', 'completed'])
+            ->whereHas('shiftDate', function ($q) {
+                $q->whereBetween('scheduled_time', [
+                    now()->startOfDay(),
+                    now()->addDay()->endOfDay()
+                ]);
+            })
             ->orderBy('scheduled_time', 'desc')
-            ->limit(20)  // limit to recent 10 or whatever you want
+            ->limit(20)
             ->get();
 
         $now = Carbon::now();
-        $bookings = ShiftBooking::orderBy('timestamp')->get();
+
+        $bookings = ShiftBooking::with('shift')
+            ->whereHas('shift')
+            ->orderBy('timestamp')
+            ->get();
 
         $today = Carbon::today();
 
         $siaDocuments = Employee::whereNotNull('sia_licence')
             ->whereDate('sia_expiry', '<', Carbon::today()->toDateString())
             ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
-            ->paginate(5);
+            ->paginate(10);
 
         // Get the full datetime range for this week
         $startOfThisWeek = Carbon::now()->startOfWeek()->startOfDay(); // Monday 00:00:00
@@ -435,7 +446,7 @@ class UserController extends Controller
         $weekStart = $today->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
         $weekEnd = $today->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
 
-        $guards = \App\Models\Employee::where('status','Active')->orWhere('status','active')->get(); // adjust filtering if needed
+        $guards = \App\Models\Employee::where('status', 'Active')->orWhere('status', 'active')->get(); // adjust filtering if needed
 
         foreach ($guards as $staff) {
             $entity = $staff->entity;

@@ -176,7 +176,7 @@ class AdminAPIController extends Controller
                 $alerts[] = [
                     'type' => 'patrol_warning',
                     'user_id' => $patrol->shift->staff_id ?? 'N/A',
-                    'user_name' => $patrol->shift->user->name ?? '',
+                    'user_name' => $patrol->shift->user->first_name ?? '',
                     'patrol_id' => $patrol->id,
                     'shift_id' => $patrol->shift_id,
                     'title' => 'Upcoming Patrol',
