@@ -11,6 +11,7 @@ use App\Models\Shift;
 use App\Models\Patrol;
 use App\Models\Message;
 use App\Models\DobEntry;
+use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use Illuminate\Http\Request;
@@ -141,14 +142,14 @@ class AdminAPIController extends Controller
         $emergencyAlerts = EmergencyAlert::where('acknowledged_by_control', false)
             ->with('user') // assuming EmergencyAlert has a relation to User
             ->get();
-        
+
         foreach ($emergencyAlerts as $alert) {
-            $user= User::find($alert->user_id);
+            $user = User::find($alert->user_id);
             $alerts[] = [
                 'type' => 'panic_button',
                 'alert_id' => $alert->id,
                 'user_id' => $alert->user_id,
-                'user_name' => $user?->first_name.' '.$user?->last_name ?? 'Unknown',
+                'user_name' => $user?->first_name . ' ' . $user?->last_name ?? 'Unknown',
                 'latitude' => $alert->latitude,
                 'longitude' => $alert->longitude,
                 'address' => $alert->address,
@@ -261,6 +262,40 @@ class AdminAPIController extends Controller
                     'message' => "Shift at {$sd->shift->site->site_name} is unassigned and starts within 24 hours.",
                     'scheduled_time' => $sd->start_time,
                 ];
+            }
+        }
+
+        // --- 5. Idle Alerts ---
+        $now = Carbon::now();
+        $activeUsers = User::whereHas('locations')->get();
+        foreach ($activeUsers as $user) {
+            // Get the latest shift booking for this user
+            $latestBooking = \App\Models\ShiftBooking::where('user_id', $user->id)
+                ->latest('created_at')
+                ->first();
+
+            // Only proceed if user is on-duty
+            if (!$latestBooking || $latestBooking->type !== 'book_on') {
+                continue;
+            }
+
+            $lastLocation = \App\Models\Location::where('user_id', $user->id)
+                ->orderByDesc('timestamp')
+                ->first();
+
+            if ($lastLocation) {
+                $diffMinutes = $lastLocation->timestamp->diffInMinutes($now);
+
+                if ($diffMinutes >= 30) {
+                    $alerts[] = [
+                        'type' => 'idle_control',
+                        'user_id' => $user->id,
+                        'user_name' => $user->first_name . ' ' . $user->last_name,
+                        'title' => 'Idle Guard Alert',
+                        'message' => "Guard {$user->first_name} {$user->last_name} has been idle for 30 minutes.",
+                        'last_seen' => $lastLocation->timestamp,
+                    ];
+                }
             }
         }
 

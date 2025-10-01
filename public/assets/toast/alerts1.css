@@ -57,7 +57,7 @@
 }
 
 /* Alert type colors */
-.alert-document_expiry {
+.alert-idle_control {
     background: #fff3cd;
     border-left: 5px solid #ffc107;
     color: #856404;

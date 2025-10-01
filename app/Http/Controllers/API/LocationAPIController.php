@@ -107,54 +107,54 @@ class LocationAPIController extends Controller
         return response()->json(['status' => 'success', 'message' => 'Control has been notified.']);
     }
 
-public function checkIdle(Request $request)
-{
-    $user = $request->user();
+    public function checkIdle(Request $request)
+    {
+        $user = $request->user();
 
-    // Get last location
-    $lastLocation = Location::where('user_id', $user->id)
-        ->orderByDesc('timestamp')
-        ->first();
+        // Get last location
+        $lastLocation = Location::where('user_id', $user->id)
+            ->orderByDesc('timestamp')
+            ->first();
 
-    if (!$lastLocation) {
+        if (!$lastLocation) {
+            return response()->json([
+                'message' => 'No location recorded yet',
+                'idle_status' => 'unknown'
+            ]);
+        }
+
+        $now = now(); // current time
+        $diffMinutes = $lastLocation->timestamp->diffInMinutes($now); // positive number
+
+        $alerts = [];
+
+        // 15-min idle -> notify guard
+        if ($diffMinutes >= 15 && $diffMinutes < 30) {
+            send_push_notification(
+                $user->id,
+                'Idle Alert',
+                'You have been idle for 15 minutes.',
+                ['location' => $lastLocation]
+            );
+            $alerts[] = 'guard_notified';
+        }
+
+        // 30-min idle -> notify control
+        if ($diffMinutes >= 30) {
+            Notify::toDashboard(
+                null,
+                'alert',
+                'Idle Guard Alert',
+                'Guard ' . $user->first_name.' '.$user->last_name .' has been idle for 30 minutes.',
+                ""
+            );
+            $alerts[] = 'control_notified';
+        }
+
         return response()->json([
-            'message' => 'No location recorded yet',
-            'idle_status' => 'unknown'
+            'idle_minutes' => $diffMinutes,
+            'alerts_sent' => $alerts
         ]);
     }
-
-    $now = now(); // current time
-    $diffMinutes = $lastLocation->timestamp->diffInMinutes($now); // positive number
-
-    $alerts = [];
-
-    // 15-min idle -> notify guard
-    if ($diffMinutes >= 15 && $diffMinutes < 30) {
-        send_push_notification(
-            $user->id,
-            'Idle Alert',
-            'You have been idle for 15 minutes.',
-            ['location' => $lastLocation]
-        );
-        $alerts[] = 'guard_notified';
-    }
-
-    // 30-min idle -> notify control
-    if ($diffMinutes >= 30) {
-        Notify::toDashboard(
-            null,
-            'alert',
-            'Idle Guard Alert',
-            'Guard ' . $user->first_name.' '.$user->last_name .' has been idle for 30 minutes.',
-            ""
-        );
-        $alerts[] = 'control_notified';
-    }
-
-    return response()->json([
-        'idle_minutes' => $diffMinutes,
-        'alerts_sent' => $alerts
-    ]);
-}
 
 }

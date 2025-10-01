@@ -38,8 +38,10 @@ function showDashboardAlert(type, message, route = null, alertId = null) {
             $.ajax({
                 url: `/api/emergency-alerts/${alertId}/acknowledge`,
                 type: 'POST',
-                data: { _token: '{{ csrf_token() }}' },
-                success: function(response) {
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function (response) {
                     if (response.success) {
                         toast_success('Emergency alert acknowledged');
                         stopAlertSound();
@@ -48,7 +50,7 @@ function showDashboardAlert(type, message, route = null, alertId = null) {
                         toast_danger(response.message || 'Error acknowledging alert.');
                     }
                 },
-                error: function(err) {
+                error: function (err) {
                     console.error(err);
                     toast_danger('Error acknowledging alert.');
                 }
@@ -98,19 +100,25 @@ async function fetchDashboardAlerts() {
             data.alerts.forEach(alert => {
                 let route = '/dashboard';
                 switch (alert.type) {
+                    case 'patrol_warning':
+                        route = `/shift-dates/${alert.shift_id}/view`;
+                        break;
                     case 'patrol_missed':
+                        route = `/shift-dates/${alert.shift_id}/view`;
+                        break;
+                    case 'checkcall_warning':
                         route = `/shift-dates/${alert.shift_id}/view`;
                         break;
                     case 'checkcall_missed':
                         route = `/shift-dates/${alert.shift_id}/view`;
                         break;
-                    case 'document_expiry':
-                        route = `/documents/${alert.document_id}`;
-                        break;
                     case 'shift_unassigned':
                         route = `/shift-dates/${alert.shift_date_id}/view`;
                         break;
                     case 'panic_button':
+                        route = ``;
+                        break;
+                    case 'idle_control':
                         route = ``;
                         break;
                 }
