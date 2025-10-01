@@ -984,7 +984,7 @@
             }
 
             // Render Gantt based on view
-            function renderCurrentView(filteredData = null) {
+            function renderCurrentView(filteredData = null, filters = {}) {
                 if (!allShiftsData || allShiftsData.length === 0) {
                     $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
                     return;
@@ -998,18 +998,28 @@
                 }
 
                 let startDate, endDate;
-                if (ganttView === 'day') {
-                    startDate = new Date(currentWeekStart);
-                    endDate = new Date(currentWeekStart);
-                } else if (ganttView === 'week') {
-                    startDate = new Date(currentWeekStart);
-                    endDate = new Date(currentWeekStart);
-                    endDate.setDate(endDate.getDate() + 6);
-                } else if (ganttView === 'month') {
-                    startDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
-                    endDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
-                    currentWeekStart = new Date(startDate);
-                    currentWeekEnd = new Date(endDate);
+
+                // 👇 if filter form passed in with date range, respect it
+                if (filters.from_shift || filters.to_shift) {
+                    startDate = filters.from_shift ? new Date(filters.from_shift) : new Date(Math.min(...
+                        shiftsToRender.map(s => new Date(s.start_date))));
+                    endDate = filters.to_shift ? new Date(filters.to_shift) : new Date(Math.max(...shiftsToRender
+                        .map(s => new Date(s.start_date))));
+                } else {
+                    // otherwise fall back to ganttView selection
+                    if (ganttView === 'day') {
+                        startDate = new Date(currentWeekStart);
+                        endDate = new Date(currentWeekStart);
+                    } else if (ganttView === 'week') {
+                        startDate = new Date(currentWeekStart);
+                        endDate = new Date(currentWeekStart);
+                        endDate.setDate(endDate.getDate() + 6);
+                    } else if (ganttView === 'month') {
+                        startDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), 1);
+                        endDate = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth() + 1, 0);
+                        currentWeekStart = new Date(startDate);
+                        currentWeekEnd = new Date(endDate);
+                    }
                 }
 
                 renderGanttChart(shiftsToRender, startDate, endDate);
@@ -1117,9 +1127,9 @@
 
                             ${shift.note 
                                 ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
+                                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
                                 : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                                style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
+                                                        style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
                         </div>
                     `);
 
@@ -1250,22 +1260,21 @@
                     if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
                             .client_id)) return false;
                     if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
-                        return false;
+                    return false;
                     if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
                         return false;
+
                     const shiftStart = new Date(shift.start_date);
                     if (filters.from_shift && shiftStart < new Date(filters.from_shift))
-                        return false;
+                    return false;
                     if (filters.to_shift && shiftStart > new Date(filters.to_shift)) return false;
                     return true;
                 });
 
-                renderCurrentView(filteredShifts);
-                const filterModalEl = document.getElementById('filterModal');
-                const filterModal = bootstrap.Modal.getInstance(filterModalEl) || new bootstrap.Modal(
-                    filterModalEl);
-                filterModal.hide();
+                renderCurrentView(filteredShifts, filters); // 👈 pass filters here
+                bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
             });
+
 
             // Initial data load
             loadAllShiftsData();
