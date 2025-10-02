@@ -1190,128 +1190,105 @@ function showRestrictionToast(message, onOverride) {
     </script>
 
     <script>
-        function initPatrolMap(patrolId, shiftDateId, checkpoints) {
-            const mapDiv = document.getElementById("patrol-map-" + patrolId);
-            if (!mapDiv) return;
+function initPatrolMap(patrolId, shiftDateId, checkpoints) {
+    const mapDiv = document.getElementById("patrol-map-" + patrolId);
+    if (!mapDiv) return;
 
-            const map = new google.maps.Map(mapDiv, {
-                zoom: 14,
-                center: {
-                    lat: 0,
-                    lng: 0
-                }, // temporary fallback
-                mapTypeId: "roadmap",
+    const map = new google.maps.Map(mapDiv, {
+        zoom: 14,
+        center: { lat: 0, lng: 0 },
+        mapTypeId: "roadmap",
+    });
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasPoints = false;
+
+    // 🔹 Draw checkpoints
+    checkpoints.forEach(cp => {
+        const lat = parseFloat(cp.latitude);
+        const lng = parseFloat(cp.longitude);
+        if (!isNaN(lat) && !isNaN(lng)) {
+            hasPoints = true;
+            const pos = { lat, lng };
+            const marker = new google.maps.Marker({
+                position: pos,
+                map,
+                title: cp.name,
+                icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
             });
-
-            const bounds = new google.maps.LatLngBounds();
-            let hasPoints = false; // track if we added any points
-
-            // 🔹 Draw checkpoints markers
-            checkpoints.forEach(cp => {
-                const lat = parseFloat(cp.latitude);
-                const lng = parseFloat(cp.longitude);
-
-                if (!isNaN(lat) && !isNaN(lng)) {
-                    hasPoints = true;
-                    const pos = {
-                        lat,
-                        lng
-                    };
-                    const marker = new google.maps.Marker({
-                        position: pos,
-                        map: map,
-                        title: cp.name,
-                        icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
-                    });
-
-                    const infoWindow = new google.maps.InfoWindow({
-                        content: `<strong>${cp.name}</strong>`
-                    });
-
-                    marker.addListener("click", () => infoWindow.open(map, marker));
-
-                    bounds.extend(pos);
-                }
-            });
-
-            // 🔹 Fetch guard locations
-            fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
-                .then(res => res.json())
-                .then(data => {
-                    const locations = data.locations || [];
-
-                    if (locations.length) {
-                        hasPoints = true;
-
-                        // Map path for polyline
-                        const path = locations.map(loc => ({
-                            lat: parseFloat(loc.latitude),
-                            lng: parseFloat(loc.longitude)
-                        }));
-
-                        // Draw polyline
-                        new google.maps.Polyline({
-                            path: path,
-                            geodesic: true,
-                            strokeColor: "#007bff",
-                            strokeOpacity: 1.0,
-                            strokeWeight: 3,
-                            map: map
-                        });
-
-                        // Start/end markers
-                        new google.maps.Marker({
-                            position: path[0],
-                            map,
-                            label: "S"
-                        });
-                        if (path.length > 1) new google.maps.Marker({
-                            position: path[path.length - 1],
-                            map,
-                            label: "E"
-                        });
-
-                        // Extend bounds
-                        path.forEach(p => bounds.extend(p));
-
-                        // 🔹 Create heatmap
-                        const heatPoints = path.map(p => new google.maps.LatLng(p.lat, p.lng));
-                        const heatmap = new google.maps.visualization.HeatmapLayer({
-                            data: heatPoints,
-                            radius: 20,
-                            opacity: 0.6,
-                            dissipating: true,
-                            gradient: [
-                                'rgba(0,0,0,0)',
-                                'rgba(255,255,0,0.6)',
-                                'rgba(255,165,0,0.7)',
-                                'rgba(255,0,0,0.8)',
-                                'rgba(128,0,0,1)'
-                            ]
-                        });
-                        heatmap.setMap(map);
-                    }
-
-                    // 🔹 Fit map bounds if we have points
-                    if (hasPoints) {
-                        map.fitBounds(bounds);
-                    } else {
-                        map.setCenter({
-                            lat: 51.5074,
-                            lng: -0.1278
-                        });
-                        map.setZoom(14);
-                    }
-                })
-                .catch(err => console.error(err));
+            const infoWindow = new google.maps.InfoWindow({ content: `<strong>${cp.name}</strong>` });
+            marker.addListener("click", () => infoWindow.open(map, marker));
+            bounds.extend(pos);
         }
+    });
 
-        // 🔹 Initialize maps for all patrols
-        window.onload = function() {
-            @foreach ($patrols as $patrol)
-                initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
-            @endforeach
-        };
+    // 🔹 Fetch guard locations
+    fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
+        .then(res => res.json())
+        .then(data => {
+            const locations = data.locations || [];
+            if (locations.length) {
+                hasPoints = true;
+
+                // 🔹 Start & End markers
+                const startMarker = new google.maps.Marker({ position: {
+                    lat: parseFloat(locations[0].latitude),
+                    lng: parseFloat(locations[0].longitude)
+                }, map, label: "S" });
+
+                const endMarker = new google.maps.Marker({ position: {
+                    lat: parseFloat(locations[locations.length-1].latitude),
+                    lng: parseFloat(locations[locations.length-1].longitude)
+                }, map, label: "E" });
+
+                // 🔹 Heatmap
+                const heatmap = new google.maps.visualization.HeatmapLayer({
+                    data: [],
+                    radius: 25,
+                    opacity: 0.7,
+                    dissipating: true,
+                    gradient: [
+                        'rgba(0,0,0,0)',
+                        'rgba(255,255,0,0.6)',
+                        'rgba(255,165,0,0.7)',
+                        'rgba(255,0,0,0.8)',
+                        'rgba(128,0,0,1)'
+                    ]
+                });
+                heatmap.setMap(map);
+
+                // 🔹 Animate guard movement
+                let index = 0;
+                function addNextPoint() {
+                    if (index >= locations.length) return;
+
+                    const loc = locations[index];
+                    const point = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
+
+                    heatmap.getData().push(point);
+                    bounds.extend(point);
+                    map.fitBounds(bounds);
+
+                    index++;
+                    setTimeout(addNextPoint, 200); // adjust speed here (ms)
+                }
+                addNextPoint();
+            }
+
+            if (!hasPoints) {
+                map.setCenter({ lat: 51.5074, lng: -0.1278 });
+                map.setZoom(14);
+            }
+        })
+        .catch(err => console.error(err));
+}
+
+// Initialize maps
+window.onload = function() {
+    @foreach ($patrols as $patrol)
+        initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
+    @endforeach
+};
 
 
         $(document).ready(function() {
