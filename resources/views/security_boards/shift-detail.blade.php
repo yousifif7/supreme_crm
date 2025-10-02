@@ -1190,6 +1190,7 @@ function showRestrictionToast(message, onOverride) {
     </script>
 
     <script>
+
 function initPatrolMap(patrolId, shiftDateId, checkpoints) {
     const mapDiv = document.getElementById("patrol-map-" + patrolId);
     if (!mapDiv) return;
@@ -1216,8 +1217,6 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
                 title: cp.name,
                 icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
             });
-            const infoWindow = new google.maps.InfoWindow({ content: `<strong>${cp.name}</strong>` });
-            marker.addListener("click", () => infoWindow.open(map, marker));
             bounds.extend(pos);
         }
     });
@@ -1230,47 +1229,79 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
             if (locations.length) {
                 hasPoints = true;
 
-                // 🔹 Start & End markers
-                const startMarker = new google.maps.Marker({ position: {
-                    lat: parseFloat(locations[0].latitude),
-                    lng: parseFloat(locations[0].longitude)
-                }, map, label: "S" });
+                // Start & End markers
+                new google.maps.Marker({
+                    position: {
+                        lat: parseFloat(locations[0].latitude),
+                        lng: parseFloat(locations[0].longitude)
+                    },
+                    map,
+                    label: "S"
+                });
 
-                const endMarker = new google.maps.Marker({ position: {
-                    lat: parseFloat(locations[locations.length-1].latitude),
-                    lng: parseFloat(locations[locations.length-1].longitude)
-                }, map, label: "E" });
+                new google.maps.Marker({
+                    position: {
+                        lat: parseFloat(locations[locations.length - 1].latitude),
+                        lng: parseFloat(locations[locations.length - 1].longitude)
+                    },
+                    map,
+                    label: "E"
+                });
 
-                // 🔹 Heatmap
+                // Heatmap
                 const heatmap = new google.maps.visualization.HeatmapLayer({
                     data: [],
-                    radius: 25,
-                    opacity: 0.7,
+                    radius: 25, // keep it visible even zoomed in
+                    opacity: 0.9,
                     dissipating: true,
                     gradient: [
                         'rgba(0,0,0,0)',
-                        'rgba(255,255,0,0.6)',
+                        'rgba(0,255,0,0.6)',
                         'rgba(255,165,0,0.7)',
-                        'rgba(255,0,0,0.8)',
+                        'rgba(255,0,0,0.9)',
                         'rgba(128,0,0,1)'
                     ]
                 });
                 heatmap.setMap(map);
 
-                // 🔹 Animate guard movement
+                // Animate guard movement
                 let index = 0;
                 function addNextPoint() {
                     if (index >= locations.length) return;
 
                     const loc = locations[index];
-                    const point = new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude));
+                    const baseLat = parseFloat(loc.latitude);
+                    const baseLng = parseFloat(loc.longitude);
+                    const point = new google.maps.LatLng(baseLat, baseLng);
 
-                    heatmap.getData().push(point);
+                    // 🔥 Densify every point
+                    for (let i = 0; i < 100; i++) { 
+                        const jitterLat = baseLat + (Math.random() - 0.5) * 0.00005; 
+                        const jitterLng = baseLng + (Math.random() - 0.5) * 0.00005;
+                        heatmap.getData().push(new google.maps.LatLng(jitterLat, jitterLng));
+                    }
+
+                    // 🔹 Interpolate between points to create a line effect
+                    if (index > 0) {
+                        const prev = locations[index - 1];
+                        const prevLat = parseFloat(prev.latitude);
+                        const prevLng = parseFloat(prev.longitude);
+
+                        const stepCount = 10;
+                        for (let j = 1; j < stepCount; j++) {
+                            const lat = prevLat + (baseLat - prevLat) * (j / stepCount);
+                            const lng = prevLng + (baseLng - prevLng) * (j / stepCount);
+                            for (let k = 0; k < 10; k++) { // densify each midpoint
+                                heatmap.getData().push(new google.maps.LatLng(lat, lng));
+                            }
+                        }
+                    }
+
                     bounds.extend(point);
                     map.fitBounds(bounds);
 
                     index++;
-                    setTimeout(addNextPoint, 200); // adjust speed here (ms)
+                    setTimeout(addNextPoint, 150);
                 }
                 addNextPoint();
             }
@@ -1283,13 +1314,12 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
         .catch(err => console.error(err));
 }
 
-// Initialize maps
+// 🔹 Initialize maps
 window.onload = function() {
     @foreach ($patrols as $patrol)
         initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
     @endforeach
 };
-
 
         $(document).ready(function() {
             // Open edit modal

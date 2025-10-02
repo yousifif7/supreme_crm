@@ -173,13 +173,13 @@
                                 ->get();
                         @endphp
                         <div class="d-flex align-items-center">
-                            <div class="me-1 notification_item">
+                            <div class="me-1 notification_item" style="padding:7px;">
                                 <a href="" class="btn btn-menubar position-relative me-1" id="notificationBell"
                                     data-bs-toggle="dropdown">
                                     <i class="ti ti-bell"></i>
                                     @if (!$notifications)
                                     @else
-                                        <span class="text-danger">{{ $notifications->where('read', false)->count() }}
+                                        <span class="text-danger" >{{ $notifications->where('read', false)->count() }}
                                         </span>
                                     @endif
                                 </a>

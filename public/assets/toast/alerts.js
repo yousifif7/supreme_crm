@@ -158,21 +158,26 @@ setInterval(fetchDashboardAlerts, 60000);
 $(document).on('click', '.dashboard-alert', function (e) {
     e.preventDefault();
 
-    const alertId = $(this).data('alert-id'); // make sure your alert element has data-alert-id
-    $('#alert_id').val(alertId); // if using hidden form, optional
+    const alertId = $(this).data('alert-id');
+    const type = $(this).attr('class').match(/alert-([a-z_]+)/)?.[1]; // extract type from class
+
+    if (!alertId || (type !== 'panic_button' && type !== 'emergency_alert')) {
+        // Do nothing for other types
+        return;
+    }
+
+    $('#alert_id').val(alertId); // optional
 
     $.ajax({
         url: `/api/emergency-alerts/${alertId}/acknowledge`,
         type: 'POST',
         data: {
-            _token: '{{ csrf_token() }}' // include CSRF token
+            _token: '{{ csrf_token() }}'
         },
         success: function (response) {
             if (response.success) {
                 toast_success('Emergency alert acknowledged');
                 stopAlertSound();
-
-                // Remove alert from UI
                 $(`#alert-${alertId}`).remove();
             } else {
                 toast_danger(response.message || 'Error acknowledging alert.');

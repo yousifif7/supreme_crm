@@ -161,7 +161,27 @@
 
                                       <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.employment') }}">
-                                              <i class="ti ti-checkup-list"></i>Employment Report
+                                              <i class="ti ti-checkup-list"></i>Shift Report
+                                          </a>
+                                      </li>
+                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
+                                          <a href="{{ route('reports.employment') }}">
+                                              <i class="ti ti-checkup-list"></i>Book On Report
+                                          </a>
+                                      </li>
+                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
+                                          <a href="{{ route('reports.employment') }}">
+                                              <i class="ti ti-checkup-list"></i>Client Report
+                                          </a>
+                                      </li>
+                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
+                                          <a href="{{ route('reports.employment') }}">
+                                              <i class="ti ti-checkup-list"></i>Check Point Report
+                                          </a>
+                                      </li>
+                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
+                                          <a href="{{ route('reports.employment') }}">
+                                              <i class="ti ti-checkup-list"></i>Salary Sheet
                                           </a>
                                       </li>
                                   </ul>

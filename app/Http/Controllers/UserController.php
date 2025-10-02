@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -443,10 +444,19 @@ class UserController extends Controller
             return;
         }
 
-        $weekStart = $today->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
-        $weekEnd = $today->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
+        // ✅ Prevent duplicate runs: cache key for this Thursday
+        $cacheKey = 'weekly_hours_notification_' . $today->toDateString();
 
-        $guards = \App\Models\Employee::where('status', 'Active')->orWhere('status', 'active')->get(); // adjust filtering if needed
+        if (Cache::has($cacheKey)) {
+            return; // Already sent today
+        }
+
+        $weekStart = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
+        $weekEnd   = $today->copy()->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
+
+        $guards = \App\Models\Employee::where('status', 'Active')
+            ->orWhere('status', 'active')
+            ->get();
 
         foreach ($guards as $staff) {
             $entity = $staff->entity;
@@ -457,7 +467,7 @@ class UserController extends Controller
                 ->sum('total_hours');
 
             if ($totalWeekHours < $minWeeklyHours) {
-                $expectedHours = $totalWeekHours; // if you want to include future shifts, you can add $newShiftHours
+                $expectedHours = $totalWeekHours;
 
                 Notify::toDashboard(
                     null,
@@ -468,5 +478,8 @@ class UserController extends Controller
                 );
             }
         }
+
+        // ✅ Store flag in cache until the end of Thursday (23:59:59)
+        Cache::put($cacheKey, true, $today->copy()->endOfDay());
     }
 }
