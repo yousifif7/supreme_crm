@@ -9,15 +9,9 @@
         .gantt-row-content {
             display: flex;
             flex: 1;
-            min-width: 100%;
-        }
-
-        .gantt-timeline-header,
-        .gantt-row-content {
-            display: flex;
-            flex: 1;
             width: 100%;
             /* take full width */
+            min-width: 100%;
         }
 
         html {
@@ -29,11 +23,12 @@
             margin-top: 20px;
             border: 1px solid #dee2e6;
             border-radius: 4px;
+            width: 100%;
         }
 
+        /* active toggle button */
         .btn-gantt-view.active {
             background-color: #0d6efd;
-            /* Bootstrap primary color */
             color: white;
             border-color: #0d6efd;
         }
@@ -47,14 +42,11 @@
 
         .gantt-sidebar-header {
             width: 140px;
-            min-width: 100px;
+            min-width: 120px;
             padding: 10px;
             font-size: 16px;
-            /* slightly larger */
             font-weight: 800;
-            /* heavier than bold */
             color: #212529;
-            /* darker for contrast */
             background-color: #e9ecef;
             border-right: 1px solid #dee2e6;
             text-align: center;
@@ -84,16 +76,15 @@
 
         .gantt-row-sidebar {
             width: 140px;
-            min-height: 100px;
-            min-width: 100px;
+            min-width: 120px;
             padding: 12px;
             background-color: #fff;
             border-right: 1px solid #dee2e6;
             display: flex;
-            font-style: bold;
             flex-direction: column;
             justify-content: center;
             font-size: 13px;
+            font-weight: bold;
         }
 
         .gantt-row-content {
@@ -103,26 +94,17 @@
         }
 
         .day-column {
-            width: 100%;
-            min-width: 100px;
+            flex: 1;
+            /* stretch equally */
+            min-width: 80px;
+            /* smaller base so it adapts */
             border-right: 1px solid #dee2e6;
             position: relative;
-        }
-
-
-        .day-header,
-        .day-column {
-            flex: 1;
-            /* each day takes equal space */
-            min-width: 0;
-            /* allow shrink/stretch */
-            width: auto;
-            /* reset the fixed 100px */
             box-sizing: border-box;
         }
 
-
         .day-header {
+            flex: 1;
             text-align: center;
             padding: 8px 5px;
             font-size: 11px;
@@ -130,22 +112,31 @@
             color: #343a40;
             background-color: #f8f9fa;
             border-bottom: 1px solid #dee2e6;
+            min-width: 80px;
+            /* match day-column */
         }
 
         .day-cell {
-            flex: 1;
-            /* make the cell fill */
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* two bars per row */
+            gap: 4px;
+            /* space between bars */
             min-height: 80px;
             position: relative;
-            padding: 5px 10px;
+            padding: 5px 5px;
         }
 
+        /* Bars */
         .gantt-bar {
             background: #4e73df;
             color: #fff;
             padding: 2px;
             border-radius: 4px;
             margin-bottom: 5px;
+            width: 100%;
+            /* make bars fit inside grid cell */
+            box-sizing: border-box;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
         }
@@ -196,7 +187,85 @@
             margin-bottom: 20px;
         }
 
-        /* Color coding for shifts */
+        .time-label {
+            position: absolute;
+            top: -20px;
+            font-size: 10px;
+            color: #6c757d;
+        }
+
+        #ganttChart {
+            margin: 0 auto;
+            max-width: 100%;
+            /* stretch across large monitors */
+            width: 100%;
+        }
+
+        .gantt-wrapper {
+            width: 100%;
+        }
+
+        /* Toasts */
+        #custom-toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 2147483647;
+        }
+
+        .custom-toast {
+            display: flex;
+            align-items: center;
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            min-width: 300px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            opacity: 0;
+            transform: translateX(100%);
+            transition: all 0.3s ease;
+            font-family: Arial, sans-serif;
+        }
+
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateX(0);
+        }
+
+        .custom-toast .toast-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+
+        .custom-toast .toast-content {
+            flex: 1;
+        }
+
+        .custom-toast .toast-content p {
+            margin: 0 0 8px 0;
+            font-size: 14px;
+            color: #856404;
+        }
+
+        .custom-toast .override-btn {
+            padding: 6px 12px;
+            font-size: 13px;
+            font-weight: bold;
+            background-color: #dc3545;
+            color: #fff;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .custom-toast .override-btn:hover {
+            background-color: #c82333;
+        }
+
+        /* Shift colors */
         .shift-bg-dark-blue {
             background-color: #5489C4;
         }
@@ -249,91 +318,20 @@
             z-index: 1;
         }
 
-        .time-label {
-            position: absolute;
-            top: -20px;
-            font-size: 10px;
-            color: #6c757d;
-        }
+        /* Responsive tweaks */
+        @media (max-width: 768px) {
 
-        #ganttChart {
-            margin: 0 auto;
-            max-width: 1600px;
-            /* keep it readable on huge monitors */
-            width: 100%;
-            /* stretch to fill wrapper */
-        }
+            .gantt-sidebar-header,
+            .gantt-row-sidebar {
+                min-width: 80px;
+                font-size: 12px;
+            }
 
-        .gantt-wrapper {
-            width: 100%;
-        }
-
-        .day-header,
-        .day-column {
-            min-width: 145px;
-            text-align: center;
-            box-sizing: border-box;
-        }
-
-        #custom-toast-container {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            z-index: 2147483647;
-            /* Max possible z-index to be above everything */
-        }
-
-        .custom-toast {
-            display: flex;
-            align-items: center;
-            background: #fff3cd;
-            border-left: 5px solid #ffc107;
-            padding: 12px 16px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            min-width: 300px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-            opacity: 0;
-            transform: translateX(100%);
-            transition: all 0.3s ease;
-            font-family: Arial, sans-serif;
-        }
-
-        .custom-toast.show {
-            opacity: 1;
-            transform: translateX(0);
-        }
-
-        .custom-toast .toast-icon {
-            font-size: 20px;
-            margin-right: 12px;
-        }
-
-        .custom-toast .toast-content {
-            flex: 1;
-        }
-
-        .custom-toast .toast-content p {
-            margin: 0 0 8px 0;
-            font-size: 14px;
-            color: #856404;
-        }
-
-        .custom-toast .override-btn {
-            padding: 6px 12px;
-            font-size: 13px;
-            font-weight: bold;
-            background-color: #dc3545;
-            /* red for admin action */
-            color: #fff;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
-
-        .custom-toast .override-btn:hover {
-            background-color: #c82333;
+            .day-column,
+            .day-header {
+                min-width: 60px;
+                font-size: 9px;
+            }
         }
     </style>
 @endsection
@@ -876,7 +874,6 @@
             }
         }
 
-
         document.addEventListener('DOMContentLoaded', function() {
             let allShiftsData = []; // Store all shifts data
             let currentWeekStart = getMonday(new Date()); // Start with current week (Monday)
@@ -885,8 +882,25 @@
 
             let ganttView = 'week'; // default view
             setActiveGanttView('#viewWeekBtn'); // highlight week button
+            let initialLoad = true; // <-- ensure side-headers visible on first render
+
             // Initial render
             renderCurrentView();
+
+            // Debounce helper for resize
+            function debounce(fn, wait) {
+                let t;
+                return function(...args) {
+                    clearTimeout(t);
+                    t = setTimeout(() => fn.apply(this, args), wait);
+                };
+            }
+
+            // Recalculate sizes on window resize
+            window.addEventListener('resize', debounce(() => {
+                // If chart exists, re-render current view sizing only
+                if (allShiftsData && allShiftsData.length) renderCurrentView();
+            }, 150));
 
             // Navigation buttons
             $('#todayBtn').on('click', function() {
@@ -960,7 +974,8 @@
                 currentWeekEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
                 renderCurrentView();
                 setActiveGanttView('#viewMonthBtn');
-            })
+            });
+
             // Search
             $('#ganttSearchBtn').on('click', function() {
                 filterGanttChart($('#ganttSearch').val());
@@ -968,6 +983,7 @@
             $('#ganttSearch').on('keyup', function(e) {
                 if (e.key === 'Enter') filterGanttChart($(this).val());
             });
+
             // Load shifts
             function loadAllShiftsData(currentFilters = {}) {
                 $('#ganttChart').html(
@@ -1051,11 +1067,11 @@
 
                 // Header
                 let headerHtml = `
-            <div class="gantt-header">
-                <div class="gantt-sidebar-header">Client Name</div>
-                <div class="gantt-sidebar-header">Site Name</div>
-                <div class="gantt-timeline-header">
-        `;
+        <div class="gantt-header">
+            <div class="gantt-sidebar-header">Client Name</div>
+            <div class="gantt-sidebar-header">Site Name</div>
+            <div class="gantt-timeline-header">
+    `;
                 const currentDate = new Date(startDate);
                 while (currentDate <= endDate) {
                     const dateStr = formatDate(currentDate);
@@ -1066,7 +1082,8 @@
                     const monthName = currentDate.toLocaleDateString('en-US', {
                         month: 'short'
                     });
-                    headerHtml += `<div class="day-header">${dayName}<br>${monthName} ${dayNum}</div>`;
+                    headerHtml +=
+                        `<div class="day-header" data-date="${dateStr}">${dayName}<br>${monthName} ${dayNum}</div>`;
                     currentDate.setDate(currentDate.getDate() + 1);
                 }
                 headerHtml += `</div></div>`;
@@ -1075,17 +1092,17 @@
                 let bodyHtml = `<div class="gantt-body">`;
                 Object.values(sites).forEach(site => {
                     bodyHtml += `
-                <div class="gantt-row" data-site-id="${site.id}">
-                    <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
-                    <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
-                    <div class="gantt-row-content">
-            `;
+            <div class="gantt-row" data-site-id="${site.id}">
+                <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
+                <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
+                <div class="gantt-row-content">
+        `;
                     const dayDate = new Date(startDate);
                     while (dayDate <= endDate) {
                         const dateStr = formatDate(dayDate);
                         bodyHtml += `<div class="day-column" data-date="${dateStr}">
-                                <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
-                             </div>`;
+                            <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
+                         </div>`;
                         dayDate.setDate(dayDate.getDate() + 1);
                     }
                     bodyHtml += `</div></div>`;
@@ -1094,15 +1111,14 @@
 
                 $('#ganttChart').html(headerHtml + bodyHtml);
 
-                // Place shifts
-                // 1️⃣ Button click toggles all subcontractor names
-                $('#toggle-subcontractors-all').on('click', function() {
-                    const subs = $('.subcontractor-name'); // all subcontractor spans
+                // Toggle subcontractors
+                $('#toggle-subcontractors-all').off('click').on('click', function() {
+                    const subs = $('.subcontractor-name');
                     subs.toggle();
                     $(this).text(subs.is(':visible') ? 'Hide Subcontractors' : 'Show Subcontractors');
                 });
 
-                // 2️⃣ Generate Gantt bars for each site and date
+                // Place shifts
                 Object.values(sites).forEach(site => {
                     const shiftsByDate = {};
                     site.shifts.forEach(shift => {
@@ -1114,8 +1130,7 @@
                     Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
                         const cell = $(`#cell-${site.id}-${dateStr}`);
                         if (cell.length) {
-                            shifts.forEach((shift, index) => {
-                                // Extract subcontractor name from brackets
+                            shifts.forEach((shift) => {
                                 const subcontractorMatch = shift.staff_name.match(
                                     /\(([^)]+)\)/);
                                 const subcontractor = subcontractorMatch ?
@@ -1125,26 +1140,27 @@
                                     shift.staff_name;
 
                                 const bar = $(`
-                        <div class="gantt-bar shift-${shift.color_class}" 
-                             data-shift-id="${shift.id}"
-                             style="position: relative; top: ${index*5}px; z-index:${100-index};" 
-                             title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
+    <div class="gantt-bar shift-${shift.color_class}" 
+         data-shift-id="${shift.id}"
+         style="position: relative;" 
+         title="${shift.title} (${shift.formatted_time}) - ${shift.staff_name}">
                             ${shift.service_type ?? ''}<br>
-                            ${shift.formatted_time}<small><small>${shift.duration}</small></small><br>
+                            ${shift.formatted_time}<small><br><small>${shift.duration}</small></small><br>
                             <span class="staff-name">${staffNameWithoutSub}</span>
-                            ${subcontractor ? `<span class="subcontractor-name" style="display:none; font-weight:bold;">${subcontractor}</span>` : ''}
-
+                            ${subcontractor 
+                                ? `<span class="subcontractor-name" style="display:none; font-weight:bold;">${subcontractor}</span>` 
+                                : ''}
                             ${shift.note 
                                 ? `<span class="view-note-icon" data-shift-id="${shift.id}" 
-                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
+                                            style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#0d6efd;">📝</span>` 
                                 : `<span class="note-icon" data-shift-id="${shift.id}" 
-                                                                    style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
+                                            style="position:absolute; top:2px; right:2px; cursor:pointer; font-size:14px; color:#555;">📝</span>`}
                         </div>
                     `);
 
                                 const checkbox = $(
                                     `<input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" style="display:none; margin-right:5px;">`
-                                );
+                                    );
                                 cell.append(checkbox);
                                 cell.append(bar);
 
@@ -1158,7 +1174,7 @@
                                     }
                                 });
 
-                                // Clicking note icon opens modal (prevent bar click)
+                                // Clicking note icon opens modal
                                 bar.find('.note-icon').on('click', function(e) {
                                     e.stopPropagation();
                                     const shiftId = $(this).data('shift-id');
@@ -1193,21 +1209,74 @@
                         }
                     });
                 });
-                const todayStr = formatDate(new Date());
-                const todayCell = document.querySelector(`[data-date='${todayStr}']`);
 
-                if (todayCell) {
-                    todayCell.scrollIntoView({
-                        behavior: "smooth",
-                        inline: "center", // keep today in the center
-                        block: "nearest"
+                // ---------------------
+                // RESPONSIVE SIZING LOGIC
+                // ---------------------
+                (function adjustGanttSizing() {
+                    const ganttChartEl = document.getElementById('ganttChart');
+                    if (!ganttChartEl) return;
+
+                    const dayHeaders = ganttChartEl.querySelectorAll('.day-header');
+                    const totalDays = dayHeaders.length || 1;
+
+                    const sidebarHeaders = ganttChartEl.querySelectorAll('.gantt-sidebar-header');
+                    let sidebarTotalWidth = 0;
+                    if (sidebarHeaders && sidebarHeaders.length > 0) {
+                        sidebarHeaders.forEach(h => {
+                            sidebarTotalWidth += h.getBoundingClientRect().width;
+                        });
+                    } else {
+                        sidebarTotalWidth = 280;
+                    }
+
+                    const container = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
+                    const containerWidth = Math.max(container.clientWidth, window.innerWidth - 40);
+
+                    let timelineAvailableWidth = containerWidth - sidebarTotalWidth;
+                    if (timelineAvailableWidth < 300) timelineAvailableWidth = Math.max(containerWidth * 0.6,
+                        300);
+
+                    const minDayWidth = 80;
+                    let dayWidth = Math.floor(timelineAvailableWidth / totalDays);
+                    if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+
+                    const dayColumns = ganttChartEl.querySelectorAll('.day-column');
+                    dayHeaders.forEach(h => {
+                        h.style.minWidth = dayWidth + 'px';
+                        h.style.flex = '0 0 ' + dayWidth + 'px';
                     });
-                }
-                // const totalDays = Math.floor((endDate - startDate) / (1000 * 60 * 60 * 24)) + 1;
-                // const minWidthPerDay = ganttView === 'day' ? 400 : ganttView === 'week' ? 150 : 60;
-                // $('#ganttChart .gantt-timeline-header, #ganttChart .gantt-row-content')
-                //     .css('min-width', `${totalDays * minWidthPerDay}px`);
+                    dayColumns.forEach(c => {
+                        c.style.minWidth = dayWidth + 'px';
+                        c.style.flex = '0 0 ' + dayWidth + 'px';
+                    });
+
+                    const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
+                    const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
+                    const timelineTotalWidth = dayWidth * totalDays;
+                    if (timelineHeader) timelineHeader.style.minWidth = timelineTotalWidth + 'px';
+                    rowContents.forEach(rc => rc.style.minWidth = timelineTotalWidth + 'px');
+
+                    const rowSidebars = ganttChartEl.querySelectorAll('.gantt-row-sidebar');
+                    rowSidebars.forEach(sb => {
+                        sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect()
+                            .width + 'px' : '140px');
+                        sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0]
+                            .getBoundingClientRect().width + 'px' : '140px');
+                        sb.style.boxSizing = 'border-box';
+                    });
+
+                    if (initialLoad) {
+                        const wrapper = document.querySelector('.gantt-container') || ganttChartEl
+                        .parentElement;
+                        try {
+                            wrapper.scrollLeft = 0;
+                        } catch (err) {}
+                        initialLoad = false;
+                    }
+                })();
             }
+
 
             function filterGanttChart(searchTerm) {
                 if (!searchTerm) {
@@ -1284,10 +1353,10 @@
                 bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
             });
 
-
             // Initial data load
             loadAllShiftsData();
         });
+
 
         let selectionMode = false; // global
         let selectedShiftIds = [];
