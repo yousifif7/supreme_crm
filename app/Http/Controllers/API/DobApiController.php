@@ -124,6 +124,7 @@ class DobApiController extends Controller
     {
         $employee = Employee::where('user_id', Auth::id())->first();
         $q = DobEntry::with('media')
+            ->latest('created_at')
             ->where('user_id', $employee->user_id);
 
         if ($req->filled('shift_id')) {

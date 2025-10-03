@@ -25,7 +25,7 @@ class MessageApiController extends Controller
             return response()->json(['error' => 'Unauthenticated'], 401);
         }
 
-        $convos = $user->conversations()->with(['participants', 'latestMessage.sender'])->get();
+        $convos = $user->conversations()->with(['participants', 'latestMessage.sender'])->latest('updated_at')->get();
 
         $list = $convos->map(fn($c) => [
             'id' => $c->id,

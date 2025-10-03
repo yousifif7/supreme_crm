@@ -110,7 +110,8 @@ class DocumentAPIController extends Controller
     {
         $user = $request->user();
 
-        $documents = $user->documents()->get()->map(function ($doc) {
+            
+        $documents = $user->documents()->latest('created_at')->get()->map(function ($doc) {
             return [
                 'id' => $doc->id,
                 'type' => $doc->document_type,

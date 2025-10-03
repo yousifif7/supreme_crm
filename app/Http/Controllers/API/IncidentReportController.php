@@ -142,6 +142,7 @@ class IncidentReportController extends Controller
     public function index(Request $request)
     {
         $query = IncidentReport::with(['media', 'people'])
+            ->latest('created_at')
             ->where('user_id', Auth::id());
 
         if ($request->filled('status')) {
