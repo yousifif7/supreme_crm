@@ -17,6 +17,7 @@ use App\Models\ShiftDate;
 use Illuminate\Http\Request;
 use App\Models\EmergencyAlert;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
 class AdminAPIController extends Controller
@@ -268,6 +269,7 @@ class AdminAPIController extends Controller
         // --- 5. Idle Alerts ---
         $now = Carbon::now();
         $activeUsers = User::whereHas('locations')->get();
+
         foreach ($activeUsers as $user) {
             // Get the latest shift booking for this user
             $latestBooking = \App\Models\ShiftBooking::where('user_id', $user->id)
@@ -286,15 +288,25 @@ class AdminAPIController extends Controller
             if ($lastLocation) {
                 $diffMinutes = $lastLocation->timestamp->diffInMinutes($now);
 
+                $cacheKey = "idle_alert_sent_user_{$user->id}";
                 if ($diffMinutes >= 30) {
-                    $alerts[] = [
-                        'type' => 'idle_control',
-                        'user_id' => $user->id,
-                        'user_name' => $user->first_name . ' ' . $user->last_name,
-                        'title' => 'Idle Guard Alert',
-                        'message' => "Guard {$user->first_name} {$user->last_name} has been idle for 30 minutes.",
-                        'last_seen' => $lastLocation->timestamp,
-                    ];
+                    // Only send alert if not cached
+                    if (!Cache::has($cacheKey)) {
+                        $alerts[] = [
+                            'type' => 'idle_control',
+                            'user_id' => $user->id,
+                            'user_name' => $user->first_name . ' ' . $user->last_name,
+                            'title' => 'Idle Guard Alert',
+                            'message' => "Guard {$user->first_name} {$user->last_name} has been idle for 30 minutes.",
+                            'last_seen' => $lastLocation->timestamp,
+                        ];
+
+                        // Cache for 1 hour (or until user moves)
+                        Cache::put($cacheKey, true, now()->addHour());
+                    }
+                } else {
+                    // If user is active again, clear cache
+                    Cache::forget($cacheKey);
                 }
             }
         }

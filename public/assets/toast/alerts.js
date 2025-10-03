@@ -29,6 +29,7 @@ function showDashboardAlert(type, message, route = null, alertId = null) {
     toast.addEventListener('click', e => {
         if (e.target.classList.contains('alert-close')) {
             e.stopPropagation();
+            stopAlertSound();
             toast.remove();
             return;
         }

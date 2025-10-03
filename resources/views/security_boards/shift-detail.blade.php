@@ -1222,7 +1222,7 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
     });
 
     // 🔹 Fetch guard locations
-    fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
+    fetch(/patrol/${patrolId}/locations?shiftDateId=${shiftDateId})
         .then(res => res.json())
         .then(data => {
             const locations = data.locations || [];
@@ -1248,12 +1248,13 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
                     label: "E"
                 });
 
-                // Heatmap
+                // Heatmap with adjusted visibility
                 const heatmap = new google.maps.visualization.HeatmapLayer({
                     data: [],
-                    radius: 25, // keep it visible even zoomed in
-                    opacity: 0.9,
+                    radius: 40, // Increased from 25
+                    opacity: 0.95, // Increased opacity
                     dissipating: true,
+                    maxIntensity: 50, // Lower threshold for maximum color intensity
                     gradient: [
                         'rgba(0,0,0,0)',
                         'rgba(0,255,0,0.6)',
@@ -1264,7 +1265,16 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
                 });
                 heatmap.setMap(map);
 
-                // Animate guard movement
+                // Dynamic radius adjustment based on zoom level
+                google.maps.event.addListener(map, 'zoom_changed', function() {
+                    const zoom = map.getZoom();
+                    // Adjust radius inversely with zoom to maintain visual consistency
+                    // At zoom 10: radius ~35, at zoom 15: radius ~22.5, at zoom 20: radius ~10
+                    const radius = Math.max(15, 60 - (zoom * 2.5));
+                    heatmap.set('radius', radius);
+                });
+
+                // 🔹 Animate guard movement
                 let index = 0;
                 function addNextPoint() {
                     if (index >= locations.length) return;
@@ -1274,11 +1284,14 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
                     const baseLng = parseFloat(loc.longitude);
                     const point = new google.maps.LatLng(baseLat, baseLng);
 
-                    // 🔥 Densify every point
+                    // Densify every point with weighted locations
                     for (let i = 0; i < 100; i++) { 
                         const jitterLat = baseLat + (Math.random() - 0.5) * 0.00005; 
                         const jitterLng = baseLng + (Math.random() - 0.5) * 0.00005;
-                        heatmap.getData().push(new google.maps.LatLng(jitterLat, jitterLng));
+                        heatmap.getData().push({
+                            location: new google.maps.LatLng(jitterLat, jitterLng),
+                            weight: 1.5 // Increased weight for better visibility
+                        });
                     }
 
                     // 🔹 Interpolate between points to create a line effect
@@ -1292,7 +1305,10 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
                             const lat = prevLat + (baseLat - prevLat) * (j / stepCount);
                             const lng = prevLng + (baseLng - prevLng) * (j / stepCount);
                             for (let k = 0; k < 10; k++) { // densify each midpoint
-                                heatmap.getData().push(new google.maps.LatLng(lat, lng));
+                                heatmap.getData().push({
+                                    location: new google.maps.LatLng(lat, lng),
+                                    weight: 1.5
+                                });
                             }
                         }
                     }
