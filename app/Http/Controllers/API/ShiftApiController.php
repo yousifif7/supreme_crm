@@ -43,7 +43,7 @@ class ShiftApiController extends Controller
             },
         ])
             ->where('staff_id', $userId)
-            ->orderBy('shift_date');
+            ->orderBy('shift_date','desc');
 
         // category filter
         if ($category) {
