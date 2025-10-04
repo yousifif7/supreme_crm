@@ -20,6 +20,7 @@ class Employee extends Model
         'gender',
         'ni_number',
         'sia_licence',
+        'sia_status',
         'sia_expiry',
         'licence_type',
         'entry_date',

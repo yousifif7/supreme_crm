@@ -40,11 +40,24 @@ class EmployeesDataTable extends DataTable
             //             <span class="text-primary fw-bold">Active</span>';
             // })
             ->editColumn('sia_licence', function ($employee) {
-                $isActive = isset($employee->sia_expiry) && \Carbon\Carbon::parse($employee->sia_expiry)->isFuture();
+                // Determine status based on sia_status column (updated by your cron command)
+                $status = $employee->sia_status ?? 'Unknown'; // 'Active', 'Inactive', 'Invalid', etc.
+
+                // Optional: fallback to expiry date if status is not set
+                if ($status === 'Unknown' && isset($employee->sia_expiry)) {
+                    $status = \Carbon\Carbon::parse($employee->sia_expiry)->isFuture() ? 'Active' : 'Inactive';
+                }
+
+                // Set CSS class based on status
+                $class = match (strtolower($status)) {
+                    'active' => 'text-primary',
+                    'inactive' => 'text-danger',
+                    'invalid' => 'text-warning',
+                    default => 'text-muted',
+                };
+
                 return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>
-                        <span class="' . ($isActive ? 'text-primary' : 'text-danger') . ' fw-bold">'
-                    . ($isActive ? 'Active' : 'Inactive') .
-                    '</span>';
+            <span class="' . $class . ' fw-bold">' . e($status) . '</span>';
             })
             ->editColumn('sia_expiry', function ($employee) {
                 return $employee->sia_expiry;
@@ -62,7 +75,7 @@ class EmployeesDataTable extends DataTable
                 return $user->created_at?->format('Y-m-d');
             })
             ->editColumn('subcontractor', function ($employee) {
-                $subcontractor= User::role('subcontractor')->where('id',$employee->subcontractor)->first();
+                $subcontractor = User::role('subcontractor')->where('id', $employee->subcontractor)->first();
                 return $subcontractor->name ?? 'N/A';
             })
             ->filterColumn('name', function ($query, $keyword) {

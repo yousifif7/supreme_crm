@@ -96,13 +96,13 @@ class EmployeeController extends Controller
             'shoe' => 'nullable',
             'inseam' => 'nullable',
             'signature' => 'nullable|file',
-            'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'driving_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'driving_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
             'fixed_pay' => 'nullable',
@@ -127,11 +127,11 @@ class EmployeeController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:8', // minimum 8 characters
-                'regex:/[A-Z]/', // at least one uppercase
-                'regex:/[a-z]/', // at least one lowercase
-                'regex:/[0-9]/', // at least one number
-                'regex:/[@$!%*?&#]/', // at least one special char
+                'min:8',
+                'regex:/[A-Z]/',
+                'regex:/[a-z]/',
+                'regex:/[0-9]/',
+                'regex:/[@$!%*?&#]/',
             ],
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
             'employment_start_date' => 'nullable|date',
@@ -147,6 +147,42 @@ class EmployeeController extends Controller
         }
 
         $data = $validator->validated();
+
+        // Check and verify SIA Licence via SiaLicenceChecker if provided
+        if (!empty($data['sia_licence'])) {
+            try {
+                $siaChecker = new \App\Services\SiaLicenceChecker();
+                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
+
+                // Just check if the request was successful
+                if (!$siaResult['success']) {
+                    return response()->json([
+                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
+                    ], 400);
+                }
+
+                // If success = true and valid = true, licence exists in SIA database
+                if ($siaResult['valid']) {
+                    // Licence is valid! Continue with your logic
+                    \Log::info('SIA Licence Verified', [
+                        'licence' => $data['sia_licence'],
+                        'found_details' => [
+                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
+                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => 'SIA licence not found in register'
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'error' => 'Error checking SIA licence. Please try again.'
+                ], 500);
+            }
+        }
 
         // ✅ Handle the checkbox manually
         // Handle files...
@@ -180,16 +216,13 @@ class EmployeeController extends Controller
 
             foreach ($request->file('additional_file') as $file) {
                 if ($file->isValid()) {
-                    // Keep the original file name but prepend timestamp to avoid collisions
-                    $originalName = preg_replace('/\s+/', '_', $file->getClientOriginalName()); // replace spaces with underscores
+                    $originalName = preg_replace('/\s+/', '_', $file->getClientOriginalName());
                     $fileName = time() . '_' . $originalName;
 
-                    // Move file to public/uploads/additional_docs
                     $destinationPath = public_path('uploads/additional_docs');
                     $moved = $file->move($destinationPath, $fileName);
 
                     if ($moved) {
-                        // Save relative path to array
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
                     } else {
                         return response()->json([
@@ -205,8 +238,6 @@ class EmployeeController extends Controller
 
             $data['additional_files'] = $savedPaths;
         }
-
-
 
         // Create user with hashed password
         $user = User::create([
@@ -227,13 +258,12 @@ class EmployeeController extends Controller
 
         // Prepare employee data by excluding user-related fields
         $employeeData = $data;
-        // unset($employeeData['username'], $employeeData['password']);
         unset($employeeData['password']);
-
         unset($employeeData['reference_number']);
+
         // Save employee
         $employee = Employee::create($employeeData);
-        Logger::log(Auth::user(), 'Create', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Created.');
+        Logger::log(Auth::user(), 'Create', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Created.');
 
         if ($request->has('holidays')) {
             foreach ($request->holidays as $holiday) {
@@ -259,6 +289,7 @@ class EmployeeController extends Controller
 
         return response()->json(['message' => 'Employee created successfully']);
     }
+
     public function update(Request $request, $id)
     {
         $employee = Employee::findOrFail($id);
@@ -369,6 +400,42 @@ class EmployeeController extends Controller
 
 
         $data = $validator->validated();
+        
+        // Check and verify SIA Licence via SiaLicenceChecker if provided
+        if (!empty($data['sia_licence'])) {
+            try {
+                $siaChecker = new \App\Services\SiaLicenceChecker();
+                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
+
+                // Just check if the request was successful
+                if (!$siaResult['success']) {
+                    return response()->json([
+                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
+                    ], 400);
+                }
+
+                // If success = true and valid = true, licence exists in SIA database
+                if ($siaResult['valid']) {
+                    // Licence is valid! Continue with your logic
+                    \Log::info('SIA Licence Verified', [
+                        'licence' => $data['sia_licence'],
+                        'found_details' => [
+                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
+                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => 'SIA licence not found in register'
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'error' => 'Error checking SIA licence. Please try again.'
+                ], 500);
+            }
+        }
 
         if ($request->email || $request->password) {
             $employee = Employee::find($id);
@@ -468,7 +535,7 @@ class EmployeeController extends Controller
 
         // Now update employee record
         $updated = $employee->update($data);
-        Logger::log(Auth::user(), 'Update', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Updated.');
+        Logger::log(Auth::user(), 'Update', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Updated.');
 
         if (!$updated) {
             return response()->json(['error' => 'Failed to update employee record.'], 500);
@@ -528,7 +595,7 @@ class EmployeeController extends Controller
         $employee = Employee::findOrFail($id);
         $empUser = User::role('security_staff')->find($employee->user_id);
 
-        Logger::log(Auth::user(), 'Delete', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Deleted.');
+        Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
 
         $empUser->delete();
         $employee->delete();
@@ -552,8 +619,8 @@ class EmployeeController extends Controller
         // Delete related users (only security_staff role)
         User::role('security_staff')->whereIn('id', $userIds)->delete();
 
-        foreach($employees as $employee){
-            Logger::log(Auth::user(), 'Delete', 'Staff '.$employee->fore_name.' '.$employee->sur_name.' Deleted.');
+        foreach ($employees as $employee) {
+            Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
         }
         // Delete employees
         Employee::whereIn('id', $request->ids)->delete();
