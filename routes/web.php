@@ -3,9 +3,11 @@
 use App\Models\ShiftDate;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
+use App\Models\TrainingMaterial;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DobController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SiteController;
@@ -13,6 +15,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
@@ -24,17 +27,15 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
-use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\IncidentReportController;
+use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
-use App\Http\Controllers\LogController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Models\TrainingMaterial;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -77,6 +78,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/incident_report/export/excel', [IncidentReportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
 
     Route::get('/incident_report/export/pdf', [IncidentReportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
+
 
 
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
@@ -464,6 +466,10 @@ Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->na
 Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
 
 Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+
+Route::get('/staff-report', [ReportController::class, 'staffReport'])->name('staff.report');
+Route::get('/reports/shifts', [ReportController::class, 'shiftReport'])
+    ->name('reports.shift');
 
 require __DIR__ . '/auth.php';
 

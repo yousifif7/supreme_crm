@@ -159,8 +159,13 @@
                                           </a>
                                       </li>
 
-                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
-                                          <a href="{{ route('reports.employment') }}">
+                                      <li class="{{ request()->is('staff-report*') ? 'active' : '' }}">
+                                          <a href="{{ route('staff.report') }}">
+                                              <i class="ti ti-checkup-list"></i>Staff Report
+                                          </a>
+                                      </li>
+                                      <li class="{{ request()->is('/reports/shifts*') ? 'active' : '' }}">
+                                          <a href="{{ route('reports.shift') }}">
                                               <i class="ti ti-checkup-list"></i>Shift Report
                                           </a>
                                       </li>

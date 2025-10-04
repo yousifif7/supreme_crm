@@ -39,7 +39,8 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <label for="document_field" class="form-label">Document Type</label>
-                                <select name="document_field[]" id="document_field" class="form-select" multiple>
+                                <select name="document_field[]" id="document_field" class="form-select document-type-select"
+                                    multiple="multiple">
                                     @foreach ($documentFields as $field => $label)
                                         <option value="{{ $field }}"
                                             {{ in_array($field, (array) $documentField) ? 'selected' : '' }}>
@@ -47,7 +48,6 @@
                                         </option>
                                     @endforeach
                                 </select>
-                                <small class="text-muted">Hold CTRL (Windows) or CMD (Mac) to select multiple</small>
                             </div>
 
                             <div id="other-document-input" class="col-md-2" style="display: none;">
@@ -249,6 +249,23 @@
 @endsection
 
 @section('scripts')
+<!-- Select2 CSS -->
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        // Initialize select2 for both fields
+        $('#document_field').select2({
+            placeholder: "Select document type(s)",
+            allowClear: true,
+            width: '100%'
+        });
+    });
+</script>
+
     <!-- DataTables CSS -->
     <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
 

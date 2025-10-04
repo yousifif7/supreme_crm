@@ -63,6 +63,7 @@ class ShiftDate extends Model
     {
         return $this->belongsTo(Shift::class)->with('site');
     }
+    
     public function staff()
     {
         return $this->belongsTo(User::class, 'staff_id');
