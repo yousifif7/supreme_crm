@@ -20,6 +20,7 @@ class PatrolCheckPoint extends Model
 
     public function scans()
     {
-        return $this->hasMany(CheckpointScan::class);
+        // Adjust the foreign key name to whatever is in your DB
+        return $this->hasMany(CheckpointScan::class, 'patrol_checkpoint_id');
     }
 }

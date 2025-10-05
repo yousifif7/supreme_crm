@@ -2,15 +2,22 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Site;
 use App\Models\User;
+use App\Models\Client;
 use App\Models\Employee;
 use App\Models\ShiftDate;
+use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
 use Barryvdh\DomPDF\Facade\Pdf;
-use App\Exports\Reports\ShiftReportExport;
+use App\Models\PatrolCheckPoint;
+use App\Exports\Reports\ArrayExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\Reports\ShiftReportExport;
 use App\Exports\Reports\StaffReportExport;
+use App\Exports\Reports\ClientReportExport;
+use App\Exports\Reports\BookingReportExport;
 
 class ReportController extends Controller
 {
@@ -59,6 +66,76 @@ class ReportController extends Controller
             'employees' => $staff,
             'selectedTypes' => $employeeTypes,
             'filterDate' => $filterDate,
+        ]);
+    }
+
+    public function clientReport(Request $request)
+    {
+        $query = Client::query()->with(['company', 'manager']);
+
+        // Keyword Search
+        if ($request->filled('search')) {
+            $keyword = $request->input('search');
+            $query->where(function ($q) use ($keyword) {
+                $q->where('client_name', 'like', "%$keyword%")
+                    ->orWhere('contact_person', 'like', "%$keyword%")
+                    ->orWhere('email', 'like', "%$keyword%");
+            });
+        }
+
+        // Company filter
+        if ($request->filled('company_id')) {
+            $query->where('company_id', $request->company_id);
+        }
+
+        // Manager filter
+        if ($request->filled('manager_id')) {
+            $query->where('manager_id', $request->manager_id);
+        }
+
+        // Contract start/end filters
+        if ($request->filled('contract_start')) {
+            $query->whereDate('contract_start', '>=', $request->contract_start);
+        }
+        if ($request->filled('contract_end')) {
+            $query->whereDate('contract_end', '<=', $request->contract_end);
+        }
+
+        // Status filter (active or expired)
+        if ($request->filled('status')) {
+            if ($request->status === 'active') {
+                $query->whereDate('contract_end', '>=', now());
+            } elseif ($request->status === 'expired') {
+                $query->whereDate('contract_end', '<', now());
+            }
+        }
+
+        $clients = $query->get();
+
+        $export = $request->input('export'); // 'pdf' or 'excel'
+
+        if ($export === 'pdf') {
+            $pdf = Pdf::loadView('reports.pdf.client-pdf', ['clients' => $clients])
+                ->setPaper('a4', 'landscape');
+            return $pdf->download('client_report.pdf');
+        }
+
+        // 📊 Excel Export
+        if ($export === 'excel') {
+            return Excel::download(new ClientReportExport($request), 'client_report.xlsx');
+        }
+
+        return view('reports.client', [
+            'clients' => $clients,
+            'companies' => \App\Models\Company::pluck('company_name', 'address', 'id'),
+            'managers' => \App\Models\Employee::selectRaw("CONCAT(fore_name, ' ', sur_name) as full_name, id")
+                ->pluck('full_name', 'id'),
+            'selectedCompany' => $request->company_id,
+            'selectedManager' => $request->manager_id,
+            'selectedStatus' => $request->status,
+            'search' => $request->search,
+            'contractStart' => $request->contract_start,
+            'contractEnd' => $request->contract_end,
         ]);
     }
 
@@ -131,6 +208,114 @@ class ReportController extends Controller
             'selectedStatus' => $request->status ?? [],
             'statusOptions' => $statusOptions,
             'filterDate' => $request->input('shift_date'),
+        ]);
+    }
+
+    public function bookingReport(Request $request)
+    {
+        $clientId = $request->input('client_id');
+        $employeeId = $request->input('employee_id');
+        $type = $request->input('type');
+        $date = $request->input('shift_date');
+        $export = $request->input('export'); // 'pdf' or 'excel'
+
+        $bookings = ShiftBooking::with(['shift.shift.site.client', 'user'])
+            ->when(
+                $clientId,
+                fn($q) =>
+                $q->whereHas('shift.shift.site.client', fn($qq) => $qq->where('id', $clientId))
+            )
+            ->when(
+                $employeeId,
+                fn($q) =>
+                $q->whereHas('shift', fn($qq) => $qq->where('staff_id', $employeeId))
+            )
+            ->when($type, fn($q) => $q->where('type', $type))
+            ->when(
+                $date,
+                fn($q) =>
+                $q->whereHas('shift', fn($qq) => $qq->whereDate('shift_date', $date))
+            )
+            ->latest()
+            ->get();
+
+        // 🧾 PDF Export
+        if ($export === 'pdf') {
+            $pdf = Pdf::loadView('reports.pdf.booking-pdf', compact('bookings'))
+                ->setPaper('a4', 'landscape');
+            return $pdf->download('booking_report.pdf');
+        }
+
+        // 📊 Excel Export
+        if ($export === 'excel') {
+            return Excel::download(new BookingReportExport($bookings), 'booking_report_excel.xlsx');
+        }
+
+        $clients = User::role('client')->pluck('first_name', 'id');
+        $employees = User::role('security_staff')->selectRaw("id, CONCAT(first_name, ' ', last_name) as full_name")
+            ->pluck('full_name', 'id');
+
+        return view('reports.booking_report', [
+            'bookings' => $bookings,
+            'clients' => $clients,
+            'employees' => $employees,
+            'selectedClient' => $clientId,
+            'selectedEmployee' => $employeeId,
+            'selectedType' => $type,
+            'selectedDate' => $date,
+        ]);
+    }
+
+    public function checkpointReport(Request $request)
+    {
+        $selectedSite = $request->input('site_id');
+        $fromDate = $request->input('from_date');
+        $toDate = $request->input('to_date');
+        $exportType = $request->input('export');
+
+        // Get list of sites for the filter dropdown
+        $sites = Site::pluck('site_name', 'id');
+
+        // Base query
+        $query = PatrolCheckPoint::with('site', 'scans');
+
+        if ($selectedSite) {
+            $query->where('site_id', $selectedSite);
+        }
+
+        // Apply scan date filter if provided
+
+        $checkpoints = $query->get();
+
+        // Handle Export (PDF or Excel)
+        if ($exportType === 'pdf') {
+            $pdf = PDF::loadView('reports.pdf.checkpoints-pdf', compact('checkpoints', 'selectedSite', 'fromDate', 'toDate'));
+            return $pdf->download('checkpoint_report.pdf');
+        }
+
+        if ($exportType === 'excel') {
+            $data = $checkpoints->map(function ($c) {
+                return [
+                    'Checkpoint Name' => $c->name,
+                    'Site' => $c->site->site_name ?? 'N/A', // make sure relationship is loaded
+                    'Required' => $c->required ? 'Yes' : 'No',
+                    'Latitude' => $c->latitude ?? 'N/A',
+                    'Longitude' => $c->longitude ?? 'N/A',
+                ];
+            })->toArray();
+
+            // Optional: explicitly define headings
+            $headings = ['Checkpoint Name', 'Site', 'Required', 'Latitude', 'Longitude'];
+
+            return Excel::download(new ArrayExport($data, $headings), 'checkpoint_report.xlsx');
+        }
+
+        return view('reports.checkpoint', [
+            'checkpoints' => $checkpoints,
+            'sites' => $sites,
+            'selectedSite' => $selectedSite,
+            'fromDate' => $fromDate,
+            'toDate' => $toDate,
         ]);
     }
 }

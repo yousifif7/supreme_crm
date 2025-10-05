@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class ShiftBooking extends Model
 {
     //
-        protected $fillable = [
+    protected $fillable = [
         'user_id', 'shift_id', 'type', 'face_verification_result',
         'latitude', 'longitude', 'address', 'timestamp'
     ];

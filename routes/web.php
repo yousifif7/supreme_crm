@@ -468,8 +468,16 @@ Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])-
 Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 
 Route::get('/staff-report', [ReportController::class, 'staffReport'])->name('staff.report');
+Route::get('/booking/report', [ReportController::class, 'bookingReport'])->name('booking.report');
 Route::get('/reports/shifts', [ReportController::class, 'shiftReport'])
     ->name('reports.shift');
+Route::get('/reports/clients', [ReportController::class, 'clientReport'])
+    ->name('reports.clients');
+
+Route::get('/reports/checkpoints', [ReportController::class, 'checkpointReport'])->name('report.checkpoints');    
+
+Route::get('/reports/clients/export/pdf', [ReportController::class, 'exportClientReportPDF'])->name('client.report.export.pdf');
+Route::get('/reports/clients/export/excel', [ReportController::class, 'exportClientReportExcel'])->name('client.report.export.excel');
 
 require __DIR__ . '/auth.php';
 

@@ -145,50 +145,56 @@
                                   <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
                                       <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a
                                               href="{{ route('documents.report') }}"><i
-                                                  class="fa-solid fa-file-import"></i>Document Report</a></li>
+                                                  class="fa-solid fa-file-import"></i>Document Report</a>
+                                                </li>
 
-                                      <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
-                                          <a href="{{ route('incident_report.index') }}">
-                                              <i class="ti ti-checkup-list"></i>Incident report
-                                          </a>
-                                      </li>
-
-                                      <li class="{{ request()->is('dobs*') ? 'active' : '' }}">
-                                          <a href="{{ route('dobs.index') }}">
-                                              <i class="ti ti-checkup-list"></i>DOB report
-                                          </a>
-                                      </li>
-
-                                      <li class="{{ request()->is('staff-report*') ? 'active' : '' }}">
-                                          <a href="{{ route('staff.report') }}">
-                                              <i class="ti ti-checkup-list"></i>Staff Report
-                                          </a>
-                                      </li>
-                                      <li class="{{ request()->is('/reports/shifts*') ? 'active' : '' }}">
-                                          <a href="{{ route('reports.shift') }}">
-                                              <i class="ti ti-checkup-list"></i>Shift Report
-                                          </a>
-                                      </li>
-                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
-                                          <a href="{{ route('reports.employment') }}">
-                                              <i class="ti ti-checkup-list"></i>Book On Report
-                                          </a>
-                                      </li>
-                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
-                                          <a href="{{ route('reports.employment') }}">
-                                              <i class="ti ti-checkup-list"></i>Client Report
-                                          </a>
-                                      </li>
-                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
-                                          <a href="{{ route('reports.employment') }}">
-                                              <i class="ti ti-checkup-list"></i>Check Point Report
-                                          </a>
-                                      </li>
-                                      <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
+                                                  <li class="{{ request()->is('incident_report*') ? 'active' : '' }}">
+                                                      <a href="{{ route('incident_report.index') }}">
+                                                          <i class="ti ti-alert-circle"></i> Incident Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                                  <li class="{{ request()->is('dobs*') ? 'active' : '' }}">
+                                                      <a href="{{ route('dobs.index') }}">
+                                                          <i class="ti ti-calendar"></i> DOB Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                                  <li class="{{ request()->is('staff-report*') ? 'active' : '' }}">
+                                                      <a href="{{ route('staff.report') }}">
+                                                          <i class="ti ti-users"></i> Staff Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                                  <li class="{{ request()->is('reports/shifts*') ? 'active' : '' }}">
+                                                      <a href="{{ route('reports.shift') }}">
+                                                          <i class="ti ti-clock"></i> Shift Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                                  <li class="{{ request()->is('booking/report*') ? 'active' : '' }}">
+                                                      <a href="{{ route('booking.report') }}">
+                                                          <i class="ti ti-check"></i> Book On Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                                  <li class="{{ request()->is('reports/clients*') ? 'active' : '' }}">
+                                                      <a href="{{ route('reports.clients') }}">
+                                                          <i class="ti ti-building"></i> Client Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                                  <li class="{{ request()->is('reports/checkpoints*') ? 'active' : '' }}">
+                                                      <a href="{{ route('report.checkpoints') }}">
+                                                          <i class="ti ti-map-pin"></i> Check Point Report
+                                                      </a>
+                                                  </li>
+                                                  
+                                      {{-- <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.employment') }}">
                                               <i class="ti ti-checkup-list"></i>Salary Sheet
                                           </a>
-                                      </li>
+                                      </li> --}}
                                   </ul>
                               </li>
                           @endcan

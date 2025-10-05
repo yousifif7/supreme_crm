@@ -13,7 +13,7 @@ class CheckpointScan extends Model
 
     public function checkpoint()
     {
-        return $this->belongsTo(PatrolCheckpoint::class);
+        return $this->belongsTo(PatrolCheckpoint::class,'patrol_checkpoint_id');
     }
 
     public function media()
