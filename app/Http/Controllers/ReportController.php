@@ -277,7 +277,7 @@ class ReportController extends Controller
         $sites = Site::pluck('site_name', 'id');
 
         // Base query
-        $query = PatrolCheckPoint::with('site', 'scans');
+        $query = PatrolCheckPoint::with('site');
 
         if ($selectedSite) {
             $query->where('site_id', $selectedSite);

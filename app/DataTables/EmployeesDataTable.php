@@ -41,10 +41,10 @@ class EmployeesDataTable extends DataTable
             // })
             ->editColumn('sia_licence', function ($employee) {
                 // Determine status based on sia_status column (updated by your cron command)
-                $status = $employee->sia_status ?? 'Unknown'; // 'Active', 'Inactive', 'Invalid', etc.
+                $status = $employee->sia_status ?? 'Inactive'; // 'Active', 'Inactive', 'Invalid', etc.
 
                 // Optional: fallback to expiry date if status is not set
-                if ($status === 'Unknown' && isset($employee->sia_expiry)) {
+                if ($status === 'Inactive' && isset($employee->sia_expiry)) {
                     $status = \Carbon\Carbon::parse($employee->sia_expiry)->isFuture() ? 'Active' : 'Inactive';
                 }
 

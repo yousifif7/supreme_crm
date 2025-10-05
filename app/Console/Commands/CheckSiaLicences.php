@@ -24,7 +24,7 @@ class CheckSiaLicences extends Command
                 $result = $siaChecker->checkByLicenceNumber($employee->sia_licence);
 
                 if ($result['valid']) {
-                    $employee->sia_status = 'valid';
+                    $employee->sia_status = 'Active';
                     $employee->save();
                     Log::info("SIA licence valid for employee {$employee->id}");
                 } else {
