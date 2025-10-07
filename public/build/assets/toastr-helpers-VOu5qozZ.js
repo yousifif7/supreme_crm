@@ -1,0 +1,2 @@
+window.toast_danger=function(t){toastr.error(t,{positionClass:"toast-top-right",progressBar:!0})};window.toast_success=function(t){toastr.success(t,{positionClass:"toast-top-right",progressBar:!0})};window.toast_undo=function(t){toastr.clear();var s=`<div class="mb-3">Removed Successfully</div>
+    <button type="button" data-href="${t}" data-call-restore class="btn btn-primary btn-sm me-2">Undo</button>`;toastr.success(s,{positionClass:"toast-top-right",closeButton:!0,progressBar:!0,timeOut:3e4})};
