@@ -4,21 +4,25 @@
 @section('styles')
     <style>
         @media print {
+
             .header,
             .sidebar,
             #heading,
             .no-print {
                 display: none !important;
             }
-            .table th, .table td,
-            .page-wrapper
-            {            
+
+            .table th,
+            .table td,
+            .page-wrapper {
                 padding: 1px !important;
             }
+
             .row {
                 display: flex !important;
                 flex-wrap: wrap !important;
             }
+
             .col {
                 flex: 1 0 0%;
                 max-width: 100%;
@@ -33,22 +37,27 @@
                 flex: 0 0 25%;
                 max-width: 25%;
             }
+
             .col-md-4 {
                 flex: 0 0 33.333333%;
                 max-width: 33.333333%;
             }
+
             .col-md-5 {
                 flex: 0 0 41.666667%;
                 max-width: 41.666667%;
             }
+
             .col-md-6 {
                 flex: 0 0 50%;
                 max-width: 50%;
             }
+
             .col-md-7 {
                 flex: 0 0 58.333333%;
                 max-width: 58.333333%;
             }
+
             .col-md-8 {
                 flex: 0 0 66.666667%;
                 max-width: 66.666667%;
@@ -90,40 +99,57 @@
                         </div>
                         <div class="col-md-4">
                             <div class="text-end mb-3">
-                                <p class="mb-1 fw-medium">Created Date : <span class="text-dark">{{ $invoice->created_at->format('M d, Y') }}</span> </p>
+                                <p class="mb-1 fw-medium">
+                                    Created Date :
+                                    <span class="text-dark">
+                                        {{ $invoice->created_at ? $invoice->created_at->format('M d, Y') : 'N/A' }}
+                                    </span>
+                                </p>
                                 <p class="fw-medium">Due Date : <span class="text-dark">{{ $invoice->due_date }}</span> </p>
-                                <p class="fw-medium">Period : <span class="text-dark">{{ $invoice->date_from}} to {{ $invoice->date_to }}</span> </p>
+                                <p class="fw-medium">Period : <span class="text-dark">{{ $invoice->date_from }} to
+                                        {{ $invoice->date_to }}</span> </p>
                             </div>
                         </div>
                     </div>
 
                     <div class="row border-bottom mb-3">
                         <div class="col-md-4">
-                            @if($invoice->type === 'client')
+                            @if ($invoice->type === 'client')
                                 <p class="text-dark mb-2 fw-semibold">Client Details</p>
                                 <div>
-                                    <p class="mb-1">Client Name : <span class="text-dark">{{ $invoice->client->name }}</span></p>
-                                    <p class="mb-1">Email : <span class="text-dark">{{ $invoice->client->email }}</span></p>
-                                    <p class="mb-1">Phone : <span class="text-dark">{{ $invoice->client->phone }}</span></p>
-                                    @if($invoice->site)
-                                        <p class="mb-3">Site/Location : <span class="text-dark">{{ $invoice->site->name }}</span></p>
+                                    <p class="mb-1">Client Name : <span
+                                            class="text-dark">{{ $invoice->client->name }}</span></p>
+                                    <p class="mb-1">Email : <span class="text-dark">{{ $invoice->client->email }}</span>
+                                    </p>
+                                    <p class="mb-1">Phone : <span class="text-dark">{{ $invoice->client->phone }}</span>
+                                    </p>
+                                    @if ($invoice->site)
+                                        <p class="mb-3">Site/Location : <span
+                                                class="text-dark">{{ $invoice->site->name }}</span></p>
                                     @endif
                                 </div>
                             @elseif($invoice->type === 'subcontractor')
                                 <p class="text-dark mb-2 fw-semibold">Subcontractor Details</p>
                                 <div>
-                                    <p class="mb-1">Subcontractor Name : <span class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
-                                    <p class="mb-1">Email : <span class="text-dark">{{ $invoice->subcontractor->email }}</span></p>
-                                    <p class="mb-1">Phone : <span class="text-dark">{{ $invoice->subcontractor->phone }}</span></p>
+                                    <p class="mb-1">Subcontractor Name : <span
+                                            class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
+                                    <p class="mb-1">Email : <span
+                                            class="text-dark">{{ $invoice->subcontractor->email }}</span></p>
+                                    <p class="mb-1">Phone : <span
+                                            class="text-dark">{{ $invoice->subcontractor->phone }}</span></p>
                                 </div>
                             @else
                                 <p class="text-dark mb-2 fw-semibold">Security Staff Details</p>
                                 <div>
-                                    <p class="mb-1">Staff Name : <span class="text-dark">{{ $invoice->securityStaff->name }}</span></p>
-                                    <p class="mb-1">Email : <span class="text-dark">{{ $invoice->securityStaff->email }}</span></p>
-                                    <p class="mb-1">Phone : <span class="text-dark">{{ $invoice->securityStaff->phone }}</span></p>
-                                    @if($invoice->subcontractor)
-                                        <p class="mb-1">Subcontractor : <span class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
+                                    <p class="mb-1">Staff Name : <span
+                                            class="text-dark">{{ $invoice->securityStaff->name }}</span></p>
+                                    <p class="mb-1">Email : <span
+                                            class="text-dark">{{ $invoice->securityStaff->email }}</span></p>
+                                    <p class="mb-1">Phone : <span
+                                            class="text-dark">{{ $invoice->securityStaff->phone }}</span></p>
+                                    @if ($invoice->subcontractor)
+                                        <p class="mb-1">Subcontractor : <span
+                                                class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
                                     @endif
                                 </div>
                             @endif
@@ -132,16 +158,28 @@
                             <p class="text-dark mb-2 fw-semibold">Shift Summary</p>
                             <div class="row">
                                 <div class="col-md-6">
-                                    <p class="mb-1">Period From : <span class="text-dark">{{ $invoice->date_from }}</span></p>
-                                    <p class="mb-1">Period To : <span class="text-dark">{{ $invoice->date_to }}</span></p>
-                                    <p class="mb-1">Total Hours Worked : <span class="text-dark">{{ $totalHours }}</span></p>
-                                    <p>Hourly Rate : <span class="text-dark">{{ $invoice->rate_per_hour }}$</span></p>
+                                    <p class="mb-1">Period From : <span
+                                            class="text-dark">{{ $invoice->date_from }}</span></p>
+                                    <p class="mb-1">Period To : <span class="text-dark">{{ $invoice->date_to }}</span>
+                                    </p>
+                                    <p class="mb-1">Total Hours Worked : <span
+                                            class="text-dark">{{ $totalHours }}</span></p>
+                                    <p>Hourly Rate : <span class="text-dark">{{ $invoice->rate_per_hour }}£</span></p>
                                 </div>
                                 <div class="col-md-6">
-                                    <p class="mb-1">Break Deduction (Hrs) : <span class="text-dark">{{ $totalBreaks }}</span></p>
-                                    <p class="mb-1">Book On Hours : <span class="text-dark">{{ $totalBookOnHours }}</span></p>
-                                    <p class="mb-1">Book Off Hours : <span class="text-dark">{{ $totalBookOffHours }}</span></p>
-                                    <p>Total Billable Hours : <span class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
+                                    <p class="mb-1">Break Deduction (Hrs) : <span
+                                            class="text-dark">{{ $totalBreaks }}</span></p>
+                                    <p class="mb-1">Book On Hours : <span
+                                            class="text-dark">{{ $totalBookOnHours }}</span></p>
+                                    <p class="mb-1">Book Off Hours : <span
+                                            class="text-dark">{{ $totalBookOffHours }}</span></p>
+                                    <p class="mb-1">SSP Hours : <span class="text-dark">{{ $totalSSPHours }}</span></p>
+                                    <p class="mb-1">Holiday Hours : <span
+                                            class="text-dark">{{ $totalHolidayHours }}</span></p>
+                                    <p class="mb-1">Unpaid Hours : <span class="text-dark">{{ $totalUnpaidHours }}</span>
+                                    </p>
+                                    <p>Total Billable Hours : <span
+                                            class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
                                 </div>
                             </div>
                         </div>
@@ -165,18 +203,18 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach($invoice->items as $item)
-                                    <tr>
-                                        <td>{{ $item->date }}</td>
-                                        <td>{{ $item->securityStaff->name ?? 'N/A' }}</td>
-                                        <td>{{ $item->site->site_name ?? 'N/A' }}</td>
-                                        <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                        <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
-                                        <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
-                                        <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
-                                        <td class="text-end">{{ number_format($item->rate, 2) }}$</td>
-                                        <td class="text-end">{{ number_format($item->amount, 2) }}$</td>
-                                    </tr>
+                                    @foreach ($invoice->items as $item)
+                                        <tr>
+                                            <td>{{ $item->date }}</td>
+                                            <td>{{ $item->securityStaff->name ?? 'N/A' }}</td>
+                                            <td>{{ $item->site->site_name ?? 'N/A' }}</td>
+                                            <td class="text-end">{{ number_format($item->hours, 2) }}</td>
+                                            <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
+                                            <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
+                                            <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
+                                            <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
+                                            <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
+                                        </tr>
                                     @endforeach
                                 </tbody>
                             </table>
@@ -190,11 +228,11 @@
                                     <h6 class="mb-1">Payment Terms</h6>
                                     <p>{{ $invoice->payment_note ?? 'Payment due within 30 days' }}</p>
                                 </div>
-                                @if($invoice->notes)
-                                <div class="mb-3">
-                                    <h6 class="mb-1">Notes</h6>
-                                    <p>{{ $invoice->notes }}</p>
-                                </div>
+                                @if ($invoice->notes)
+                                    <div class="mb-3">
+                                        <h6 class="mb-1">Notes</h6>
+                                        <p>{{ $invoice->notes }}</p>
+                                    </div>
                                 @endif
                             </div>
                         </div>
@@ -211,22 +249,43 @@
                                 <p class="mb-0">Sub Total</p>
                                 <p class="text-dark fw-medium mb-2">{{ number_format($invoice->gross_amount, 2) }}$</p>
                             </div>
-                            @if($invoice->tax_amount > 0)
-                            <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                                <p class="mb-0">Tax</p>
-                                <p class="text-dark fw-medium mb-2">{{ number_format($invoice->tax_amount, 2) }}$</p>
-                            </div>
+
+                            @if ($sspAmount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">SSP Amount</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($sspAmount, 2) }}$</p>
+                                </div>
+                            @endif
+
+                            @if ($holidayAmount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">Holiday Amount</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($holidayAmount, 2) }}$</p>
+                                </div>
+                            @endif
+
+                            @if ($unpaidAmount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">Unpaid Deductions</p>
+                                    <p class="text-dark fw-medium mb-2">-{{ number_format($unpaidAmount, 2) }}$</p>
+                                </div>
+                            @endif
+                            @if ($invoice->tax_amount > 0)
+                                <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
+                                    <p class="mb-0">Tax</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($invoice->tax_amount, 2) }}$</p>
+                                </div>
                             @endif
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
                                 <h5>Total Amount</h5>
-                                <h5>{{ number_format($invoice->net_amount, 2) }}$</h5>
+                                <h5>{{ number_format($invoice->net_amount, 2) }}£</h5>
                             </div>
                             @php
                                 $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
                                 $words = $formatter->format($invoice->net_amount);
                             @endphp
                             <p class="fs-12">
-                                Amount in Words : Dollar {{ ucwords($words) }} Only
+                                Amount in Words : UK POUND {{ ucwords($words) }} Only
                             </p>
                         </div>
                     </div>

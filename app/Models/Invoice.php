@@ -39,6 +39,11 @@ class Invoice extends Model
     {
         return $this->belongsTo(User::class, 'client_id');
     }
+    
+    public function employee()
+    {
+        return $this->belongsTo(Employee::class,'security_staff_id');
+    }
 
     public function subcontractor()
     {
@@ -100,4 +105,9 @@ class Invoice extends Model
         
         return $prefix . '-' . date('Ymd') . '-' . str_pad($number, 6, '0', STR_PAD_LEFT);
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

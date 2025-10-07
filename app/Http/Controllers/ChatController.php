@@ -87,7 +87,7 @@ class ChatController extends Controller
     {
         $messages = Message::where('conversation_id', $conversationId)
             ->whereNotNull('attachment')
-            ->where(function($query) {
+            ->where(function ($query) {
                 $query->where('attachment', 'like', '%.jpg')
                     ->orWhere('attachment', 'like', '%.jpeg')
                     ->orWhere('attachment', 'like', '%.png')
@@ -106,7 +106,7 @@ class ChatController extends Controller
     {
         $user = Auth::user();
         $unreadMessages = Message::where('conversation_id', $conversationId)
-            ->whereDoesntHave('readReceipts', function($query) use ($user) {
+            ->whereDoesntHave('readReceipts', function ($query) use ($user) {
                 $query->where('user_id', $user->id);
             })
             ->get();
@@ -170,68 +170,77 @@ class ChatController extends Controller
         return redirect()->back()->with('success', 'Conversation created.');
     }
 
-   public function getConversations(Request $request)
-{
-    $user = $request->user();
-    $search = $request->input('search', '');
+    public function getConversations(Request $request)
+    {
+        $user = $request->user();
+        $search = $request->input('search', '');
 
-    $conversations = Conversation::with([
+        $conversations = Conversation::with([
             'participants',
             'messages' => function ($query) {
                 $query->latest()->limit(1);
             }
         ])
-        ->whereHas('participants', function ($query) use ($user) {
-            $query->where('conversation_user.user_id', $user->id);
-        })
-        ->when($search, function ($query) use ($search) {
-            $query->where(function ($q) use ($search) {
-                // Fully qualify the conversations.name search
-                $q->where('conversations.name', 'like', "%$search%")
-                  ->orWhereHas('participants', function ($q) use ($search) {
-                      // Fully qualify to avoid ambiguity
-                      $q->where('users.name', 'like', "%$search%")
-                        ->where('users.id', '!=', Auth::id());
-                  });
+            ->whereHas('participants', function ($query) use ($user) {
+                $query->where('conversation_user.user_id', $user->id);
+            })
+            ->when($search, function ($query) use ($search) {
+                $query->where(function ($q) use ($search) {
+                    // Fully qualify the conversations.name search
+                    $q->where('conversations.name', 'like', "%$search%")
+                        ->orWhereHas('participants', function ($q) use ($search) {
+                            // Fully qualify to avoid ambiguity
+                            $q->where('users.name', 'like', "%$search%")
+                                ->where('users.id', '!=', Auth::id());
+                        });
+                });
+            })
+            ->get()
+            ->map(function ($conversation) use ($user) {
+                // Check if pinned for this user
+                $conversation->pinned = $conversation->pinnedByUsers()
+                    ->where('user_id', $user->id)
+                    ->exists();
+
+                // Add unread count
+                $conversation->unread_count = Message::where('conversation_id', $conversation->id)
+                    ->whereDoesntHave('readReceipts', function ($query) use ($user) {
+                        $query->where('user_id', $user->id);
+                    })
+                    ->count();
+
+                // Add last message preview
+                $conversation->last_message = optional($conversation->messages->first())->message;
+
+                return $conversation;
             });
-        })
-        ->get()
-        ->map(function ($conversation) use ($user) {
-            // Check if pinned for this user
-            $conversation->pinned = $conversation->pinnedByUsers()
-                ->where('user_id', $user->id)
-                ->exists();
 
-            // Add unread count
-            $conversation->unread_count = Message::where('conversation_id', $conversation->id)
-                ->whereDoesntHave('readReceipts', function ($query) use ($user) {
-                    $query->where('user_id', $user->id);
-                })
-                ->count();
-
-            // Add last message preview
-            $conversation->last_message = optional($conversation->messages->first())->message;
-
-            return $conversation;
-        });
-
-    return response()->json($conversations);
-}
+        return response()->json($conversations);
+    }
 
 
     public function getMessages($conversationId)
     {
-        $conversation = Conversation::with(['messages.sender', 'messages.readReceipts','participants'])->findOrFail($conversationId);
+        $conversation = Conversation::with(['messages.sender', 'messages.readReceipts', 'participants'])->findOrFail($conversationId);
         return response()->json($conversation);
     }
 
     public function sendMessage(Request $request, $conversationId)
     {
-        $request->validate([
-            'message' => 'nullable|string',
-            'user_id' => 'required|exists:users,id',
-            'attachment' => 'nullable|file|max:10240', // 10MB max
-        ]);
+        if ($request->hasFile('attachment')) {
+            $request->validate([
+                'message' => 'nullable|string',
+                'user_id' => 'required|exists:users,id',
+                'attachment' => 'nullable|file|max:10240', // 10MB max
+            ]);
+        }
+        if (!$request->hasFile('attachment')) {
+            $request->validate([
+                'message' => 'required|string',
+                'user_id' => 'required|exists:users,id',
+                'attachment' => 'nullable|file|max:10240', // 10MB max
+            ]);
+        }
 
         $conversation = Conversation::findOrFail($conversationId);
         $attachmentPath = null;
@@ -242,14 +251,37 @@ class ChatController extends Controller
             $attachment->move(public_path('message_attachments'), $filename);
             $attachmentPath = '/message_attachments/' . $filename;
         }
-
         $message = $conversation->messages()->create([
             'sender_id' => $request->user_id,
-            'message' => $request->message,
+            'message' => $request->message?? 'Attachment',
             'attachment' => $attachmentPath,
         ]);
 
+        // 1) Broadcast (real-time updates via Echo/WebSockets)
         broadcast(new MessageSent($message))->toOthers();
+
+        // 2) Push Notification (mobile notification)
+        $sender = User::find($request->user_id);
+
+        $recipients = $conversation->participants()
+            ->where('user_id', '!=', $request->user_id)
+            ->get();
+
+        foreach ($recipients as $recipient) {
+            send_push_notification(
+                $recipient->id,
+                'New Message',
+                $request->message
+                    ? "From {$sender?->first_name} {$sender?->last_name}: {$request->message}"
+                    : ($attachmentPath
+                        ? "📎 Attachment from {$sender?->first_name} {$sender?->last_name}"
+                        : "You received a new message"),
+                [
+                    'conversation_id' => $conversation->id,
+                    'message_id' => $message->id,
+                ]
+            );
+        }
 
         return response()->json($message, 201);
     }
@@ -257,7 +289,7 @@ class ChatController extends Controller
     public function deleteMessage($messageId)
     {
         $message = Message::findOrFail($messageId);
-        
+
         if ($message->sender_id !== Auth::id()) {
             return response()->json(['error' => 'Unauthorized'], 403);
         }

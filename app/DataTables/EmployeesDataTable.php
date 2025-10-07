@@ -2,12 +2,13 @@
 
 namespace App\DataTables;
 
+use App\Models\User;
 use App\Models\Employee;
-use Illuminate\Database\Eloquent\Builder as QueryBuilder;
-use Yajra\DataTables\EloquentDataTable;
-use Yajra\DataTables\Html\Builder as HtmlBuilder;
 use Yajra\DataTables\Html\Column;
+use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
+use Yajra\DataTables\Html\Builder as HtmlBuilder;
+use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 
 class EmployeesDataTable extends DataTable
 {
@@ -39,11 +40,24 @@ class EmployeesDataTable extends DataTable
             //             <span class="text-primary fw-bold">Active</span>';
             // })
             ->editColumn('sia_licence', function ($employee) {
-                $isActive = isset($employee->sia_expiry) && \Carbon\Carbon::parse($employee->sia_expiry)->isFuture();
+                // Determine status based on sia_status column (updated by your cron command)
+                $status = $employee->sia_status ?? 'Inactive'; // 'Active', 'Inactive', 'Invalid', etc.
+
+                // Optional: fallback to expiry date if status is not set
+                if ($status === 'Inactive' && isset($employee->sia_expiry)) {
+                    $status = \Carbon\Carbon::parse($employee->sia_expiry)->isFuture() ? 'Active' : 'Inactive';
+                }
+
+                // Set CSS class based on status
+                $class = match (strtolower($status)) {
+                    'active' => 'text-primary',
+                    'inactive' => 'text-danger',
+                    'invalid' => 'text-warning',
+                    default => 'text-muted',
+                };
+
                 return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>
-                        <span class="' . ($isActive ? 'text-primary' : 'text-danger') . ' fw-bold">'
-                            . ($isActive ? 'Active' : 'Inactive') .
-                        '</span>';
+            <span class="' . $class . ' fw-bold">' . e($status) . '</span>';
             })
             ->editColumn('sia_expiry', function ($employee) {
                 return $employee->sia_expiry;
@@ -61,13 +75,14 @@ class EmployeesDataTable extends DataTable
                 return $user->created_at?->format('Y-m-d');
             })
             ->editColumn('subcontractor', function ($employee) {
-                return $employee->subcontractorDetails->first_name??'N/A';
+                $subcontractor = User::role('subcontractor')->where('id', $employee->subcontractor)->first();
+                return $subcontractor->name ?? 'N/A';
             })
-            ->filterColumn('name', function($query, $keyword) {
+            ->filterColumn('name', function ($query, $keyword) {
                 $query->where('fore_name', 'like', "%{$keyword}%")
-                      ->orWhere('sur_name', 'like', "%{$keyword}%");
+                    ->orWhere('sur_name', 'like', "%{$keyword}%");
             })
-            ->filterColumn('sia_licence', function($query, $keyword) {
+            ->filterColumn('sia_licence', function ($query, $keyword) {
                 $query->where('sia_licence', 'like', "%{$keyword}%");
             })
             ->rawColumns(['action', 'checkbox', 'number', 'name', 'sia_licence'])
@@ -82,11 +97,15 @@ class EmployeesDataTable extends DataTable
     public function query(Employee $model): QueryBuilder
     {
         $query = $model->newQuery()
-            ->select('employees.*');
+            ->select('employees.*')
+            ->orderBy('fore_name', 'asc')   // 👈 First name
+            ->orderBy('sur_name', 'asc');  // 👈 Then last name
 
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
-                ->select('employees.*');
+                ->select('employees.*')
+                ->orderBy('fore_name', 'asc')
+                ->orderBy('sur_name', 'asc');
         }
 
         return $query;
@@ -113,7 +132,7 @@ class EmployeesDataTable extends DataTable
             ->orderBy([9, 'DESC'])
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();

@@ -38,7 +38,7 @@ class VehiclesDataTable extends DataTable
                 return \Carbon\Carbon::parse($vehicle->first_registration_date)->format('d M Y');
             })
             ->editColumn('odometer_reading', function ($vehicle) {
-                return number_format($vehicle->odometer_reading) . ' km';
+                return number_format($vehicle->odometer_reading) . ' mile';
             })
             ->filterColumn('assigned_to', function($query, $keyword) {
                 $query->where('assigned_to', 'like', "%{$keyword}%");
@@ -77,35 +77,38 @@ class VehiclesDataTable extends DataTable
     /**
      * Optional method if you want to use the html builder.
      */
-    public function html(): HtmlBuilder
-    {
-        return $this->builder()
-            ->setTableId('vehicles-table')
-            ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold')
-            ->columns($this->getColumns())
-            ->minifiedAjax()
-            ->addAction(['width' => '80px'])
-            ->dom(
-                't
-                <"d-flex justify-content-between mt-2"
-                  <"col-sm-12 col-md-5 align-self-center ps-3"i>
-                  <"d-flex justify-content-between" p>
-                >'
-            )
-            ->orderBy([2, 'DESC'])
-            ->parameters([
-                "scrollX" => true,
-                "pageLength" => 15,
-                "drawCallback" => "function(settings) {
-                    feather.replace();
-                    var api = this.api();
-                    var start = api.page.info().start;
-                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
-                        cell.innerHTML = start + i + 1;
-                    });
-                }",
-            ]);
-    }
+public function html(): HtmlBuilder
+{
+    return $this->builder()
+        ->setTableId('vehicles-table')
+        ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold')
+        ->columns($this->getColumns())
+        ->minifiedAjax()
+        ->addAction(['width' => '80px'])
+        ->dom(
+            't
+            <"d-flex justify-content-between mt-2"
+              <"col-sm-12 col-md-5 align-self-center ps-3"i>
+              <"d-flex justify-content-between" p>
+            >'
+        )
+        ->orderBy([2, 'DESC'])
+        ->parameters([
+            "scrollX" => true,
+            "pageLength" => 25,
+            "headerCallback" => "function(thead, data, start, end, display) {
+                $(thead).addClass('thead-light');
+            }",
+            "drawCallback" => "function(settings) {
+                feather.replace();
+                var api = this.api();
+                var start = api.page.info().start;
+                api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                    cell.innerHTML = start + i + 1;
+                });
+            }",
+        ]);
+}
 
     /**
      * Get the dataTable columns definition.

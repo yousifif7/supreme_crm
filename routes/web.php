@@ -1,9 +1,13 @@
 <?php
 
+use App\Models\ShiftDate;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
+use App\Models\TrainingMaterial;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\DobController;
+use App\Http\Controllers\LogController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SiteController;
@@ -11,24 +15,27 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ShiftController;
 use App\Http\Controllers\ClientController;
 use App\Http\Controllers\ExportController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\InvoiceController;
 use App\Http\Controllers\PayrollController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\EmployeeController;
 use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\SubContractorController;
+use App\Http\Controllers\IncidentReportController;
+use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\IncidentReportController;
-use App\Http\Controllers\DocumentController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -39,7 +46,10 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 
-Route::group(['middleware' => ['auth']], function() {
+Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
+
+
+Route::group(['middleware' => ['auth']], function () {
     // Chat routes
     Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
 
@@ -57,6 +67,7 @@ Route::group(['middleware' => ['auth']], function() {
     Route::get('/conversations/{conversationId}/media', [ChatController::class, 'getConversationMedia'])->name('conversations.media');
 });
 
+
 Route::middleware('auth')->group(function () {
     Route::post('/logout', function () {
         Auth::logout();
@@ -64,11 +75,14 @@ Route::middleware('auth')->group(function () {
     })->name('logout');
 
 
-Route::get('documents/report',[DocumentController::class,'report'])->name('documents.report');
+    Route::get('documents/report', [DocumentController::class, 'report'])->name('documents.report');
 
-    Route::get('incident_report',[IncidentReportController::class,'index'])->name('incident_report.index');
-     Route::get('/incident_report/export/excel', [ExportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
-    Route::get('/incident_report/export/pdf', [ExportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
+    Route::get('incident_report', [IncidentReportController::class, 'index'])->name('incident_report.index');
+    Route::get('/incident_report/export/excel', [IncidentReportController::class, 'exportIncidentExcel'])->name('incident_report.export.excel');
+
+    Route::get('/incident_report/export/pdf', [IncidentReportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
+
+Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name('shifts.unassign');
 
 
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');
@@ -132,7 +146,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
     Route::get('/generateinvoice/{id}', [InvoiceController::class, 'edit'])->name('invoices.edit');
     Route::post('/generateinvoice/{id}', [InvoiceController::class, 'generateClientInvoice'])->name('invoices.store');
 
-        Route::post('/generateinvoice-sub/{id}', [InvoiceController::class, 'generateSubcontractorInvoice'])->name('invoices.sub');
+    Route::post('/generateinvoice-sub/{id}', [InvoiceController::class, 'generateSubcontractorInvoice'])->name('invoices.sub');
 
     Route::get('/invoices/{id}', [InvoiceController::class, 'show'])->name('invoices.show');
     Route::delete('/deleteinvoice/{id}', [InvoiceController::class, 'delete'])->name('invoices.delete');
@@ -140,9 +154,13 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
     /** End: Invoice Controller */
 
     /** Begin: Payroll Controller  */
+    Route::get('/payrolls', [PayrollController::class, 'index'])->name('payrolls.index');
+
+
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
-    Route::post('/generatepayroll/{id}', [InvoiceController::class, 'generateSecurityStaffInvoice'])->name('payroll.store');
-        Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
+    Route::post('/generatepayroll', [PayrollController::class, 'store'])->name('payroll.store');
+    Route::post('/generatepayroll_subcontractor/{id}', [PayrollController::class, 'payrollSubcontractor'])->name('payroll.generatepayroll_subcontractor');
+
 
     Route::get('/payrolls/{id}', [PayrollController::class, 'show'])->name('payrolls.show');
     Route::delete('/deletepayroll/{id}', [PayrollController::class, 'delete'])->name('payrolls.delete');
@@ -166,8 +184,7 @@ Route::get('documents/report',[DocumentController::class,'report'])->name('docum
 
 
     Route::get('settings/restrictions', [SettingController::class, 'index'])->name('restrictions.index');
-Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
-
+    Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'toggle'])->name('restrictions.toggle');
 
 
 
@@ -190,13 +207,23 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
-    
+
+    Route::post('/shifts/multi-assign', [ShiftController::class, 'multiAssign'])
+        ->name('shifts.multi-assign');
+
+    Route::post('/shifts/multi-edit', [ShiftController::class, 'multiEdit'])->name('shifts.multiEdit');
+
+    Route::get('/shift-dates/{shiftDate}/view', [ShiftController::class, 'view'])
+        ->name('shiftDates.view');
+
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
 
-    Route::get('/shift/{id}', [ShiftController::class, 'modal']);
+    Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
 
     Route::post('/book-records/{id}/acknowledge', [UserController::class, 'acknowledge'])->name('bookrecords.acknowledge');
+
+    Route::get('show/acknowledged/{id}', [TrainingController::class, 'showAcknowledged'])->name('show.acknowledged');
 
     Route::post('/shift/bookon/store', [ShiftController::class, 'storeBookon'])->name('shift.bookon.store');
     Route::post('/shift/bookoff/store', [ShiftController::class, 'storeBookoff'])->name('shift.bookoff.store');
@@ -204,7 +231,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
     Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
 
-    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats'); 
+    Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats');
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');
 
     /** Begin: Holiday Controller */
@@ -255,6 +282,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     /** End: Vehicle Controller */
 
     /** Begin: Vehicle compliance controller */
+    Route::get('/vehicle_compliances/data', [VehicleComplianceController::class, 'compailance_data'])->name('complainces.data');
     Route::get('/vehicle_compliances', [VehicleComplianceController::class, 'index'])->name('complainces');
     Route::post('compliances', [VehicleComplianceController::class, 'store'])->name('compliances.store');
     Route::get('/editcompliance/{id}', [VehicleComplianceController::class, 'edit'])->name('compliances.edit');
@@ -264,6 +292,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     /** End: Vehicle Maintainace controller */
 
     /** Begin: Vehicle Maintainance */
+    Route::get('/vehicle_maintenances/data', [VehicleMaintenanceController::class, 'data'])->name('maintenances.data');
     Route::get('/vehicle_maintenances', [VehicleMaintenanceController::class, 'index'])->name('maintenances');
     Route::post('maintenances', [VehicleMaintenanceController::class, 'store'])->name('maintenances.store');
     Route::get('/editmaintenance/{id}', [VehicleMaintenanceController::class, 'edit'])->name('maintenances.edit');
@@ -273,6 +302,7 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     /** End: Vehicle Maintainance */
 
     /** Begin: roadworthinessCheck controller */
+    Route::get('/roadworthiness_check/data', [RoadworthinessCheckController::class, 'data'])->name('checks.data');
     Route::get('/roadworthiness_check', [RoadworthinessCheckController::class, 'index'])->name('checks');
     Route::post('checks', [RoadworthinessCheckController::class, 'store'])->name('checks.store');
     Route::get('/editcheck/{id}', [RoadworthinessCheckController::class, 'edit'])->name('checks.edit');
@@ -282,15 +312,21 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     //** End: roadworthinessCheck controller */
 
     /** Begin: documentation upload controller */
+    Route::get('/documentation_uploads/data', [DocumentationUploadController::class, 'data'])->name('documents.data');
     Route::get('/documentation_uploads', [DocumentationUploadController::class, 'index'])->name('documents');
     Route::post('documents', [DocumentationUploadController::class, 'store'])->name('documents.store');
     Route::get('/editdocument/{id}', [DocumentationUploadController::class, 'edit'])->name('documents.edit');
     Route::delete('/deletedocument/{id}', [DocumentationUploadController::class, 'delete'])->name('documents.delete');
     Route::post('/updatedocument/{id}', [DocumentationUploadController::class, 'update'])->name('documents.update');
     Route::post('/documents/bulk-delete', [DocumentationUploadController::class, 'bulkDelete'])->name('documents.bulkDelete');
+
+    Route::get('documents/report', [DocumentController::class, 'report'])->name('documents.report');
+
     //** End: documentation upload controller */
+    Route::get('/weekly-hours-alerts', [UserController::class, 'weeklyHoursNotification']);
 
     /** Begin: alert and remainder controller */
+    Route::get('/alert_reminders/data', [AlertReminderController::class, 'data'])->name('reminders.data');
     Route::get('/alert_reminders', [AlertReminderController::class, 'index'])->name('reminders');
     Route::post('reminders', [AlertReminderController::class, 'store'])->name('reminders.store');
     Route::get('/editreminder/{id}', [AlertReminderController::class, 'edit'])->name('reminders.edit');
@@ -298,7 +334,37 @@ Route::post('settings/restrictions/{id}/toggle', [SettingController::class, 'tog
     Route::post('/updatereminder/{id}', [AlertReminderController::class, 'update'])->name('reminders.update');
     Route::post('/reminders/bulk-delete', [AlertReminderController::class, 'bulkDelete'])->name('reminders.bulkDelete');
     //** End: alert and remainder controller */
+
+
+    Route::get('/vehicle_management', [VehicleController::class, 'management'])
+        ->name('vehicle.management');
+
+    Route::get('/vehicle_data', [VehicleController::class, 'vehicle_details_data'])
+        ->name('vehicle.data');
 });
+
+Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');
+Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterialsPdf'])->name('materials.export.pdf');
+
+Route::prefix('leaves')->group(function () {
+    Route::get('pending', [EmployeeLeaveController::class, 'pending'])->name('leaves.pending');
+    Route::post('approve/{leave}', [EmployeeLeaveController::class, 'approve'])->name('leaves.approve');
+    Route::post('reject/{leave}', [EmployeeLeaveController::class, 'reject'])->name('leaves.reject');
+});
+
+Route::post('/hr/store', [TrainingController::class, 'store'])->name('materials.store');
+Route::get('/hr', [TrainingController::class, 'matsView'])->name('materials.index');
+Route::post('/hr/bulkdelete', [TrainingController::class, 'bulkDelete'])->name('materials.bulkDelete');
+Route::get('/calendar', [EmployeeLeaveController::class, 'calendar'])->name('calendar');
+
+Route::put('materials/{id}', [TrainingController::class, 'update'])->name('materials.update');
+// Delete single material
+Route::delete('materials/{id}', [TrainingController::class, 'destroy'])->name('materials.destroy');
+// Bulk delete
+Route::get('materials/{id}', [TrainingController::class, 'show'])->name('materials.show');
+
+// web.php
+Route::get('/shift/{shiftId}/map', [ShiftController::class, 'map'])->name('shift.map');
 
 Route::get('/invoices/export/excel', [ExportController::class, 'exportInvoiceExcel'])->name('invoices.export.excel');
 Route::get('/invoices/export/pdf', [ExportController::class, 'exportInvoicePdf'])->name('invoices.export.pdf');
@@ -347,6 +413,76 @@ Route::middleware('auth')->group(function () {
 });
 
 
+
+Route::prefix('incidents')->group(function () {
+    Route::get('/', [IncidentReportController::class, 'index'])->name('incidents.index'); // datatable page
+    Route::get('/{id}', [IncidentReportController::class, 'show'])->name('incidents.show'); // show details
+    Route::get('/{id}/edit', [IncidentReportController::class, 'edit'])->name('incidents.edit');
+    Route::put('/{id}', [IncidentReportController::class, 'update'])->name('incidents.update');
+    Route::post('/store', [IncidentReportController::class, 'store'])->name('incidents.store');
+    Route::delete('/{id}', [IncidentReportController::class, 'destroy'])->name('incidents.destroy'); // delete
+    Route::post('bulkdelete', [IncidentReportController::class, 'bulkdelete'])->name('incidents.bulkdelete'); // delete
+    Route::post('/{id}/status', [IncidentReportController::class, 'updateStatus'])->name('incidents.updateStatus');
+});
+
+Route::prefix('dobs')->group(function () {
+    Route::get('/', [DobController::class, 'index'])->name('dobs.index'); // DataTable
+    Route::post('/', [DobController::class, 'store'])->name('dobs.store'); // Create
+    Route::get('{id}', [DobController::class, 'show'])->name('dobs.show'); // Show modal
+    Route::get('{id}/edit', [DobController::class, 'edit'])->name('dobs.edit'); // Edit modal
+    Route::put('{id}', [DobController::class, 'update'])->name('dobs.update'); // Update
+    Route::delete('{id}', [DobController::class, 'destroy'])->name('dobs.destroy'); // Delete
+    Route::post('/bulk-delete', [DobController::class, 'bulkDelete'])->name('dobs.bulkDelete');
+});
+
+Route::put('/patrols/{id}', [ShiftController::class, 'patrolUpdate'])->name('patrol.update');
+Route::delete('/patrols/{id}', [ShiftController::class, 'patrolDestroy'])->name('patrol.delete');
+
+Route::get('/dobs/export/excel', [DobController::class, 'exportDobExcel'])->name('dobs.export.excel');
+Route::get('/dobs/export/pdf', [DobController::class, 'exportDobPdf'])->name('dobs.export.pdf');
+Route::get('/patrol/{patrol}/locations', [LocationAPIController::class, 'locations'])
+    ->name('patrol.locations');
+
+
+Route::get('/reports/employment', [EmployeeController::class, 'employmentReport'])->name('reports.employment');
+Route::get('/reports/employment/{employee}/pdf', [EmployeeController::class, 'exportEmploymentPdf'])
+    ->name('reports.employment.pdf');
+
+
+Route::post('/assign-shift-override', [ShiftController::class, 'assignWithOverride'])
+    ->middleware(['auth', 'can:assign-shift-override'])
+    ->name('assign.shift.override');
+
+Route::post('/updateshift/{id}/override', [ShiftController::class, 'updateWithOverride'])
+    ->middleware(['auth', 'can:assign-shift-override'])
+    ->name('assign.shift.override');
+
+Route::post('/shifts/multi-assign-override', [ShiftController::class, 'multiAssignWithOverride'])
+    ->middleware(['auth', 'can:assign-shift-override'])
+    ->name('assign.shift.override');
+
+Route::post('/shifts/store-override', [ShiftController::class, 'storeOverride'])
+    ->middleware('auth')
+    ->name('shifts.store.override');
+
+Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
+Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
+Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
+
+Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
+
+Route::get('/staff-report', [ReportController::class, 'staffReport'])->name('staff.report');
+Route::get('/booking/report', [ReportController::class, 'bookingReport'])->name('booking.report');
+Route::get('/reports/shifts', [ReportController::class, 'shiftReport'])
+    ->name('reports.shift');
+Route::get('/reports/clients', [ReportController::class, 'clientReport'])
+    ->name('reports.clients');
+
+Route::get('/reports/checkpoints', [ReportController::class, 'checkpointReport'])->name('report.checkpoints');    
+
+Route::get('/reports/clients/export/pdf', [ReportController::class, 'exportClientReportPDF'])->name('client.report.export.pdf');
+Route::get('/reports/clients/export/excel', [ReportController::class, 'exportClientReportExcel'])->name('client.report.export.excel');
+
 require __DIR__ . '/auth.php';
 
 // Route::get('/test-read-update', function () {
@@ -355,4 +491,16 @@ require __DIR__ . '/auth.php';
 //         ->update(['read' => true]);
 
 //     return 'done';
+// });
+
+
+// Route::get('/push',function(){
+// send_push_notification(
+//     135,
+//     'Test',
+//     'Test notification content.',
+//     ['user_id' => Auth::id()] //must be object/array
+// );
+
+//         return 'success';
 // });

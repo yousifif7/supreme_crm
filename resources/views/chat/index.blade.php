@@ -1,5 +1,5 @@
 @extends('layouts.app')
-
+@section('title')CRM | Chat @s
 @section('contents')
 <meta name="user-id" content="{{ Auth::id() }}">
 
@@ -295,7 +295,8 @@
                         <label for="user_id" class="form-label">Select User</label>
                         <select class="form-select user_select" name="users_id[]" id="user_id" required>
                             @foreach($users as $user)
-                                <option value="{{ $user->id }}">{{ $user->first_name }} {{ $user->last_name }}</option>
+                                <option value="{{ $user->id }}"data-first="{{ strtolower($user->first_name) }}"
+                                    data-last="{{ strtolower($user->last_name) }}">{{ $user->first_name }} {{ $user->last_name }}</option>
                             @endforeach
                         </select>
                     </div>
@@ -465,11 +466,11 @@
                     if (conversation.type === 'group') {
                         const logoUrl = conversation.icon_path 
                             ? `${baseUrl}/${conversation.icon_path}` 
-                            : 'https://cdn-icons-png.flaticon.com/512/1053/1053244.png';
+                            : 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png';
                         const groupName = conversation.name || 'Group';
 
                         contentWrapper.innerHTML = `
-                            <img class="chat-logo" src="${logoUrl}" alt="${groupName} Logo" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1053/1053244.png'">
+                            <img class="chat-logo" src="${logoUrl}" alt="${groupName} Logo" onerror="this.src='https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png'">
                             <div class="d-flex flex-column">
                                 <span>${groupName}</span>
                                 <small class="text-muted last-message-preview">${conversation.last_message || ''}</small>
@@ -481,7 +482,7 @@
                             if (user.id !== loggedInUserId) {
                                 const profilePictureUrl = user.profile_pic 
                                     ? `${baseUrl}${user.profile_pic}` 
-                                    : "https://cdn-icons-png.flaticon.com/512/1053/1053244.png";
+                                    : "https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png";
                                 const userName = user.name || 'Unknown User';
 
                                 contentWrapper.innerHTML = `
@@ -557,7 +558,7 @@ console.log(messages)
                         const isCurrentUser = message.sender.id === {{ Auth::id() }};
                         const profilePictureUrl = message.sender.profile_pic 
                             ? `${baseUrl}${message.sender.profile_pic}` 
-                            : "https://cdn-icons-png.flaticon.com/512/1053/1053244.png";
+                            : "https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png";
                         
                         // Group messages by the same sender
                         const prevMessage = index > 0 ? messages[index - 1] : null;
@@ -712,7 +713,7 @@ console.log(messages)
         const isCurrentUser = message.sender.id === {{ Auth::id() }};
         const profilePictureUrl = message.sender.profile_pic 
             ? `${baseUrl}${message.sender.profile_pic}` 
-            : "https://cdn-icons-png.flaticon.com/512/1053/1053244.png";
+            : "https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png";
         
         // Check if we should show sender info (compare with last message)
         const lastMessageElement = messagesList.lastElementChild;
@@ -950,8 +951,8 @@ console.log(messages)
                 membersList.innerHTML = members.map(member => `
                     <li class="d-flex justify-content-between align-items-center">
                         <div class="d-flex align-items-center">
-                            <img src="${member.profile_pic ? baseUrl + member.profile_pic : 'https://cdn-icons-png.flaticon.com/512/1053/1053244.png'}" 
-                                 class="chat-logo me-2" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1053/1053244.png'">
+                            <img src="${member.profile_pic ? baseUrl + member.profile_pic : 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png'}" 
+                                 class="chat-logo me-2" onerror="this.src='https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png'">
                             <span>${member.name}</span>
                         </div>
                         <button class="btn btn-sm bg-primary" onclick="startOneToOneChat(${member.id})">

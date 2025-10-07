@@ -1,5 +1,14 @@
 @extends('layouts.app')
 @section('title', 'CRM - Leaves')
+
+@section('styles')
+<style>
+    .dt-column-title{
+    font-weight: bolder;
+    color:black;
+}
+</style>
+@endsection
 @section('contents')
     <!-- Page Wrapper -->
     <div id="all-workers" class="page-wrapper">
@@ -64,89 +73,9 @@
             </div>
         </div>
 
-        <!-- Add Client -->
-        <div class="modal fade" id="add_leave">
-            <div class="modal-dialog modal-dialog-centered modal-lg">
-                <div class="modal-content">
-                    <div class="modal-header">
-                        <h4 class="modal-title">Add New Leave</h4>
-                        <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                            aria-label="Close">
-                            <i class="ti ti-x"></i>
-                        </button>
-                    </div>
-                    <form action="{{ route('leaves.store') }}" method="POST" enctype="multipart/form-data"
-                        id="add_leave_form">
-                        @csrf
-                        <div class="tab-content" id="myTabContent">
-                            <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                aria-labelledby="info-tab" tabindex="0">
-                                <div class="modal-body pb-0">
-                                    <div class="row">
-                                        <!-- Leave Fields -->
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Details <span
-                                                        class="text-danger">*</span></label>
-                                                <input type="text" name="leave_entitlement" class="form-control">
-                                                <span class="text-danger form-error" id="error_leave_entitlement"></span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Date From <span
-                                                        class="text-danger">*</span></label>
-                                                <input type="date" name="from_date" class="form-control">
-                                                <span class="text-danger form-error" id="error_from_date"></span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Date To <span
-                                                        class="text-danger">*</span></label>
-                                                <input type="date" name="to_date" class="form-control">
-                                                <span class="text-danger form-error" id="error_to_date"></span>
-                                            </div>
-                                        </div>
-                                        <div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Employee</label>
-                                                <select name="employee_id" class="form-control select2_modal">
-                                                    <option value="">Select Employee</option>
-                                                    @foreach ($employees as $key => $employee)
-                                                        <option value="{{ $key }}" {{ $key == 'applied' ? 'selected' : ''}} >{{ $employee }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <span class="text-danger form-error" id="error_role"></span>
-                                            </div>
-                                        </div>
-                                        {{--<div class="col-md-6">
-                                            <div class="mb-3">
-                                                <label class="form-label">Status</label>
-                                                <select name="status" class="form-control" disabled>
-                                                    <option value="">Select Status</option>
-                                                    @foreach ($status as $key => $st)
-                                                        <option value="{{ $key }}" {{ $key == 'applied' ? 'selected' : ''}} >{{ $st }}</option>
-                                                    @endforeach
-                                                </select>
-                                                <span class="text-danger form-error" id="error_role"></span>
-                                            </div>
-                                        </div>--}}
+        {{-- Add leave requests --}}
+        @include('leave_management.add-leave')
 
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-outline-light border me-2"
-                                        data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" form="add_leave_form" class="btn btn-primary">Save</button>
-                                </div>
-                            </div>
-                        </div>
-                    </form>
-                </div>
-            </div>
-        </div>
-        <!-- /Add Client -->
 
         <!-- Edit Client -->
         <div class="modal fade" id="edit_leave">
@@ -172,23 +101,25 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Details <span class="text-danger">
                                                         *</span></label>
-                                                <input type="text" name="leave_entitlement" id="edit_leave_entitlement"
+                                                <input type="text" name="reason" id="edit_leave_entitlement"
                                                     class="form-control">
                                                 <span class="text-danger form-error" id="error_leave_entitlement"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label">Date From <span class="text-danger"> *</span></label>
-                                                <input type="date" name="from_date" id="edit_from_date"
+                                                <label class="form-label">Date From <span class="text-danger">
+                                                        *</span></label>
+                                                <input type="date" name="start_date" id="edit_from_date"
                                                     class="form-control">
                                                 <span class="text-danger form-error" id="error_from_date"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
-                                                <label class="form-label">Date To <span class="text-danger"> *</span></label>
-                                                <input type="date" name="to_date" id="edit_to_date"
+                                                <label class="form-label">Date To <span class="text-danger">
+                                                        *</span></label>
+                                                <input type="date" name="end_date" id="edit_to_date"
                                                     class="form-control">
                                                 <span class="text-danger form-error" id="error_to_date"></span>
                                             </div>
@@ -197,10 +128,13 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Employee</label>
-                                                <select name="employee_id" class="form-control select2_edit_modal" id="edit_employee_id">
+                                                <select name="employee_id" class="form-control select2_edit_modal"
+                                                    id="edit_employee_id">
                                                     <option value="">Select Employee</option>
                                                     @foreach ($employees as $key => $employee)
-                                                        <option value="{{ $key }}" {{ $key == 'applied' ? 'selected' : ''}} >{{ $employee }}</option>
+                                                        <option value="{{ $key }}"
+                                                            {{ $key == 'applied' ? 'selected' : '' }}>{{ $employee }}
+                                                        </option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error" id="error_role"></span>
@@ -219,12 +153,29 @@
                                                 <span class="text-danger form-error" id="error_role"></span>
                                             </div>
                                         </div>
+
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label class="form-label">Type</label>
+                                                <input name="type" id="edit_type" class="form-control" readonly>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6" id="reject_reason_wrapper" style="display:none;">
+                                            <div class="mb-3">
+                                                <label class="form-label">Reject Reason <span
+                                                        class="text-danger">*</span></label>
+                                                <textarea name="reject_reason" id="reject_reason" class="form-control"></textarea>
+                                                <span class="text-danger form-error" id="error_reject_reason"></span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="modal-footer">
                                     <button type="button" class="btn btn-outline-light border me-2"
                                         data-bs-dismiss="modal">Cancel</button>
-                                    <button type="submit" form="edit_leave_form" class="btn btn-primary">Update </button>
+                                    <button type="submit" form="edit_leave_form" class="btn btn-primary">Update
+                                    </button>
                                 </div>
                             </div>
 
@@ -256,7 +207,7 @@
         <!-- /Delete Modal -->
     </div>
     <!-- Logs Modal -->
-    <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
+    {{-- <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content shadow rounded-3">
                 <div class="modal-header">
@@ -274,17 +225,17 @@
                 </div>
             </div>
         </div>
-    </div>
+    </div> --}}
     <!-- View Leave Detail Modal -->
     <div class="modal fade" id="viewLeaveDetailModal" tabindex="-1" aria-labelledby="leaveDetailLabel"
         aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content shadow rounded-3">
-                <div class="modal-header bg-primary text-white">
+                <div class="modal-header bg-gray text-white">
                     <h5 class="modal-title" id="leaveDetailLabel">
                         Leave <span id="leave_name_heading" class="fw-bold"></span> Detail
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    <button type="button" class="btn-close btn-close-dark" data-bs-dismiss="modal"
                         aria-label="Close"></button>
                 </div>
 
@@ -292,23 +243,77 @@
                     <table class="table table-bordered table-striped">
                         <tbody>
                             <tr>
-                                <th>Details</th>
-                                <td id="leave_entitlement"></td>
+                                <th>Staff</th>
+                                <td id="person"></td>
                             </tr>
                             <tr>
-                                <th>Date From</th>
-                                <td id="from_date"></td>
+                                <th>Staff ID</th>
+                                <td id="employee_id"></td>
                             </tr>
                             <tr>
-                                <th>Date To</th>
-                                <td id="to_date"></td>
+                                <th>Reason</th>
+                                <td id="reason"></td>
+                            </tr>
+                            <tr>
+                                <th>Start Date</th>
+                                <td id="start_date"></td>
+                            </tr>
+                            <tr>
+                                <th>End Date</th>
+                                <td id="end_date"></td>
                             </tr>
                             <tr>
                                 <th>Status</th>
-                                <td id="leave_status"></td>
+                                <td id="status"></td>
                             </tr>
+                            <tr>
+                                <th>Type</th>
+                                <td id="type"></td>
+                            </tr>
+                            <tr>
+                                <th>Paid</th>
+                                <td id="paid"></td>
+                            </tr>
+                            <tr>
+                                <th>Hours</th>
+                                <td id="hours"></td>
+                            </tr>
+                            <tr>
+                                <th>Approved Hours</th>
+                                <td id="approved_hours"></td>
+                            </tr>
+                            <tr>
+                                <th>Auto Split</th>
+                                <td id="auto_split"></td>
+                            </tr>
+                            <tr>
+                                <th>SSP Paid Days</th>
+                                <td id="ssp_paid_days"></td>
+                            </tr>
+                            <tr>
+                                <th>Unpaid Days</th>
+                                <td id="unpaid_days"></td>
+                            </tr>
+                            <tr>
+                                <th>Amount Paid</th>
+                                <td id="amount_paid"></td>
+                            </tr>
+                            <tr>
+                                <th>Amount Paid</th>
+                                <td id="amount_paid"></td>
+                            </tr>
+
                         </tbody>
                     </table>
+                    <div class="row">
+
+                        <div class="col-md-12" id="reject_reason_wrapper_view" style="display:none;">
+                            <div class="mb-3">
+                                <label class="form-label">Reject Reason</label>
+                                <p id="reject_reason_view" class="form-control-plaintext text-danger"></p>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="modal-footer">
@@ -321,7 +326,7 @@
     <!-- /Page Wrapper -->
 @endsection
 @section('scripts')
-   
+
     <script>
         $(document).ready(function() {
             $(".select2_modal").select2({
@@ -354,7 +359,7 @@
                         $('#add_leave_form')[0].reset();
                         closeBsModal('#add_leave');
                         toast_success('Leave Added Successfully');
-                        reloadDatatable('#employee_leaves-table');
+                        reloadDatatable('#leave_requests-table');
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
@@ -394,7 +399,7 @@
                     success: function(response) {
                         closeBsModal('#edit_leave');
                         toast_success('Leave updated successfully!');
-                        reloadDatatable('#employee_leaves-table');
+                        reloadDatatable('#leave_requests-table');
                     },
                     error: function(xhr) {
                         $('.form-error').text(''); // Clear old errors
@@ -419,10 +424,20 @@
                 if (data.leave) {
                     $('#edit_leave_id').val(record_id);
 
-                    $('#edit_leave_entitlement').val(data.leave.leave_entitlement);
-                    $('#edit_from_date').val(data.leave.from_date);
-                    $('#edit_to_date').val(data.leave.to_date);
+                    $('#edit_leave_entitlement').val(data.leave.reason);
+                    $('#edit_from_date').val(data.leave.start_date);
+                    $('#edit_to_date').val(data.leave.end_date);
                     $('#edit_status').val(data.leave.status);
+
+                    // Format the type for display
+                    let typeLabels = {
+                        'annual_leave': 'Annual Leave',
+                        'sick_leave': 'Sick Leave',
+                        'emergency': 'Emergency',
+                        'other': 'Other'
+                    };
+                    $('#edit_type').val(typeLabels[data.leave.type] || 'Other');
+
                     $('#edit_employee_id').val(data.leave.employee_id).trigger('change');
 
                     $('#edit_leave').modal('show');
@@ -448,7 +463,7 @@
                     success: function(response) {
                         closeBsModal('#delete_modal');
                         toast_success('Leave deleted successfully!');
-                        reloadDatatable('#employee_leaves-table');
+                        reloadDatatable('#leave_requests-table');
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
@@ -527,16 +542,45 @@
 
         function viewLeaveDetail(id) {
             $.get(`${baseUrl}/leaves/${id}/view`, function(data) {
-                $('#leave_entitlement').text(data.leave_entitlement);
-                $('#from_date').text(data.from_date);
-                $('#to_date').text(data.to_date);
-                $('#leave_status').text(data.status);
+                $('#person').text(data.user);
+                $('#employee_id').text(data.employee_id);
+                $('#reason').text(data.reason);
+                $('#start_date').text(data.start_date);
+                $('#end_date').text(data.end_date);
+                $('#status').text(data.status);
+                $('#type').text(data.type);
+                $('#paid').text(data.paid);
+                $('#hours').text(data.hours);
+                $('#approved_hours').text(data.approved_hours);
+                $('#auto_split').text(data.auto_split);
+                $('#ssp_paid_days').text(data.ssp_paid_days);
+                $('#unpaid_days').text(data.unpaid_days);
+                $('#amount_paid').text(data.amount_paid);
+
+                if (data.status.toLowerCase() === 'rejected' || data.status.toLowerCase() === 'denied') {
+                    $('#reject_reason_wrapper_view').show();
+                    $('#reject_reason_view').text(data.reject_reason ?? 'N/A');
+                } else {
+                    $('#reject_reason_wrapper_view').hide();
+                }
 
                 new bootstrap.Modal(document.getElementById('viewLeaveDetailModal')).show();
             }).fail(function() {
                 toast_danger('Failed to fetch leave details.');
             });
         }
+
+        $(document).on('change', '#edit_status', function() {
+            let status = $(this).val();
+
+            if (status === 'denied' || status === 'rejected') {
+                $('#reject_reason_wrapper').show();
+                $('#reject_reason').attr('required', true);
+            } else {
+                $('#reject_reason_wrapper').hide();
+                $('#reject_reason').removeAttr('required').val('');
+            }
+        });
     </script>
     {!! $dataTable->scripts() !!}
 @endsection

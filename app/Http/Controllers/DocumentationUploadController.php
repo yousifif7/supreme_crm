@@ -11,16 +11,20 @@ use Illuminate\Support\Facades\Validator;
 
 class DocumentationUploadController extends Controller
 {
-    public function index(DocumentationUploadsDataTable $dataTable)
+    public function index()
     {
         $vehicles = Vehicle::all();
-        return $dataTable->render('vehicle_management.documentation_uploads', compact('vehicles'));
+        return view('vehicle_management.documentation_uploads', compact('vehicles'));
+    }
+    public function data(DocumentationUploadsDataTable $dataTable)
+    {
+        // $vehicles = Vehicle::all();
+        return $dataTable->ajax();
     }
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
             'vehicle_id' => 'required|exists:vehicles,id',
-
             'mot_certificate'           => 'required|file|mimes:pdf|max:2048',
             'insurance_certificate'     => 'required|file|mimes:pdf|max:2048',
             'v5c_logbook'               => 'required|file|mimes:pdf|max:2048',

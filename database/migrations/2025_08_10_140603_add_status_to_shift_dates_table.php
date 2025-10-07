@@ -15,7 +15,9 @@ return new class extends Migration
             $table->enum('status', [
                 'booked_on',
                 'booked_off',
-                'pending'
+                'pending',
+                'accepted',
+                'declined'
             ])->default('pending')->nullable();
         });
     }

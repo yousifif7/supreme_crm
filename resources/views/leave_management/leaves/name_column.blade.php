@@ -2,7 +2,7 @@
     <div class="ms-2">
         <h6 class="fw-medium">
             <a onclick="viewLeaveDetail({{ $leave->id }})">
-                {{ $leave->leave_entitlement }}
+                {{ $leave->reason }}
             </a>
         </h6>
     </div>

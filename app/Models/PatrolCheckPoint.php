@@ -4,22 +4,23 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class PatrolCheckpoint extends Model
+class PatrolCheckPoint extends Model
 {
     protected $table = 'patrol_check_points';
     //
     protected $fillable = [
-        'patrol_id', 'name', 'qr_code', 'nfc_tag',
+        'site_id', 'name', 'qr_code', 'nfc_tag',
         'latitude', 'longitude', 'required'
     ];
 
-    public function patrol()
+    public function site()
     {
-        return $this->belongsTo(Patrol::class);
+        return $this->belongsTo(Site::class);
     }
 
     public function scans()
     {
-        return $this->hasMany(CheckpointScan::class);
+        // Adjust the foreign key name to whatever is in your DB
+        return $this->hasMany(App\Models\CheckpointScan::class, 'patrol_checkpoint_id');
     }
 }

@@ -2,31 +2,40 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\EmployeesDataTable;
-use App\Models\Department;
-use App\Models\Employee;
-use App\Models\EmployeeType;
+use App\Models\User;
+use App\Helpers\Logger;
 use App\Models\Holiday;
 use App\Models\License;
-use App\Models\User;
+use App\Models\Employee;
 use App\Models\VisaType;
+use App\Models\Department;
 use App\Models\EmployeeTerm;
+use App\Models\EmployeeType;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Validator;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
+use App\DataTables\EmployeesDataTable;
+use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
     public function index(EmployeesDataTable $dataTable)
     {
+        $employeeUserIds = Employee::pluck('user_id')->filter()->toArray();
+
+        User::role('security_staff')
+            ->whereNotIn('id', $employeeUserIds)
+            ->delete();
+
         $departments = Department::all();
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
         $licenses = License::all();
-        $subcontractors =User::role('subcontractor')->get();
+        $subcontractors = User::role('subcontractor')->get();
 
-        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses','subcontractors'));
+        return $dataTable->render('employees.index', compact('departments', 'visa_types', 'employee_types', 'licenses', 'subcontractors'));
     }
 
     public function store(Request $request)
@@ -37,8 +46,9 @@ class EmployeeController extends Controller
             'sur_name' => 'required|string',
             'email' => 'required|email:dns|max:255|unique:users,email',
             'gender' => 'nullable|string',
-            'ni_number' => 'nullable|string',
-            'sia_licence' => 'nullable|string',
+            'ni_number' => 'nullable|string|unique:employees,ni_number',
+            'sia_licence' => 'nullable|string|unique:employees,sia_licence',
+            'driving_licence_number' => 'nullable|string|unique:employees,sia_licence',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'entry_date' => 'nullable',
@@ -46,8 +56,9 @@ class EmployeeController extends Controller
             'service_type' => 'nullable',
             'visa_type' => 'nullable',
             'visa_expiry' => 'nullable',
+            'driving_licence_expiry' => 'nullable',
             'place_work' => 'nullable',
-            'hour_per_week' => 'nullable',
+            'hour_per_ek' => 'nullable',
             'passport_no' => 'nullable',
             'passport_expiry' => 'nullable',
             'address_group' => 'nullable',
@@ -85,12 +96,13 @@ class EmployeeController extends Controller
             'shoe' => 'nullable',
             'inseam' => 'nullable',
             'signature' => 'nullable|file',
-            'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-            'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'driving_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
             'fixed_pay' => 'nullable',
@@ -112,8 +124,18 @@ class EmployeeController extends Controller
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
             'terms.*.term_name' => 'nullable',
-            'password' => 'required|string|min:6',   // Add password validation
+            'password' => [
+                'required',
+                'string',
+                'min:8',
+                'regex:/[A-Z]/',
+                'regex:/[a-z]/',
+                'regex:/[0-9]/',
+                'regex:/[@$!%*?&#]/',
+            ],
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
+            'employment_start_date' => 'nullable|date',
+            'employment_end_date' => 'nullable|date|after:employment_start_date'
         ]);
 
         if ($validator->fails()) {
@@ -125,6 +147,43 @@ class EmployeeController extends Controller
         }
 
         $data = $validator->validated();
+
+        // Check and verify SIA Licence via SiaLicenceChecker if provided
+        if (!empty($data['sia_licence'])) {
+            try {
+                $siaChecker = new \App\Services\SiaLicenceChecker();
+                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
+
+                // Just check if the request was successful
+                if (!$siaResult['success']) {
+                    return response()->json([
+                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
+                    ], 400);
+                }
+
+                // If success = true and valid = true, licence exists in SIA database
+                if ($siaResult['valid']) {
+                    // Licence is valid! Continue with your logic
+                    \Log::info('SIA Licence Verified', [
+                        'licence' => $data['sia_licence'],
+                        'found_details' => [
+                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
+                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => 'SIA licence not found in register'
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'error' => 'Error checking SIA licence. Please try again.'
+                ], 500);
+            }
+        }
+
         // ✅ Handle the checkbox manually
         // Handle files...
         if ($request->hasFile('profile_picture')) {
@@ -141,7 +200,7 @@ class EmployeeController extends Controller
             $data['signature'] = $fileName;
         }
 
-        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
+        $documents = ['sia_licence_file', 'passport_file', 'driving_licence_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
         foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
@@ -157,16 +216,13 @@ class EmployeeController extends Controller
 
             foreach ($request->file('additional_file') as $file) {
                 if ($file->isValid()) {
-                    // Keep the original file name but prepend timestamp to avoid collisions
-                    $originalName = preg_replace('/\s+/', '_', $file->getClientOriginalName()); // replace spaces with underscores
+                    $originalName = preg_replace('/\s+/', '_', $file->getClientOriginalName());
                     $fileName = time() . '_' . $originalName;
 
-                    // Move file to public/uploads/additional_docs
                     $destinationPath = public_path('uploads/additional_docs');
                     $moved = $file->move($destinationPath, $fileName);
 
                     if ($moved) {
-                        // Save relative path to array
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
                     } else {
                         return response()->json([
@@ -183,13 +239,11 @@ class EmployeeController extends Controller
             $data['additional_files'] = $savedPaths;
         }
 
-
-
         // Create user with hashed password
         $user = User::create([
             'name' => $data['fore_name'],
             'first_name' => $data['fore_name'],
-            'last_name' => '',
+            'last_name' => $data['sur_name'],
             'username' => $data['email'],
             'email' => $data['email'],
             'password' => Hash::make($data['password']),
@@ -204,11 +258,13 @@ class EmployeeController extends Controller
 
         // Prepare employee data by excluding user-related fields
         $employeeData = $data;
-        // unset($employeeData['username'], $employeeData['password']);
         unset($employeeData['password']);
+        unset($employeeData['reference_number']);
 
         // Save employee
         $employee = Employee::create($employeeData);
+        Logger::log(Auth::user(), 'Create', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Created.');
+
         if ($request->has('holidays')) {
             foreach ($request->holidays as $holiday) {
                 Holiday::create([
@@ -226,13 +282,14 @@ class EmployeeController extends Controller
                     'employee_id' => $employee->id,
                     'from_date' => $term['from'],
                     'to_date' => $term['to'],
-                    'term_name' => $term['term_name'],
+                    'term_name' => $term['entitlement'],
                 ]);
             }
         }
 
         return response()->json(['message' => 'Employee created successfully']);
     }
+
     public function update(Request $request, $id)
     {
         $employee = Employee::findOrFail($id);
@@ -240,12 +297,14 @@ class EmployeeController extends Controller
         $validator = Validator::make($request->all(), [
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'required|email:dns|max:255',
+            'email' => 'email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
             'sia_licence' => 'nullable|string',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
+            'driving_licence_number' => 'nullable|string',
+            'driving_licence_expiry' => 'nullable|string',
             'entry_date' => 'nullable',
             'dob' => 'nullable',
             'service_type' => 'nullable',
@@ -296,7 +355,7 @@ class EmployeeController extends Controller
             'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
-
+            'driving_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'guard_rate' => 'nullable',
             'payment_period' => 'nullable',
             'fixed_pay' => 'nullable',
@@ -317,8 +376,18 @@ class EmployeeController extends Controller
             'terms' => 'nullable|array',
             'terms.*.from' => 'nullable|date',
             'terms.*.to' => 'nullable|date',
-            'terms.*.term_name' => 'nullable',
+            'terms.*.entitlement' => 'nullable',
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
+            'password' => [
+                'string',
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
+            ],  // Add password validation
+            'employment_start_date' => 'nullable|date',
+            'employment_end_date' => 'nullable|date|after:employment_start_date'
         ]);
 
         if ($validator->fails()) {
@@ -329,7 +398,77 @@ class EmployeeController extends Controller
             }
         }
 
+
         $data = $validator->validated();
+        
+        // Check and verify SIA Licence via SiaLicenceChecker if provided
+        if (!empty($data['sia_licence'])) {
+            try {
+                $siaChecker = new \App\Services\SiaLicenceChecker();
+                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
+
+                // Just check if the request was successful
+                if (!$siaResult['success']) {
+                    return response()->json([
+                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
+                    ], 400);
+                }
+
+                // If success = true and valid = true, licence exists in SIA database
+                if ($siaResult['valid']) {
+                    // Licence is valid! Continue with your logic
+                    \Log::info('SIA Licence Verified', [
+                        'licence' => $data['sia_licence'],
+                        'found_details' => [
+                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
+                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => 'SIA licence not found in register'
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'error' => 'Error checking SIA licence. Please try again.'
+                ], 500);
+            }
+        }
+
+        if ($request->email || $request->password) {
+            $employee = Employee::find($id);
+            $user = User::role('security_staff')->where('id', $employee->user_id)->first();
+
+            if ($user) {
+                if ($request->email) {
+                    $user->email = $request->email;
+                    $employee->email = $request->email;
+                }
+                if (!$request->email) {
+                    $user->email = $user->email;
+                    $employee->email = $employee->email;
+                }
+
+                if ($request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = Hash::make($request->password);
+                    send_push_notification(
+                        $user->id,
+                        'Creds changed',
+                        'An admin has changed your account credintials! Ask an admin for it.',
+                        ['user' => $user],
+                    );
+                }
+                if (!$request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = $user->password;
+                }
+
+                $user->save();
+            }
+        }
         // Handle profile picture update
         if ($request->hasFile('profile_picture')) {
             $image = $request->file('profile_picture');
@@ -396,6 +535,7 @@ class EmployeeController extends Controller
 
         // Now update employee record
         $updated = $employee->update($data);
+        Logger::log(Auth::user(), 'Update', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Updated.');
 
         if (!$updated) {
             return response()->json(['error' => 'Failed to update employee record.'], 500);
@@ -431,7 +571,7 @@ class EmployeeController extends Controller
                     $employee->terms()->create([
                         'from_date' => $term['from'],
                         'to_date' => $term['to'],
-                        'term_name' => $term['term_name'] ?? 'Term',
+                        'term_name' => $term['entitlement'] ?? 'Term',
                     ]);
                 }
             }
@@ -453,10 +593,16 @@ class EmployeeController extends Controller
     public function delete($id)
     {
         $employee = Employee::findOrFail($id);
+        $empUser = User::role('security_staff')->find($employee->user_id);
+
+        Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+
+        $empUser->delete();
         $employee->delete();
 
         return response()->json(['success' => true]);
     }
+
     public function bulkDelete(Request $request)
     {
         $request->validate([
@@ -464,6 +610,19 @@ class EmployeeController extends Controller
             'ids.*' => 'exists:employees,id',
         ]);
 
+        // Get the employees
+        $employees = Employee::whereIn('id', $request->ids)->get();
+
+        // Collect related user IDs
+        $userIds = $employees->pluck('user_id')->toArray();
+
+        // Delete related users (only security_staff role)
+        User::role('security_staff')->whereIn('id', $userIds)->delete();
+
+        foreach ($employees as $employee) {
+            Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+        }
+        // Delete employees
         Employee::whereIn('id', $request->ids)->delete();
 
         return response()->json(['message' => 'Selected employees deleted.']);
@@ -484,46 +643,62 @@ class EmployeeController extends Controller
             })
         ]);
     }
+
     public function view($id)
     {
-        $employee = Employee::findOrFail($id);
+        // Find employee by user_id instead of employee ID
+        $employee = Employee::find($id);
+
+        // Get guard availability
+        $availability = \App\Models\Availability::where('user_id', $employee->user_id)
+            ->orderBy('day_of_week')
+            ->get(['day_of_week', 'start_time as start', 'end_time as end']);
 
         return response()->json([
-            'fore_name'       => $employee->fore_name,
-            'sur_name'        => $employee->sur_name,
-            'email'           => $employee->email,
-            'gender'          => $employee->gender,
-            'ni_number'       => $employee->ni_number,
-            'sia_licence'     => $employee->sia_licence,
-            'sia_expiry'      => $employee->sia_expiry,
-            'licence_type'    => $employee->licence_type,
-            'entry_date'      => $employee->entry_date,
-            'dob'             => $employee->dob,
-            'service_type'    => $employee->service_type,
-            'visa_type'       => $employee->visa_type,
-            'visa_expiry'     => $employee->visa_expiry,
-            'place_work'      => $employee->place_work,
-            'contact'         => $employee->contact,
-            'emergency_contact' => $employee->emergency_contact,
-            'job_title'       => $employee->job_title,
-            'nationality'     => $employee->nationality,
-            'passport_no'     => $employee->passport_no,
-            'passport_expiry' => $employee->passport_expiry,
-            'address_group'   => $employee->address_group,
-            'guard_rate'      => $employee->guard_rate,
-            'bank_name'       => $employee->bank_name,
-            'account_name'    => $employee->account_name,
-            'account_number'  => $employee->account_number,
-            'other_info'      => $employee->other_info,
-            'sia_licence_file' => $employee->sia_licence_file,
-            'passport_file' => $employee->passport_file,
-            'proof_of_address_file' => $employee->proof_of_address_file,
-            'ni_letter_file' => $employee->ni_letter_file,
-            'first_aid_certificate_file' => $employee->first_aid_certificate_file,
-            'act_certificate_file' => $employee->act_certificate_file,
-            'additional_files' => $employee->additional_files,
+            'fore_name'       => $employee?->fore_name,
+            'sur_name'        => $employee?->sur_name,
+            'email'           => $employee?->email,
+            'gender'          => $employee?->gender,
+            'ni_number'       => $employee?->ni_number,
+            'sia_licence'     => $employee?->sia_licence,
+            'sia_expiry'      => $employee?->sia_expiry,
+            'licence_type'    => $employee?->licence_type,
+            'entry_date'      => $employee?->entry_date,
+            'dob'             => $employee?->dob,
+            'service_type'    => $employee?->service_type,
+            'visa_type'       => $employee?->visa_type,
+            'visa_expiry'     => $employee?->visa_expiry,
+            'place_work'      => $employee?->place_work,
+            'contact'         => $employee?->contact,
+            'emergency_contact' => $employee?->emergency_contact,
+            'job_title'       => $employee?->job_title,
+            'nationality'     => $employee?->nationality,
+            'passport_no'     => $employee?->passport_no,
+            'passport_expiry' => $employee?->passport_expiry,
+            'address_group'   => $employee?->address_group,
+            'guard_rate'      => $employee?->guard_rate,
+            'bank_name'       => $employee?->bank_name,
+            'account_name'    => $employee?->account_name,
+            'account_number'  => $employee?->account_number,
+            'other_info'      => $employee?->other_info,
+            'sia_licence_file' => $employee?->sia_licence_file,
+            'passport_file' => $employee?->passport_file,
+            'proof_of_address_file' => $employee?->proof_of_address_file,
+            'ni_letter_file' => $employee?->ni_letter_file,
+            'first_aid_certificate_file' => $employee?->first_aid_certificate_file,
+            'act_certificate_file' => $employee?->act_certificate_file,
+            'additional_files' => $employee?->additional_files,
+            'employment_start_date' => $employee?->employment_start_date,
+            'employment_end_date' => $employee?->employment_end_date,
+            'driving_licence_expiry' => $employee?->driving_licence_expiry,
+            'driving_licence_file' => $employee?->driving_licence_file,
+            'driving_licence_number' => $employee?->driving_licence_number,
+
+            // Add availability here
+            'availability' => $availability
         ]);
     }
+
     public function print($id)
     {
         $employee = Employee::findOrFail($id);
@@ -562,7 +737,42 @@ class EmployeeController extends Controller
             'first_aid_certificate_file' => $employee->first_aid_certificate_file,
             'act_certificate_file' => $employee->act_certificate_file,
             'additional_files' => $employee->additional_files,
-
+            'employment_start_date' => $employee->employment_start_date,
+            'employment_end_date' => $employee->employment_end_date,
         ]);
+    }
+
+    public function employmentReport(Request $request)
+    {
+        $query = Employee::query();
+
+        // Apply filter by name
+        if ($request->filled('name')) {
+            $query->whereRaw("CONCAT(fore_name, ' ', sur_name) LIKE ?", ["%{$request->name}%"]);
+        }
+
+        $employees = $query->get();
+
+        // Pass filter status
+        $hasFilters = $request->filled('name');
+
+        return view('employees.employment_report', compact('employees', 'hasFilters'))
+            ->with('name', $request->name);
+    }
+
+    public function exportEmploymentPdf(Employee $employee)
+    {
+        $start = $employee->employment_start_date ? \Carbon\Carbon::parse($employee->employment_start_date) : null;
+        $end = $employee->employment_end_date ? \Carbon\Carbon::parse($employee->employment_end_date) : now();
+        $duration = $start ? $start->diff($end)->format('%y years, %m months, %d days') : 'N/A';
+
+        $pdf = Pdf::loadView('employees.employment_pdf', [
+            'employee' => $employee,
+            'start' => $start,
+            'end' => $end,
+            'duration' => $duration,
+        ]);
+
+        return $pdf->download("employment_report_{$employee->id}.pdf");
     }
 }

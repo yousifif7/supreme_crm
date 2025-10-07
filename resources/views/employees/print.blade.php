@@ -46,6 +46,14 @@
                                 <td id="gender_detail">{{ $gender ?? null }}</td>
                             </tr>
                             <tr>
+                                <th>Employment start date</th>
+                                <td id="employment_start_date">{{ $employment_start_date ?? null }}</td>
+                            </tr>
+                            <tr>
+                                <th>Employment end date</th>
+                                <td id="employment_end_date">{{ $employment_end_date ?? null }}</td>
+                            </tr>
+                            <tr>
                                 <th>NI Number</th>
                                 <td id="ni_number_detail">{{ $ni_number ?? null }}</td>
                             </tr>

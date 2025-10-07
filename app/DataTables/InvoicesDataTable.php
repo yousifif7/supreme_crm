@@ -27,10 +27,12 @@ class InvoicesDataTable extends DataTable
             })
             ->addColumn('invoice_no', function ($row) {
                 return '<div class="d-flex align-items-center file-name-icon">
-                            <div class="ms-2">
-                                <h6 class="fw-medium"><a href="' . (route('invoices.show', $row->id)) . '">' . $row->invoice_number . '</a></h6>
-                            </div>
-                        </div>';
+        <div class="ms-2">
+            <h6 class="fw-medium">
+                <a href="' . route('invoices.show', $row->id) . '" class="invoice-link">' . $row->invoice_number . '</a>
+            </h6>
+        </div>
+    </div>';
             })
             ->addColumn('invoice_title', function ($row) {
                 return $row->client ? $row->client->first_name : '';
@@ -47,16 +49,16 @@ class InvoicesDataTable extends DataTable
             ->addColumn('action', function ($row) {
                 return view('invoices.action', compact('row'))->render();
             })
-            ->filterColumn('invoice_no', function($query, $keyword) {
+            ->filterColumn('invoice_no', function ($query, $keyword) {
                 $query->where('invoice_no', 'like', "%{$keyword}%");
             })
-            ->filterColumn('client_name', function($query, $keyword) {
-                $query->whereHas('client', function($q) use ($keyword) {
+            ->filterColumn('client_name', function ($query, $keyword) {
+                $query->whereHas('client', function ($q) use ($keyword) {
                     $q->where('first_name', 'like', "%{$keyword}%");
                 });
             })
-            ->filterColumn('site_name', function($query, $keyword) {
-                $query->whereHas('site', function($q) use ($keyword) {
+            ->filterColumn('site_name', function ($query, $keyword) {
+                $query->whereHas('site', function ($q) use ($keyword) {
                     $q->where('site_name', 'like', "%{$keyword}%");
                 });
             })
@@ -68,7 +70,10 @@ class InvoicesDataTable extends DataTable
      */
     public function query(Invoice $model): QueryBuilder
     {
-        return $model->newQuery()->with(['client', 'site'])->orderBy('id', 'desc');
+        return $model->newQuery()
+            ->with(['client', 'site'])
+            ->whereNotNull('client_id') // Only client invoices
+            ->orderBy('id', 'desc');
     }
 
     /**
@@ -91,7 +96,7 @@ class InvoicesDataTable extends DataTable
             ->orderBy([2, 'DESC'])
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();
@@ -111,14 +116,16 @@ class InvoicesDataTable extends DataTable
         return [
             Column::computed('checkbox')->title('<input type="checkbox" id="select-all-checkbox">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
-            Column::make('invoice_no')->title('Invoice No')->addClass('ps-0'),
-            Column::make('invoice_title')->title('Invoice Title'),
+            Column::computed('invoice_no')->title('Invoice No')->addClass('ps-0'),
             Column::make('client_name')->title('Client Name'),
             Column::make('site_name')->title('Site Name'),
-            Column::make('invoice_date')->title('Invoice Date'),
+            Column::make('issue_date')->title('Issue Date'),
             Column::make('due_date')->title('Due Date'),
             Column::make('total_shift_hours')->title('Total Shift Hours'),
             Column::make('net_amount')->title('Net Amount'),
+
+            Column::make('total_amount')->title('Total Amount'),
+            Column::computed('status')->title('Status')->addClass('text-center'),
 
         ];
     }

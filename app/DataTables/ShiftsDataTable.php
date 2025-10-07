@@ -2,12 +2,13 @@
 
 namespace App\DataTables;
 
+use App\Models\User;
 use App\Models\ShiftDate;
-use Illuminate\Database\Eloquent\Builder as QueryBuilder;
-use Yajra\DataTables\EloquentDataTable;
-use Yajra\DataTables\Html\Builder as HtmlBuilder;
 use Yajra\DataTables\Html\Column;
+use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
+use Yajra\DataTables\Html\Builder as HtmlBuilder;
+use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 
 class ShiftsDataTable extends DataTable
 {
@@ -29,14 +30,15 @@ class ShiftsDataTable extends DataTable
                 return '';
             })
             ->editColumn('client_name', function ($shiftDate) {
-                return $shiftDate->shift->client->client_name ?? 'N/A';
+                $client= User::role('client')->where('id',$shiftDate->shift->client_id)->first();
+                return $client->name ?? 'N/A';
             })
             ->editColumn('site_name', function ($shiftDate) {
                 return $shiftDate->shift->site->site_name ?? 'N/A';
             })
             ->editColumn('staff_name', function ($shiftDate) {
                 if ($shiftDate->staff) {
-                    return $shiftDate->staff->fore_name . ' ' . $shiftDate->staff->sur_name;
+                    return $shiftDate->staff->first_name . ' ' . $shiftDate->staff->last_name;
                 }
                 return 'Unassigned';
             })
@@ -58,7 +60,7 @@ class ShiftsDataTable extends DataTable
     return ShiftDate::getStatusBadge($shiftDate->is_assign);
 })->filterColumn('client_name', function($query, $keyword) {
                 $query->whereHas('shift.client', function($q) use ($keyword) {
-                    $q->where('client_name', 'like', "%$keyword%");
+                    $q->where('name', 'like', "%$keyword%");
                 });
             })
             ->filterColumn('site_name', function($query, $keyword) {
@@ -68,8 +70,8 @@ class ShiftsDataTable extends DataTable
             })
             ->filterColumn('staff_name', function($query, $keyword) {
                 $query->whereHas('staff', function($q) use ($keyword) {
-                    $q->where('fore_name', 'like', "%{$keyword}%")
-                      ->orWhere('sur_name', 'like', "%{$keyword}%");
+                    $q->where('first_name', 'like', "%{$keyword}%")
+                      ->orWhere('last_name', 'like', "%{$keyword}%");
                 });
             })
             ->filterColumn('shift_date', function($query, $keyword) {
@@ -115,7 +117,7 @@ class ShiftsDataTable extends DataTable
             ->orderBy([5, 'DESC'])
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();

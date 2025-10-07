@@ -7,12 +7,13 @@ use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Mail\ResetPasswordCodeMail;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Auth;
 
 
 class AuthAPIController extends Controller
@@ -59,12 +60,13 @@ class AuthAPIController extends Controller
             'user' => [
                 'id' => $user->id,
                 'email' => $user->email,
-                'name' => $user->first_name.' '.$user->last_name,
+                'name' => $user->first_name . ' ' . $user->last_name,
                 'role' => $user->getRoleNames()->first(),
                 'profile' => $user->profile // make sure profile relation is defined
             ],
         ]);
     }
+
 
     public function forgotPassword(Request $request)
     {
@@ -72,7 +74,7 @@ class AuthAPIController extends Controller
 
         $user = User::where('email', $request->email)->first();
         if (! $user) {
-            return response()->json(['message' => 'If your email exists, a reset code has been sent.'], 200);
+            return response()->json(['message' => 'This email is not existed in our records.'], 200);
         }
 
         $code = rand(100000, 999999);
@@ -80,11 +82,18 @@ class AuthAPIController extends Controller
 
         DB::table('password_resets')->updateOrInsert(
             ['email' => $user->email],
-            ['code' => $code, 'created_at' => Carbon::now()]
+            ['code' => $code, 'created_at' => now()]
         );
 
-        // TODO: send email — here we log it for now
-        Log::info("Password reset code for {$user->email}: $code");
+        // ✅ Send via Hostinger SMTP
+        Mail::to($user->email)->send(new ResetPasswordCodeMail($code));
+
+        send_push_notification(
+            $user->id,
+            'PASSWORD Reset code',
+            'Password code reset was requested from your account! Check your email.',
+            ['code' => $code]
+        );
 
         return response()->json([
             'message' => 'Reset code sent to your email.'
@@ -147,6 +156,13 @@ class AuthAPIController extends Controller
 
         Cache::forget('reset_token_' . $request->email);
         DB::table('password_resets')->where('email', $request->email)->delete();
+
+        send_push_notification(
+            $user->id,
+            'PASSWORD changed successfully',
+            'Your account password has been changed successfully!.',
+            ['user' => $user]
+        );
 
         return response()->json([
             'message' => 'Password reset successfully'

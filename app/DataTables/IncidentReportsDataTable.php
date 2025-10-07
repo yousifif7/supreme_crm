@@ -19,8 +19,20 @@ class IncidentReportsDataTable extends DataTable
     public function dataTable(QueryBuilder $query): EloquentDataTable
     {
         return (new EloquentDataTable($query))
-            ->addColumn('action', function ($report) {
-                return view('incident_reports.action', compact('report'));
+            ->addColumn('actions', function ($row) {
+                return '
+                <div class="action-icon d-inline-flex">
+                    <a href="javascript:void(0)" class="me-2" onclick="showIncident(' . $row->id . ')">
+                        <i class="ti ti-eye"></i>
+                    </a>
+                    <a href="javascript:void(0)" class="me-2" onclick="editIncident(\'' . $row->id . '\')">
+    <i class="ti ti-pencil text-success"></i>
+</a>
+                    <a href="javascript:void(0)" onclick="deleteIncident(' . $row->id . ')">
+                        <i class="ti ti-trash text-danger"></i>
+                    </a>
+                </div>
+            ';
             })
             ->addColumn('checkbox', function ($report) {
                 return '<input type="checkbox" class="dT-row-checkbox" value="' . $report->id . '">';
@@ -28,43 +40,48 @@ class IncidentReportsDataTable extends DataTable
             ->addColumn('number', function () {
                 return '';
             })
-            ->editColumn('category', function ($report) {
-                return ucfirst(str_replace('_', ' ', $report->category));
-            })
-            ->editColumn('severity', function ($report) {
-                return ucfirst($report->severity);
-            })
+            ->editColumn('category', fn($report) => ucfirst(str_replace('_', ' ', $report->category)))
+            ->editColumn('severity', fn($report) => ucfirst($report->severity))
             ->editColumn('location', function ($report) {
-                $loc = json_decode($report->location, true);
-                return $loc['address'] ?? '';
+                return $report->formatted_address ?? 'N/A';
             })
-            ->editColumn('police_notified', function ($report) {
-                return $report->police_notified ? 'Yes' : 'No';
-            })
+            ->editColumn('police_notified', fn($report) => $report->police_notified ? 'Yes' : 'No')
             ->editColumn('status', function ($report) {
-                return ucfirst(str_replace('_', ' ', $report->status));
+                $status = ucfirst(str_replace('_', ' ', $report->status));
+                if ($report->status === 'draft') {
+                    return '
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-success btn-approve" data-id="' . $report->id . '">
+                    Approve
+                </button>
+                <button class="btn btn-sm btn-danger btn-reject" data-id="' . $report->id . '">
+                    Reject
+                </button>
+            </div>
+        ';
+                }
+                return $status;
             })
-            ->editColumn('created_at', function ($report) {
-                return $report->created_at?->format('Y-m-d');
+            ->addColumn('files', function ($report) {
+                $html = '';
+                foreach ($report->media as $media) {
+                    $html .= '<a href="' . asset($media->file_url) . '" target="_blank" class="d-block mb-1 btn btn-sm text-light btn-secondary">Show</a>';
+                }
+                return $html;
             })
-            ->filterColumn('category', function($query, $keyword) {
-                $query->where('category', 'like', "%{$keyword}%");
-            })
-            ->filterColumn('severity', function($query, $keyword) {
-                $query->where('severity', 'like', "%{$keyword}%");
-            })
-            ->rawColumns(['action', 'checkbox', 'number', 'location'])
+            ->editColumn('created_at', fn($report) => $report->created_at?->format('Y-m-d'))
+            ->filterColumn('category', fn($query, $keyword) => $query->where('category', 'like', "%{$keyword}%"))
+            ->filterColumn('severity', fn($query, $keyword) => $query->where('severity', 'like', "%{$keyword}%"))
+            ->rawColumns(['actions', 'checkbox', 'number', 'files', 'status'])
             ->setRowId('id');
     }
 
     /**
      * Get the query source of dataTable.
-     *
-     * @return QueryBuilder<IncidentReport>
      */
     public function query(IncidentReport $model): QueryBuilder
     {
-        return $model->newQuery()->select('incident_reports.*');
+        return $model->with('media')->newQuery()->select('incident_reports.*');
     }
 
     /**
@@ -77,7 +94,6 @@ class IncidentReportsDataTable extends DataTable
             ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold')
             ->columns($this->getColumns())
             ->minifiedAjax()
-            ->addAction(['width' => '80px'])
             ->dom(
                 't
                 <"d-flex justify-content-between mt-2"
@@ -85,10 +101,10 @@ class IncidentReportsDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([8, 'DESC']) // created_at column index
+            ->orderBy([9, 'DESC']) // created_at column index
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();
@@ -128,7 +144,14 @@ class IncidentReportsDataTable extends DataTable
             Column::make('location')->title('Location')->orderable(false),
             Column::make('police_notified')->title('Police Notified'),
             Column::make('status')->title('Status'),
+            Column::make('files')->title('Files')->orderable(false)->searchable(false),
             Column::make('created_at')->title('Reported At'),
+            Column::computed('actions')
+                ->title('Actions')
+                ->exportable(false)
+                ->printable(false)
+                ->width(100)
+                ->addClass('text-center px-2'),
         ];
     }
 

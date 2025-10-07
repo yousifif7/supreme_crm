@@ -2,16 +2,126 @@
 @section('title', 'CRM - Site Calendar')
 @section('styles')
     <style>
+        /* Sidebar prev/next buttons */
         .datepic .fc-prev-button,
         .datepic .fc-next-button {
-            font-size: 12px !important;
-            /* Reduce arrow icon size */
-            padding: 2px 4px !important;
-            /* Reduce button padding */
-            height: 24px !important;
-            /* Reduce button height */
-            width: 30px !important;
-            /* Optional: make buttons smaller square */
+            font-size: 14px !important;
+            padding: 4px 6px !important;
+            height: 28px !important;
+            width: 34px !important;
+            border-radius: 6px !important;
+            background-color: #5489C4 !important;
+            color: #fff !important;
+            border: none !important;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
+
+        .datepic .fc-prev-button:hover,
+        .datepic .fc-next-button:hover {
+            opacity: 0.85 !important;
+            transform: translateY(-1px);
+        }
+
+        /* FullCalendar view buttons */
+        .fc-toolbar button {
+            border: none !important;
+            border-radius: 6px !important;
+            padding: 6px 12px !important;
+            margin-right: 5px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            color: #fff !important;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        /* Assign colors */
+        .fc-dayGridDay-button {
+            background-color: #80BFFF !important;
+        }
+
+        .fc-dayGridWeek-button {
+            background-color: #5489C4 !important;
+        }
+
+        .fc-dayGridMonth-button {
+            background-color: #69CF83 !important;
+        }
+
+        /* Active button highlight */
+        .fc-toolbar button.fc-button-active {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Hover effect */
+        .fc-toolbar button:hover {
+            opacity: 0.85 !important;
+        }
+
+        /* Event/shift boxes */
+        /* Container for each event (shift) */
+        /* Ensure text wraps inside the box */
+._schedule-box-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    font-size: 13px;
+    min-height: 50px;
+    width: 95%;
+    margin: 2px auto; /* spacing between events */
+    color: #000;
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    cursor: pointer;
+    line-height: 1.3;
+    word-break: break-word;
+    white-space: normal;
+    padding: 8px 10px;
+}
+
+        .fc .fc-daygrid-event-harness,
+        .fc .fc-daygrid-event {
+            background: transparent !important;
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        /* Optional: remove any hover effect applied by FullCalendar */
+        .fc .fc-daygrid-event:hover {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        ._schedule-box-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Increase spacing in calendar header for clarity */
+        .fc .fc-col-header-cell {
+            padding: 6px 4px !important;
+            font-size: 0.85rem;
+        }
+
+        /* Stack events neatly */
+.fc-daygrid-day-events {
+    display: flex !important;
+    flex-direction: column;
+    gap: 6px !important; /* stack events neatly */
+}   
+
+        /* Hide urgent red lines */
+        .urgent-indicator {
+            display: none !important;
+        }
+
+        .fc-daygrid-day-frame {
+            padding: 6px 4px !important;
+            min-height: 90px;
+            /* taller day cells */
         }
     </style>
 @endsection
@@ -42,7 +152,7 @@
                             </div>
 
                             <!-- Event -->
-                           @include('security_boards.event_colors')
+                            @include('security_boards.event_colors')
                             <!-- /Event -->
 
 
@@ -67,534 +177,9 @@
 
             <!-- Add Rota -->
 
-            <div class="modal fade" id="add_rota">
-                <div class="modal-dialog modal-dialog-centered modal-lg">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h4 class="modal-title">Add New Rota</h4>
-                            <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal"
-                                aria-label="Close">
-                                <i class="ti ti-x"></i>
-                            </button>
-                        </div>
-                        <form action="#">
-                            <div class="contact-grids-tab">
-                                <ul class="nav nav-underline" id="myTab" role="tablist">
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link active" id="info-tab" data-bs-toggle="tab"
-                                            data-bs-target="#basic-info" type="button" role="tab"
-                                            aria-selected="true">Basic Information</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="address-tab" data-bs-toggle="tab"
-                                            data-bs-target="#address" type="button" role="tab"
-                                            aria-selected="false">Address</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="social-profile-tab" data-bs-toggle="tab"
-                                            data-bs-target="#social-profile" type="button" role="tab"
-                                            aria-selected="false">Social Profiles</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="access-tab" data-bs-toggle="tab"
-                                            data-bs-target="#access" type="button" role="tab"
-                                            aria-selected="false">Access</button>
-                                    </li>
-                                    <li class="nav-item" role="presentation">
-                                        <button class="nav-link" id="schedule-tab" data-bs-toggle="tab"
-                                            data-bs-target="#schedule" type="button" role="tab"
-                                            aria-selected="false">Scheduling</button>
-                                    </li>
-
-                                </ul>
-                            </div>
-                            <div class="tab-content" id="myTabContent">
-                                <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
-                                    aria-labelledby="info-tab" tabindex="0">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="row">
-                                            <div class="col-md-12">
-                                                <div
-                                                    class="d-flex align-items-center flex-wrap row-gap-3 bg-light w-100 rounded p-3 mb-4">
-                                                    <div
-                                                        class="d-flex align-items-center justify-content-center avatar avatar-xxl rounded-circle border border-dashed me-2 flex-shrink-0 text-dark frames">
-                                                        <i class="ti ti-photo text-gray-2 fs-16"></i>
-                                                    </div>
-                                                    <div class="profile-upload">
-                                                        <div class="mb-2">
-                                                            <h6 class="mb-1">Upload Profile Image</h6>
-                                                            <p class="fs-12">Image should be below 4 mb</p>
-                                                        </div>
-                                                        <div class="profile-uploader d-flex align-items-center">
-                                                            <div class="drag-upload-btn btn btn-sm btn-primary me-2">
-                                                                Upload
-                                                                <input type="file" class="form-control image-sign"
-                                                                    multiple="">
-                                                            </div>
-                                                            <a href="javascript:void(0);"
-                                                                class="btn btn-light btn-sm">Cancel</a>
-                                                        </div>
-
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Company Name <span
-                                                            class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Email</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Phone Number <span
-                                                            class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Phone Number 2</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Fax</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Website</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Ratings <span class="text-danger">
-                                                            *</span></label>
-                                                    <div class="input-icon-end position-relative">
-                                                        <input type="text" class="form-control">
-                                                        <span class="input-icon-addon">
-                                                            <i class="ti ti-star text-gray-6"></i>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Owner <span
-                                                            class="text-danger">*</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>Hendry Milner</option>
-                                                        <option>Guilory Berggren</option>
-                                                        <option>Jami Carlile</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3 ">
-                                                    <label class="form-label">Tags <span class="text-danger">*</span>
-                                                    </label>
-                                                    <input class="input-tags form-control" placeholder="Add new"
-                                                        type="text" data-role="tagsinput" name="Label"
-                                                        value="Collab">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <label class="col-form-label p-0">Deals <span
-                                                                class="text-danger">*</span></label>
-                                                        <a href="#" class="add-new text-primary"
-                                                            data-bs-target="#add_deals" data-bs-toggle="modal"><i
-                                                                class="ti ti-plus text-primary me-1"></i>Add New</a>
-                                                    </div>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>Collins</option>
-                                                        <option>Konopelski</option>
-                                                        <option>Adams</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3 ">
-                                                    <label class="form-label">Industry <span
-                                                            class="text-danger">*</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>Retail Industry</option>
-                                                        <option>Banking</option>
-                                                        <option>Hotels</option>
-                                                        <option>Financial Services</option>
-                                                        <option>Insurance</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3 ">
-                                                    <label class="form-label">Source <span class="text-danger">*</span>
-                                                    </label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>Phone Calls</option>
-                                                        <option>Social Media</option>
-                                                        <option>Refferal Sites</option>
-                                                        <option>Web Analytics</option>
-                                                        <option>Previous Purchase</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3 ">
-                                                    <label class="form-label">Currency <span
-                                                            class="text-danger">*</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>USD</option>
-                                                        <option>Euro</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3 ">
-                                                    <label class="form-label">Language <span
-                                                            class="text-danger">*</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>English</option>
-                                                        <option>Arabic</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-12">
-                                                <div class="mb-3 ">
-                                                    <label class="form-label">About <span
-                                                            class="text-danger">*</span></label>
-                                                    <textarea class="form-control"></textarea>
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary">Save </button>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="address" role="tabpanel" aria-labelledby="address-tab"
-                                    tabindex="0">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="row">
-                                            <div class="col-md-12">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Address <span
-                                                            class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Country <span class="text-danger">
-                                                            *</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>USA</option>
-                                                        <option>Canada</option>
-                                                        <option>Germany</option>
-                                                        <option>France</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">State <span class="text-danger">
-                                                            *</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>California</option>
-                                                        <option>New York</option>
-                                                        <option>Texas</option>
-                                                        <option>Florida</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">City <span class="text-danger">
-                                                            *</span></label>
-                                                    <select class="form-select">
-                                                        <option>Select</option>
-                                                        <option>Los Angeles</option>
-                                                        <option>San Diego</option>
-                                                        <option>Fresno</option>
-                                                        <option>San Francisco</option>
-                                                    </select>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Zipcode <span
-                                                            class="text-danger">*</span></label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary">Save </button>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="social-profile" role="tabpanel"
-                                    aria-labelledby="social-profile-tab" tabindex="0">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="row">
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Facebook</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Twitter</label>
-                                                    <input type="email" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">LinkedIn</label>
-                                                    <input type="email" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Skype</label>
-                                                    <input type="email" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Whatsapp</label>
-                                                    <input type="email" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Instagram</label>
-                                                    <input type="email" class="form-control">
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" class="btn btn-primary">Save </button>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="access" role="tabpanel" aria-labelledby="access-tab"
-                                    tabindex="0">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="mb-4">
-                                            <h6 class="fs-14 fw-medium mb-1">Visibility</h6>
-                                            <div class="d-flex align-items-center">
-                                                <div class="form-check me-3">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="flexRadioDefault" id="flexRadioDefault01">
-                                                    <label class="form-check-label text-dark" for="flexRadioDefault01">
-                                                        Public
-                                                    </label>
-                                                </div>
-                                                <div class="form-check me-3">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="flexRadioDefault" id="flexRadioDefault02" checked>
-                                                    <label class="form-check-label text-dark" for="flexRadioDefault02">
-                                                        Private
-                                                    </label>
-                                                </div>
-                                                <div class="form-check ">
-                                                    <input class="form-check-input" type="radio"
-                                                        name="flexRadioDefault" id="flexRadioDefault03" checked>
-                                                    <label class="form-check-label text-dark" for="flexRadioDefault03">
-                                                        Select People
-                                                    </label>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="p-3 bg-gray br-5 mb-4">
-                                            <div class="d-flex align-items-center mb-3">
-                                                <input class="form-check-input me-1" type="checkbox" value=""
-                                                    id="user-06">
-                                                <div class="d-flex align-items-center file-name-icon">
-                                                    <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                        <img src="https://smarthr.co.in/demo/html/template/assets/img/reports/user-01.jpg"
-                                                            class="img-fluid" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="#">Michael Walker</a></h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-center mb-3">
-                                                <input class="form-check-input me-1" type="checkbox" value=""
-                                                    id="user-07">
-                                                <div class="d-flex align-items-center file-name-icon">
-                                                    <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                        <img src="https://smarthr.co.in/demo/html/template/assets/img/reports/user-02.jpg"
-                                                            class="img-fluid" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="#">Sophie Headrick</a></h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-center mb-3">
-                                                <input class="form-check-input me-1" type="checkbox" value=""
-                                                    id="user-08">
-                                                <div class="d-flex align-items-center file-name-icon">
-                                                    <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                        <img src="https://smarthr.co.in/demo/html/template/assets/img/reports/user-03.jpg"
-                                                            class="img-fluid" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="#">Cameron Drake</a></h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-center mb-3">
-                                                <input class="form-check-input me-1" type="checkbox" value=""
-                                                    id="user-09">
-                                                <div class="d-flex align-items-center file-name-icon">
-                                                    <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                        <img src="https://smarthr.co.in/demo/html/template/assets/img/reports/user-04.jpg"
-                                                            class="img-fluid" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="#">Doris Crowley</a></h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-center mb-3">
-                                                <input class="form-check-input me-1" type="checkbox" value=""
-                                                    id="user-11">
-                                                <div class="d-flex align-items-center file-name-icon">
-                                                    <a href="#" class="avatar avatar-md border avatar-rounded">
-                                                        <img src="https://smarthr.co.in/demo/html/template/assets/img/profiles/avatar-12.jpg"
-                                                            class="img-fluid" alt="img">
-                                                    </a>
-                                                    <div class="ms-2">
-                                                        <h6 class="fw-normal"><a href="#">Thomas Bordelon</a></h6>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="d-flex align-items-center justify-content-center">
-                                                <a href="#" class="btn btn-primary">Confirm</a>
-                                            </div>
-                                        </div>
-                                        <div class="mb-3 ">
-                                            <label class="form-label">Status</label>
-                                            <select class="form-select">
-                                                <option>Select</option>
-                                                <option>Active</option>
-                                                <option>Inactive</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                                            data-bs-target="#success_compay">Save </button>
-                                    </div>
-                                </div>
-                                <div class="tab-pane fade" id="schedule" role="tabpanel" aria-labelledby="access-tab"
-                                    tabindex="0">
-                                    <div class="modal-body pb-0 ">
-                                        <div class="row">
-                                            <div class="col-12">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Event Name</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                            </div>
-                                            <div class="col-12">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Event Date</label>
-                                                    <div class="input-icon-end position-relative">
-                                                        <input type="text" class="form-control datetimepicker">
-                                                        <span class="input-icon-addon">
-                                                            <i class="ti ti-calendar text-gray-7"></i>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Start Time</label>
-                                                    <div class="input-icon-end position-relative">
-                                                        <input type="text" class="form-control timepicker">
-                                                        <span class="input-icon-addon">
-                                                            <i class="ti ti-clock text-gray-7"></i>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-md-6">
-                                                <div class="mb-3">
-                                                    <label class="form-label">End Time</label>
-                                                    <div class="input-icon-end position-relative">
-                                                        <input type="text" class="form-control timepicker">
-                                                        <span class="input-icon-addon">
-                                                            <i class="ti ti-clock text-gray-7"></i>
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div class="col-12">
-                                                <div class="mb-3">
-                                                    <label class="form-label">Event Location</label>
-                                                    <input type="text" class="form-control">
-                                                </div>
-                                                <div class="mb-0">
-                                                    <label class="form-label">Descriptions</label>
-                                                    <textarea class="form-control" rows="3"></textarea>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <div class="modal-footer">
-                                        <button type="button" class="btn btn-light me-2"
-                                            data-bs-dismiss="modal">Cancel</button>
-                                        <button type="button" class="btn btn-primary" data-bs-toggle="modal"
-                                            data-bs-target="#success_compay">Save </button>
-                                    </div>
-                                </div>
-
-                            </div>
-
-
-                        </form>
-                    </div>
-                </div>
-            </div>
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
             <!-- /Breadcrumb -->
-
 
         </div>
 
@@ -680,7 +265,8 @@
                         }
                         const checkpointSection = clone.querySelector('.checkpoint-section');
                         if (checkpointSection) {
-                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                            checkpointSection.setAttribute('id',
+                                `checkpoint-section${newShiftGroupIndex}`);
                         }
 
                         // Clear checkpoint rows
@@ -718,6 +304,7 @@
         });
 
         let checkIndex = 0;
+
         function addCheckpointRow($parentRow, groupIndex = 0) {
             checkIndex++;
 
@@ -824,6 +411,7 @@
                         initialView: 'dayGridMonth',
                         initialDate: new Date().toISOString().split('T')[0],
                         timeZone: 'local',
+                        firstDay: 1,
                         eventDisplay: 'block',
                         displayEventEnd: true,
 
@@ -840,52 +428,59 @@
                             return highlightDates.includes(dateStr) ? ['highlight-day'] : [];
                         },
 
-                        eventContent: function(info) {
-                            const event = info.event;
-                            const startTime = event.start?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) || '';
-                            const endTime = event.end?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) || '';
+eventContent: function(info) {
+    const event = info.event;
+    const props = event.extendedProps;
 
-                            // ✅ Get bgColor from event.classNames[0]
-                            const bgClass = event.classNames?.[0] || 'bg-secondary';
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+    const startTime = props.startTime || '';
+    const endTime = props.endTime || '';
 
-                            const container = document.createElement('div');
-                            container.style.backgroundColor = bgColor;
-                            container.style.padding = '5px';
-                            container.style.borderRadius = '6px';
-                            container.style.fontSize = '12px';
-                            container.style.color = (bgColor === '#F8F9FA') ? '#000' : '#000';
+    const bgClass = event.classNames?.[0] || 'bg-secondary';
+    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
 
-                            container.innerHTML = `
-                        <b>${event.title}</b><br>
-                        ${startTime} - ${endTime}
-                    `;
+    // Determine text color for readability
+    let textColor = '#212529'; // default dark
+    // Simple check for darker backgrounds (you can extend this)
+    const darkBackgrounds = ['#3a87ad', '#5489C4', '#4e73df', '#2a4d69']; 
+    if (darkBackgrounds.includes(bgColor)) {
+        textColor = '#fff';
+    }
 
-                            return {
-                                domNodes: [container]
-                            };
-                        },
+    const container = document.createElement('div');
+    container.className = '_schedule-box-container';
+    container.style.backgroundColor = bgColor;
+    container.style.color = textColor; // set readable font
+    container.style.margin = '2px 0';
+    container.style.padding = '8px 10px';
 
+    container.innerHTML = `
+        <div style="word-wrap: break-word; font-weight: 600;">${event.title}</div>
+        <div style="font-size:0.85rem; color:${textColor};">
+            ${startTime} - ${endTime} (${props.duration})
+        </div>
+    `;
+
+    return {
+        domNodes: [container]
+    };
+},
+    
                         eventClick: function(info) {
                             // create a button with data-toggle="ajax-modal" in body and click it
                             const button = document.createElement('button');
-                            button.setAttribute('data-toggle', 'ajax-modal');
-                            button.setAttribute('data-title', 'Rota Detail');
-                            button.setAttribute('data-size', 'modal-xl');
-                            button.setAttribute('data-width', '80%');
-                            button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
-                            button.style.display = 'none';
-                            document.body.appendChild(button);
-                            button.click();
+                            const shiftId = info.event.extendedProps.sd_id;
+
+                            if (!shiftId) {
+                                console.error('Shift ID missing for this event:', info.event);
+                                return;
+                            }
+
+                            window.open(`/shift-dates/${shiftId}/view`, '_blank');
                         },
 
                         eventDidMount: function(info) {
+                            info.el.style.backgroundColor = 'transparent';
+                            info.el.style.border = 'none';
                             info.el.style.overflow = 'visible';
                         }
                     });
@@ -897,8 +492,10 @@
 
                         calendar.batchRendering(() => {
                             calendar.getEvents().forEach(event => {
-                                const matches = event.title.toLowerCase().includes(searchText) ||
-                                                (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
+                                const matches = event.title.toLowerCase().includes(
+                                        searchText) ||
+                                    (event.extendedProps.location && event.extendedProps
+                                        .location.toLowerCase().includes(searchText));
 
                                 if (matches) {
                                     event.setProp('display', 'auto'); // show event
@@ -908,7 +505,7 @@
                             });
                         });
                     });
-                    
+
                     // Sidebar Mini Calendar
                     const sidebarEl = document.querySelector('.datepic');
                     if (sidebarEl) {
@@ -917,6 +514,7 @@
 
                         new FullCalendar.Calendar(sidebarCal, {
                             initialView: 'dayGridMonth',
+                            firstDay: 1,
                             headerToolbar: {
                                 left: 'prev',
                                 center: 'title',
@@ -949,7 +547,7 @@
         });
     </script>
     <script type="text/javascript">
-        $(document).on("change","#clientSelect",function() {
+        $(document).on("change", "#clientSelect", function() {
             var $this = $(this);
             const clientId = $(this).val();
 
@@ -958,29 +556,30 @@
             var $siteSelect = $('#siteSelect');
             // Clear current options
             $siteSelect.html('<option value="">--choose--</option>');
-            
+
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
+                success: function(data) {
                     $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
 
                     if (data.sites && data.sites.length > 0) {
-                        $.each(data.sites, function (index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
                     }
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
         });
 
-        $(document).on("change","#StaffSelect",function() {
+        $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);
             const staffId = $(this).val();
 
@@ -990,10 +589,11 @@
                 url: `${baseUrl}/api/staff/${staffId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                success: function(data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                        '');
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });

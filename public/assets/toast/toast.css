@@ -1,0 +1,182 @@
+/* Toast container always on top of everything */
+#custom-toast-container {
+    position: fixed; /* stays relative to viewport, not modal parent */
+    top: 0;
+    left: 0;
+    width: 100vw;    /* full viewport width */
+    height: 100vh;   /* full viewport height */
+    display: flex;
+    align-items: center;  /* vertical center */
+    justify-content: center; /* horizontal center */
+    pointer-events: none;  /* allow clicks to pass through */
+    z-index: 2147483647;   /* max z-index, ensures above all modals */
+}
+
+/* Toast box */
+.custom-toast {
+    background: #fff;
+    border-radius: 16px;
+    padding: 20px 28px;
+    min-width: 280px;
+    max-width: 400px;
+    text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+    font-family: "Segoe UI", sans-serif;
+    font-size: 14px;
+    opacity: 0;
+    transform: scale(0.8);
+    transition: all 0.3s ease;
+    pointer-events: auto; /* allow hover/click on toast itself */
+}
+
+/* Show animation */
+.custom-toast.show {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Message styling */
+.custom-toast p {
+    margin: 0;
+    margin-top: 8px;
+    color: #555;
+    font-size: 14px;
+}
+
+/* Icon styling */
+.toast-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    margin: 0 auto;
+    font-size: 32px;
+    font-weight: bold;
+}
+
+/* Icon colors */
+.toast-icon.success {
+    background: rgba(76,175,80,0.15);
+    color: #4caf50;
+}
+.toast-icon.error {
+    background: rgba(244,67,54,0.15);
+    color: #f44336;
+}
+.toast-icon.info {
+    background: rgba(33,150,243,0.15);
+    color: #2196f3;
+}
+
+/* Optional border on toast itself */
+.custom-toast.success {
+    border-left: 6px solid #4caf50;
+}
+.custom-toast.error {
+    border-left: 6px solid #f44336;
+}
+.custom-toast.info {
+    border-left: 6px solid #2196f3;
+}
+
+/* Base toast (you already have this, but ensure styles) */
+/* Add this CSS to your stylesheet */
+#custom-toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2147483647; /* Max possible z-index to be above everything */
+}
+
+.custom-toast {
+    display: flex;
+    align-items: center;
+    background: #fff3cd;
+    border-left: 5px solid #ffc107;
+    padding: 12px 16px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    min-width: 300px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    opacity: 0;
+    transform: translateX(100%);
+    transition: all 0.3s ease;
+    font-family: Arial, sans-serif;
+}
+
+.custom-toast.show {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.custom-toast .toast-icon {
+    font-size: 20px;
+    margin-right: 12px;
+}
+
+.custom-toast .toast-content {
+    flex: 1;
+}
+
+.custom-toast .toast-content p {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: #856404;
+}
+
+.custom-toast .override-btn {
+    padding: 6px 12px;
+    font-size: 13px;
+    font-weight: bold;
+    background-color: #dc3545; /* red for admin action */
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.custom-toast .override-btn:hover {
+    background-color: #c82333;
+}
+
+
+.custom-toast {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+    z-index: 1055;
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.custom-toast.show {
+    opacity: 1;
+    transform: translateY(0);
+}
+.custom-toast .toast-actions {
+    margin-top: 8px;
+    display: flex;
+    gap: 8px;
+}
+.custom-toast button {
+    padding: 5px 10px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+.custom-toast .confirm-btn {
+    background: #d9534f;
+    color: #fff;
+}
+.custom-toast .cancel-btn {
+    background: #6c757d;
+    color: #fff;
+}

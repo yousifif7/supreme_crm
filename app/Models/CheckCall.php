@@ -9,16 +9,21 @@ class CheckCall extends Model
     //
     
     protected $fillable = [
-        'shift_id', 'scheduled_time', 'status', 'method','employee_id'
+        'shift_id', 'scheduled_time', 'status', 'method','employee_id','name'
     ];
 
-    public function shift()
+    public function shiftDate()
     {
-        return $this->belongsTo(Shift::class);
+        return $this->belongsTo(ShiftDate::class,'shift_id');
     }
 
     public function employee()
     {
         return $this->belongsTo(Employee::class);
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

@@ -2,23 +2,25 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\ClientsDataTable;
+use App\Models\User;
 use App\Models\Client;
+use App\Helpers\Logger;
 use App\Models\Company;
 use App\Models\Employee;
-use App\Models\User;
 use Illuminate\Http\Request;
+use Spatie\Permission\Models\Role;
+use App\DataTables\ClientsDataTable;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
-use Spatie\Permission\Models\Role;
 
 class ClientController extends Controller
 {
     public function index(ClientsDataTable $dataTable, Request $request)
     {
         $companys = Company::all();
-        $staffs = Employee::all();
+        $staffs = User::role('security_staff')->get();
 
         return $dataTable->render('clients.index', compact('companys', 'staffs'));
         // view('clients.index');
@@ -53,8 +55,11 @@ class ClientController extends Controller
             'password' => [
                 'required',
                 'string',
-                'min:6',
-                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
             ],
         ]);
 
@@ -103,7 +108,9 @@ class ClientController extends Controller
         // unset($clientData['username'], $clientData['password']);
 
         // Create client
-        Client::create($clientData);
+        $client= Client::create($clientData);
+
+        Logger::log(Auth::user(), 'Created', 'A new client has been added');
 
         return response()->json(['message' => 'Client created successfully']);
     }
@@ -133,6 +140,15 @@ class ClientController extends Controller
             'guard_rate'      => 'nullable|numeric',
             'office_rate'     => 'nullable|numeric',
             'vat'  => 'nullable',
+            'password' => [
+                'required',
+                'string',
+                'min:8', // minimum 8 characters
+                'regex:/[A-Z]/', // at least one uppercase
+                'regex:/[a-z]/', // at least one lowercase
+                'regex:/[0-9]/', // at least one number
+                'regex:/[@$!%*?&#]/', // at least one special char
+            ],
         ]);
 
         if ($validator->fails()) {
@@ -157,8 +173,37 @@ class ClientController extends Controller
                 $data[$docField] = $fileName;
             }
         }
+
+        if ($request->email || $request->password) {
+            $user = User::role('client')->where('id', $client->user->id)->first();
+
+            if ($user) {
+                if ($request->email) {
+                    $user->email = $request->email;
+                    $client->email = $request->email;
+                }
+                if (!$request->email) {
+                    $user->email = $user->email;
+                    $client->email = $client->email;
+                }
+
+                if ($request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = Hash::make($request->password);
+                }
+                if (!$request->password) {
+                    // Use Hash facade to hash the password
+                    $user->password = $user->password;
+                }
+
+                $user->save();
+            }
+        }
+        unset($data['password']);
         // update client
         $client->update($data);
+
+        Logger::log(Auth::user(), 'Updated', 'Client'.$client->client_name.' Updated');
 
         return response()->json(['message' => 'Client Update successfully']);
     }
@@ -170,6 +215,7 @@ class ClientController extends Controller
     public function delete($id)
     {
         $client = Client::findOrFail($id);
+        Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
         $client->delete();
 
         return response()->json(['success' => true]);
@@ -181,7 +227,11 @@ class ClientController extends Controller
             'ids.*' => 'exists:clients,id',
         ]);
 
-        Client::whereIn('id', $request->ids)->delete();
+        $clients=Client::whereIn('id', $request->ids)->get();
+        foreach($clients as $client){
+            Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
+            $client->delete();
+        }
 
         return response()->json(['message' => 'Selected clients deleted.']);
     }
@@ -232,6 +282,9 @@ class ClientController extends Controller
         $client = Client::findOrFail($id);
         $client->manager_id = $request->manager_id;
         $client->save();
+        
+        Logger::log(Auth::user(), 'Update', 'Client '.$client->client_name.' Assigned a manager');
+
         return back()->with(['success' => 'Manager assigned successfully.']);
     }
 }

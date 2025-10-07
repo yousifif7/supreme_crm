@@ -82,9 +82,9 @@
 
         <!-- /Page Wrapper -->
         <!-- Add Employee -->
-      @include('employees.create')
+        @include('employees.create')
         <!-- /Add Employee -->
-      @include('employees.edit')
+        @include('employees.edit')
 
         <!-- Generate Employee Payroll -->
         <div class="modal fade" id="generate_payroll">
@@ -119,8 +119,8 @@
                                                             id="payrollerror_employee_name"></span>
                                                     </div>
 
-                                                  
-  <div class="mb-3">
+
+                                                    <div class="mb-3">
                                                         <label class="form-label">Employee Site <span
                                                                 class="text-danger">*</span></label>
                                                         <select class="form-select" name="site_id" id="payroll_site_id">
@@ -181,7 +181,7 @@
         <!-- /Generate Employee Payroll-->
 
         <!-- Edit Employee -->
-     
+
         <!-- /Edit Employee -->
 
         <!-- Add Employee Success -->
@@ -344,6 +344,14 @@
                                 <th>Email</th>
                                 <td id="email_detail"></td>
                             </tr>
+                            {{-- <tr>
+                                <th>Employment Start Date</th>
+                                <td id="employment_start_date"></td>
+                            </tr>
+                            <tr>
+                                <th>Employment Start Date</th>
+                                <td id="employment_end_date"></td>
+                            </tr> --}}
                             <tr>
                                 <th>Gender</th>
                                 <td id="gender_detail"></td>
@@ -413,6 +421,14 @@
                                 <td id="passport_expiry_detail"></td>
                             </tr>
                             <tr>
+                                <th>Driving Licence</th>
+                                <td id="driving_licence_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>Driving Licence Expiry</th>
+                                <td id="driving_licence_expiry_detail"></td>
+                            </tr>
+                            <tr>
                                 <th>Address Group</th>
                                 <td id="address_group_detail"></td>
                             </tr>
@@ -438,6 +454,21 @@
                                     <span class="text-muted">Loading...</span>
                                 </td>
                             </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div class="container modal-body mt-4">
+                    <h6>Weekly Availability</h6>
+                    <table class="table table-bordered" id="availability_table">
+                        <thead>
+                            <tr>
+                                <th>Day</th>
+                                <th>Start</th>
+                                <th>End</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Filled dynamically -->
                         </tbody>
                     </table>
                 </div>
@@ -673,8 +704,7 @@
                     $('#emergency_contact').val(data.employee.emergency_contact);
                     $('#job_title').val(data.employee.job_title);
                     $('#nationality').val(data.employee.nationality);
-                    $('#pin').val(data.employee.pin);
-                    $('#reference_to_emp').val(data.employee.reference_to_emp);
+                    $('#reference_to_emp').val(data.employee.reference_number);
                     $('#next_kin').val(data.employee.next_kin);
                     $('#relation_with_kin').val(data.employee.relation_with_kin);
                     $('#kin_address').val(data.employee.kin_address);
@@ -685,7 +715,6 @@
                     $('#share_code_expiry').val(data.employee.share_code_expiry);
                     $('#biometric_residence_permit').val(data.employee.biometric_residence_permit);
                     $('#biometric_residence_permit_expiry').val(data.employee.biometric_residence_permit_expiry);
-                    $('#brp_status1').val(data.employee.brp_status);
                     $('#settlement').val(data.employee.settlement);
                     $('#tags').val(data.employee.tags);
                     $('#department_id').val(data.employee.department_id);
@@ -718,6 +747,8 @@
                     $('#bank_branch').val(data.employee.bank_branch);
                     $('#other_info').val(data.employee.other_info);
                     $('#current_endorsement').val(data.employee.current_endorsement);
+                    $('#employment_start_date').val(data.employment_start_date);
+                    $('#employment_end_date').val(data.employment_end_date);
 
                     // Handle Holidays
                     $('#editholiday-rows').empty();
@@ -1055,11 +1086,14 @@
                 $('#nationality_detail').text(data.nationality);
                 $('#passport_no_detail').text(data.passport_no);
                 $('#passport_expiry_detail').text(data.passport_expiry);
+                $('#driving_licence_detail').text(data.driving_licence_number ?? 'N/A');
+                $('#driving_licence_expiry_detail').text(data.driving_licence_expiry ?? 'N/A');
                 $('#address_group_detail').text(data.address_group);
                 $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(
-                    `${data.bank_name ?? 'N/A'} / ${data.account_name} / ${data.account_number}`);
-                $('#other_info_detail').text(data.other_info);
+                    `${data.bank_name ?? 'N/A'} / ${data.account_name ?? 'N/A'} / ${data.account_number ?? 'N/A'}`
+                );
+                $('#other_info_detail').text(data.other_info ?? '');
 
                 // Main documents mapping
                 const documentTypes = {
@@ -1067,8 +1101,9 @@
                     passport_file: "Passport",
                     proof_of_address_file: "Proof of Address",
                     ni_letter_file: "NI Letter",
-                    first_aid_certificate_file: "First Aid Certificate",
-                    act_certificate_file: "ACT Certificate"
+                    first_aid_certificate_file: "Right to Work",
+                    act_certificate_file: "ACT Certificate",
+                    driving_licence_file: "Driving Licence"
                 };
 
                 let documentHtml = "";
@@ -1078,7 +1113,6 @@
                     const fileName = data[field];
                     if (fileName) {
                         hasDocs = true;
-                        // Adjust folder path as needed for your setup
                         const url = `${baseUrl}/documents/${fileName}`;
                         documentHtml += `<div class="mb-1">
                     <strong>${label}:</strong> 
@@ -1133,6 +1167,24 @@
             ${additionalHtml}
         `);
 
+                // Days of week mapping
+                const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
+                let availabilityHtml = '';
+                if (Array.isArray(data.availability) && data.availability.length === 7) {
+                    data.availability.forEach(day => {
+                        availabilityHtml += `<tr>
+            <td>${daysOfWeek[day.day_of_week]}</td>
+            <td>${day.start}</td>
+            <td>${day.end}</td>
+        </tr>`;
+                    });
+                } else {
+                    availabilityHtml = `<tr><td colspan="3" class="text-muted">No availability set.</td></tr>`;
+                }
+
+                $('#availability_table tbody').html(availabilityHtml);
+
                 // Show the Bootstrap modal
                 let modal = new bootstrap.Modal(document.getElementById('viewEmployeeDetailModal'));
                 modal.show();
@@ -1141,18 +1193,16 @@
             });
         }
     </script>
-<script>
-document.addEventListener("DOMContentLoaded", function () {
-    // Get hash from URL (without the '#' symbol)
-    let hashId = window.location.hash.substring(1);
-    // If the hash is a number, call the function
-    if (hashId && !isNaN(hashId)) {
-        viewEmployeeDetail(hashId);
-    }
-});
-
-
-</script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            // Get hash from URL (without the '#' symbol)
+            let hashId = window.location.hash.substring(1);
+            // If the hash is a number, call the function
+            if (hashId && !isNaN(hashId)) {
+                viewEmployeeDetail(hashId);
+            }
+        });
+    </script>
 
     {!! $dataTable->scripts() !!}
 @endsection

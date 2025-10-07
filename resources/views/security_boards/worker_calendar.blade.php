@@ -2,7 +2,132 @@
 @section('title', 'CRM - Worker Calendar')
 
 @section('styles')
+    <style>
+        /* Highlight days with shifts */
+        /* Reduce day cell padding to make calendar compact */
+        /* Event container */
+        .datepic .fc-prev-button,
+        .datepic .fc-next-button {
+            font-size: 14px !important;
+            padding: 4px 6px !important;
+            height: 28px !important;
+            width: 34px !important;
+            border-radius: 6px !important;
+            background-color: #5489C4 !important;
+            color: #fff !important;
+            border: none !important;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.1s;
+        }
 
+        .datepic .fc-prev-button:hover,
+        .datepic .fc-next-button:hover {
+            opacity: 0.85 !important;
+            transform: translateY(-1px);
+        }
+
+        /* FullCalendar view buttons */
+        .fc-toolbar button {
+            border: none !important;
+            border-radius: 6px !important;
+            padding: 6px 12px !important;
+            margin-right: 5px !important;
+            font-weight: 500 !important;
+            cursor: pointer !important;
+            color: #fff !important;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        /* Assign colors */
+        .fc-dayGridDay-button {
+            background-color: #80BFFF !important;
+        }
+
+        .fc-dayGridWeek-button {
+            background-color: #5489C4 !important;
+        }
+
+        .fc-dayGridMonth-button {
+            background-color: #69CF83 !important;
+        }
+
+        /* Active button highlight */
+        .fc-toolbar button.fc-button-active {
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2) !important;
+            transform: translateY(-2px) !important;
+        }
+
+        /* Hover effect */
+        .fc-toolbar button:hover {
+            opacity: 0.85 !important;
+        }
+
+        /* Event/shift boxes */
+        /* Container for each event (shift) */
+        /* Ensure text wraps inside the box */
+._schedule-box-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    min-height: 50px;
+    width: 95%;
+    margin: 0 auto;
+    color: #212529; /* darker text for contrast */
+    text-align: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08); /* softer shadow */
+    cursor: pointer;
+    line-height: 1.3;
+    word-break: break-word;
+    white-space: normal;
+    transition: all 0.2s ease;
+}
+
+._schedule-box-container:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.12);
+}
+
+        /* Optional: remove any hover effect applied by FullCalendar */
+        .fc .fc-daygrid-event:hover {
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+
+        ._schedule-box-container:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 6px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Increase spacing in calendar header for clarity */
+        .fc .fc-col-header-cell {
+            padding: 6px 4px !important;
+            font-size: 0.85rem;
+        }
+
+        /* Stack events neatly */
+        .fc-daygrid-day-events {
+            display: flex !important;
+            flex-direction: column;
+            gap: 8px !important;
+            /* more space between boxes */
+            padding: 4px 0 !important;
+        }
+
+        /* Hide urgent red lines */
+        .urgent-indicator {
+            display: none !important;
+        }
+
+        .fc-daygrid-day-frame {
+            padding: 6px 4px !important;
+            min-height: 90px;
+            /* taller day cells */
+        }
+    </style>
 @endsection
 @section('contents')
     <!-- Page Wrapper -->
@@ -32,7 +157,7 @@
                             </div>
 
                             <!-- Event -->
-                          @include('security_boards.event_colors')
+                            @include('security_boards.event_colors')
                             <!-- /Event -->
 
 
@@ -57,12 +182,10 @@
 
             <!-- Add Rota -->
 
-          
+
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
             <!-- /Breadcrumb -->
-
-
         </div>
 
         <!-- Add Shift Success -->
@@ -149,7 +272,8 @@
                         }
                         const checkpointSection = clone.querySelector('.checkpoint-section');
                         if (checkpointSection) {
-                            checkpointSection.setAttribute('id', `checkpoint-section${newShiftGroupIndex}`);
+                            checkpointSection.setAttribute('id',
+                                `checkpoint-section${newShiftGroupIndex}`);
                         }
 
                         // Clear checkpoint rows
@@ -187,37 +311,38 @@
         });
 
         let checkIndex = 0;
-        function addCheckpointRow($parentRow, groupIndex = 0) {
-            checkIndex++;
 
-            const checkpointRow = `
-                <div class="row checkpoint-row mb-3 align-items-center" data-index="${checkIndex}">
-                    <div class="col-md-3"><label>Checkpoint Name</label>
-                        <input type="text" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_name]" class="form-control">
+        function addCheckCallRow($parentRow) {
+            checkIndex++;
+            const row = `
+                <div class="row checkcall-row mb-3 align-items-center" data-index="${checkIndex}">
+                    <div class="col-md-3">
+                        <label>Check Call Name</label>
+                        <input type="text" name="checkcalls[${checkIndex}][name]" class="form-control">
                     </div>
                     <div class="col-md-3">
-                        <label>Time</label>
-                        <input type="time" name="checkpoints[${groupIndex}][${checkIndex}][checkpoint_time]" class="form-control">
+                        <label>Scheduled Time</label>
+                        <input type="time" name="checkcalls[${checkIndex}][scheduled_time]" class="form-control">
                     </div>
                     <div class="col-md-3">
-                        <button type="button" class="btn btn-danger btn-sm removeCheckpointRow">Remove</button>
+                        <button type="button" class="btn btn-danger btn-sm removeCheckCallRow">Remove</button>
                     </div>
                 </div>
             `;
-
-            $parentRow.append(checkpointRow);
-            // $('#checkpoint-rows').append(checkpointRow);
+            $parentRow.append(row);
         }
 
-        $(document).on('click', '.addCheckpointRow', function() {
-            var groupIndex = $(this).data('shift-group');
-            var $parentRow = $(this).parents(`#checkpoint-section${groupIndex}`).find('.checkpoint-rows');
-            addCheckpointRow($parentRow, groupIndex);
+        $(document).ready(function() {
+            $(document).on('click', '.addCheckCallRow', function() {
+                console.log("Add Check Call clicked ✅");
+                var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
+                addCheckCallRow($parentRow);
+            });
+
+            $(document).on('click', '.removeCheckCallRow', function() {
+                $(this).closest('.checkcall-row').remove();
+            });
         });
-        $(document).on('click', '.removeCheckpointRow', function() {
-            $(this).closest('.checkpoint-row').remove();
-        });
-        
     </script>
     <script>
         $(document).ready(function() {
@@ -273,7 +398,7 @@
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
 
-              const colorMap = {
+            const colorMap = {
                 'bg-dark-blue': '#5489C4',
                 'bg-lighter': '#D6D4CE',
                 'bg-dark-green': '#69CF83',
@@ -296,6 +421,7 @@
                         initialView: 'dayGridWeek',
                         initialDate: new Date().toISOString().split('T')[0],
                         timeZone: 'local',
+                        firstDay: 1,
                         eventDisplay: 'block',
                         displayEventEnd: true,
 
@@ -314,66 +440,57 @@
                         },
 
                         // 🔸 Render events with images, icons, time, and urgency
-                        eventContent: function(info) {
-                            const event = info.event;
-                            const props = event.extendedProps;
-                                                        const bgClass = event.classNames?.[0] || 'bg-secondary';
+ eventContent: function(info) {
+    const props = info.event.extendedProps;
+    const startTime = props.start_time_str || '';
+    const endTime = props.end_time_str || '';
+    const bgClass = info.event.classNames?.[0] || 'bg-secondary';
+    const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
+
+    // Function to pick readable text color based on bg color
+    function getContrastColor(hexColor) {
+        const c = hexColor.startsWith('#') ? hexColor.substring(1) : hexColor;
+        const r = parseInt(c.substr(0,2),16);
+        const g = parseInt(c.substr(2,2),16);
+        const b = parseInt(c.substr(4,2),16);
+        const luminance = (0.299*r + 0.587*g + 0.114*b);
+        return luminance > 186 ? '#000' : '#fff';
+    }
+
+    const textColor = getContrastColor(bgColor);
+
+    const container = document.createElement('div');
+    container.className = `_schedule-box-container ${bgClass}`;
+    container.style.backgroundColor = bgColor;
+    container.style.color = textColor; // make text readable
+
+    container.innerHTML = `
+        <div style="font-weight: 600; color:${textColor};"><strong>${info.event.title}</strong></div>
+        <div style="color:${textColor}; font-size:0.85rem;">${startTime} - ${endTime} (${props.duration})</div>
+        <div style="color:${textColor}; font-size:0.85rem;">${props.location || ''}</div>
+    `;
+
+    return { domNodes: [container] };
+},
 
 
-                            const startTime = event.start?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) || '';
-                            const endTime = event.end?.toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit'
-                            }) || '';
-
-                            const container = document.createElement('div');
-
-                            // Compose class string
-                           container.className = `_schedule-box-container ${bgClass}`;
-                    container.style.marginBottom = '5px';
-
-                    container.style.backgroundColor = colorMap[bgClass] || colorMap['bg-secondary'];
-
-                            // Apply background color from colorMap based on className
-                            const bgColor = colorMap[bgClass] || colorMap['bg-secondary'];
-
-
-                            container.innerHTML = `
-                        <div class="d-flex align-items-center " style="background: ${bgColor} !important;">
-                            <div class="position-relative" >
-                                ${props.urgent ? '<span class="urgent-indicator bg-danger"></span>' : ''}
-                            </div>
-                            <div class="flex-grow-1">
-                                <div style="font-size:10px"><strong style="color: black;">${event.title}</strong></div>
-                                <div class="text-muted" style="font-size: 0.75rem; color: black !important;">${props.location || ''}</div>
-                                <div class="text-muted" style="font-size: 0.75rem; color: black !important">${startTime} - ${endTime}</div>
-                            </div>
-                        </div>
-                    `;
-
-                            return {
-                                domNodes: [container]
-                            };
-                        },
 
                         eventClick: function(info) {
-                            // console.log('Event clicked:', info.event.extendedProps);
                             // create a button with data-toggle="ajax-modal" in body and click it
                             const button = document.createElement('button');
-                            button.setAttribute('data-toggle', 'ajax-modal');
-                            button.setAttribute('data-title', 'Rota Detail');
-                            button.setAttribute('data-size', 'modal-xl');
-                            button.setAttribute('data-width', '80%');
-                            button.setAttribute('data-href', `shifts/${info.event.extendedProps.sd_id}`);
-                            button.style.display = 'none';
-                            document.body.appendChild(button);
-                            button.click();
+                            const shiftId = info.event.extendedProps.sd_id;
+
+                            if (!shiftId) {
+                                console.error('Shift ID missing for this event:', info.event);
+                                return;
+                            }
+
+                            window.open(`/shift-dates/${shiftId}/view`, '_blank');
                         },
 
                         eventDidMount: function(info) {
+                            info.el.style.backgroundColor = 'transparent';
+                            info.el.style.border = 'none';
                             info.el.style.overflow = 'visible';
                         }
                     });
@@ -385,8 +502,10 @@
 
                         calendar.batchRendering(() => {
                             calendar.getEvents().forEach(event => {
-                                const matches = event.title.toLowerCase().includes(searchText) ||
-                                                (event.extendedProps.location && event.extendedProps.location.toLowerCase().includes(searchText));
+                                const matches = event.title.toLowerCase().includes(
+                                        searchText) ||
+                                    (event.extendedProps.location && event.extendedProps
+                                        .location.toLowerCase().includes(searchText));
 
                                 if (matches) {
                                     event.setProp('display', 'auto'); // show event
@@ -396,7 +515,7 @@
                             });
                         });
                     });
-                    
+
                     // 🔸 Sidebar mini calendar
                     const sidebarEl = document.querySelector('.datepic');
                     if (sidebarEl) {
@@ -405,6 +524,7 @@
 
                         new FullCalendar.Calendar(sidebarCal, {
                             initialView: 'dayGridMonth',
+                            firstDay: 1,
                             headerToolbar: {
                                 left: 'prev',
                                 center: 'title',
@@ -439,7 +559,7 @@
         });
     </script>
     <script type="text/javascript">
-        $(document).on("change","#clientSelect",function() {
+        $(document).on("change", "#clientSelect", function() {
             var $this = $(this);
             const clientId = $(this).val();
 
@@ -448,29 +568,30 @@
             var $siteSelect = $('#siteSelect');
             // Clear current options
             $siteSelect.html('<option value="">--choose--</option>');
-            
+
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
+                success: function(data) {
                     $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
 
                     if (data.sites && data.sites.length > 0) {
-                        $.each(data.sites, function (index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
                     }
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
         });
 
-        $(document).on("change","#StaffSelect",function() {
+        $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);
             const staffId = $(this).val();
 
@@ -480,10 +601,11 @@
                 url: `${baseUrl}/api/staff/${staffId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function (data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                success: function(data) {
+                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
+                        '');
                 },
-                error: function (xhr, status, error) {
+                error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });

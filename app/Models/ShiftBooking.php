@@ -19,4 +19,10 @@ class ShiftBooking extends Model
     public function shift() {
         return $this->belongsTo(ShiftDate::class ,'shift_id');
     }
+
+    
+    public function logs()
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

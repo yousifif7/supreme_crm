@@ -10,7 +10,7 @@ class ShiftDate extends Model
 {
     use SoftDeletes, LogsChanges;
     protected $table = 'shift_dates';
-    protected  $fillable = ['staff_id', 'shift_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign',' status'];
+    protected  $fillable = ['staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', ' status', 'invoiced', 'invoice_id'];
 
 
     const STATUS_PENDING       = 0;
@@ -25,7 +25,7 @@ class ShiftDate extends Model
 
 
 
-     public static function getStatusLabels()
+    public static function getStatusLabels()
     {
         return [
             self::STATUS_PENDING      => 'Pending',
@@ -57,8 +57,8 @@ class ShiftDate extends Model
 
         return $badgeMap[$status] ?? '<span class="badge bg-secondary">Pending</span>';
     }
-    
-   
+
+
     public function shift()
     {
         return $this->belongsTo(Shift::class)->with('site');
@@ -68,13 +68,38 @@ class ShiftDate extends Model
         return $this->belongsTo(User::class, 'staff_id');
     }
 
-     public function checkCalls()
+    public function note()
     {
-        return $this->hasMany(CheckCall::class,'shift_id');
-    }
-     public function patrols()
-    {
-        return $this->hasMany(Patrol::class,'shift_id');
+        return $this->belongsTo(ShiftNote::class, 'shift_date_id');
     }
 
+    public function checkCalls()
+    {
+        return $this->hasMany(CheckCall::class, 'shift_id');
+    }
+
+    public function patrols()
+    {
+        return $this->hasMany(Patrol::class, 'shift_id');
+    }
+
+    public function trainings()
+    {
+        return $this->belongsToMany(
+            \App\Models\TrainingMaterial::class,
+            'shift_trainings',
+            'shift_date_id',
+            'training_id'
+        )->withTimestamps();
+    }
+
+    public function locations()
+    {
+        return $this->hasMany(Location::class, 'shiftdate_id');
+    }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

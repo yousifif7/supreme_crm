@@ -20,10 +20,13 @@ class Employee extends Model
         'gender',
         'ni_number',
         'sia_licence',
+        'sia_status',
         'sia_expiry',
         'licence_type',
         'entry_date',
         'dob',
+        'employment_start_date',
+        'employment_end_date',
         'service_type',
         'visa_type',
         'visa_expiry',
@@ -94,7 +97,11 @@ class Employee extends Model
         'ni_letter_file',
         'first_aid_certificate_file',
         'act_certificate_file',
+        'driving_licence_number',
+        'driving_licence_expiry',
+        'driving_licence_file',
         'additional_files',
+        'reference_number'
     ];
 
     protected $casts = [
@@ -103,6 +110,7 @@ class Employee extends Model
         'dob' => 'date',
         'visa_expiry' => 'date',
         'passport_expiry' => 'date',
+        'driving_licence_expiry' => 'date',
         'biometric_residence_permit_expiry' => 'date',
         'license_expiry' => 'date',
         'holiday_from' => 'date',
@@ -111,6 +119,21 @@ class Employee extends Model
         'holiday_to_additional' => 'date',
         'additional_files' => 'array',
     ];
+
+    protected static function boot()
+    {
+        parent::boot();
+
+        static::creating(function ($employee) {
+            if (!$employee->reference_number) {
+                do {
+                    $ref = str_pad(mt_rand(0, 999999), 6, '0', STR_PAD_LEFT);
+                } while (Employee::where('reference_number', $ref)->exists());
+
+                $employee->reference_number = $ref;
+            }
+        });
+    }
 
     public function department(): BelongsTo
     {
@@ -130,7 +153,7 @@ class Employee extends Model
         return $this->hasMany(EmployeeTerm::class, 'employee_id');
     }
 
-      public function subcontractorDetails()
+    public function subcontractorDetails()
     {
         return $this->belongsTo(User::class, 'subcontractor');
     }
@@ -139,20 +162,77 @@ class Employee extends Model
     {
         return $this->profile_picture ? '/uploads/profile_pics/' . $this->profile_picture : 'uploads/no.png';
     }
-
     public function fileUrl($file_name, $preview_only = false)
     {
-        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
-        if(in_array($file_name, $documents)) {
-            if($this->$file_name) {
-                // checkif ends with .pdf
-                if ($preview_only && str_ends_with($this->$file_name, '.pdf')) {
+        // Fixed documents
+        $documents = [
+            'sia_licence_file',
+            'passport_file',
+            'proof_of_address_file',
+            'ni_letter_file',
+            'first_aid_certificate_file',
+            'act_certificate_file',
+            'driving_licence_file'
+        ];
+
+        // 🔹 Handle standard documents
+        if (in_array($file_name, $documents)) {
+            $file = $this->$file_name;
+
+            if (!$file) {
+                return '/uploads/no.png';
+            }
+
+            if (str_starts_with($file, 'documents/') || str_starts_with($file, 'uploads/')) {
+                if ($preview_only && str_ends_with($file, '.pdf')) {
                     return '/uploads/PDF_file_icon.svg';
                 }
-                return '/uploads/' . $file_name . '/' . $this->$file_name;
+                return asset($file);
             }
-            return '/uploads/no.png';
+
+            $path = 'uploads/' . $file_name . '/' . $file;
+
+            if (!file_exists(public_path($path))) {
+                $path = 'documents/' . $file;
+            }
+
+            if ($preview_only && str_ends_with($file, '.pdf')) {
+                return '/uploads/PDF_file_icon.svg';
+            }
+
+            return asset($path);
         }
+
+        // 🔹 Handle "Other" / additional files
+        if ($this->additional_files && is_array($this->additional_files)) {
+            // Search for a match by filename
+            foreach ($this->additional_files as $file) {
+                // Use partial match (optional) or exact match
+                if ($file === $file_name || str_contains($file, $file_name)) {
+                    // Determine path
+                    if (str_starts_with($file, 'documents/') || str_starts_with($file, 'uploads/')) {
+                        if ($preview_only && str_ends_with($file, '.pdf')) {
+                            return '/uploads/PDF_file_icon.svg';
+                        }
+                        return asset($file);
+                    }
+
+                    $path = 'uploads/other/' . $file; // store "other" uploads in uploads/other
+                    if (!file_exists(public_path($path))) {
+                        $path = 'documents/' . $file;
+                    }
+
+                    if ($preview_only && str_ends_with($file, '.pdf')) {
+                        return '/uploads/PDF_file_icon.svg';
+                    }
+
+                    return asset($path);
+                }
+            }
+        }
+
+        // 🔹 Fallback if nothing matches
+        return '/uploads/no.png';
     }
 
     public function shifts()
@@ -175,7 +255,7 @@ class Employee extends Model
         return $this->hasMany(CheckCall::class);
     }
 
-    
+
     public function dobEntries()
     {
         return $this->hasMany(DobEntry::class);
@@ -185,4 +265,15 @@ class Employee extends Model
     {
         return $this->hasMany(LeaveRequest::class);
     }
+
+    public function invoices()
+    {
+
+        return $this->hasMany(Invoice::class);
+    }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

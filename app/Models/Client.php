@@ -36,4 +36,9 @@ class Client extends Model
     {
         return $this->belongsTo(Employee::class, 'manager_id');
     }
+
+    public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

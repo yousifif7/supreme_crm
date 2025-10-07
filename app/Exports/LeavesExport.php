@@ -2,7 +2,7 @@
 
 namespace App\Exports;
 
-use App\Models\EmployeeLeave;
+use App\Models\LeaveRequest;
 use Maatwebsite\Excel\Concerns\FromCollection;
 use Illuminate\Support\Facades\DB;
 use Maatwebsite\Excel\Concerns\WithHeadings;
@@ -11,31 +11,43 @@ class LeavesExport implements FromCollection, WithHeadings
 {
     public function collection()
     {
-        $leaves = EmployeeLeave::select(
-            'employee_leaves.leave_entitlement',
-            'employee_leaves.from_date',
-            'employee_leaves.to_date',
-            DB::raw("CONCAT(employees.fore_name, ' ', employees.sur_name) as full_name"),
-            'employee_leaves.status',
-            DB::raw("DATE_FORMAT(employee_leaves.created_at, '%Y-%m-%d %H:%i') as created_at"),
-            DB::raw("DATE_FORMAT(employee_leaves.approved_at, '%Y-%m-%d %H:%i') as approved_at")
+        return LeaveRequest::select(
+            DB::raw("CONCAT(users.first_name, ' ', users.last_name) as employee"),
+            'leave_requests.reason as details',
+            'leave_requests.type as leave_type',
+            'leave_requests.start_date as date_from',
+            'leave_requests.end_date as date_to',
+            'leave_requests.status',
+            'leave_requests.reject_reason',
+            'leave_requests.hours as hours_requested',
+            'leave_requests.approved_hours',
+            'leave_requests.paid',
+            'leave_requests.ssp_paid_days',
+            'leave_requests.unpaid_days',
+            'leave_requests.amount_paid',
+            DB::raw("DATE_FORMAT(leave_requests.created_at, '%Y-%m-%d') as applied_at")
         )
-        ->join('employees', 'employees.id', '=', 'employee_leaves.employee_id')
+        ->join('users', 'users.id', '=', 'leave_requests.user_id')
         ->get();
-
-        return $leaves;
     }
 
     public function headings(): array
     {
         return [
+            'Employee',
             'Details',
+            'Leave Type',
             'Date From',
             'Date To',
-            'Employee',
             'Status',
+            'Reject Reason',
+            'Hours Requested',
+            'Approved Hours',
+            'Paid',
+            'SSP Paid Days',
+            'Unpaid Days',
+            'Amount Paid',
             'Applied At',
-            'Approved At',
         ];
     }
 }

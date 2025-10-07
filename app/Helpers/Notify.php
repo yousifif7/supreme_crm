@@ -2,10 +2,14 @@
 
 use App\Models\User;
 use ExponentPhpSDK\Expo;
+use App\Models\ShiftDate;
 use App\Models\DeviceToken;
+use App\Models\Availability;
 use App\Models\Notification;
-use ExponentPhpSDK\Repositories\ExpoFileDriver;
 use ExponentPhpSDK\ExpoRegistrar;
+use Illuminate\Support\Facades\Http;
+use ExponentPhpSDK\Repositories\ExpoFileDriver;
+use App\Models\Log;
 
 if (!function_exists('notify_users')) {
     function notify_users($title, $message, $type = 'notification', $action_url = null, $data = [], $users = null)
@@ -28,7 +32,7 @@ if (!function_exists('notify_users')) {
 }
 
 
-function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShiftHours = 0, $shiftDate = null)
+function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShiftHours = 0, $shiftDate = null, $newShiftStart = null)
 {
     $entityClass = get_class($entity);
     $restrictions = \App\Models\Restriction::where('entity_type', $entityClass)
@@ -60,23 +64,23 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 }
                 break;
 
-            case 'max_weekly_hours_check':
-                $weekStart = now()->startOfWeek();
-                $weekEnd = now()->endOfWeek();
+            // case 'max_weekly_hours_check':
+            //     $weekStart = now()->startOfWeek();
+            //     $weekEnd = now()->endOfWeek();
 
-                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->id)
-                    ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                    ->sum('total_hours');
+            //     $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id) // FIXED
+            //         ->whereBetween('shift_date', [$weekStart, $weekEnd])
+            //         ->sum('total_hours');
 
-                $maxWeeklyHours = $entity->hour_per_week ?? 40;
+            //     $maxWeeklyHours = $entity->hour_per_week ?? 40;
 
-                if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
-                    $validator->errors()->add($fieldName, $message);
-                }
-                break;
+            //     if (($totalWeekHours + $newShiftHours) > $maxWeeklyHours) {
+            //         $validator->errors()->add($fieldName, $message);
+            //     }
+            //     break;
 
             case 'student_visa_hours_check':
-                if ($entity->visa_type === 'Student' && $shiftDate) {
+                if (strtolower($entity->visa_type) === 'student' && $shiftDate) {
                     $isShiftInActiveTerm = \App\Models\EmployeeTerm::where('employee_id', $entity->id)
                         ->where(function ($query) use ($shiftDate) {
                             $query->where('from_date', '<=', $shiftDate)
@@ -84,13 +88,87 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                         })
                         ->exists();
 
-                    if (!$isShiftInActiveTerm) {
-                        $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->id)
+                    if ($isShiftInActiveTerm) { // ✅ flipped logic
+                        $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
                             ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
                             ->sum('total_hours') + $newShiftHours;
 
                         if ($weeklyHours > 20) {
                             $validator->errors()->add($fieldName, $message);
+                        }
+                    }
+                }
+                break;
+            case 'min_rest_hours_check':
+                if ($newShiftStart instanceof \Carbon\Carbon) {
+                    $lastShift = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
+                        ->whereNotNull('end_time')
+                        ->orderByDesc('shift_date')
+                        ->orderByDesc('end_time')
+                        ->first();
+
+                    if ($lastShift) {
+                        // Build last shift start and end
+                        $lastShiftStart = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->start_time);
+                        $lastShiftEnd   = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->end_time);
+
+                        // If shift crosses midnight (end <= start), add a day
+                        if ($lastShiftEnd->lte($lastShiftStart)) {
+                            $lastShiftEnd->addDay();
+                        }
+
+                        // Now compare only if lastShiftEnd is before the new shift start
+                        if ($lastShiftEnd->lte($newShiftStart)) {
+                            $hoursDiff = $lastShiftEnd->diffInHours($newShiftStart);
+
+                            \Log::info('12h check result', [
+                                'lastShiftEnd' => $lastShiftEnd->toDateTimeString(),
+                                'newShiftStart' => $newShiftStart->toDateTimeString(),
+                                'hoursDiff' => $hoursDiff,
+                            ]);
+
+                            if ($hoursDiff < 12) {
+                                $validator->errors()->add(
+                                    $fieldName,
+                                    $message ?: 'Staff must have at least 12 hours rest between shifts.'
+                                );
+                            }
+                        }
+                    }
+                }
+            case 'staff_availability_hours':
+                if ($shiftDate && $newShiftStart && $newShiftHours > 0) {
+                    // Get day of week from shift date (0=Sunday ... 6=Saturday)
+                    $dayOfWeek = \Carbon\Carbon::parse($shiftDate)->dayOfWeek;
+
+                    $availability = \App\Models\Availability::where('user_id', $entity->user_id)
+                        ->where('day_of_week', $dayOfWeek)
+                        ->first();
+
+                    if (!$availability) {
+                        // No availability set for this day
+                        $validator->errors()->add(
+                            $fieldName,
+                            $restriction->error_message ?? 'No availability set for this day.'
+                        );
+                    } else {
+                        $shiftHours = is_numeric($newShiftHours) ? (float) $newShiftHours : 0;
+                        $shiftEnd = $newShiftStart->copy()->addHours($shiftHours);
+
+                        $availableStart = \Carbon\Carbon::parse($shiftDate . ' ' . $availability->start_time);
+                        $availableEnd   = \Carbon\Carbon::parse($shiftDate . ' ' . $availability->end_time);
+
+                        // Handle overnight availability (end <= start)
+                        if ($availableEnd->lte($availableStart)) {
+                            $availableEnd->addDay();
+                        }
+
+                        // Shift must fully fit within availability
+                        if ($newShiftStart->lt($availableStart) || $shiftEnd->gt($availableEnd)) {
+                            $validator->errors()->add(
+                                $fieldName,
+                                $restriction->error_message ?? 'Shift falls outside the staff availability hours.'
+                            );
                         }
                     }
                 }
@@ -103,58 +181,90 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
     }
 }
 
+function send_push_notification($userId, $title, $message, $data = [])
+{
+    $devices = \App\Models\DeviceToken::where('user_id', $userId)
+        ->whereNotNull('push_token')
+        ->pluck('push_token')
+        ->toArray();
 
-if (!function_exists('send_push_notification')) {
-    function send_push_notification($userId, $title, $message, $data = [])
-    {
-        // Fetch all device tokens for the given user
-        $devices = \App\Models\DeviceToken::where('user_id', $userId)
-            ->whereNotNull('push_token')
-            ->pluck('push_token')
-            ->toArray();
+    if (empty($devices)) {
+        \Log::info("No device tokens found for user ID: {$userId}");
+        return false;
+    }
 
-        if (empty($devices)) {
-            \Log::info("No device tokens found for user ID: {$userId}");
-            return false;
-        }
+    foreach ($devices as $token) {
+        $payload = [
+            "to" => $token,
+            "sound" => "default",
+            "title" => $title,
+            "body" => $message,
+            "data" => json_decode(json_encode($data), true), // always object
+        ];
+
+        \Log::info("Push Notification: Sending payload to Expo", [
+            "user_id" => $userId,
+            "token"   => $token,
+            "payload" => $payload
+        ]);
 
         try {
-            $driver = new \ExponentPhpSDK\Repositories\ExpoFileDriver();
-            $registrar = new \ExponentPhpSDK\ExpoRegistrar($driver);
-            $expo = new \ExponentPhpSDK\Expo($registrar);
-
-            $expo->setAccessToken('wz2xtEKGkvW7qTc_uUVVaefX-M2E1vilwavavQzw');
-
-            // Send the notification directly to all device tokens
-            $expo->notify($devices, [
-                'title' => $title,
-                'body' => $message,
-                'sound' => 'default',
-                'data' => $data,
+            $ch = curl_init("https://exp.host/--/api/v2/push/send");
+            curl_setopt($ch, CURLOPT_POST, true);
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Content-Type: application/json",
+                "Accept: application/json",
+                "Authorization: Bearer " . env("EXPO_ACCESS_TOKEN"),
             ]);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 
-            // Save notification in DB for tracking
-            \App\Models\Notification::create([
+            $response = curl_exec($ch);
+            $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_close($ch);
+
+            if ($status !== 200) {
+                \Log::error("Push Notification: Expo returned error", [
+                    "user_id" => $userId,
+                    "token"   => $token,
+                    "status"  => $status,
+                    "body"    => $response
+                ]);
+            } else {
+                \Log::info("Push Notification: Successfully sent", [
+                    "user_id" => $userId,
+                    "token"   => $token,
+                    "response" => json_decode($response, true)
+                ]);
+            }
+
+            // Save in DB
+            // \App\Models\Notification::create([
+            //     'user_id'    => $userId,
+            //     'employee' => null,
+            //     'type' => 'alert',
+            //     'title'      => $title,
+            //     'message'    => $message,
+            //     'read'       => false,
+            // ]);
+            Notification::create([
                 'user_id' => $userId,
+                'employee_id' => null,
+                'type' => 'alert',
                 'title' => $title,
                 'message' => $message,
-                'data' => $data,
-                'type' => $data['type'] ?? 'notification',
-                'read' => false,
-                'action_url' => $data['action_url'] ?? null,
             ]);
-
-            return true;
-
         } catch (\Throwable $e) {
-            \Log::error("Push notification error for user ID {$userId}: {$e->getMessage()}");
-            return false;
+            \Log::error("Push Notification: Exception while sending", [
+                "user_id" => $userId,
+                "token"   => $token,
+                "error"   => $e->getMessage()
+            ]);
         }
     }
+
+    return true;
 }
-
-
-
 
 class Notify
 {
@@ -172,3 +282,4 @@ class Notify
         ]);
     }
 }
+

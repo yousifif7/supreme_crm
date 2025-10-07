@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use App\Models\EmployeeLeave;
+use App\Models\LeaveRequest;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -19,50 +20,78 @@ class LeavesDataTable extends DataTable
     public function dataTable(QueryBuilder $query): EloquentDataTable
     {
         return (new EloquentDataTable($query))
-            ->addColumn('action', function ($leave) {
-                return view('leave_management.leaves.action', compact('leave'));
+            ->addColumn('action', fn($leave) => view('leave_management.leaves.action', compact('leave')))
+            ->addColumn('checkbox', fn($leave) => '<input type="checkbox" class="dT-row-checkbox" value="' . $leave->id . '">')
+            ->addColumn('number', fn($leave) => '')
+            ->addColumn('staff_name', function ($leave) {
+                $employee = $leave?->user; // assuming LeaveRequest has `employee()` relationship
+                return $employee
+                    ? $employee->first_name . ' ' . $employee->last_name
+                    : 'N/A';
             })
-            ->addColumn('checkbox', function ($leave) {
-                return '<input type="checkbox" class="dT-row-checkbox" value="' . $leave->id . '">';
+            ->editColumn('reason', fn($leave) => view('leave_management.leaves.name_column', ['leave' => $leave]))
+            ->editColumn('start_date', fn($leave) => $leave->start_date)
+            ->editColumn('end_date', fn($leave) => $leave->end_date)
+            ->editColumn('status', fn($leave) => ucfirst($leave->status ?? 'pending'))
+            ->editColumn('type', fn($leave) => ucfirst($leave->type ?? 'other'))
+            ->editColumn('hours', fn($leave) => $leave->hours)
+            ->editColumn('approved_hours', fn($leave) => $leave->approved_hours)
+            ->editColumn('paid', fn($leave) => $leave->paid ? 'Yes' : 'No')
+            ->editColumn('ssp_paid_days', fn($leave) => $leave->ssp_paid_days)
+            ->editColumn('unpaid_days', fn($leave) => $leave->unpaid_days)
+            ->editColumn('amount_paid', fn($leave) => number_format($leave->amount_paid, 2))
+            ->editColumn('created_at', fn($leave) => $leave->created_at?->format('Y-m-d'))
+            ->addColumn('total_hours_worked', function ($leave) {
+                if (!$leave->employee) return 0;
+
+                return $leave->total_hours_worked;
             })
-            ->addColumn('number', function ($leave) {
-                return '';
+            ->addColumn('accrued_leave', function ($leave) {
+                if (!$leave->employee) return '0 hrs';
+
+                $worked = \App\Models\ShiftDate::where('staff_id', $leave->user->id)
+                    ->where('shift_date', '<=', $leave->end_date)
+                    ->sum('total_hours');
+
+                return round($worked * 0.1207, 2) . ' hrs'; // UK formula
             })
-            ->editColumn('leave_entitlement', function ($leave) {
-                return view('leave_management.leaves.name_column', ['leave' => $leave]);
+            ->addColumn('paid_vs_unpaid', function ($leave) {
+                return ($leave->approved_hours ?? 0) . ' Paid / ' . ($leave->unpaid_days * 8) . ' Unpaid';
             })
-            ->editColumn('from_date', function ($leave) {
-                return $leave->from_date;
+            ->addColumn('entitlement', function ($leave) {
+                $emp = $leave->employee;
+                if (!$emp) return 'N/A';
+
+                $start = \Carbon\Carbon::parse($emp->start_date);
+                $daysWorked = $start->diffInDays(now());
+                $holidayDays = (28 / 365) * $daysWorked;
+                return round($holidayDays * 8, 2) . ' hrs';
             })
-            ->editColumn('to_date', function ($leave) {
-                return $leave->to_date;
+            ->addColumn('leave_balance', function ($leave) {
+                return $leave->employee?->holiday_balance
+                    ? $leave->employee->holiday_balance . ' hrs'
+                    : '0 hrs';
             })
-            ->editColumn('status', function ($leave) {
-                return ucfirst($leave->status ?? 'applied');
-            })
-            ->editColumn('created_at', function ($user) {
-                return $user->created_at?->format('Y-m-d');
-            })
-            ->filterColumn('leave_entitlement', function($query, $keyword) {
-                $query->where('leave_entitlement', 'like', "%{$keyword}%");
-            })
-            ->rawColumns(['action', 'checkbox', 'number', 'from_date', 'to_date', 'leave_entitlement'])
+            ->filterColumn('reason', fn($query, $keyword) => $query->where('reason', 'like', "%{$keyword}%"))
+            ->rawColumns(['action', 'checkbox', 'number', 'reason', 'entitlement', 'paid_vs_unpaid', 'accrued_leave', 'total_hours_worked', 'leave_balance'])
             ->setRowId('id');
     }
+
 
     /**
      * Get the query source of dataTable.
      *
      * @return QueryBuilder<EmployeeLeave>
      */
-    public function query(EmployeeLeave $model): QueryBuilder
+    public function query(LeaveRequest $model): QueryBuilder
     {
         $query = $model->newQuery()
-            ->select('employee_leaves.*');
+            ->whereIn('status', ['approved', 'rejected'])
+            ->select('leave_requests.*');
 
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
-                ->select('employee_leaves.*');
+                ->select('leave_requests.*');
         }
 
         return $query;
@@ -74,7 +103,7 @@ class LeavesDataTable extends DataTable
     public function html(): HtmlBuilder
     {
         return $this->builder()
-            ->setTableId('employee_leaves-table')
+            ->setTableId('leave_requests-table')
             ->setTableAttribute('class', 'table table-row-bordered table-row-dashed gy-4 align-middle fw-bold')
             ->columns($this->getColumns())
             ->minifiedAjax()
@@ -89,7 +118,7 @@ class LeavesDataTable extends DataTable
             ->orderBy([6, 'DESC'])
             ->parameters([
                 "scrollX" => true,
-                "pageLength" => 15,
+                "pageLength" => 25,
                 "drawCallback" => "function(settings) {
                     feather.replace();
                     var api = this.api();
@@ -109,10 +138,22 @@ class LeavesDataTable extends DataTable
         return [
             Column::computed('checkbox')->title('<input type="checkbox" id="selectAll">')->exportable(false)->printable(false)->width(20)->addClass('text-center px-2')->orderable(false)->searchable(false),
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
-            Column::make('leave_entitlement')->title('Details')->addClass('ps-0')->orderable(false),
-            Column::make('from_date')->title('Date From'),
-            Column::make('to_date')->title('Date To'),
+            Column::make('entitlement')->title('Entitlement (Pro-Rated hrs)'),
+            Column::make('reason')->title('Details')->addClass('ps-0')->orderable(false),
+            Column::make('staff_name')->title('Staff Name'), // new column
+            Column::make('start_date')->title('Start date'),
+            Column::make('end_date')->title('End date'),
             Column::make('status')->title('Status'),
+            Column::make('type')->title('Type'),
+            Column::make('hours')->title('Requested Hours'),
+            Column::make('approved_hours')->title('Approved Hours'),
+            Column::make('paid')->title('Paid'),
+            Column::make('total_hours_worked')->title('Total Hours Worked'),
+            Column::make('accrued_leave')->title('Accrued Leave (hrs)'),
+            Column::make('leave_balance')->title('Leave Balance'),
+            Column::make('ssp_paid_days')->title('SSP Paid Days'),
+            Column::make('unpaid_days')->title('Unpaid Days'),
+            Column::make('amount_paid')->title('Amount Paid'),
             Column::make('created_at')->title('Created at'),
         ];
     }

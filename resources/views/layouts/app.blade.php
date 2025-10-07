@@ -42,6 +42,8 @@
     <link rel="stylesheet" href="{{ asset('assets/plugins/daterangepicker/daterangepicker.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/toast/toast.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/toast/alerts2.css') }}">
     <!-- Defer Theme Script -->
     {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
@@ -53,11 +55,12 @@
     <link href="https://cdn.jsdelivr.net/npm/toastr@2.1.4/build/toastr.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
     <link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet" type="text/css">
-<style>
-* {
- font-family: 'Poppins', sans-serif;
-}
-</style>
+
+    <style>
+        * {
+            font-family: 'Poppins', sans-serif;
+        }
+    </style>
     <script type="text/javascript">
         const baseUrl = "{{ url('/') }}";
     </script>
@@ -99,12 +102,19 @@
     #notif-list::-webkit-scrollbar-track {
         background: #f1f1f1;
     }
+
+    html {
+        font-size: 80%;
+    }
 </style>
 
 <body style="font-size: 12px !important">
     <div id="global-loader" style="display: none;">
         <div class="page-loader"></div>
     </div>
+
+    {{-- Sound for alerts --}}
+    <audio id="alert-sound" src="/sounds/alert2.mp3" preload="auto"></audio>
 
 
     <!-- Main Wrapper -->
@@ -137,6 +147,11 @@
                             <a id="toggle_btn" href="{{ url('dashboard') }}" class="btn btn-menubar me-1">
                                 <i class="ti ti-arrow-bar-to-left"></i>
                             </a>
+                            {{-- <button id="alert-bell" class="btn btn-light btn-sm" title="Toggle alert sounds">
+                                🔔
+                            </button> --}}
+
+
                             <!-- Search -->
                             {{-- <div class="input-group input-group-flat d-inline-flex me-1">
                                 <span class="input-icon-addon">
@@ -149,14 +164,6 @@
 
 
                         </div>
-                        <!-- Display success message -->
-                        @if (session('success'))
-                            <div class="alert alert-success alert-dismissible fade show" role="alert">
-                                {{ session('success') }}
-                                <button type="button" class="btn-close btn-dark" data-bs-dismiss="alert"
-                                    aria-label="Close"></button>
-                            </div>
-                        @endif
                         <!-- Horizontal Single -->
 
                         <!-- /Horizontal Single -->
@@ -166,7 +173,7 @@
                                 ->get();
                         @endphp
                         <div class="d-flex align-items-center">
-                            <div class="me-1 notification_item">
+                            <div class="me-1 notification_item" style="padding:7px;">
                                 <a href="" class="btn btn-menubar position-relative me-1" id="notificationBell"
                                     data-bs-toggle="dropdown">
                                     <i class="ti ti-bell"></i>
@@ -190,7 +197,8 @@
                                         <form id="markAllForm" action="{{ route('notifications.markAllRead') }}"
                                             method="POST">
                                             @csrf
-                                            <button type="submit" class="text-primary fs-15 btn btn-link p-0">Mark All
+                                            <button type="submit" class="text-primary fs-15 btn btn-link p-0">Mark
+                                                All
                                                 as Read</button>
                                         </form>
                                         {{-- <a href="#" id="mark-all-read"
@@ -233,7 +241,8 @@
                                         </div>
                                         <br>
                                         <div class="text-center">
-                                            <button class="btn btn-outline-primary" type="submit">Mark selected as read</button>
+                                            <button class="btn btn-outline-primary" type="submit">Mark selected as
+                                                read</button>
                                         </div>
                                     </form>
 
@@ -321,11 +330,25 @@
 
         @include('_modals.global-modal')
 
+
     </div>
     <!-- /Main Wrapper -->
 
     <!-- jQuery -->
     <script>
+        let soundUnlocked = false;
+document.addEventListener('click', () => {
+    if (!soundUnlocked) {
+        const sound = document.getElementById('alert-sound');
+        sound.play().then(() => {
+            sound.pause();
+            sound.currentTime = 0;
+            soundUnlocked = true;
+            console.log('Alert sound unlocked for autoplay.');
+        }).catch(e => console.warn('Sound still blocked:', e));
+    }
+}, { once: true });
+
         $(document).ready(function() {
             // Sidebar Menu
             $('.submenu > a').click(function(e) {
@@ -399,9 +422,15 @@
     <script src="https://smarthr.co.in/demo/html/template/assets/plugins/fullcalendar/index.global.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
-    <!-- Custom Scripts -->
+
+
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
+    <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
+    <script src="{{ asset('assets/toast/alerts6.js') }}" defer></script>
+        @yield('scripts')
+
+    @stack('scripts')
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
         if (addShiftBtn) {
@@ -455,8 +484,6 @@
         });
     </script>
     <script>
-
-
         // Handling notifications
         // Fetch unread notifications count & list (limit to 5 for dropdown)
         document.addEventListener('DOMContentLoaded', function() {
@@ -576,9 +603,48 @@
                 }
             });
         });
+
+        document.querySelectorAll('.notification-link').forEach(link => {
+            link.addEventListener('click', async function(e) {
+                e.preventDefault();
+                const id = this.dataset.id;
+
+                try {
+                    const res = await fetch(`/api/notifications/${id}/read`, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
+                                .getAttribute('content'),
+                        },
+                        credentials: 'include'
+                    });
+
+                    if (!res.ok) throw new Error('Failed to mark as read');
+
+                    // ✅ Update UI instantly
+                    const notifItem = this.closest('.notif-item');
+                    if (notifItem) {
+                        notifItem.classList.remove('unread');
+                        notifItem.classList.add('read');
+                    }
+
+                    const countElement = document.getElementById('notif-count');
+                    if (countElement) {
+                        countElement.textContent = Math.max(0, parseInt(countElement.textContent) - 1);
+                    }
+
+                    // ✅ Redirect after marking as read
+                    window.location.href = this.href;
+                } catch (err) {
+                    console.error('❌ Failed to mark as read:', err);
+                    window.location.href = this.href; // fallback redirect
+                }
+            });
+        });
     </script>
-    @yield('scripts')
+
 </body>
 
 </html>
-

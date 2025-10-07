@@ -47,4 +47,9 @@ class Subcontractor extends Model
     {
         return $this->user ? $this->user->email : null;
     }
+    
+        public function logs()
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

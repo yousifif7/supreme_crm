@@ -32,7 +32,8 @@ class NotificationController extends Controller
         }
 
         // Start notifications query, filtered by employee_id
-        $query = Notification::where('employee_id', auth::id());
+        $query = Notification::where('employee_id', $employee->id)
+        ->orWhere('employee_id',Auth::id());
 
         // Optional filters
         if ($request->filled('type')) {
@@ -83,16 +84,18 @@ class NotificationController extends Controller
         // }
 
         $employee = Employee::where('user_id',Auth::id())->first();
-
+        
+        DeviceToken::where('push_token', $request->push_token)->delete();
+        
         DeviceToken::updateOrCreate(
+            ['user_id' => Auth::id()],
             [
-                'employee_id' => auth::id(),
-                'push_token' => $request->push_token
-            ],
-            [
-                'platform' => $request->platform
+
+                'push_token' => $request->push_token,
+                'platform'   => $request->platform
             ]
         );
+
 
         return response()->json(['message' => 'Device registered']);
     }

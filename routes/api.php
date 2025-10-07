@@ -16,6 +16,7 @@ use App\Http\Controllers\API\MessageApiController;
 use App\Http\Controllers\API\ProfileAPIController;
 use App\Http\Controllers\API\DocumentAPIController;
 use App\Http\Controllers\API\LocationAPIController;
+use App\Http\Controllers\API\AvailabilityController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\IncidentReportController;
 use App\Http\Controllers\API\EmergencyAlertAPIController;
@@ -29,6 +30,11 @@ Route::get('/shifts-today', [ShiftController::class, 'getTodayShifts']);
 
 Route::get('/client/{id}', [ShiftController::class, 'getClient']);
 Route::get('/staff/{id}', [ShiftController::class, 'getStaff']);
+
+Route::get('/shift/{shiftDateId}/locations', [ShiftController::class, 'shiftLocations'])->name('shift.locations');
+
+
+Route::get('/dashboard-alerts', [AdminAPIController::class, 'dashboardAlerts']);
 
 //API routes for authentication api
 Route::prefix('auth')->group(function () {
@@ -54,24 +60,29 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->prefix('documents')->group(function () {
     Route::post('/', [DocumentAPIController::class, 'upload']);
     Route::get('/', [DocumentAPIController::class, 'index']);
-    Route::get('/alerts', [DocumentAPIController::class, 'alerts']);
 });
+Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('auth:sanctum');
 
 //Shifts api controller routes
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
-    Route::get('/shifts/upcoming', [ShiftApiController::class, 'getUpcomingShifts']);
+    Route::get('/shifts/all', [ShiftApiController::class, 'getShifts']);
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
+    Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);
+    Route::get('/holiday-Balance', [ShiftApiController::class, 'holidayBalances']);
     Route::post('/shifts/{shift_id}/acknowledge-documents', [ShiftApiController::class, 'acknowledgeDocuments']);
 
     Route::post('/shifts/{shiftDate_id}/book-on', [ShiftApiController::class, 'bookOn']);
     Route::post('/shifts/{shiftDate_id}/book-off', [ShiftApiController::class, 'bookOff']);
 
+    Route::get('/shifts/calendar', [ShiftApiController::class, 'calendar']);
+
     Route::get('/alarms/booking', [ShiftApiController::class, 'getBookingAlarms']);
     Route::post('/alarms/{alarm_id}/acknowledge', [ShiftApiController::class, 'acknowledgeAlarm']);
 
     Route::get('/shift-status', [ShiftApiController::class, 'checkDutyStatus']);
+    Route::get('/work-hours', [ShiftApiController::class, 'workHours']);
 });
 
 //Shifts api controller routes
@@ -80,23 +91,24 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/{shift_id}/check-calls', [CheckCallController::class, 'getCheckCalls']);
     Route::post('/check-calls/{check_call_id}/complete', [CheckCallController::class, 'completeCheckCall']);
     Route::get('/alarms/check-calls', [CheckCallController::class, 'getCheckCallAlarms']);
+    Route::post('/check-calls/phone-complete', [CheckCallController::class, 'phoneComplete']);
 });
-Route::post('/check-calls/phone-complete', [CheckCallController::class, 'phoneComplete']);
 
 //Patrols api controller routes
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/{shift_id}/patrols', [ShiftApiController::class, 'getPatrolRoutes']);
     Route::post('/patrols/checkpoints/{checkpoint_id}/scan', [ShiftApiController::class, 'scanCheckpoint']);
+    Route::post('/patrols/{patrol_id}/start', [ShiftApiController::class, 'startPatrol']);
     Route::post('/patrols/{patrol_id}/complete', [ShiftApiController::class, 'completePatrol']);
 });
 
 //DOB api controller routes
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
-    Route::post('/dob', [DobApiController::class,'store']);
-    Route::get('/dob', [DobApiController::class,'index']);
-    Route::put('/dob/{id}', [DobApiController::class,'update']);
+    Route::post('/dob', [DobApiController::class, 'store']);
+    Route::get('/dob', [DobApiController::class, 'index']);
+    Route::put('/dob/{id}', [DobApiController::class, 'update']);
 });
 
 
@@ -115,6 +127,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/messages/conversations/{conversation}', [MessageApiController::class, 'getMessages']);
     Route::post('/messages', [MessageApiController::class, 'sendMessage']);
     Route::post('/messages/mark-read', [MessageApiController::class, 'markRead']);
+    Route::post('/create-conversation', [MessageApiController::class, 'createConversation']);
+    Route::get('/users/search', [MessageApiController::class, 'searchUsers']);
+    Route::get('/users/roles', [MessageApiController::class, 'roles']);
 });
 
 //GPS Tracking api controller routes
@@ -122,6 +137,8 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/location/history', [LocationAPIController::class, 'history']);
     Route::post('/location/update', [LocationAPIController::class, 'update']);
+    Route::post('/location/disabled', [LocationAPIController::class, 'disabled']);
+    Route::get('/activity-check', [LocationAPIController::class, 'checkIdle']);
 });
 
 //Emergency/Panic Button api controller routes
@@ -129,15 +146,19 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/emergency/alert', [EmergencyAlertAPIController::class, 'trigger']);
     Route::post('/emergency/{alert}/cancel', [EmergencyAlertAPIController::class, 'cancel']);
+
 });
+Route::post('/emergency-alerts/{id}/acknowledge', [EmergencyAlertAPIController::class, 'acknowledge']);
 
 //Invoice Managment api controller routes
 //Should be authenticated
 Route::middleware('auth:sanctum')->prefix('invoices')->group(function () {
     Route::get('/shift-history', [InvoiceAPIController::class, 'shiftHistory']);
     Route::post('/', [InvoiceAPIController::class, 'submitInvoice']);
-    Route::get('/', [InvoiceAPIController::class, 'getInvoices']);
+    Route::get('/', [InvoiceAPIController::class, 'getPayrolls'])->name('invoices.list');
     Route::post('{invoice}/confirm-revision', [InvoiceAPIController::class, 'confirmRevision']);
+    Route::get('/{invoiceId}/pdf', [InvoiceAPIController::class, 'exportPayrollPdf'])
+        ->name('payrolls.exportPdf');
 });
 
 //Training & Bulletins Managment api controller routes
@@ -153,7 +174,6 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{notification_id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);
-    
 });
 
 // Route::middleware('auth:sanctum')->post('/notifications/mark-all-read', function () {
@@ -173,4 +193,9 @@ Route::middleware(['auth:sanctum'])->group(function () {
     Route::delete('/admin/messages/{message_id}', [AdminAPIController::class, 'deleteMessage']);
     Route::put('/admin/dob/{entry_id}/edit', [AdminAPIController::class, 'editDOBEntry']);
     Route::post('/admin/alarms/{alarm_id}/override', [AdminAPIController::class, 'overrideMissedAlarm']);
+});
+
+Route::middleware('auth:sanctum')->group(function () {
+    Route::get('/availability', [AvailabilityController::class, 'index']);
+    Route::put('/availability', [AvailabilityController::class, 'update']);
 });

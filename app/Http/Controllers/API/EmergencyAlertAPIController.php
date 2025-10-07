@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\API;
 
+use Notify;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use App\Models\EmergencyAlert;
 use App\Http\Controllers\Controller;
@@ -17,7 +19,7 @@ class EmergencyAlertAPIController extends Controller
             'location.address' => 'required|string',
             'enable_device_alarm' => 'required|boolean',
             'message' => 'nullable|string',
-            'timestamp' => 'required|date',
+            'timestamp' => 'date',
         ]);
 
         $alert = EmergencyAlert::create([
@@ -26,10 +28,25 @@ class EmergencyAlertAPIController extends Controller
             'longitude' => $validated['location']['longitude'],
             'address' => $validated['location']['address'],
             'enable_device_alarm' => $validated['enable_device_alarm'],
-            'message' => $validated['message'] ?? null,
-            'timestamp' => $validated['timestamp'],
+            'message' => 'Emergency: ' . Auth::user()->first_name . ' ' . Auth::user()->last_name . ' Activated panic Alarm',
+            'timestamp' => Carbon::now(),
             'acknowledged_by_control' => false
         ]);
+
+        send_push_notification(
+            Auth::id(),
+            'Emergency alert',
+            'Energmency alert has been triggered from your device!',
+            ['alert' => $alert]
+        );
+
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Panic button',
+            'Emergency alert button activated by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name . ' At ' . $alert->timestamp,
+            ""
+        );
 
         return response()->json([
             'alert_id' => $alert->id,
@@ -57,5 +74,25 @@ class EmergencyAlertAPIController extends Controller
         ]);
 
         return response()->json(['message' => 'Emergency alert cancelled']);
+    }
+
+    public function acknowledge($id)
+    {
+        $alert = EmergencyAlert::findOrFail($id);
+
+        if ($alert->acknowledged_by_control) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Alert already acknowledged'
+            ], 400);
+        }
+
+        $alert->update(['acknowledged_by_control' => true]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Alert acknowledged successfully',
+            'alert_id' => $alert->id
+        ]);
     }
 }
