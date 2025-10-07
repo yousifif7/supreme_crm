@@ -22,7 +22,7 @@
                                                 <label for="staff_id" class="form-label">Staff <span
                                                         class="text-danger">*</span></label>
                                                 <select name="staff_id" id="staff_id"
-                                                    class="form-select selec2_assign_modal" required>
+                                                    class="form-select selec2_assign_modal select2" required>
                                                     <option value="">-- Choose --</option>
                                                     @foreach ($staffs as $staff)
                                                         <option value="{{ $staff->id }}"

@@ -29,6 +29,71 @@ use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
 {
+
+
+    public function unassign(Request $request, $id)
+    {
+        $shiftDate = ShiftDate::findOrFail($id);
+        $shiftDate->staff_id = null; // Remove assigned staff
+        $shiftDate->is_assign=0;
+        $shiftDate->save();
+
+        return response()->json(['success' => true]);
+    }
+
+   public function generateContinuousPath($userId = 3102, $patrolId = 1277, $shiftDateId = 331, $points = 10)
+{
+    // Starting point (random within bounding box)
+    $latMin = 37.782;
+    $latMax = 37.790;
+    $lngMin = -122.447;
+    $lngMax = -122.435;
+
+    // Delete existing points for this patrol
+    Location::where('patrol_id', $patrolId)->delete();
+
+    $data = [];
+    $timestamp = Carbon::now()->subMinutes($points); // start time
+
+    // Starting coordinates
+    $latitude = mt_rand($latMin * 1000000, $latMax * 1000000) / 1000000;
+    $longitude = mt_rand($lngMin * 1000000, $lngMax * 1000000) / 1000000;
+
+    for ($i = 0; $i < $points; $i++) {
+        // Each next point is very close to previous (~10–50 meters)
+        $latOffset = mt_rand(-50, 50) / 1000000;
+        $lngOffset = mt_rand(-50, 50) / 1000000;
+
+        $latitude += $latOffset;
+        $longitude += $lngOffset;
+
+        // Clamp coordinates within bounding box
+        $latitude = max(min($latitude, $latMax), $latMin);
+        $longitude = max(min($longitude, $lngMax), $lngMin);
+
+        $accuracy = mt_rand(1, 20); // realistic accuracy
+        $onDuty = 1;
+        $timestamp->addSeconds(mt_rand(30, 60)); // gradual timestamp
+
+        $data[] = [
+            'user_id' => $userId,
+            'patrol_id' => $patrolId,
+            'shiftdate_id' => $shiftDateId,
+            'latitude' => $latitude,
+            'longitude' => $longitude,
+            'accuracy' => $accuracy,
+            'timestamp' => $timestamp->toDateTimeString(),
+            'on_duty' => $onDuty,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ];
+    }
+
+    Location::insert($data);
+
+    return "Inserted $points continuous heatmap points forming a smooth path!";
+}
+
     public function index(ShiftsDataTable $dataTable)
     {
         $clients = User::role('client')->orderBy('first_name', 'asc')->get();

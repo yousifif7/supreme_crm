@@ -38,7 +38,7 @@ class Client extends Model
     }
 
     public function logs()
-    {
-        return $this->morphMany(Log::class, 'loggable');
-    }
+{
+    return $this->morphMany(Log::class, 'loggable');
+}
 }

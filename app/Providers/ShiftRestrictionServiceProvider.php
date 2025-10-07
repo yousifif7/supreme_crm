@@ -26,6 +26,7 @@ class ShiftRestrictionServiceProvider extends ServiceProvider
 
         // Define admin-only override gate
         Gate::define('assign-shift-override', function ($user) {
+            \Log::info('Current user roles', auth()->user()->getRoleNames()->toArray());
             return $user->hasRole('superadmin'); // ✅ spatie/laravel-permission
         });
     }

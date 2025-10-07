@@ -37,7 +37,7 @@
                             <!-- Employee Type -->
                             <div class="col-md-3">
                                 <label for="employee_type" class="form-label">Employee Type</label>
-                                <select name="employee_type[]" id="employee_type" class="form-select employee-type-select"
+                                <select name="employee_type[]" id="employee_type" class="form-select select2 employee-type-select"
                                     multiple="multiple">
                                     <option value="security"
                                         {{ in_array('security', (array) $selectedTypes) ? 'selected' : '' }}>Security Staff
@@ -80,7 +80,7 @@
                         <div class="alert alert-warning m-3">No staff match the current filters.</div>
                     @else
                         <div class="table-responsive">
-                            <table id="staffTable" class="table table-striped">
+                            <table id="staffTable" class="table table-striped datatables">
                                 <thead>
                                     <tr>
                                         <th>Name / Company</th>
@@ -151,41 +151,41 @@
 @endsection
 
 @section('scripts')
-    <!-- Select2 CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
-    <!-- Select2 JS -->
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- Bootstrap 5 JS (if not already included in your layout) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
+    <!-- DataTables core + Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- Initialize DataTable -->
     <script>
-        $(document).ready(function() {
-            // Initialize select2 for employee type
-            $('#employee_type').select2({
-                placeholder: "Select employee type(s)",
-                allowClear: true,
-                width: '100%'
-            });
-        });
-    </script>
-
-    <!-- DataTables CSS & JS -->
-    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
-    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
-    <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
-
-    <script>
-        $(document).ready(function() {
-            $('#staffTable').DataTable({
+        $(document).ready(function () {
+            $('.datatables').DataTable({
+                responsive: true,
                 pageLength: 10,
-                ordering: true,
-                searching: true,
-                lengthMenu: [5, 10, 25, 50],
+                order: [[0, 'asc']],
                 language: {
                     search: "_INPUT_",
-                    searchPlaceholder: "Search staff..."
+                    searchPlaceholder: "Search client..."
                 }
             });
         });
     </script>
+
+    <style>
+        .dataTables_wrapper .dataTables_filter input {
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            width: 250px;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            border-radius: 6px !important;
+        }
+    </style>
 @endsection

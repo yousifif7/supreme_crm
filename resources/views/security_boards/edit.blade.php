@@ -25,7 +25,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Staff <span
                                                         class="text-danger">*</span></label>
-                                                <select name="staff_id" class="form-select select2_modal" id="staff_id"
+                                                <select name="staff_id" class="form-select select2_modal select2" id="staff_id"
                                                     required>
                                                     <option value="">--choose--</option>
                                                     @foreach ($staffs as $staff)

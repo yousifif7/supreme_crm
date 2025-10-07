@@ -48,7 +48,7 @@
                     <div class="alert alert-warning m-3">No checkpoints found for the selected filters.</div>
                 @else
                     <div class="table-responsive">
-                        <table id="checkpointTable" class="table table-striped">
+                        <table id="checkpointTable" class="table datatables table-striped">
                             <thead>
                                 <tr>
                                     <th>#</th>
@@ -84,17 +84,41 @@
 </div>
 @endsection
 @section('scripts')
-    <!-- Select2 -->
-    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 
+    <!-- Bootstrap 5 JS (if not already included in your layout) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- DataTables core + Bootstrap 5 integration -->
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/dataTables.bootstrap5.min.css">
+    <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
+
+    <!-- Initialize DataTable -->
     <script>
-        $(function() {
-            $('.select2').select2({
-                placeholder: "Select an option",
-                allowClear: true,
-                width: '100%'
+        $(document).ready(function () {
+            $('.datatables').DataTable({
+                responsive: true,
+                pageLength: 10,
+                order: [[0, 'asc']],
+                language: {
+                    search: "_INPUT_",
+                    searchPlaceholder: "Search client..."
+                }
             });
         });
     </script>
+
+    <style>
+        .dataTables_wrapper .dataTables_filter input {
+            border-radius: 8px;
+            border: 1px solid #ccc;
+            padding: 6px 10px;
+            width: 250px;
+        }
+        .dataTables_wrapper .dataTables_paginate .paginate_button {
+            border-radius: 6px !important;
+        }
+    </style>
 @endsection

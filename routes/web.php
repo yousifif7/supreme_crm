@@ -46,6 +46,9 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 
+Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
+
+
 Route::group(['middleware' => ['auth']], function () {
     // Chat routes
     Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
@@ -79,6 +82,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/incident_report/export/pdf', [IncidentReportController::class, 'exportIncidentPdf'])->name('incident_report.export.pdf');
 
+Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name('shifts.unassign');
 
 
     Route::get('/dashboard', [UserController::class, 'dashboard'])->name('dashboard');

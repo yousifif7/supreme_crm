@@ -38,7 +38,7 @@ class VehiclesDataTable extends DataTable
                 return \Carbon\Carbon::parse($vehicle->first_registration_date)->format('d M Y');
             })
             ->editColumn('odometer_reading', function ($vehicle) {
-                return number_format($vehicle->odometer_reading) . ' mile ';
+                return number_format($vehicle->odometer_reading) . ' mile';
             })
             ->filterColumn('assigned_to', function($query, $keyword) {
                 $query->where('assigned_to', 'like', "%{$keyword}%");

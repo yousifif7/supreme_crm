@@ -151,94 +151,85 @@
             box-shadow: 0 6px 14px rgba(40, 167, 69, 0.6);
             transform: translateY(-2px);
         }
-
-        /* .btn-outline-assign {
-                                                                                                                                                                    background: #fff;
-                                                                                                                                                                    color: #28a745;
-                                                                                                                                                                    border: 2px solid #28a745;
-                                                                                                                                                                    border-radius: 6px;
-                                                                                                                                                                    padding: 8px 16px;
-                                                                                                                                                                    font-weight: 600;
-                                                                                                                                                                    transition: all 0.2s;
-                                                                                                                                                                }
-
-                                                                                                                                                                .btn-outline-assign:hover {
-                                                                                                                                                                    background: #28a745;
-                                                                                                                                                                    color: #fff;
-                                                                                                                                                                    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
-                                                                                                                                                                }
-
-                                                                                                                                                                .btn-assign-pill {
-                                                                                                                                                                    background-color: #28a745;
-                                                                                                                                                                    color: #fff;
-                                                                                                                                                                    border-radius: 50px;
-                                                                                                                                                                    padding: 8px 22px;
-                                                                                                                                                                    font-weight: bold;
-                                                                                                                                                                    transition: all 0.2s;
-                                                                                                                                                                }
-
-                                                                                                                                                                .btn-assign-pill:hover {
-                                                                                                                                                                    background-color: #218838;
-                                                                                                                                                                    color:while;
-                                                                                                                                                                    transform: scale(1.05);
-                                                                                                                                                                } */
-    #custom-toast-container {
+#custom-toast-container {
     position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 2147483647; /* Max possible z-index to be above everything */
+    top: 10%;
+    left: 52%;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    width: 90%;        /* Responsive width */
+    max-width: 400px;  /* Maximum width on larger screens */
 }
 
 .custom-toast {
-    display: flex;
-    align-items: center;
     background: #fff3cd;
-    border-left: 5px solid #ffc107;
-    padding: 12px 16px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-    min-width: 300px;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    color: #856404;
+    border: 1px solid #ffeeba;
+    padding: 16px 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     opacity: 0;
-    transform: translateX(100%);
-    transition: all 0.3s ease;
-    font-family: Arial, sans-serif;
+    transform: translateY(-20px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .custom-toast.show {
     opacity: 1;
-    transform: translateX(0);
+    transform: translateY(0);
 }
 
-.custom-toast .toast-icon {
-    font-size: 20px;
-    margin-right: 12px;
+.toast-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    text-align: center;
 }
 
-.custom-toast .toast-content {
-    flex: 1;
+.toast-content p {
+    margin: 0 0 10px 0;
+    text-align: center;
+    word-wrap: break-word;
 }
 
-.custom-toast .toast-content p {
-    margin: 0 0 8px 0;
-    font-size: 14px;
-    color: #856404;
+.toast-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;  /* Wrap buttons on small screens */
 }
 
-.custom-toast .override-btn {
+.toast-actions button {
     padding: 6px 12px;
-    font-size: 13px;
-    font-weight: bold;
-    background-color: #dc3545; /* red for admin action */
-    color: #fff;
     border: none;
     border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    flex: 1 1 auto;   /* Make buttons responsive */
+    min-width: 100px;
 }
 
-.custom-toast .override-btn:hover {
-    background-color: #c82333;
+.override-btn {
+    background-color: #ffc107;
+    color: #212529;
+}
+
+.confirm-btn {
+    background-color: #28a745;
+    color: #fff;
+}
+
+.cancel-btn {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+/* Optional: small screens tweaks */
+@media (max-width: 480px) {
+    #custom-toast-container {
+        width: 100%;
+    }
+    .toast-actions button {
+        font-size: 14px;
+        padding: 8px;
+    }
 }
 
 
@@ -259,11 +250,16 @@
                 </div>
             @endif
             <!-- Breadcrumb -->
-            <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
-                <div class="my-auto mb-2">
-                    <h2 class="mb-1">Shift details</h2>
-                </div>
-            </div>
+          <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
+    <div class="my-auto mb-2">
+        <h2 class="mb-1">Shift details</h2>
+    </div>
+    <div class="my-auto mb-2">
+        <button class="btn btn-danger" onclick="closeTab()">× Close</button>
+    </div>
+</div>
+
+
             <div class="row" id="eventModal">
                 <div class="tabs-parent_main">
                     <div class="tabs-parent nav nav-tabs" role="tablist">
@@ -309,9 +305,23 @@
                                             </div>
 
                                             <div class="profile-details">
-                                                <h6 id="name">{{ $shiftDate->staff?->first_name ?? '' }}
-                                                    {{ $shiftDate->staff?->last_name ?? '' }} <a href="#"
-                                                        onclick="editShift({{ $shiftDate->id }})">Edit</a></h6>
+                                               <h6 id="name">
+    {{ $shiftDate->staff?->first_name ?? '' }}
+    {{ $shiftDate->staff?->last_name ?? '' }}
+    
+    <!-- Edit Icon -->
+    <a href="#" onclick="editShift({{ $shiftDate->id }})" title="Edit Shift">
+        <i class="fas fa-edit"></i> <!-- FontAwesome Edit Icon -->
+    </a>
+
+    <!-- Unassign Icon -->
+    @if($shiftDate->staff)
+        <a href="#" onclick="unassignShift({{ $shiftDate->id }})" title="Unassign Shift">
+            <i class="fas fa-user-slash"></i> <!-- FontAwesome Unassign Icon -->
+        </a>
+    @endif
+</h6>
+
                                                 <div class="mb-1">
                                                     <i class="ti ti-phone"></i>
                                                     <span id="phone_number">{{ $shiftDate->staff?->contact ?? '' }}</span>
@@ -1189,20 +1199,20 @@ function showRestrictionToast(message, onOverride) {
         });
     </script>
 
-    <script>
-
+   <script>
 function initPatrolMap(patrolId, shiftDateId, checkpoints) {
     const mapDiv = document.getElementById("patrol-map-" + patrolId);
     if (!mapDiv) return;
 
     const map = new google.maps.Map(mapDiv, {
-        zoom: 14,
+        zoom: 16,
         center: { lat: 0, lng: 0 },
         mapTypeId: "roadmap",
     });
 
     const bounds = new google.maps.LatLngBounds();
     let hasPoints = false;
+    let heatmap = null; // 🔸 We'll initialize later
 
     // 🔹 Draw checkpoints
     checkpoints.forEach(cp => {
@@ -1211,124 +1221,198 @@ function initPatrolMap(patrolId, shiftDateId, checkpoints) {
         if (!isNaN(lat) && !isNaN(lng)) {
             hasPoints = true;
             const pos = { lat, lng };
-            const marker = new google.maps.Marker({
+            new google.maps.Marker({
                 position: pos,
                 map,
                 title: cp.name,
-                icon: "http://maps.google.com/mapfiles/ms/icons/green-dot.png"
+                icon: {
+                    url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                    scaledSize: new google.maps.Size(40, 40)
+                }
             });
             bounds.extend(pos);
         }
     });
 
     // 🔹 Fetch guard locations
-    fetch(/patrol/${patrolId}/locations?shiftDateId=${shiftDateId})
+    fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
         .then(res => res.json())
         .then(data => {
             const locations = data.locations || [];
-            if (locations.length) {
-                hasPoints = true;
-
-                // Start & End markers
-                new google.maps.Marker({
-                    position: {
-                        lat: parseFloat(locations[0].latitude),
-                        lng: parseFloat(locations[0].longitude)
-                    },
-                    map,
-                    label: "S"
-                });
-
-                new google.maps.Marker({
-                    position: {
-                        lat: parseFloat(locations[locations.length - 1].latitude),
-                        lng: parseFloat(locations[locations.length - 1].longitude)
-                    },
-                    map,
-                    label: "E"
-                });
-
-                // Heatmap with adjusted visibility
-                const heatmap = new google.maps.visualization.HeatmapLayer({
-                    data: [],
-                    radius: 40, // Increased from 25
-                    opacity: 0.95, // Increased opacity
-                    dissipating: true,
-                    maxIntensity: 50, // Lower threshold for maximum color intensity
-                    gradient: [
-                        'rgba(0,0,0,0)',
-                        'rgba(0,255,0,0.6)',
-                        'rgba(255,165,0,0.7)',
-                        'rgba(255,0,0,0.9)',
-                        'rgba(128,0,0,1)'
-                    ]
-                });
-                heatmap.setMap(map);
-
-                // Dynamic radius adjustment based on zoom level
-                google.maps.event.addListener(map, 'zoom_changed', function() {
-                    const zoom = map.getZoom();
-                    // Adjust radius inversely with zoom to maintain visual consistency
-                    // At zoom 10: radius ~35, at zoom 15: radius ~22.5, at zoom 20: radius ~10
-                    const radius = Math.max(15, 60 - (zoom * 2.5));
-                    heatmap.set('radius', radius);
-                });
-
-                // 🔹 Animate guard movement
-                let index = 0;
-                function addNextPoint() {
-                    if (index >= locations.length) return;
-
-                    const loc = locations[index];
-                    const baseLat = parseFloat(loc.latitude);
-                    const baseLng = parseFloat(loc.longitude);
-                    const point = new google.maps.LatLng(baseLat, baseLng);
-
-                    // Densify every point with weighted locations
-                    for (let i = 0; i < 100; i++) { 
-                        const jitterLat = baseLat + (Math.random() - 0.5) * 0.00005; 
-                        const jitterLng = baseLng + (Math.random() - 0.5) * 0.00005;
-                        heatmap.getData().push({
-                            location: new google.maps.LatLng(jitterLat, jitterLng),
-                            weight: 1.5 // Increased weight for better visibility
-                        });
-                    }
-
-                    // 🔹 Interpolate between points to create a line effect
-                    if (index > 0) {
-                        const prev = locations[index - 1];
-                        const prevLat = parseFloat(prev.latitude);
-                        const prevLng = parseFloat(prev.longitude);
-
-                        const stepCount = 10;
-                        for (let j = 1; j < stepCount; j++) {
-                            const lat = prevLat + (baseLat - prevLat) * (j / stepCount);
-                            const lng = prevLng + (baseLng - prevLng) * (j / stepCount);
-                            for (let k = 0; k < 10; k++) { // densify each midpoint
-                                heatmap.getData().push({
-                                    location: new google.maps.LatLng(lat, lng),
-                                    weight: 1.5
-                                });
-                            }
-                        }
-                    }
-
-                    bounds.extend(point);
+            if (locations.length === 0) {
+                if (!hasPoints) {
+                    map.setCenter({ lat: 51.5074, lng: -0.1278 });
+                    map.setZoom(16);
+                } else {
                     map.fitBounds(bounds);
-
-                    index++;
-                    setTimeout(addNextPoint, 150);
+                    google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+                        if (map.getZoom() > 16) {
+                            map.setZoom(16);
+                        }
+                    });
                 }
-                addNextPoint();
+                return;
             }
 
-            if (!hasPoints) {
-                map.setCenter({ lat: 51.5074, lng: -0.1278 });
-                map.setZoom(14);
+            // Filter valid locations
+            const validLocations = locations.filter(loc => {
+                const lat = parseFloat(loc.latitude);
+                const lng = parseFloat(loc.longitude);
+                return !isNaN(lat) && !isNaN(lng);
+            });
+
+            if (validLocations.length === 0) return;
+
+            hasPoints = true;
+
+            // Create polyline for route
+            const pathCoordinates = validLocations.map(loc => ({
+                lat: parseFloat(loc.latitude),
+                lng: parseFloat(loc.longitude)
+            }));
+
+            const routePolyline = new google.maps.Polyline({
+                path: pathCoordinates,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                strokeOpacity: 0.2,
+                strokeWeight: 1,
+                map: map
+            });
+
+            // Start marker
+            if (validLocations[0]) {
+                new google.maps.Marker({
+                    position: {
+                        lat: parseFloat(validLocations[0].latitude),
+                        lng: parseFloat(validLocations[0].longitude)
+                    },
+                    map,
+                    label: {
+                        text: "START",
+                        color: "#FFFFFF",
+                        fontWeight: "bold",
+                        fontSize: "14px"
+                    },
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                        scaledSize: new google.maps.Size(45, 45)
+                    }
+                });
             }
+
+            // End marker
+            if (validLocations.length > 1) {
+                new google.maps.Marker({
+                    position: {
+                        lat: parseFloat(validLocations[validLocations.length - 1].latitude),
+                        lng: parseFloat(validLocations[validLocations.length - 1].longitude)
+                    },
+                    map,
+                    label: {
+                        text: "END",
+                        color: "#FFFFFF",
+                        fontWeight: "bold",
+                        fontSize: "14px"
+                    },
+                    icon: {
+                        url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                        scaledSize: new google.maps.Size(45, 45)
+                    }
+                });
+            }
+
+            // 🔹 Heatmap setup
+            heatmap = new google.maps.visualization.HeatmapLayer({
+                data: validLocations.map(loc =>
+                    new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude))
+                ),
+                radius: 20,
+                opacity: 0.7,
+                dissipating: true,
+                maxIntensity: 5,
+                gradient: [
+                    'rgba(0, 255, 0, 0)',
+                    'rgba(0, 255, 0, 0.6)',
+                    'rgba(255, 255, 0, 0.7)',
+                    'rgba(255, 165, 0, 0.8)',
+                    'rgba(255, 0, 0, 0.9)'
+                ],
+                map: map
+            });
+
+            // Extend map bounds
+            validLocations.forEach(loc => {
+                bounds.extend({
+                    lat: parseFloat(loc.latitude),
+                    lng: parseFloat(loc.longitude)
+                });
+            });
+            map.fitBounds(bounds);
+
+            setTimeout(() => {
+                if (map.getZoom() < 16) map.setZoom(16);
+            }, 200);
+
+            // 🔸 Add Heatmap Controls
+            addHeatmapControls(map, heatmap);
         })
-        .catch(err => console.error(err));
+        .catch(err => console.error("Error fetching patrol locations:", err));
 }
+
+// 🔸 Adds toggle, radius, opacity, gradient controls
+function addHeatmapControls(map, heatmap) {
+    const controlDiv = document.createElement("div");
+    controlDiv.style.background = "#fff";
+    controlDiv.style.border = "1px solid #999";
+    controlDiv.style.borderRadius = "6px";
+    controlDiv.style.padding = "6px";
+    controlDiv.style.margin = "10px";
+    controlDiv.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+    controlDiv.innerHTML = `
+        <button id="toggleHeatmap">Toggle Heatmap</button>
+        <button id="changeGradient">Change Gradient</button>
+        <button id="changeRadius">Change Radius</button>
+        <button id="changeOpacity">Change Opacity</button>
+    `;
+    map.controls[google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
+
+    // Default gradient from Google demo
+    const gradient = [
+        "rgba(0, 255, 255, 0)",
+        "rgba(0, 255, 255, 1)",
+        "rgba(0, 191, 255, 1)",
+        "rgba(0, 127, 255, 1)",
+        "rgba(0, 63, 255, 1)",
+        "rgba(0, 0, 255, 1)",
+        "rgba(0, 0, 223, 1)",
+        "rgba(0, 0, 191, 1)",
+        "rgba(0, 0, 159, 1)",
+        "rgba(0, 0, 127, 1)",
+        "rgba(63, 0, 91, 1)",
+        "rgba(127, 0, 63, 1)",
+        "rgba(191, 0, 31, 1)",
+        "rgba(255, 0, 0, 1)"
+    ];
+
+    // Button actions
+    controlDiv.querySelector("#toggleHeatmap").addEventListener("click", () => {
+        heatmap.setMap(heatmap.getMap() ? null : map);
+    });
+
+    controlDiv.querySelector("#changeGradient").addEventListener("click", () => {
+        heatmap.set("gradient", heatmap.get("gradient") ? null : gradient);
+    });
+
+    controlDiv.querySelector("#changeRadius").addEventListener("click", () => {
+        heatmap.set("radius", heatmap.get("radius") === 20 ? 40 : 20);
+    });
+
+    controlDiv.querySelector("#changeOpacity").addEventListener("click", () => {
+        heatmap.set("opacity", heatmap.get("opacity") === 0.7 ? 0.3 : 0.7);
+    });
+}
+
 
 // 🔹 Initialize maps
 window.onload = function() {
@@ -1496,6 +1580,57 @@ window.onload = function() {
             setup24hTimeInput("absentee_end_time");
         });
     </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+function closeTab() {
+    window.close(); // Attempts to close the current tab
+}
+
+function unassignShift(shiftId) {
+    Swal.fire({
+        title: 'Are you sure?',
+        text: "Do you want to unassign this shift?",
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#28a745',
+        cancelButtonColor: '#dc3545',
+        confirmButtonText: 'Yes, Unassign',
+        cancelButtonText: 'Cancel'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            fetch(`/shifts/${shiftId}/unassign`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                    'Accept': 'application/json',
+                },
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    Swal.fire(
+                        'Unassigned!',
+                        'Shift has been unassigned successfully.',
+                        'success'
+                    ).then(() => location.reload()); // refresh after success
+                } else {
+                    Swal.fire(
+                        'Error!',
+                        'Failed to unassign shift.',
+                        'error'
+                    );
+                }
+            })
+            .catch(err => {
+                console.error(err);
+                Swal.fire('Error!', 'Something went wrong.', 'error');
+            });
+        }
+    });
+}
+
+</script>
 
 
 

@@ -126,11 +126,7 @@
                 }
             });
 
-            $('#name').select2({
-                width: '100%',
-                placeholder: "-- Choose Employee --",
-                allowClear: true
-            });
+     
         });
     </script>
 @endsection

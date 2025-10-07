@@ -43,7 +43,7 @@
     <link rel="stylesheet" href="{{ asset('assets/css/bootstrap-datetimepicker.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/plugins/@simonwep/pickr/themes/nano.min.css') }}">
     <link rel="stylesheet" href="{{ asset('assets/toast/toast.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/toast/alerts1.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/toast/alerts2.css') }}">
     <!-- Defer Theme Script -->
     {{-- <script src="{{ asset('assets/js/jquery-3.7.1.min.js') }}"></script> --}}
     {{-- <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js" integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script> --}}
@@ -422,11 +422,15 @@ document.addEventListener('click', () => {
     <script src="https://smarthr.co.in/demo/html/template/assets/plugins/fullcalendar/index.global.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
-    <!-- Custom Scripts -->
+
+
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
-    <script src="{{ asset('assets/toast/alerts.js') }}" defer></script>
+    <script src="{{ asset('assets/toast/alerts6.js') }}" defer></script>
+        @yield('scripts')
+
+    @stack('scripts')
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
         if (addShiftBtn) {
@@ -641,9 +645,6 @@ document.addEventListener('click', () => {
             });
         });
     </script>
-    @yield('scripts')
-
-    @stack('scripts')
 </body>
 
 </html>

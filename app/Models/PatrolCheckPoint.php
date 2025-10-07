@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\CheckpointScan;
 use Illuminate\Database\Eloquent\Model;
 
 class PatrolCheckPoint extends Model
