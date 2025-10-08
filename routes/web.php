@@ -480,6 +480,7 @@ Route::get('/reports/clients', [ReportController::class, 'clientReport'])
     ->name('reports.clients');
 
 Route::get('/reports/checkpoints', [ReportController::class, 'checkpointReport'])->name('report.checkpoints');    
+Route::get('/reports/salary', [ReportController::class, 'salaryReport'])->name('salary.report');    
 
 Route::get('/reports/clients/export/pdf', [ReportController::class, 'exportClientReportPDF'])->name('client.report.export.pdf');
 Route::get('/reports/clients/export/excel', [ReportController::class, 'exportClientReportExcel'])->name('client.report.export.excel');

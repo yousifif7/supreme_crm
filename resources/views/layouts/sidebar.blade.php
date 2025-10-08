@@ -202,6 +202,12 @@
                                           </a>
                                       </li>
 
+                                      <li class="{{ request()->is('reports/salary*') ? 'active' : '' }}">
+                                          <a href="{{ route('salary.report') }}">
+                                              <i class="ti ti-cash"></i> Salary Report
+                                          </a>
+                                      </li>
+
                                       {{-- <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.employment') }}">
                                               <i class="ti ti-checkup-list"></i>Salary Sheet
