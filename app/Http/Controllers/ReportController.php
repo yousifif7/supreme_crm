@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Carbon\Carbon;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Client;
@@ -14,6 +15,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\PatrolCheckPoint;
 use App\Exports\Reports\ArrayExport;
 use Maatwebsite\Excel\Facades\Excel;
+use App\Exports\Reports\PerformanceReportExport;
 use App\Exports\Reports\ShiftReportExport;
 use App\Exports\Reports\StaffReportExport;
 use App\Exports\Reports\ClientReportExport;
@@ -316,6 +318,336 @@ class ReportController extends Controller
             'selectedSite' => $selectedSite,
             'fromDate' => $fromDate,
             'toDate' => $toDate,
+        ]);
+    }
+
+    public function performanceReport(Request $request)
+    {
+        $from = $request->input('from_date');
+        $to = $request->input('to_date');
+        $clientId = $request->input('client_id');
+        $siteId = $request->input('site_id');
+
+        // Build with-array defensively: always include required relations
+        $with = ['shift', 'shift.client', 'shift.site', 'shift.staff'];
+
+        // Detect optional relation names on ShiftDate model to avoid runtime errors
+        if (method_exists(ShiftDate::class, 'checkcalls')) $with[] = 'checkcalls';
+        if (method_exists(ShiftDate::class, 'patrols')) $with[] = 'patrols';
+        if (method_exists(ShiftDate::class, 'checkpoints')) $with[] = 'checkpoints';
+        if (method_exists(ShiftDate::class, 'patrolCheckpoints')) $with[] = 'patrolCheckpoints';
+
+        $query = ShiftDate::query()->with($with)
+            ->when($from, fn($q) => $q->whereDate('shift_date', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('shift_date', '<=', $to))
+            ->when($clientId, function ($q) use ($clientId) {
+                $q->whereHas('shift.client', fn($q2) => $q2->where('id', $clientId));
+            })
+            ->when($siteId, function ($q) use ($siteId) {
+                $q->whereHas('shift.site', fn($q2) => $q2->where('id', $siteId));
+            });
+
+        $shiftDates = $query->get();
+
+        // status labels
+        $statusOptions = [
+            0 => 'Pending',
+            1 => 'Dispatched',
+            2 => 'Accepted',
+            3 => 'Started',
+            4 => 'Ended',
+            5 => 'Rejected',
+            6 => 'Cancelled',
+            7 => 'Pre-start',
+            8 => 'Await-finish',
+        ];
+
+        // per-staff stats
+        // REPLACEMENT: update the $stats construction to group by ShiftDate.staff_id
+        $minuteCalculator = (isset($computeMinutes) && is_callable($computeMinutes))
+            ? $computeMinutes
+            : function ($sd) {
+                // simple fallback: combine shift_date + start_time/end_time if present
+                try {
+                    $date = $sd->shift_date ?? $sd->date ?? null;
+                    $start = $sd->start_time ?? null;
+                    $end = $sd->end_time ?? null;
+                    if ($start && $end) {
+                        if ($date) {
+                            $s = \Carbon\Carbon::parse($date . ' ' . $start);
+                            $e = \Carbon\Carbon::parse($date . ' ' . $end);
+                        } else {
+                            $s = \Carbon\Carbon::parse($start);
+                            $e = \Carbon\Carbon::parse($end);
+                        }
+                        if ($e->lte($s)) $e->addDay();
+                        return max(0, $e->diffInMinutes($s));
+                    }
+                } catch (\Exception $e) {
+                    // ignore and fall through
+                }
+                return 0;
+            };
+
+        // REPLACEMENT SNIPPET: updated grouping, accurate minutes calculation (end - start), and move "Unassigned" to top
+        $minuteCalculator = function ($sd) {
+            // prefer explicit date on ShiftDate, then fallback to related shift
+            $date = $sd->shift_date ?? $sd->date ?? ($sd->shift->shift_date ?? null);
+
+            // common time field candidates (24-hour format)
+            $startCandidates = ['start_time', 'book_on', 'booked_on', 'start_time_local', 'start'];
+            $endCandidates   = ['end_time', 'book_off', 'booked_off', 'end_time_local', 'end'];
+
+            $start = null;
+            $end = null;
+            foreach ($startCandidates as $f) {
+                if (!empty($sd->{$f})) {
+                    $start = (string)$sd->{$f};
+                    break;
+                }
+            }
+            foreach ($endCandidates as $f) {
+                if (!empty($sd->{$f})) {
+                    $end = (string)$sd->{$f};
+                    break;
+                }
+            }
+
+            // if times missing on ShiftDate, try shift scheduled times
+            if ((!$start || !$end) && !empty($sd->shift)) {
+                foreach ($startCandidates as $f) {
+                    if (!$start && !empty($sd->shift->{$f})) {
+                        $start = (string)$sd->shift->{$f};
+                    }
+                }
+                foreach ($endCandidates as $f) {
+                    if (!$end && !empty($sd->shift->{$f})) {
+                        $end = (string)$sd->shift->{$f};
+                    }
+                }
+            }
+
+            if (!$start || !$end) {
+                return 0;
+            }
+
+            try {
+                // combine with date if available (normalize to Y-m-d)
+                if ($date) {
+                    $base = \Carbon\Carbon::parse($date)->toDateString();
+                    $startDT = \Carbon\Carbon::parse($base . ' ' . $start);
+                    $endDT   = \Carbon\Carbon::parse($base . ' ' . $end);
+                } else {
+                    // parse times only (will use today's date) — still compute delta and handle cross-midnight
+                    $startDT = \Carbon\Carbon::parse($start);
+                    $endDT   = \Carbon\Carbon::parse($end);
+                }
+
+                // If end is same or before start, assume it crosses midnight -> add one day
+                if ($endDT->lessThanOrEqualTo($startDT)) {
+                    $endDT->addDay();
+                }
+
+                // compute minutes by subtracting start from end (end - start)
+                return $startDT->diffInMinutes($endDT);
+            } catch (\Exception $e) {
+                return 0;
+            }
+        };
+
+        // Group by staff_id directly on ShiftDate (staff relation lives on ShiftDate).
+        $stats = $shiftDates
+            ->groupBy(fn($sd) => $sd->staff_id ?? 'unassigned')
+            ->map(function ($group, $staffId) use ($statusOptions, $minuteCalculator) {
+                $first = $group->first();
+
+                // Use direct staff relation on ShiftDate (not shift->staff)
+                $staffName = ($first && isset($first->staff) && $first->staff)
+                    ? trim(($first->staff->first_name ?? '') . ' ' . ($first->staff->last_name ?? ''))
+                    : 'Unassigned';
+
+                $totalShifts = $group->count();
+
+                // sum durations (minutes) for each ShiftDate: end - start
+                $totalMinutes = $group->reduce(function ($carry, $sd) use ($minuteCalculator) {
+                    return $carry + (int) $minuteCalculator($sd);
+                }, 0);
+
+                $totalHours = round($totalMinutes / 60, 2);
+
+                $statusCounts = array_fill_keys(array_keys($statusOptions), 0);
+                foreach ($group as $sd) {
+                    $code = null;
+                    if (isset($sd->is_assign)) $code = $sd->is_assign;
+                    elseif (isset($sd->status)) $code = $sd->status;
+                    elseif (isset($sd->shift) && isset($sd->shift->status)) $code = $sd->shift->status;
+                    if ($code === null) $code = 0;
+                    if (!array_key_exists($code, $statusCounts)) continue;
+                    $statusCounts[$code]++;
+                }
+
+                return [
+                    'staff_id' => $staffId,
+                    'staff_name' => $staffName,
+                    'total_shifts' => $totalShifts,
+                    'total_hours' => $totalHours,
+                    'status_counts' => $statusCounts,
+                ];
+            });
+
+        // Ensure "Unassigned" appears at the top of the collection
+        $stats = $stats->sortByDesc(function ($row) {
+            return ($row['staff_id'] === 'unassigned') ? 1 : 0;
+        })->values();
+        // --- compute the five totals requested ---
+
+        $isMissed = function ($item) {
+            if (!$item) return false;
+            if (isset($item->is_missed)) return (bool)$item->is_missed;
+            if (isset($item->missed)) return (bool)$item->missed;
+            if (isset($item->status) && is_string($item->status)) {
+                $s = strtolower($item->status);
+                return in_array($s, ['missed', 'failed', 'no-response', 'not-checked']);
+            }
+            if (isset($item->result) && is_string($item->result)) {
+                $r = strtolower($item->result);
+                return in_array($r, ['missed', 'failed']);
+            }
+            return false;
+        };
+
+        $totalShiftsToClient = $shiftDates->count();
+        $totalUnassignedShifts = $shiftDates->filter(fn($sd) => !($sd->shift && $sd->shift->staff_id))->count();
+        $totalCompletedShifts = $shiftDates->filter(function ($sd) {
+            if (isset($sd->is_assign) && $sd->is_assign == 4) return true;
+            if (isset($sd->status) && $sd->status == 4) return true;
+            if (isset($sd->shift) && isset($sd->shift->status) && $sd->shift->status == 4) return true;
+            return false;
+        })->count();
+
+        $totalMissedCheckcalls = 0;
+        $totalMissedPatrols = 0;
+
+        $checkcallRelation = method_exists(ShiftDate::class, 'checkcalls') ? 'checkcalls' : (method_exists(ShiftDate::class, 'check_call_attempts') ? 'check_call_attempts' : null);
+        $patrolRelation = method_exists(ShiftDate::class, 'patrols') ? 'patrols' : (method_exists(ShiftDate::class, 'checkpoints') ? 'checkpoints' : (method_exists(ShiftDate::class, 'patrolCheckpoints') ? 'patrolCheckpoints' : null));
+
+        if ($checkcallRelation) {
+            foreach ($shiftDates as $sd) {
+                $items = $sd->{$checkcallRelation} ?? collect();
+                foreach ($items as $it) {
+                    if ($isMissed($it)) $totalMissedCheckcalls++;
+                }
+            }
+        }
+
+        if ($patrolRelation) {
+            foreach ($shiftDates as $sd) {
+                $items = $sd->{$patrolRelation} ?? collect();
+                foreach ($items as $it) {
+                    if ($isMissed($it)) $totalMissedPatrols++;
+                }
+            }
+        }
+
+        // Dropdowns
+        $clients = User::role('client')->pluck('name', 'id');
+        $sites = collect();
+        if ($clientId) $sites = Site::where('client_id', $clientId)->pluck('site_name', 'id');
+
+        // Totals array passed to view / exports
+        $totals = [
+            'total_shifts_to_client' => $totalShiftsToClient,
+            'total_missed_checkcalls' => $totalMissedCheckcalls,
+            'total_missed_patrols' => $totalMissedPatrols,
+            'total_unassigned_shifts' => $totalUnassignedShifts,
+            'total_completed_shifts' => $totalCompletedShifts,
+        ];
+
+        // ---------- Export handling ----------
+        if ($request->filled('export')) {
+            $exportType = $request->input('export');
+            $fileNameBase = 'Performance_Report_' . now()->format('Y_m_d_His');
+
+            // Prepare data for exports (convert collections to arrays to avoid serialization issues)
+            $statsArray = $stats->map(fn($r) => [
+                'staff_id' => $r['staff_id'],
+                'staff_name' => $r['staff_name'],
+                'total_shifts' => $r['total_shifts'],
+                'total_hours' => $r['total_hours'],
+                'status_counts' => $r['status_counts'],
+            ])->toArray();
+
+            if ($exportType === 'pdf') {
+                $pdf = PDF::loadView('reports.pdf.performance-pdf', [
+                    'stats' => $statsArray,
+                    'statusOptions' => $statusOptions,
+                    'totals' => $totals,
+                    'filters' => ['from' => $from, 'to' => $to, 'client' => $clientId, 'site' => $siteId],
+                ]);
+                return $pdf->download($fileNameBase . '.pdf');
+            }
+
+            if ($exportType === 'excel') {
+                // Use the export class that accepts associative data
+                return Excel::download(new PerformanceReportExport([
+                    'stats' => $statsArray,
+                    'statusOptions' => $statusOptions,
+                    'totals' => $totals,
+                ]), $fileNameBase . '.xlsx');
+            }
+
+            // CSV fallback
+            $csvName = $fileNameBase . '.csv';
+            $callback = function () use ($statsArray, $statusOptions, $totals) {
+                $out = fopen('php://output', 'w');
+                $headers = ['Staff ID', 'Staff Name', 'Total Shifts', 'Total Hours'];
+                foreach ($statusOptions as $label) $headers[] = $label;
+                fputcsv($out, $headers);
+
+                foreach ($statsArray as $row) {
+                    $line = [
+                        $row['staff_id'],
+                        $row['staff_name'],
+                        $row['total_shifts'],
+                        $row['total_hours'],
+                    ];
+                    foreach ($statusOptions as $code => $label) {
+                        $line[] = $row['status_counts'][$code] ?? 0;
+                    }
+                    fputcsv($out, $line);
+                }
+
+                // Optionally append totals row
+                fputcsv($out, []); // blank row
+                $totalsRow = [
+                    'Totals',
+                    '',
+                    $totals['total_shifts_to_client'] ?? '',
+                    '', // total hours blank
+                ];
+                foreach ($statusOptions as $code => $label) $totalsRow[] = '';
+                fputcsv($out, $totalsRow);
+
+                fclose($out);
+            };
+
+            return response()->stream($callback, 200, [
+                "Content-Type" => "text/csv",
+                "Content-Disposition" => "attachment; filename={$csvName}",
+            ]);
+        }
+
+        // Default: return view with data
+        return view('reports.performance', [
+            'stats' => $stats,
+            'clients' => $clients,
+            'sites' => $sites,
+            'selectedClient' => $clientId,
+            'selectedSite' => $siteId,
+            'fromDate' => $from,
+            'toDate' => $to,
+            'statusOptions' => $statusOptions,
+            'totals' => $totals,
         ]);
     }
 }

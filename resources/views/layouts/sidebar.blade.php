@@ -196,6 +196,12 @@
                                           </a>
                                       </li>
 
+                                      <li class="{{ request()->is('reports/performance*') ? 'active' : '' }}">
+                                          <a href="{{ route('performance.report') }}">
+                                              <i class="ti ti-chart-bar"></i> Performance Report
+                                          </a>
+                                      </li>
+
                                       {{-- <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.employment') }}">
                                               <i class="ti ti-checkup-list"></i>Salary Sheet

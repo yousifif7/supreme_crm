@@ -471,6 +471,7 @@ Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])-
 
 Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 
+Route::get('/reports/performance', [ReportController::class, 'performanceReport'])->name('performance.report');
 Route::get('/staff-report', [ReportController::class, 'staffReport'])->name('staff.report');
 Route::get('/booking/report', [ReportController::class, 'bookingReport'])->name('booking.report');
 Route::get('/reports/shifts', [ReportController::class, 'shiftReport'])
