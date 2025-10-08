@@ -1158,9 +1158,6 @@ function showRestrictionToast(message, onOverride) {
         }
     });
 });
-
-
-
         setTimeout(() => {
             const alertBox = document.querySelector('.alert');
             if (alertBox) {

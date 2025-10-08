@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Client;
+use App\Models\Invoice;
 use App\Models\Employee;
 use App\Models\ShiftDate;
 use App\Models\ShiftBooking;
@@ -653,72 +654,78 @@ class ReportController extends Controller
         ]);
     }
 
-    public function salaryReport(Request $request, InvoiceService $calc)
+    public function salaryReport(Request $request)
     {
         $staffId = $request->input('staff_id');
         $from = $request->input('from_date');
         $to = $request->input('to_date');
         $siteId = $request->input('site_id');
 
-        // Dropdowns
-        $staffOptions = User::role('security_staff')->orderBy('first_name')->get(); // or Employee model mapping
-        $clients = User::role('client')->pluck('name', 'id');
-        $sites = collect();
-        if ($request->filled('client_id')) {
-            $sites = Site::where('client_id', $request->client_id)->pluck('site_name', 'id');
-        } elseif ($siteId) {
-            $sites = Site::pluck('site_name', 'id');
-        }
+        // Staff dropdown (we will use select2 AJAX on the view, but provide small list optionally)
+        $staffOptions = User::role('security_staff')->orderBy('first_name')->get();
 
-        $report = null;
-        $payrollDetails = null;
-        $bankInfo = null;
+        // Build invoice query: only security_staff invoices
+        $query = Invoice::query()
+            ->with(['site', 'employee', 'securityStaff'])
+            ->where('type', 'security_staff');
 
         if ($staffId) {
-            // Resolve employee record (Employee model may relate to user)
-            $user = User::find($staffId);
-            $employee = Employee::where('user_id', $staffId)->first();
-
-            // Normalize date range
-            $start = $from ? Carbon::parse($from)->startOfDay() : Carbon::now()->startOfMonth();
-            $end   = $to   ? Carbon::parse($to)->endOfDay()   : Carbon::now()->endOfDay();
-
-            // Calculate payroll using the same InvoiceService logic to match generator
-            $payrollDetails = $calc->calculatePayroll($employee, $siteId ?: null, $start, $end);
-
-            // Bank / payment info: try employee first, then user meta
-            $bankInfo = [
-                'bank_name' => $employee->bank_name ?? $user->bank_name ?? null,
-                'account_name' => $employee->account_name ?? $user->account_name ?? null,
-                'account_number' => $employee->account_number ?? $user->account_number ?? null,
-                'sort_code' => $employee->sort_code ?? $user->sort_code ?? null,
-            ];
-
-            // Prepare a friendly report array for view/export
-            $report = [
-                'staff' => $user,
-                'employee' => $employee,
-                'date_from' => $start,
-                'date_to' => $end,
-                'site_id' => $siteId,
-                'payroll' => $payrollDetails,
-            ];
+            $query->where('security_staff_id', $staffId);
         }
 
-        // Export handling: if export requested and report present
-        if ($request->filled('export') && $report) {
-            $fileBase = 'Salary_Report_' . now()->format('Y_m_d_His');
-            $exportType = $request->input('export');
+        // filter by issue_date range (use issue_date as primary)
+        if ($from) {
+            $query->whereDate('issue_date', '>=', Carbon::parse($from)->toDateString());
+        }
+        if ($to) {
+            $query->whereDate('issue_date', '<=', Carbon::parse($to)->toDateString());
+        }
 
-            // Prepare export payload
-            $payload = [
-                'report' => $report,
-                'bankInfo' => $bankInfo,
-            ];
+        // optional site filter
+        if ($siteId) {
+            $query->where('site_id', $siteId);
+        }
+
+        // get invoices (all matching - small result sets expected). If large sets are possible, switch to pagination or streaming for exports.
+        $invoices = $query->orderByDesc('issue_date')->get();
+
+        // aggregate totals
+        $totalCount = $invoices->count();
+        $totalGross = $invoices->sum(fn($i) => (float) ($i->gross_amount ?? 0));
+        $totalNet = $invoices->sum(fn($i) => (float) ($i->net_amount ?? 0));
+        // prefer total_shift_hours, then total_duration_hours, then 0
+        $totalHours = $invoices->sum(function ($i) {
+            if (!empty($i->total_shift_hours)) return (float)$i->total_shift_hours;
+            if (!empty($i->total_duration_hours)) return (float)$i->total_duration_hours;
+            return 0;
+        });
+
+        // prepare payload for exports
+        $payload = [
+            'invoices' => $invoices,
+            'totals' => [
+                'count' => $totalCount,
+                'gross' => $totalGross,
+                'net' => $totalNet,
+                'hours' => $totalHours,
+            ],
+            'filters' => [
+                'staff_id' => $staffId,
+                'from' => $from,
+                'to' => $to,
+                'site_id' => $siteId,
+            ],
+        ];
+
+        // Exports
+        if ($request->filled('export') && $staffId) {
+            $exportType = $request->input('export');
+            $fileBase = 'Salary_payrolls_' . now()->format('Y_m_d_His');
 
             if ($exportType === 'pdf') {
+                // generate pdf
                 $pdf = PDF::loadView('reports.pdf.salary-pdf', array_merge($payload, [
-                    'filters' => ['from' => $from, 'to' => $to, 'site' => $siteId]
+                    'staff' => User::find($staffId),
                 ]));
                 return $pdf->download($fileBase . '.pdf');
             }
@@ -727,37 +734,47 @@ class ReportController extends Controller
                 return Excel::download(new SalaryReportExport($payload), $fileBase . '.xlsx');
             }
 
-            // CSV fallback
+            // csv fallback
             $csvName = $fileBase . '.csv';
-            $callback = function () use ($report) {
+            $callback = function () use ($invoices, $payload) {
                 $out = fopen('php://output', 'w');
-                // header
-                fputcsv($out, ['Field', 'Value']);
-                $p = $report['payroll'] ?? [];
-                fputcsv($out, ['Staff', $report['staff']->name ?? '']);
-                fputcsv($out, ['Period', $report['date_from']->toDateString() . ' - ' . $report['date_to']->toDateString()]);
-                fputcsv($out, ['Rate per hour', $p['rate'] ?? '']);
-                fputcsv($out, ['Total hours', $p['total_hours'] ?? '']);
-                fputcsv($out, ['Gross', $p['gross_amount'] ?? '']);
-                fputcsv($out, ['Net', $p['net_amount'] ?? '']);
+                // headers
+                fputcsv($out, ['Invoice #', 'Issue Date', 'Period From', 'Period To', 'Site', 'Worked Hours', 'Gross', 'Net']);
+                foreach ($invoices as $inv) {
+                    fputcsv($out, [
+                        $inv->invoice_number,
+                        optional($inv->issue_date)->toDateString() ?? $inv->issue_date,
+                        optional($inv->date_from)->toDateString() ?? $inv->date_from,
+                        optional($inv->date_to)->toDateString() ?? $inv->date_to,
+                        $inv->site?->site_name ?? '',
+                        $inv->total_shift_hours ?? $inv->total_duration_hours ?? 0,
+                        $inv->gross_amount ?? 0,
+                        $inv->net_amount ?? 0,
+                    ]);
+                }
+                // totals row
+                fputcsv($out, []);
+                fputcsv($out, ['Totals', '', '', '', '', $payload['totals']['hours'], $payload['totals']['gross'], $payload['totals']['net']]);
                 fclose($out);
             };
+
             return response()->stream($callback, 200, [
-                'Content-Type' => 'text/csv',
-                'Content-Disposition' => "attachment; filename={$csvName}",
+                "Content-Type" => "text/csv",
+                "Content-Disposition" => "attachment; filename={$csvName}",
             ]);
         }
 
+        // sites for client dropdown if client filter used earlier; keep simple empty collection
+        $sites = collect();
         return view('reports.salary', [
             'staffOptions' => $staffOptions,
-            'clients' => $clients,
-            'sites' => $sites,
+            'invoices' => $invoices,
+            'totals' => $payload['totals'],
             'selectedStaff' => $staffId,
-            'selectedSite' => $siteId,
             'fromDate' => $from,
             'toDate' => $to,
-            'report' => $report,
-            'bankInfo' => $bankInfo,
+            'sites' => $sites,
+            'filters' => $payload['filters'],
         ]);
     }
 }

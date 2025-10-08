@@ -1544,34 +1544,64 @@ class ShiftController extends Controller
         return view('map', compact('shift', 'userId'));
     }
 
-    public function shiftLocations($shiftDateId)
+    public function shiftLocations(Request $request, $shiftDateId)
     {
-        $shiftDate = \App\Models\ShiftDate::findOrFail($shiftDateId);
-
-        // Staff assigned to this shift
+        $shiftDate = ShiftDate::findOrFail($shiftDateId);
         $user = $shiftDate->staff;
 
         if (!$user) {
             return response()->json(['message' => 'No staff assigned to this shift.'], 404);
         }
 
-        // Fetch locations directly by shiftdate_id
-        $locations = \App\Models\Location::where('shiftdate_id', $shiftDate->id)
-            ->orderBy('created_at')
-            ->get(['latitude', 'longitude', 'created_at']);
+        // optional requested cap; default 2500
+        $max = (int) $request->query('max_points', 2500);
+        $max = max(50, min($max, 5000)); // enforce safe bounds
+
+        // Get total count first
+        $q = Location::where('shiftdate_id', $shiftDate->id)->orderBy('created_at');
+
+        $total = $q->count();
+
+        // If total is small, return all rows
+        if ($total <= $max) {
+            $rows = $q->get(['latitude', 'longitude', 'created_at'])->toArray();
+        } else {
+            // Sample: pick roughly evenly-spaced indices to reduce payload
+            // Calculate sampling step and select those rows by offset (efficient approach: use chunk but simpler here)
+            $step = ceil($total / $max);
+            $rows = [];
+            // Use cursor to avoid memory spike
+            $index = 0;
+            foreach ($q->cursor() as $r) {
+                if ($index % $step === 0) {
+                    $rows[] = [
+                        'latitude'  => (string) $r->latitude,
+                        'longitude' => (string) $r->longitude,
+                        'created_at'=> $r->created_at,
+                    ];
+                    if (count($rows) >= $max) break;
+                }
+                $index++;
+            }
+        }
 
         return response()->json([
-            'shift'     => [
-                'id'         => $shiftDate->id,
-                'date'       => $shiftDate->shift_date,
+            'shift' => [
+                'id' => $shiftDate->id,
+                'date' => $shiftDate->shift_date,
                 'start_time' => $shiftDate->start_time,
-                'end_time'   => $shiftDate->end_time,
+                'end_time' => $shiftDate->end_time,
             ],
-            'user'      => [
-                'id'   => $user->id,
-                'name' => $user->fore_name . ' ' . $user->sur_name,
+            'user' => [
+                'id' => $user->id,
+                'name' => ($user->fore_name ?? $user->first_name ?? '') . ' ' . ($user->sur_name ?? $user->last_name ?? ''),
             ],
-            'locations' => $locations,
+            'locations' => $rows,
+            'meta' => [
+                'requested_max' => $max,
+                'returned' => count($rows),
+                'total_available' => $total,
+            ],
         ]);
     }
 

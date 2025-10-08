@@ -8,7 +8,7 @@ use Maatwebsite\Excel\Concerns\ShouldAutoSize;
 
 class SalaryReportExport implements FromArray, WithHeadings, ShouldAutoSize
 {
-    protected $payload;
+     protected array $payload;
 
     public function __construct(array $payload)
     {
@@ -17,26 +17,32 @@ class SalaryReportExport implements FromArray, WithHeadings, ShouldAutoSize
 
     public function array(): array
     {
-        $report = $this->payload['report'] ?? null;
-        $p = $report['payroll'] ?? [];
         $rows = [];
+        /** @var \Illuminate\Database\Eloquent\Collection $invoices */
+        $invoices = $this->payload['invoices'] ?? collect();
+        foreach ($invoices as $inv) {
+            $rows[] = [
+                $inv->invoice_number,
+                optional($inv->issue_date)->toDateString() ?? $inv->issue_date,
+                optional($inv->date_from)->toDateString() ?? $inv->date_from,
+                optional($inv->date_to)->toDateString() ?? $inv->date_to,
+                $inv->site?->site_name ?? '',
+                $inv->total_shift_hours ?? $inv->total_duration_hours ?? 0,
+                $inv->gross_amount ?? 0,
+                $inv->net_amount ?? 0,
+            ];
+        }
 
-        $rows[] = ['Staff', $report['staff']->name ?? ''];
-        $rows[] = ['Period', $report['date_from']->toDateString() . ' - ' . $report['date_to']->toDateString()];
+        // add totals row
+        $totals = $this->payload['totals'] ?? [];
         $rows[] = [];
-        $rows[] = ['Rate per hour', $p['rate'] ?? ''];
-        $rows[] = ['Total shift hours', $p['total_hours'] ?? ''];
-        $rows[] = ['Break hours', $p['total_breaks'] ?? ''];
-        $rows[] = ['Gross amount', $p['gross_amount'] ?? ''];
-        $rows[] = ['Net amount', $p['net_amount'] ?? ''];
-        $rows[] = [];
-        $rows[] = ['Notes', $report['employee']->notes ?? ''];
+        $rows[] = ['Totals', '', '', '', '', $totals['hours'] ?? 0, $totals['gross'] ?? 0, $totals['net'] ?? 0];
 
         return $rows;
     }
 
     public function headings(): array
     {
-        return ['Field', 'Value'];
+        return ['Invoice #', 'Issue Date', 'Period From', 'Period To', 'Site', 'Worked Hours', 'Gross', 'Net'];
     }
 }

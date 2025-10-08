@@ -40,12 +40,13 @@ class EmergencyAlertAPIController extends Controller
             ['alert' => $alert]
         );
 
+        $employee = Auth::user()->employee;
         Notify::toDashboard(
             null,
             'alert',
             'Panic button',
             'Emergency alert button activated by ' . Auth::user()->first_name . ' ' . Auth::user()->last_name . ' At ' . $alert->timestamp,
-            ""
+            'employees#'.$employee->id
         );
 
         return response()->json([
