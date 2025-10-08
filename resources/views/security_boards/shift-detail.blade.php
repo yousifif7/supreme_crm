@@ -481,7 +481,7 @@
                                                 View Heatmap
                                             </a>
                                         </div> --}}
-                                        <div class="book-on_box">
+                                        <div >
                                             @include('map')
                                         </div>
                                     </div>

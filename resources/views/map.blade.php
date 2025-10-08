@@ -1,3 +1,14 @@
+<style>
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    #gm-deck-map {
+        width: 100%;
+    }
+</style>
+
 <div id="gm-deck-wrapper" style="position:relative;">
   <div id="gm-deck-map" style="width:100%;height:420px;border:1px solid #e6e6e6"></div>
 
@@ -133,7 +144,7 @@ async function initMapAndDeck() {
   gm_map = new google.maps.Map(document.getElementById('gm-deck-map'), {
     center: { lat: 51.5074, lng: -0.1278 },
     zoom: 13,
-    mapTypeId: 'satellite',
+    mapTypeId: 'terrain',
     gestureHandling: 'greedy'
   });
 
