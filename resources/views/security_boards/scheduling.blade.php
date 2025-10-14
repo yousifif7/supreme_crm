@@ -124,7 +124,6 @@
 
         /* day-cell grid: two columns on large screens; stack only on very tiny screens */
         .day-cell {
-            display: grid;
             grid-template-columns: repeat(2, 1fr);
             gap: 12px;
             min-height: 140px;
@@ -324,12 +323,22 @@
             width: 100%;
         }
 
-        /* Toasts */
+        /* Toasts - centered overlay */
         #custom-toast-container {
             position: fixed;
-            top: 20px;
-            right: 20px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
             z-index: 2147483647;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none; /* allow clicks to pass through outside toasts */
+            width: auto;
+            max-width: none;
+            padding: 0;
+            box-sizing: border-box;
         }
 
         .custom-toast {
@@ -337,20 +346,41 @@
             align-items: center;
             background: #fff3cd;
             border-left: 5px solid #ffc107;
-            padding: 12px 16px;
+            padding: 12px 20px 12px 16px;
             margin-bottom: 10px;
             border-radius: 6px;
-            min-width: 300px;
+            min-width: 320px;
+            max-width: 640px;
+            width: auto;
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
             opacity: 0;
-            transform: translateX(100%);
-            transition: all .3s ease;
+            transform: translateY(20px);
+            transition: all .28s cubic-bezier(.2,.8,.2,1);
             font-family: Arial, sans-serif;
+            pointer-events: auto; /* allow interaction with the toast */
+            position: relative;
+            overflow: visible;
         }
 
         .custom-toast.show {
             opacity: 1;
-            transform: translateX(0);
+            transform: translateY(0);
+        }
+
+        .custom-toast .close-btn {
+            position: absolute;
+            top: 6px;
+            right: 8px;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 4px;
+            font-size: 16px;
+            line-height: 1;
+            cursor: pointer;
+            color: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            z-index: 9999;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
         }
 
         .custom-toast .toast-icon {
@@ -930,7 +960,8 @@
                                 formData.append('override', 1);
 
                                 $.ajax({
-                                    url: $(form).attr('action'),
+                                    // Use dedicated override endpoint so server runs override logic
+                                    url: baseUrl + '/shifts/store-override',
                                     method: 'POST',
                                     data: formData,
                                     processData: false,
@@ -998,6 +1029,7 @@
             toast.className = 'custom-toast';
 
             toast.innerHTML = `
+        <button class="close-btn" aria-label="Close">&times;</button>
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
@@ -1010,6 +1042,19 @@
             container.appendChild(toast);
 
             setTimeout(() => toast.classList.add('show'), 50);
+
+            // Auto-hide after 20s if not acted upon
+            const autoHideMs = 20000;
+            let autoHideTimer = setTimeout(() => closeToast(), autoHideMs);
+
+            // Close button handler
+            const closeBtn = toast.querySelector('.close-btn');
+            if (closeBtn) {
+                closeBtn.addEventListener('click', function() {
+                    clearTimeout(autoHideTimer);
+                    closeToast();
+                });
+            }
 
             // Step 1: Override clicked
             toast.querySelector('.override-btn').addEventListener('click', function() {
@@ -1040,6 +1085,11 @@
                     if (toast.parentNode) container.removeChild(toast);
                 }, 300);
             }
+
+            // Ensure clicks inside don't propagate to page
+            toast.addEventListener('click', function(e) {
+                e.stopPropagation();
+            });
         }
 
         document.addEventListener('DOMContentLoaded', function() {

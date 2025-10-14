@@ -444,19 +444,20 @@ class UserController extends Controller
             return;
         }
 
-        // ✅ Prevent duplicate runs: cache key for this Thursday
-        $cacheKey = 'weekly_hours_notification_' . $today->toDateString();
+        // ✅ Prevent duplicate runs: cache key per calendar week (ISO week) so it runs once per week
+        $isoYear = $today->isoFormat('GGGG'); // ISO week-year
+        $isoWeek = $today->isoFormat('WW');   // ISO week number
+        $cacheKey = "weekly_hours_notification_{$isoYear}_week_{$isoWeek}";
 
         if (Cache::has($cacheKey)) {
-            return; // Already sent today
+            return; // Already sent this week
         }
 
         $weekStart = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
         $weekEnd   = $today->copy()->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
 
-        $guards = \App\Models\Employee::where('status', 'Active')
-            ->orWhere('status', 'active')
-            ->get();
+        // Normalize status check by lowercasing column comparison to be resilient to casing
+        $guards = \App\Models\Employee::whereRaw('LOWER(status) = ?', ['active'])->get();
 
         foreach ($guards as $staff) {
             $entity = $staff->entity;
@@ -479,7 +480,11 @@ class UserController extends Controller
             }
         }
 
-        // ✅ Store flag in cache until the end of Thursday (23:59:59)
-        Cache::put($cacheKey, true, $today->copy()->endOfDay());
+        // ✅ Store flag in cache until the end of the ISO week (Sunday 23:59:59) to be safe
+        // Calculate TTL as seconds until end of week
+        $endOfWeek = $today->copy()->endOfWeek();
+        $ttlSeconds = $endOfWeek->diffInSeconds($today);
+        // Put cache with TTL (seconds)
+        Cache::put($cacheKey, true, $ttlSeconds);
     }
 }

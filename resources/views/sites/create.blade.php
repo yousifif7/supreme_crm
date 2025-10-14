@@ -104,9 +104,9 @@
                                      </div>
                                      <div class="col-md-12 mb-3">
                                          <label class="form-label">Site & Checkpoints</label>
-                                         <div id="editSiteMap" style="height: 350px; border-radius: 8px;"></div>
+                                         <div id="createSiteMap" style="height: 350px; border-radius: 8px;"></div>
 
-                                         <!-- Hidden inputs for site coordinates -->
+                                         <!-- Hidden inputs for site coordinates (create modal) -->
                                          <input type="hidden" name="latitude" id="latitude">
                                          <input type="hidden" name="longitude" id="longitude">
 
@@ -122,7 +122,7 @@
                                                          <th>Action</th>
                                                      </tr>
                                                  </thead>
-                                                 <tbody id="checkpointList">
+                                                 <tbody id="create_checkpointList">
                                                      <!-- dynamically filled -->
                                                  </tbody>
                                              </table>
@@ -260,40 +260,41 @@
  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
  <script>
-     let editMap, siteMarker;
-     let checkpointMarkers = []; // store markers + indexes
+    if (typeof createMap === 'undefined') var createMap = null;
+    if (typeof createSiteMarker === 'undefined') var createSiteMarker = null;
+    if (typeof createCheckpointMarkers === 'undefined') var createCheckpointMarkers = []; // store markers + indexes
 
-     function initEditMap(lat = 51.505, lng = -0.09, checkpoints = []) {
-         if (!editMap) {
+     function initCreateMap(lat = 51.505, lng = -0.09, checkpoints = []) {
+         if (!createMap) {
              // Init map once
-             editMap = L.map('editSiteMap').setView([lat, lng], 13);
+             createMap = L.map('createSiteMap').setView([lat, lng], 13);
 
              L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                  attribution: '&copy; OpenStreetMap contributors'
-             }).addTo(editMap);
+             }).addTo(createMap);
 
              // Site marker (main location)
-             siteMarker = L.marker([lat, lng], {
+             createSiteMarker = L.marker([lat, lng], {
                  draggable: true
-             }).addTo(editMap);
+             }).addTo(createMap);
 
-             siteMarker.on('dragend', function() {
-                 let pos = siteMarker.getLatLng();
+             createSiteMarker.on('dragend', function() {
+                 let pos = createSiteMarker.getLatLng();
                  $('#latitude').val(pos.lat);
                  $('#longitude').val(pos.lng);
              });
 
              // Click on map → add checkpoint
-             editMap.on('click', function(e) {
+             createMap.on('click', function(e) {
                  let cpName = prompt("Enter checkpoint name:");
                  if (cpName) {
-                     addCheckpoint(cpName, e.latlng.lat, e.latlng.lng);
+                     addCheckpointCreate(cpName, e.latlng.lat, e.latlng.lng);
                  }
              });
          } else {
              // Reset view + site marker position
-             editMap.setView([lat, lng], 13);
-             siteMarker.setLatLng([lat, lng]);
+             createMap.setView([lat, lng], 13);
+             createSiteMarker.setLatLng([lat, lng]);
          }
 
          // Update hidden site coords
@@ -301,34 +302,34 @@
          $('#longitude').val(lng);
 
          // Clear previous checkpoints
-         checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
-         checkpointMarkers = [];
-         $('#checkpointList').empty();
+         createCheckpointMarkers.forEach(cp => createMap.removeLayer(cp.marker));
+         createCheckpointMarkers = [];
+         $('#create_checkpointList').empty();
 
          // Load checkpoints if editing
          checkpoints.forEach(cp => {
-             addCheckpoint(cp.name, cp.latitude, cp.longitude, cp.id);
+             addCheckpointCreate(cp.name, cp.latitude, cp.longitude, cp.id);
          });
 
-         setTimeout(() => editMap.invalidateSize(), 300); // fix resizing bug
+         setTimeout(() => createMap.invalidateSize(), 300); // fix resizing bug
      }
 
-     function addCheckpoint(name, lat, lng, id = null) {
-         let index = checkpointMarkers.length;
+     function addCheckpointCreate(name, lat, lng, id = null) {
+         let index = createCheckpointMarkers.length;
 
          // Create marker
          let marker = L.marker([lat, lng], {
              draggable: true
-         }).addTo(editMap);
+         }).addTo(createMap);
 
-         checkpointMarkers.push({
+         createCheckpointMarkers.push({
              marker,
              index
          });
 
          // Append row to table
          let row = `
-        <tr id="checkpoint_row_${index}">
+        <tr id="create_checkpoint_row_${index}">
             <td>
                 <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
                 <input type="text" class="form-control"
@@ -347,27 +348,27 @@
             </td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger" 
-                        onclick="removeCheckpoint(${index})">
+                        onclick="removeCheckpointCreate(${index})">
                     Remove
                 </button>
             </td>
         </tr>
     `;
-         $('#checkpointList').append(row);
+         $('#create_checkpointList').append(row);
 
          // Update row when marker is dragged
          marker.on('dragend', function() {
              let pos = marker.getLatLng();
-             $(`#checkpoint_row_${index} input[name="checkpoints[${index}][latitude]"]`).val(pos.lat);
-             $(`#checkpoint_row_${index} input[name="checkpoints[${index}][longitude]"]`).val(pos.lng);
+             $(`#create_checkpoint_row_${index} input[name="checkpoints[${index}][latitude]"]`).val(pos.lat);
+             $(`#create_checkpoint_row_${index} input[name="checkpoints[${index}][longitude]"]`).val(pos.lng);
          });
      }
 
-     function removeCheckpoint(index) {
-         let cp = checkpointMarkers.find(c => c.index === index);
+     function removeCheckpointCreate(index) {
+         let cp = createCheckpointMarkers.find(c => c.index === index);
          if (cp) {
-             editMap.removeLayer(cp.marker);
-             $(`#checkpoint_row_${index}`).remove();
+             createMap.removeLayer(cp.marker);
+            $(`#create_checkpoint_row_${index}`).remove();
          }
      }
 
@@ -376,8 +377,8 @@
      // =============================
             $(document).ready(function() {
 
-                // Initialize map
-                initEditMap();
+                // Initialize map for create modal
+                initCreateMap();
 
                 $('#add_site-form').on('submit', function(e) {
                     e.preventDefault();
@@ -388,8 +389,8 @@
                     const submitButton = $('#savesite');
                     submitButton.prop('disabled', true).html('Saving...');
 
-                    if (siteMarker) {
-                        const p = siteMarker.getLatLng();
+                    if (createSiteMarker) {
+                        const p = createSiteMarker.getLatLng();
                         $('#latitude').val(p.lat);
                         $('#longitude').val(p.lng);
                     }
@@ -427,7 +428,7 @@
 
                 // Optional: re-render map on modal show
                 $('#add_site').on('shown.bs.modal', function() {
-                    setTimeout(() => editMap.invalidateSize(), 300);
+                    setTimeout(() => createMap.invalidateSize(), 300);
                 });
             });
  </script>

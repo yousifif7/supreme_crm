@@ -10,6 +10,7 @@ class Kernel extends ConsoleKernel
 
     protected $commands = [
         \App\Console\Commands\ProcessShiftNotifications::class,
+        \App\Console\Commands\TestSiaRequest::class,
     ];
 
     protected function schedule(Schedule $schedule): void

@@ -9,28 +9,36 @@ use Illuminate\Support\Facades\Log;
 
 class CheckSiaLicences extends Command
 {
-    protected $signature = 'sia:check';
+    protected $signature = 'sia:check {--no-cache : Do not use cached results}';
     protected $description = 'Check all SIA licences for employees';
 
     public function handle()
     {
         $this->info('Starting SIA licence check...');
 
+        $useCache = !$this->option('no-cache');
+
         $employees = Employee::whereNotNull('sia_licence')->get();
-        $siaChecker = new SiaLicenceChecker();
+        /** @var SiaLicenceChecker $siaChecker */
+        $siaChecker = app(SiaLicenceChecker::class);
 
         foreach ($employees as $employee) {
             try {
-                $result = $siaChecker->checkByLicenceNumber($employee->sia_licence);
+                $result = $siaChecker->checkByLicenceNumber($employee->sia_licence, $useCache);
 
-                if ($result['valid']) {
-                    $employee->sia_status = 'Active';
+                $newStatus = (!empty($result) && !empty($result['valid'])) ? 'Active' : 'Inactive';
+
+                // Only save if status changed
+                if ($employee->sia_status !== $newStatus) {
+                    $employee->sia_status = $newStatus;
                     $employee->save();
+                }
+
+                if ($newStatus === 'Active') {
                     Log::info("SIA licence valid for employee {$employee->id}");
                 } else {
-                    $employee->sia_status = 'invalid';
-                    $employee->save();
-                    Log::warning("SIA licence invalid for employee {$employee->id}: {$result['error']}");
+                    $err = $result['error'] ?? 'Licence not valid or not found';
+                    Log::warning("SIA licence inactive for employee {$employee->id}: {$err}");
                 }
             } catch (\Exception $e) {
                 Log::error("Error checking SIA licence for employee {$employee->id}: " . $e->getMessage());

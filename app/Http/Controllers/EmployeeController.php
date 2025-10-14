@@ -14,6 +14,7 @@ use App\Models\EmployeeType;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Permission\Models\Role;
+use App\Services\SiaLicenceChecker;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\DataTables\EmployeesDataTable;
@@ -21,6 +22,14 @@ use Illuminate\Support\Facades\Validator;
 
 class EmployeeController extends Controller
 {
+
+        protected SiaLicenceChecker $siaChecker;
+
+    public function __construct(SiaLicenceChecker $siaChecker)
+    {
+        $this->siaChecker = $siaChecker;
+    }
+    
     public function index(EmployeesDataTable $dataTable)
     {
         $employeeUserIds = Employee::pluck('user_id')->filter()->toArray();
@@ -47,7 +56,7 @@ class EmployeeController extends Controller
             'email' => 'required|email:dns|max:255|unique:users,email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string|unique:employees,ni_number',
-            'sia_licence' => 'nullable|string|unique:employees,sia_licence',
+            'sia_licence' => ['nullable', 'string', new \App\Rules\ValidSiaLicence()],
             'driving_licence_number' => 'nullable|string|unique:employees,sia_licence',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
@@ -149,39 +158,16 @@ class EmployeeController extends Controller
         $data = $validator->validated();
 
         // Check and verify SIA Licence via SiaLicenceChecker if provided
-        if (!empty($data['sia_licence'])) {
-            try {
-                $siaChecker = new \App\Services\SiaLicenceChecker();
-                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
-
-                // Just check if the request was successful
-                if (!$siaResult['success']) {
-                    return response()->json([
-                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
-                    ], 400);
-                }
-
-                // If success = true and valid = true, licence exists in SIA database
-                if ($siaResult['valid']) {
-                    // Licence is valid! Continue with your logic
-                    \Log::info('SIA Licence Verified', [
-                        'licence' => $data['sia_licence'],
-                        'found_details' => [
-                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
-                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
-                        ]
-                    ]);
-                } else {
-                    return response()->json([
-                        'error' => 'SIA licence not found in register'
-                    ], 400);
-                }
-            } catch (\Exception $e) {
-                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
-                return response()->json([
-                    'error' => 'Error checking SIA licence. Please try again.'
-                ], 500);
+                if ($request->filled('license_number')) {
+            $siaResult = $this->siaChecker->checkByLicenceNumber($request->input('license_number'), false);
+            if (! $siaResult['success']) {
+                return back()->withInput()->withErrors(['license_number' => $siaResult['error']]);
             }
+            if (! $siaResult['valid']) {
+                return back()->withInput()->withErrors(['license_number' => 'SIA licence not active: ' . ($siaResult['error'] ?? 'unknown')]);
+            }
+            // optional: save parsed holder_name / sector / expiry to employee record
+            // $holder = $siaResult['holder_name'] ?? null;
         }
 
         // ✅ Handle the checkbox manually
@@ -300,7 +286,7 @@ class EmployeeController extends Controller
             'email' => 'email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
-            'sia_licence' => 'nullable|string',
+            'sia_licence' => ['nullable', 'string', 'unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'driving_licence_number' => 'nullable|string',
@@ -775,4 +761,7 @@ class EmployeeController extends Controller
 
         return $pdf->download("employment_report_{$employee->id}.pdf");
     }
+    
+
+
 }

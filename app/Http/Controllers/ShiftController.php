@@ -349,7 +349,26 @@ class ShiftController extends Controller
 
 
             if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors(), 'index' => $i], 422);
+                $errors = $validator->errors();
+                $response = ['errors' => $errors, 'index' => $i];
+
+                // If the current user is an admin/superadmin, include an override message
+                // so the frontend can present an override confirmation to privileged users.
+                try {
+                    $user = auth()->user();
+                    if ($user && method_exists($user, 'getRoleNames')) {
+                        $roles = $user->getRoleNames();
+                        if ($roles->contains('superadmin') || $roles->contains('admin')) {
+                            // Prefer staff-specific restriction message if present, otherwise first message
+                            $firstMsg = $errors->has('staff_id') ? $errors->first('staff_id') : $errors->first();
+                            if ($firstMsg) $response['override_message'] = $firstMsg;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // ignore any role-checking errors and continue returning validation errors
+                }
+
+                return response()->json($response, 422);
             }
 
             $data = $validator->validated();
@@ -2096,6 +2115,7 @@ class ShiftController extends Controller
             ], [
                 'client_id' => 'required|integer',
                 'site_id' => 'required|integer',
+                'days' => 'nullable|string',
                 'staff_id' => 'nullable|integer',
                 'start_shift' => 'required|date_format:H:i',
                 'end_shift' => 'required|date_format:H:i',

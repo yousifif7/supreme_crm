@@ -544,7 +544,17 @@
                                 .offset().top + $('#add_employee .modal-body').scrollTop()
                             );
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            let response = xhr.responseJSON;
+                        
+                            if (response && response.error) {
+                                // Show backend error (like invalid SIA licence)
+                                toast_danger(response.error);
+                            } else if (xhr.responseText) {
+                                // fallback if backend returns plain text
+                                toast_danger(xhr.responseText);
+                            } else {
+                                toast_danger('An unexpected error occurred. Please try again.');
+                            }
                         }
                     },
                     complete: function() {
@@ -598,7 +608,17 @@
                                 .offset().top + $('#edit_employee .modal-body').scrollTop()
                             );
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            let response = xhr.responseJSON;
+                        
+                            if (response && response.error) {
+                                // Show backend error (like invalid SIA licence)
+                                toast_danger(response.error);
+                            } else if (xhr.responseText) {
+                                // fallback if backend returns plain text
+                                toast_danger(xhr.responseText);
+                            } else {
+                                toast_danger('An unexpected error occurred. Please try again.');
+                            }
                         }
                     },
                     complete: function() {

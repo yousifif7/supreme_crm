@@ -100,9 +100,9 @@
                                               <label class="form-label">Site & Checkpoints</label>
                                               <div id="editSiteMap" style="height: 350px; border-radius: 8px;"></div>
 
-                                              <!-- Hidden inputs for site coordinates -->
-                                              <input type="hidden" name="latitude" id="latitude">
-                                              <input type="hidden" name="longitude" id="longitude">
+                                              <!-- Hidden inputs for site coordinates (edit modal) -->
+                                              <input type="hidden" name="latitude" id="edit_latitude">
+                                              <input type="hidden" name="longitude" id="edit_longitude">
 
                                               <!-- Checkpoints list -->
                                               <div class="mt-3">
@@ -116,7 +116,7 @@
                                                               <th>Action</th>
                                                           </tr>
                                                       </thead>
-                                                      <tbody id="checkpointList">
+                                                      <tbody id="edit_checkpointList">
                                                           <!-- dynamically filled -->
                                                       </tbody>
                                                   </table>
