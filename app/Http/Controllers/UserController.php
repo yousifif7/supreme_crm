@@ -57,7 +57,8 @@ class UserController extends Controller
 
         $bookings = ShiftBooking::with('shift')
             ->whereHas('shift')
-            ->orderBy('timestamp')
+            ->orderBy('timestamp', 'desc')
+            ->take(10)
             ->get();
 
         $today = Carbon::today();
