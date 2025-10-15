@@ -468,6 +468,28 @@
                 min-width: 240px;
             }
 
+            // Create a safe stub so other code can call window.loadAllShiftsData() before
+            // the real implementation is ready. Calls will be queued and executed once
+            // the real function is assigned below.
+            if (!window.loadAllShiftsData || window.loadAllShiftsData.__isStub !== true) {
+                window._pendingLoadAllShiftsCalls = window._pendingLoadAllShiftsCalls || [];
+                window.loadAllShiftsData = function() {
+                    window._pendingLoadAllShiftsCalls.push(arguments);
+                };
+                window.loadAllShiftsData.__isStub = true;
+            }
+
+            // Now overwrite with the real function and flush pending calls
+            const _real_loadAllShiftsData = loadAllShiftsData;
+            window.loadAllShiftsData = function() { return _real_loadAllShiftsData.apply(this, arguments); };
+            window.loadAllShiftsData.__isStub = false;
+            if (window._pendingLoadAllShiftsCalls && window._pendingLoadAllShiftsCalls.length) {
+                window._pendingLoadAllShiftsCalls.forEach(function(args) {
+                    try { _real_loadAllShiftsData.apply(window, args); } catch (e) { console.debug('flushed loadAllShiftsData call failed', e); }
+                });
+                window._pendingLoadAllShiftsCalls = [];
+            }
+
             .gantt-row {
                 min-height: 140px;
             }
@@ -774,6 +796,16 @@
 @endsection
 @section('scripts')
 
+    <script>
+        // Early stub so callers can safely call window.loadAllShiftsData() before the full scheduler script initializes.
+        if (!window.loadAllShiftsData || window.loadAllShiftsData.__isStub !== false) {
+            window._pendingLoadAllShiftsCalls = window._pendingLoadAllShiftsCalls || [];
+            if (!window.loadAllShiftsData || window.loadAllShiftsData.__isStub !== true) {
+                window.loadAllShiftsData = function() { window._pendingLoadAllShiftsCalls.push(arguments); };
+                window.loadAllShiftsData.__isStub = true;
+            }
+        }
+    </script>
     <script>
         window.isSuperAdmin = @json(auth()->check() && auth()->user()->getRoleNames()->contains('superadmin'));
     </script>
@@ -1094,6 +1126,9 @@
 
         document.addEventListener('DOMContentLoaded', function() {
             let allShiftsData = [];
+            // keep a global reference so other helper functions (outside this closure)
+            // can inspect the cached shifts. This is used by refreshShiftBar().
+            window.allShiftsData = allShiftsData;
             let currentWeekStart = getMonday(new Date());
             let currentWeekEnd = new Date(currentWeekStart);
             currentWeekEnd.setDate(currentWeekEnd.getDate() + 6);
@@ -1238,7 +1273,11 @@
                         ...currentFilters
                     },
                     success: function(response) {
-                        allShiftsData = response.data;
+                        // normalize payload: some endpoints return { data: [...] } others return array directly
+                        const payload = response.data || response.shift_dates || response || [];
+                        allShiftsData = payload;
+                        // keep global copy in sync
+                        window.allShiftsData = allShiftsData;
                         renderCurrentView();
                     },
                     error: function(xhr) {
@@ -1471,8 +1510,9 @@
                                         $('#viewNoteText').text(data.note);
                                         $('#viewNoteType').text(data
                                             .note_type);
-                                        $('#deleteNoteBtn').data('shift-id',
-                                            shiftIdLocal);
+                                        // Store both shift-date id and note id to be safe
+                                        $('#deleteNoteBtn').data('shift-id', shiftIdLocal);
+                                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
                                         $('#viewNoteModal').modal('show');
                                     }
                                 });
@@ -1967,8 +2007,9 @@
                         $('#viewNoteText').text(data.note);
                         $('#viewNoteType').text(data.note_type);
 
-                        // store note ID on the Delete button
-                        $('#deleteNoteBtn').data('note-id', data.id);
+                        // store both note ID and shift-date ID on the Delete button
+                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                        $('#deleteNoteBtn').data('shift-id', shiftId);
 
                         $('#viewNoteModal').modal('show');
                     }
@@ -1994,8 +2035,15 @@
                         5000 // duration in ms
                     );
                     // Mark the icon as "has note"
-                    $(`.note-icon[data-shift-id="${shiftId}"]`).css('color', '#0d6efd');
-
+                    // Update the specific shift bar in-place so the UI reflects the new note
+                    console.debug('Note save success for shiftId=', shiftId, res);
+                    if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, res.note);
+                    // Force reload of shifts so the Gantt chart re-renders with authoritative data
+                    if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
+                        try { window.loadAllShiftsData(); } catch (e) { console.debug('window.loadAllShiftsData failed', e); }
+                    } else {
+                        console.debug('window.loadAllShiftsData not available yet');
+                    }
                     console.log("Saved note:", res);
                 },
                 error: function(xhr) {
@@ -2011,18 +2059,19 @@
 
         // Click delete button (from view modal)
         $(document).on('click', '#deleteNoteBtn', function() {
-            const noteId = $(this).data('note-id');
-            $('#confirmDeleteBtn').data('note-id', noteId);
+            // prefer shift-date id, fall back to stored note-id if that's being used
+            const shiftId = $(this).data('shift-id') || $(this).data('note-id') || $('#shiftId').val();
+            $('#confirmDeleteBtn').data('shift-id', shiftId);
             $('#viewNoteModal').modal('hide');
             $('#confirmDeleteModal').modal('show');
         });
 
         $(document).on('click', '#confirmDeleteBtn', function() {
-            const noteId = $(this).data('note-id');
-            // if (!noteId) return;
+            const shiftId = $(this).data('shift-id') || $(this).data('note-id') || $('#shiftId').val();
+            if (!shiftId) return;
 
             $.ajax({
-                url: `/shift-dates/${noteId}/note`, // route should accept note ID
+                url: `/shift-dates/${shiftId}/note`, // route expects shift_date id
                 type: 'DELETE',
                 data: {
                     _token: $('meta[name="csrf-token"]').attr('content')
@@ -2034,11 +2083,16 @@
                         'success', // type
                         5000 // duration in ms
                     );
-                    $(`.view-note-icon[data-note-id="${noteId}"]`)
-                        .removeClass('view-note-icon')
-                        .addClass('note-icon')
-                        .html('📝')
-                        .css('color', '#555');
+            // update any view-note-icons for this shift-date id
+            // Update only the affected bar so we don't reload the whole chart
+            console.debug('Note delete success for shiftId=', shiftId);
+            if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, null);
+            // Force reload to ensure UI updates (safe, avoids full page refresh)
+            if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
+                try { window.loadAllShiftsData(); } catch (e) { console.debug('window.loadAllShiftsData failed', e); }
+            } else {
+                console.debug('window.loadAllShiftsData not available yet');
+            }
                 },
                 error: function(xhr) {
                     $('#confirmDeleteModal').modal('hide');
@@ -2051,6 +2105,241 @@
                 }
             });
         });
+
+        /**
+         * Refresh a single shift bar in the Gantt chart.
+         * - If `noteData` is provided, use it to update the icon immediately.
+         * - Otherwise, try to find the shift in `allShiftsData` (loaded at page load),
+         *   or re-fetch the shifts API as a fallback to get fresh data for that shift.
+         */
+        function refreshShiftBar(shiftId, noteData = undefined) {
+            try {
+                const idStr = String(shiftId);
+
+                // If noteData provided, update the icon directly
+                if (noteData !== undefined) {
+                    // Ensure both possible icons are normalized
+                    const viewIcon = $(`.view-note-icon[data-shift-id="${idStr}"]`);
+                    const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
+
+                    if (noteData) {
+                        // Ensure a view-note-icon exists
+                        if (noteIcon.length) {
+                            noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd');
+                            noteIcon.html('📝');
+                        }
+                        if (viewIcon.length) {
+                            viewIcon.css('color', '#0d6efd').html('📝');
+                        }
+                    } else {
+                        // No note -> show inactive note-icon
+                        if (viewIcon.length) {
+                            viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color', '#555');
+                            viewIcon.html('📝');
+                        }
+                        if (noteIcon.length) {
+                            noteIcon.css('color', '#555');
+                        }
+                    }
+                    return;
+                }
+
+                // Try to find shift in allShiftsData (client-side cache)
+                if (window.allShiftsData && Array.isArray(window.allShiftsData)) {
+                    const found = window.allShiftsData.find(s => String(s.id) === idStr || String(s.shift_id) === idStr);
+                    if (found) {
+                        // If the Gantt bar exists, update its icon accordingly
+                        const hasNote = !!(found.note || found.note_text || (found.note && found.note.note));
+                        // Primary selector: bar-level icons
+                        const viewIcon = $(`.view-note-icon[data-shift-id="${idStr}"]`);
+                        const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
+
+                        if (hasNote) {
+                            if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                            if (viewIcon.length) viewIcon.css('color', '#0d6efd').html('📝');
+                        } else {
+                            if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
+                            if (noteIcon.length) noteIcon.css('color', '#555').html('📝');
+                        }
+
+                        // If no direct icon present (bar was re-rendered), attempt to find the bar element and inject/update the icon
+                        const bar = $(`.gantt-bar[data-shift-id="${idStr}"]`);
+                        if (bar.length && bar.find('.view-note-icon, .note-icon').length === 0) {
+                            // create appropriate icon span
+                            const iconClass = hasNote ? 'view-note-icon' : 'note-icon';
+                            const color = hasNote ? '#0d6efd' : '#555';
+                            const $icon = $(`<span class="${iconClass}" data-shift-id="${idStr}" style="color:${color}">📝</span>`);
+                            // append to bar
+                            bar.append($icon);
+
+                            // re-bind click handlers to the newly-created icon(s)
+                            $icon.on('click', function(e) {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const sid = $(this).data('shift-id');
+                                if ($(this).hasClass('note-icon')) {
+                                    $('#shiftId').val(sid);
+                                    $('#noteForm')[0].reset();
+                                    $('#noteType').val('guard');
+                                    $('#noteText').val('');
+                                    $('#noteModal').modal('show');
+                                } else {
+                                    $('#shiftId').val(sid);
+                                    $.get(`/shift-dates/${sid}/note`, function(data) {
+                                        if (data && data.note) {
+                                            $('#viewNoteText').text(data.note);
+                                            $('#viewNoteType').text(data.note_type);
+                                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                                            $('#deleteNoteBtn').data('shift-id', sid);
+                                            $('#viewNoteModal').modal('show');
+                                        }
+                                    });
+                                }
+                            });
+                        }
+
+                        // If the bar exists but icon still missing, attempt to fully re-render the day cell
+                        if (bar.length && bar.find('.view-note-icon, .note-icon').length === 0) {
+                            try {
+                                const siteId = found.site_id || found.siteId || found.site_id;
+                                const dateStr = found.start_date || found.shift_date || found.shift_date;
+                                if (siteId && dateStr) {
+                                    rerenderDayCell(siteId, dateStr);
+                                }
+                            } catch (err) {
+                                console.error('rerenderDayCell fallback failed', err);
+                            }
+                        }
+
+                        return;
+                    }
+                }
+
+                // Fallback: fetch fresh data for all shifts and re-render the affected bar
+                $.get(`${baseUrl}/api/shifts`, function(resp) {
+                    // resp expected to be { data: [...] } in some implementations
+                    const payload = resp.data || resp.shift_dates || resp;
+                    let found = null;
+                    if (Array.isArray(payload)) found = payload.find(s => String(s.id) === idStr || String(s.shift_id) === idStr);
+                    if (!found && resp.shift_dates && Array.isArray(resp.shift_dates)) found = resp.shift_dates.find(s => String(s.id) === idStr || String(s.shift_id) === idStr);
+
+                    if (!found) return;
+
+                    // Update local cache if present
+                    if (window.allShiftsData && Array.isArray(window.allShiftsData)) {
+                        const idx = window.allShiftsData.findIndex(s => String(s.id) === idStr || String(s.shift_id) === idStr);
+                        if (idx !== -1) window.allShiftsData[idx] = found;
+                    }
+
+                    const hasNote = !!(found.note || (found.note && found.note.note));
+                    const viewIcon = $(`.view-note-icon[data-shift-id="${idStr}"]`);
+                    const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
+
+                    if (hasNote) {
+                        if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                        if (viewIcon.length) viewIcon.css('color', '#0d6efd').html('📝');
+                    } else {
+                        if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
+                        if (noteIcon.length) noteIcon.css('color', '#555').html('📝');
+                    }
+                });
+            } catch (err) {
+                console.error('refreshShiftBar error', err);
+            }
+        }
+
+        // Helper: create the DOM element for a single shift bar from a shift object
+        function createBarElement(shift) {
+            if (!shift) return null;
+            // lightweight local escaper to avoid depending on page-scoped escapeHtml
+            function safeEscape(str) {
+                if (str === null || str === undefined) return '';
+                return String(str).replace(/[&<>"'`=\/]/g, function(s) {
+                    return ({
+                        '&': '&amp;',
+                        '<': '&lt;',
+                        '>': '&gt;',
+                        '"': '&quot;',
+                        "'": '&#39;',
+                        '`': '&#x60;',
+                        '=': '&#x3D;',
+                        '/': '&#x2F;'
+                    })[s];
+                });
+            }
+            const idStr = String(shift.id || shift.shift_id || shift.shiftId);
+            const subcontractorMatch = shift.staff_name ? shift.staff_name.match(/\(([^)]+)\)/) : null;
+            const subcontractor = subcontractorMatch ? subcontractorMatch[0] : '';
+            const staffNameWithoutSub = subcontractorMatch ? shift.staff_name.replace(subcontractor, '').trim() : (shift.staff_name || '');
+            const hasNote = !!(shift.note || (shift.note && shift.note.note));
+
+            const $bar = $(`
+<div class="gantt-bar shift-${shift.color_class || ''}" data-shift-id="${idStr}" title="${(shift.title || '')} - ${shift.staff_name || ''}">
+    <input type="checkbox" class="multi-shift-checkbox" data-id="${idStr}" aria-label="Select shift ${idStr}">
+    <div class="bar-content">
+        ${shift.service_type ? `<div class="service-type">${safeEscape(shift.service_type)}</div>` : ''}
+        <div class="time-text">${safeEscape(shift.formatted_time || shift.start_time || '')}</div>
+        <div class="duration-text">${safeEscape(shift.duration || '')}</div>
+        <div class="staff-name">${safeEscape(staffNameWithoutSub)}</div>
+        ${subcontractor ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${escapeHtml(subcontractor)}</div>` : ''}
+    </div>
+    ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" style="color:#0d6efd">📝</span>` : `<span class="note-icon" data-shift-id="${idStr}" style="color:#555">📝</span>`}
+</div>
+            `);
+
+            // checkbox behavior
+            $bar.find('.multi-shift-checkbox').on('click', function(e) { e.stopPropagation(); });
+
+            // icon handlers
+            $bar.find('.note-icon').on('click', function(e) {
+                e.stopPropagation();
+                const sid = $(this).data('shift-id');
+                $('#shiftId').val(sid);
+                $('#noteForm')[0].reset();
+                $('#noteType').val('guard');
+                $('#noteText').val('');
+                $('#noteModal').modal('show');
+            });
+            $bar.find('.view-note-icon').on('click', function(e) {
+                e.stopPropagation();
+                const sid = $(this).data('shift-id');
+                $('#shiftId').val(sid);
+                $.get(`/shift-dates/${sid}/note`, function(data) {
+                    if (data && data.note) {
+                        $('#viewNoteText').text(data.note);
+                        $('#viewNoteType').text(data.note_type);
+                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                        $('#deleteNoteBtn').data('shift-id', sid);
+                        $('#viewNoteModal').modal('show');
+                    }
+                });
+            });
+
+            return $bar;
+        }
+
+        // Re-render a single day cell (siteId, dateStr) using cached window.allShiftsData.
+        function rerenderDayCell(siteId, dateStr) {
+            try {
+                console.debug('rerenderDayCell', siteId, dateStr);
+                const cell = $(`#cell-${siteId}-${dateStr}`);
+                if (!cell.length) return;
+
+                // find shifts for this site/date from cache
+                const shiftsForCell = (window.allShiftsData || []).filter(s => String(s.site_id || s.siteId) === String(siteId) && (s.start_date === dateStr || s.shift_date === dateStr || s.shift_date === dateStr || s.shift_date === dateStr));
+
+                cell.empty();
+                shiftsForCell.forEach(shift => {
+                    const $bar = createBarElement(shift);
+                    if ($bar) cell.append($bar);
+                });
+
+                // Ensure padding/size matches selectionMode
+                cell.find('.gantt-bar').css('padding-left', getBarLeftPadding());
+            } catch (err) {
+                console.error('rerenderDayCell error', err);
+            }
+        }
     </script>
 
 

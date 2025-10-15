@@ -1893,9 +1893,12 @@ class ShiftController extends Controller
         ]);
     }
 
-    public function deleteNote($noteId)
+    public function deleteNote($shiftDateId)
     {
-        $note = ShiftNote::find($noteId);
+        // The routes use /shift-dates/{id}/note for GET/POST/DELETE where {id}
+        // refers to the shift_date id. For consistency, delete the ShiftNote
+        // associated with the given shift_date_id.
+        $note = ShiftNote::where('shift_date_id', $shiftDateId)->first();
         if ($note) {
             $note->delete();
             return response()->json(['success' => true]);

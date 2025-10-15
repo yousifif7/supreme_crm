@@ -192,7 +192,7 @@ class AdminAPIController extends Controller
                 $alerts[] = [
                     'type' => 'patrol_missed',
                     'user_id' => $patrol?->shift?->staff_id ?? 'N/A',
-                    'user_name' => $patrol->shift->staff->name ?? '',
+                    'user_name' => $patrol->shift->staff->first_name ?? '',
                     'patrol_id' => $patrol->id,
                     'title' => 'Missed Patrol',
                     'message' => "Staff {$userName} missed patrol: {$patrol->name}",
