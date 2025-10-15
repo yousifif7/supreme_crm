@@ -46,7 +46,7 @@ class ShiftsDataTable extends DataTable
             //     return $user->created_at?->format('Y-m-d');
             // })
             ->editColumn('shift_date', function ($shiftDate) {
-                return \Carbon\Carbon::parse($shiftDate->shift_date)->format('d M Y');
+                return format_date($shiftDate->shift_date);
             })
             ->addColumn('shift_time', function ($shiftDate) {
                 $start = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('h:i A');

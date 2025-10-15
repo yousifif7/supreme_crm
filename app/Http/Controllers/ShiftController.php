@@ -34,8 +34,19 @@ class ShiftController extends Controller
     public function unassign(Request $request, $id)
     {
         $shiftDate = ShiftDate::findOrFail($id);
+        
+        send_push_notification(
+            $shiftDate->staff->id,
+            'Shift Unassigned',
+            'An admin unassigned a shift for you, check your schedule.',
+            ['shiftDate' => $shiftDate],
+        );
+
         $shiftDate->staff_id = null; // Remove assigned staff
         $shiftDate->is_assign=0;
+        $shiftDate->status="pending";
+
+
         $shiftDate->save();
 
         return response()->json(['success' => true]);

@@ -215,8 +215,11 @@ class ClientController extends Controller
     public function delete($id)
     {
         $client = Client::findOrFail($id);
+        $empClient = User::role('client')->find($client->user_id);
+
         Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
-        $client->delete();
+        $empClient->forceDelete();
+        $client->forceDelete();
 
         return response()->json(['success' => true]);
     }
@@ -229,8 +232,11 @@ class ClientController extends Controller
 
         $clients=Client::whereIn('id', $request->ids)->get();
         foreach($clients as $client){
+            $empClient = User::role('client')->find($client->user_id);
             Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
-            $client->delete();
+            
+            $empClient->forceDelete();
+            $client->forceDelete();
         }
 
         return response()->json(['message' => 'Selected clients deleted.']);

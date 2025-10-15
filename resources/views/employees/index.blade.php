@@ -66,6 +66,14 @@
                         <input type="text" class="form-control search_box" placeholder="Search...">
                         <!-- /Search -->
                     </div>
+                    <!-- SIA Status Filter -->
+                    <div class="d-inline-block ms-2 d-flex align-items-center">
+                        <select id="siaStatusFilter" class="form-select form-select-sm">
+                            <option value="" {{ request('sia_status') == '' ? 'selected' : '' }}>All SIA Statuses</option>
+                            <option value="Active" {{ request('sia_status') == 'Active' ? 'selected' : '' }}>Active</option>
+                            <option value="Inactive" {{ request('sia_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                        </select>
+                    </div>
                 </div>
             </div>
             <!-- /Breadcrumb -->
@@ -488,6 +496,34 @@
             $('#add_worker-form1')[0].reset();
             // $('#add_employee-form')[0].reset();
             $('.form-error').text('');
+        });
+
+        // SIA status filter reload
+        $(document).ready(function() {
+            // Auto-apply when the select changes
+            $('#siaStatusFilter').on('change', function() {
+                const val = $(this).val();
+                try {
+                    const table = $('#employees-table').DataTable();
+                    // Use draw(false) to keep the current paging where possible
+                    table.draw(false);
+                } catch (err) {
+                    const url = new URL(window.location.href);
+                    if (val) url.searchParams.set('sia_status', val);
+                    else url.searchParams.delete('sia_status');
+                    window.location.href = url.toString();
+                }
+            });
+
+            // Ensure the selected SIA status is sent with every ajax request from DataTables
+            // Use delegated event in case DataTables is (re)initialized by the package after DOM ready
+            $(document).on('preXhr.dt', '#employees-table', function(e, settings, data) {
+                try {
+                    data.sia_status = $('#siaStatusFilter').val();
+                } catch (err) {
+                    // ignore
+                }
+            });
         });
     </script>
     <script>

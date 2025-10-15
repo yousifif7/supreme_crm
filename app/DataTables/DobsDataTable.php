@@ -5,6 +5,7 @@ namespace App\DataTables;
 use App\Models\User;
 use App\Models\DobEntry;
 use App\Models\ShiftDate;
+use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
@@ -33,6 +34,14 @@ class DobsDataTable extends DataTable
                 <i class="ti ti-trash text-danger"></i>
             </a>
         </div>';
+            })
+            ->addColumn('timestamp', function ($row) {
+                if (empty($row->timestamp)) return '';
+                try {
+                    return Carbon::parse($row->timestamp)->format('m/d/Y H:i');
+                } catch (\Exception $e) {
+                    return $row->timestamp;
+                }
             })
             ->addColumn('address', function ($row) {
                 $shiftdate = ShiftDate::find($row->shift_id);

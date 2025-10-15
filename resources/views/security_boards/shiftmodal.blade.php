@@ -101,7 +101,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Site rate </label>
-                                                <input type="text" name="site_rate[]" placeholder="$"
+                                                <input type="text" name="site_rate[]" placeholder="£"
                                                     class="form-control numeric-input siteRate">
                                                 <span class="text-danger form-error error_site_rate"></span>
                                             </div>
@@ -199,7 +199,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Employee Rate</label>
-                                                <input type="text" name="employee_rate[]" placeholder="$"
+                                                <input type="text" name="employee_rate[]" placeholder="£"
                                                     class="form-control numeric-input staffRate">
                                                 <span class="text-danger form-error error_employee_rate"></span>
                                             </div>

@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Models\Material;
 use App\Models\TrainingMaterial;
+use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
@@ -22,6 +23,22 @@ class MaterialDataTable extends DataTable
                     return '<a href="' . asset($row->pdf_url) . '" target="_blank"><i class="ti ti-download"></i></a>';
                 }
                 return '—';
+            })
+            // Format dates as MM/DD/YYYY
+            ->addColumn('acknowledge_by_date', function($row) {
+                if (empty($row->acknowledge_by_date)) return '';
+                try { return Carbon::parse($row->acknowledge_by_date)->format('m/d/Y'); }
+                catch (\Exception $e) { return $row->acknowledge_by_date; }
+            })
+            ->addColumn('implementation_date', function($row) {
+                if (empty($row->implementation_date)) return '';
+                try { return Carbon::parse($row->implementation_date)->format('m/d/Y'); }
+                catch (\Exception $e) { return $row->implementation_date; }
+            })
+            ->addColumn('deadline', function($row) {
+                if (empty($row->deadline)) return '';
+                try { return Carbon::parse($row->deadline)->format('m/d/Y'); }
+                catch (\Exception $e) { return $row->deadline; }
             })
             ->addColumn('action', function ($row) {
                 return '

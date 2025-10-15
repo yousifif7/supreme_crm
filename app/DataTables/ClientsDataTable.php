@@ -38,7 +38,7 @@ class ClientsDataTable extends DataTable
                 return strlen($client->address) > 3 ? substr($client->address, 0, 20) . '...' : $client->address;
             })
             ->editColumn('created_at', function ($user) {
-                return $user->created_at?->format('Y-m-d');
+                return $user->created_at?->format('m-d-Y');
             })
             ->addColumn('manager_name', function ($client) {
                 return $client->manager ? $client->manager->fore_name : 'N/A';

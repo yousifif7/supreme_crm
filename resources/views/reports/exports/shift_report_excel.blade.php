@@ -14,7 +14,7 @@
             <td>{{ $shiftDate->staff->first_name ?? 'N/A' }} {{ $shiftDate->staff->last_name ?? '' }}</td>
             <td>{{ $shiftDate->shift->client->name ?? 'N/A' }}</td>
             <td>{{ $shiftDate->shift->site->site_name ?? 'N/A' }}</td>
-            <td>{{ $shiftDate->shift_date ? \Carbon\Carbon::parse($shiftDate->shift_date)->format('d/m/Y') : 'N/A' }}</td>
+            <td>{{ $shiftDate->shift_date ? format_date($shiftDate->shift_date) : 'N/A' }}</td>
             <td>
                 {!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}
             </td>

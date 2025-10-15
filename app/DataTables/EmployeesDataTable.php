@@ -4,6 +4,7 @@ namespace App\DataTables;
 
 use App\Models\User;
 use App\Models\Employee;
+use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
@@ -40,30 +41,43 @@ class EmployeesDataTable extends DataTable
             //             <span class="text-primary fw-bold">Active</span>';
             // })
             ->editColumn('sia_licence', function ($employee) {
-                // Determine status based on sia_status column (updated by your cron command)
-                $status = $employee->sia_status ?? 'Inactive'; // 'Active', 'Inactive', 'Invalid', etc.
+                // Determine raw status from DB (could be 'Valid'/'Invalid' or 'Active'/'Inactive')
+                $raw = $employee->sia_status ?? null;
 
-                // Optional: fallback to expiry date if status is not set
-                if ($status === 'Inactive' && isset($employee->sia_expiry)) {
-                    $status = \Carbon\Carbon::parse($employee->sia_expiry)->isFuture() ? 'Active' : 'Inactive';
+                // Normalize for display: map 'valid' -> 'Active', 'invalid' -> 'Inactive'
+                $displayStatus = 'Inactive';
+                if ($raw) {
+                    $rl = strtolower($raw);
+                    if (in_array($rl, ['valid', 'active'])) $displayStatus = 'Active';
+                    elseif (in_array($rl, ['invalid', 'inactive'])) $displayStatus = 'Inactive';
+                    else $displayStatus = ucfirst($raw);
+                } else {
+                    // Optional: fallback to expiry date if status is not set
+                    if (isset($employee->sia_expiry)) {
+                        $displayStatus = \Carbon\Carbon::parse($employee->sia_expiry)->isFuture() ? 'Active' : 'Inactive';
+                    }
                 }
 
-                // Set CSS class based on status
-                $class = match (strtolower($status)) {
+                // Set CSS class based on normalized display status
+                $class = match (strtolower($displayStatus)) {
                     'active' => 'text-primary',
                     'inactive' => 'text-danger',
                     'invalid' => 'text-warning',
                     default => 'text-muted',
                 };
 
-                return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>
-            <span class="' . $class . ' fw-bold">' . e($status) . '</span>';
+                return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>'
+                    . '<span class="' . $class . ' fw-bold">' . e($displayStatus) . '</span>';
             })
             ->editColumn('sia_expiry', function ($employee) {
-                return $employee->sia_expiry;
+                if (empty($employee->sia_expiry)) return '';
+                try { return Carbon::parse($employee->sia_expiry)->format('m/d/Y'); }
+                catch (\Exception $e) { return $employee->sia_expiry; }
             })
             ->editColumn('visa_expiry', function ($employee) {
-                return $employee->visa_expiry;
+                if (empty($employee->visa_expiry)) return '';
+                try { return Carbon::parse($employee->visa_expiry)->format('m/d/Y'); }
+                catch (\Exception $e) { return $employee->visa_expiry; }
             })
             ->editColumn('visa_type', function ($employee) {
                 return $employee->visa_type;
@@ -72,7 +86,7 @@ class EmployeesDataTable extends DataTable
                 return $employee->contact;
             })
             ->editColumn('created_at', function ($user) {
-                return $user->created_at?->format('Y-m-d');
+                return $user->created_at?->format('m/d/Y');
             })
             ->editColumn('subcontractor', function ($employee) {
                 $subcontractor = User::role('subcontractor')->where('id', $employee->subcontractor)->first();
@@ -100,6 +114,34 @@ class EmployeesDataTable extends DataTable
             ->select('employees.*')
             ->orderBy('fore_name', 'asc')   // 👈 First name
             ->orderBy('sur_name', 'asc');  // 👈 Then last name
+
+        // Apply SIA status filter if provided via request (e.g. 'Active' or 'Inactive')
+        $siaStatus = request('sia_status');
+        if ($siaStatus) {
+            $s = strtolower($siaStatus);
+            if ($s === 'active') {
+                // Match sia_status values that mean active (e.g. 'active', 'valid')
+                $query->where(function($q) {
+                    $q->whereRaw('LOWER(sia_status) IN (?, ?)', ['active', 'valid'])
+                      ->orWhere(function($q2) {
+                          // If status missing, use expiry date as a fallback: expiry in future -> active
+                          $q2->whereNull('sia_status')->whereNotNull('sia_expiry')->whereDate('sia_expiry', '>', now());
+                      });
+                });
+            } elseif ($s === 'inactive') {
+                // Match sia_status values that mean inactive (e.g. 'inactive', 'invalid')
+                $query->where(function($q) {
+                    $q->whereRaw('LOWER(sia_status) IN (?, ?)', ['inactive', 'invalid'])
+                      ->orWhere(function($q2) {
+                          // If status missing, treat missing or expired as inactive
+                          $q2->whereNull('sia_status')->where(function($q3) {
+                              $q3->whereNull('sia_expiry')
+                                 ->orWhereDate('sia_expiry', '<=', now());
+                          });
+                      });
+                });
+            }
+        }
 
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
@@ -131,6 +173,10 @@ class EmployeesDataTable extends DataTable
             ->addAction(['width' => '120px'])
             ->orderBy([9, 'DESC'])
             ->parameters([
+                // send selected SIA status from the UI select (#siaStatusFilter)
+                'ajax' => [
+                    'data' => "function(d) { d.sia_status = $('#siaStatusFilter').val(); }",
+                ],
                 "scrollX" => true,
                 "pageLength" => 25,
                 "drawCallback" => "function(settings) {

@@ -44,7 +44,7 @@ class SitesDataTable extends DataTable
                 return $site->post_code;
             })
             ->editColumn('created_at', function ($user) {
-                return $user->created_at?->format('Y-m-d');
+                return $user->created_at?->format('m-d-Y');
             })
             ->filterColumn('client_name', function ($query, $keyword) {
                 $query->whereHas('client', function ($q) use ($keyword) {

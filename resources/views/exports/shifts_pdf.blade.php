@@ -45,7 +45,7 @@
                     <td>{{ $staff->first_name ?? 'N/A' }} {{ $staff->last_name ?? '' }}</td>
                     <td>{{ $client->name }}</td>
                     <td>{{ $item->shift->site->site_name }}</td>
-                    <td>{{ $item->shift_date }}</td>
+                    <td>{{ format_date($item->shift_date) }}</td>
                     <td>{{ $item->start_time }}</td>
                     <td>{{ $item->end_time }}</td>
                     <td>{{ $item->total_hours }}</td>

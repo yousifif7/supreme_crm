@@ -243,37 +243,37 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p class="mb-0">Hourly Rate</p>
-                                <p class="text-dark fw-medium mb-2">{{ $invoice->rate_per_hour }}$</p>
+                                <p class="text-dark fw-medium mb-2">{{ $invoice->rate_per_hour }}£</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p class="mb-0">Sub Total</p>
-                                <p class="text-dark fw-medium mb-2">{{ number_format($invoice->gross_amount, 2) }}$</p>
+                                <p class="text-dark fw-medium mb-2">{{ number_format($invoice->gross_amount, 2) }}£</p>
                             </div>
 
                             @if ($sspAmount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">SSP Amount</p>
-                                    <p class="text-dark fw-medium mb-2">{{ number_format($sspAmount, 2) }}$</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($sspAmount, 2) }}£</p>
                                 </div>
                             @endif
 
                             @if ($holidayAmount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Holiday Amount</p>
-                                    <p class="text-dark fw-medium mb-2">{{ number_format($holidayAmount, 2) }}$</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($holidayAmount, 2) }}£</p>
                                 </div>
                             @endif
 
                             @if ($unpaidAmount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Unpaid Deductions</p>
-                                    <p class="text-dark fw-medium mb-2">-{{ number_format($unpaidAmount, 2) }}$</p>
+                                    <p class="text-dark fw-medium mb-2">-{{ number_format($unpaidAmount, 2) }}£</p>
                                 </div>
                             @endif
                             @if ($invoice->tax_amount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Tax</p>
-                                    <p class="text-dark fw-medium mb-2">{{ number_format($invoice->tax_amount, 2) }}$</p>
+                                    <p class="text-dark fw-medium mb-2">{{ number_format($invoice->tax_amount, 2) }}£</p>
                                 </div>
                             @endif
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">

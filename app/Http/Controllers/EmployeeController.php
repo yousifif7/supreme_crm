@@ -583,8 +583,8 @@ class EmployeeController extends Controller
 
         Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
 
-        $empUser->delete();
-        $employee->delete();
+        $empUser->forceDelete();
+        $employee->forceDelete();
 
         return response()->json(['success' => true]);
     }

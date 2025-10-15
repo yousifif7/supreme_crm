@@ -40,7 +40,7 @@ class LeavesDataTable extends DataTable
             ->editColumn('ssp_paid_days', fn($leave) => $leave->ssp_paid_days)
             ->editColumn('unpaid_days', fn($leave) => $leave->unpaid_days)
             ->editColumn('amount_paid', fn($leave) => number_format($leave->amount_paid, 2))
-            ->editColumn('created_at', fn($leave) => $leave->created_at?->format('Y-m-d'))
+            ->editColumn('created_at', fn($leave) => $leave->created_at?->format('m-d-Y'))
             ->addColumn('total_hours_worked', function ($leave) {
                 if (!$leave->employee) return 0;
 

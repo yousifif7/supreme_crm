@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use App\Models\Invoice;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -46,6 +47,23 @@ class PayrollsDataTable extends DataTable
             ->addColumn('holiday_amount', fn($row) => number_format($row->holiday_amount ?? 0, 2))
             ->addColumn('unpaid_leave_hours', fn($row) => $row->unpaid_leave_hours ?? 0)
             ->addColumn('unpaid_leave_amount', fn($row) => number_format($row->unpaid_leave_amount ?? 0, 2))
+            // Format issue_date and due_date as MM/DD/YYYY
+            ->addColumn('issue_date', function($row) {
+                if (empty($row->issue_date)) return '';
+                try {
+                    return Carbon::parse($row->issue_date)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    return $row->issue_date;
+                }
+            })
+            ->addColumn('due_date', function($row) {
+                if (empty($row->due_date)) return '';
+                try {
+                    return Carbon::parse($row->due_date)->format('m/d/Y');
+                } catch (\Exception $e) {
+                    return $row->due_date;
+                }
+            })
             ->addColumn('action', function ($row) {
                 // Single delete button for payrolls
                 $deleteBtn = '<a href="javascript:void(0)" class="btn btn-sm btn-danger" ' .

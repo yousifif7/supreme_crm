@@ -1417,12 +1417,13 @@
     <div class="bar-content">
         ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
         <div class="time-text">${escapeHtml(shift.formatted_time || '')}</div>
-        <div class="duration-text">${escapeHtml(shift.duration || '')}</div>
         <div class="staff-name">${escapeHtml(staffNameWithoutSub)}</div>
         ${subcontractor ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${escapeHtml(subcontractor)}</div>` : ''}
     </div>
-    ${shift.note ? `<span class="view-note-icon" data-shift-id="${shift.id}" style="color:#0d6efd">📝</span>` : `<span class="note-icon" data-shift-id="${shift.id}" style="color:#555">📝</span>`}
-</div>
+${shift.note 
+    ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
+    : `<i class="fa-solid note-icon fa-file-pen text-muted" data-shift-id="${shift.id}" style="color:#6c757d"></i>`
+}
                     `);
 
                             const idStr = String(shift.id);
