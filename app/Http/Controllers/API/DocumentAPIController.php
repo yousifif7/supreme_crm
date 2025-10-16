@@ -14,6 +14,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 
 class DocumentAPIController extends Controller
 {
@@ -43,6 +45,11 @@ class DocumentAPIController extends Controller
             $file->move($destinationPath, $fileName);
 
             $filePath = 'documents/' . $fileName;
+            try {
+                (new FileCompressor())->compress($destinationPath . '/' . $fileName);
+            } catch (\Exception $e) {
+                Log::error('File compression failed for DocumentAPI upload: ' . $e->getMessage());
+            }
 
             $document = Document::create([
                 'user_id' => $user->id,

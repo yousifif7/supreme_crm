@@ -34,7 +34,7 @@ class ShiftController extends Controller
     public function unassign(Request $request, $id)
     {
         $shiftDate = ShiftDate::findOrFail($id);
-        
+
         send_push_notification(
             $shiftDate->staff->id,
             'Shift Unassigned',
@@ -985,8 +985,8 @@ class ShiftController extends Controller
                 'status' => $sd->is_assign,
                 'is_assigned' => $sd->is_assign != 0,
                 'duration_hours' => $durationHours + ($durationMinutes / 60),
-                'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
-                'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
+                'start_datetime' => $startDate->format('m-d-Y\TH:i:s'),
+                'end_datetime' => $endDate->format('m-d-Y\TH:i:s'),
                 'note' => $note?->note ?? null,          // ✅ include note text
                 'note_type' => $note?->note_type ?? null // ✅ include note type
             ];

@@ -12,6 +12,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 
 class DobApiController extends Controller
 {
@@ -55,6 +57,11 @@ class DobApiController extends Controller
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('dob_media'), $filename);
                 $filePath = 'dob_media/' . $filename;
+                try {
+                    (new FileCompressor())->compress(public_path('dob_media/' . $filename));
+                } catch (\Exception $e) {
+                    Log::error('DobApiController: compression failed for uploaded file: ' . $e->getMessage());
+                }
             } elseif (is_string($file) && preg_match('/^data:/', $file)) {
                 $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
 
@@ -79,6 +86,11 @@ class DobApiController extends Controller
                 $filename = time() . '_' . uniqid() . '.' . $extension;
                 file_put_contents(public_path('dob_media/' . $filename), base64_decode($fileData));
                 $filePath = 'dob_media/' . $filename;
+                try {
+                    (new FileCompressor())->compress(public_path('dob_media/' . $filename));
+                } catch (\Exception $e) {
+                    Log::error('DobApiController: compression failed for base64 file: ' . $e->getMessage());
+                }
             } else {
                 continue;
             }
@@ -245,7 +257,7 @@ class DobApiController extends Controller
                 '/documents/report'
             );
         } catch (\Exception $e) {
-            \Log::error('Dashboard notification failed: ' . $e->getMessage());
+            Log::error('Dashboard notification failed: ' . $e->getMessage());
         }
 
         try {
@@ -256,7 +268,7 @@ class DobApiController extends Controller
                 ['employee' => $employee->id]
             );
         } catch (\Exception $e) {
-            \Log::error('Push notification failed: ' . $e->getMessage());
+            Log::error('Push notification failed: ' . $e->getMessage());
         }
 
         return response()->json([

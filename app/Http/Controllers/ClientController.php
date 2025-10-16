@@ -12,6 +12,8 @@ use Spatie\Permission\Models\Role;
 use App\DataTables\ClientsDataTable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 
@@ -83,6 +85,11 @@ class ClientController extends Controller
                 $fileName = time() . "_{$docField}." . $file->getClientOriginalExtension();
                 $file->move($uploadPath, $fileName);
                 $data[$docField] = $fileName;
+                try {
+                    (new FileCompressor())->compress($uploadPath . '/' . $fileName);
+                } catch (\Exception $e) {
+                    Log::error('File compression failed for client ' . $docField . ': ' . $e->getMessage());
+                }
             }
         }
         // Create user with hashed password
@@ -171,6 +178,11 @@ class ClientController extends Controller
                 $fileName = time() . "_{$docField}." . $file->getClientOriginalExtension();
                 $file->move($uploadPath, $fileName);
                 $data[$docField] = $fileName;
+                    try {
+                        (new FileCompressor())->compress($uploadPath . '/' . $fileName);
+                    } catch (\Exception $e) {
+                        Log::error('File compression failed for client update ' . $docField . ': ' . $e->getMessage());
+                    }
             }
         }
 

@@ -7,6 +7,8 @@ use App\Models\DocumentationUpload;
 use App\Models\Vehicle;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
+use App\Services\FileCompressor;
 use Illuminate\Support\Facades\Validator;
 
 class DocumentationUploadController extends Controller
@@ -69,6 +71,14 @@ class DocumentationUploadController extends Controller
 
                 $file->move($uploadPath, $fileName);
 
+                // Attempt compression (in-place) for images/videos
+                try {
+                    $compressor = new FileCompressor();
+                    $compressor->compress(public_path('uploads/documents/' . $fileName));
+                } catch (\Throwable $e) {
+                    Log::error('DocumentationUploadController: compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                }
+
                 // Store the relative path (or full path if preferred)
                 $paths[$field . '_path'] = 'uploads/documents/' . $fileName;
             }
@@ -126,6 +136,14 @@ class DocumentationUploadController extends Controller
                 $fileName = time() . '_' . uniqid() . "_{$field}." . $file->getClientOriginalExtension();
 
                 $file->move($uploadPath, $fileName);
+
+                // Attempt compression (in-place) for images/videos
+                try {
+                    $compressor = new FileCompressor();
+                    $compressor->compress(public_path('uploads/documents/' . $fileName));
+                } catch (\Throwable $e) {
+                    Log::error('DocumentationUploadController: compression failed (update)', ['file' => $fileName, 'error' => $e->getMessage()]);
+                }
 
                 $paths[$field . '_path'] = 'uploads/documents/' . $fileName;
             }

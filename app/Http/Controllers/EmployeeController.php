@@ -19,6 +19,8 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\DataTables\EmployeesDataTable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use App\Services\FileCompressor;
 
 class EmployeeController extends Controller
 {
@@ -177,6 +179,12 @@ class EmployeeController extends Controller
             $imageName = time() . '_profile.' . $image->getClientOriginalExtension();
             $image->move(public_path('uploads/profile_pics'), $imageName);
             $data['profile_picture'] = $imageName;
+
+            try {
+                (new FileCompressor())->compress(public_path('uploads/profile_pics/' . $imageName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController: profile_picture compression failed', ['file' => $imageName, 'error' => $e->getMessage()]);
+            }
         }
 
         if ($request->hasFile('signature')) {
@@ -184,6 +192,12 @@ class EmployeeController extends Controller
             $fileName = time() . '_signature.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/signatures'), $fileName);
             $data['signature'] = $fileName;
+
+            try {
+                (new FileCompressor())->compress(public_path('uploads/signatures/' . $fileName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController: signature compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+            }
         }
 
         $documents = ['sia_licence_file', 'passport_file', 'driving_licence_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
@@ -193,6 +207,12 @@ class EmployeeController extends Controller
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
+
+                try {
+                    (new FileCompressor())->compress(public_path('uploads/' . $document . '/' . $fileName));
+                } catch (\Throwable $e) {
+                    Log::error('EmployeeController: document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                }
             }
         }
 
@@ -210,6 +230,13 @@ class EmployeeController extends Controller
 
                     if ($moved) {
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
+
+                        try {
+                            (new FileCompressor())->compress(public_path('uploads/additional_docs/' . $fileName));
+                        } catch (\Throwable $e) {
+                            Log::error('EmployeeController: additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                        }
+
                     } else {
                         return response()->json([
                             'error' => 'Failed to move file: ' . $file->getClientOriginalName()
@@ -403,7 +430,7 @@ class EmployeeController extends Controller
                 // If success = true and valid = true, licence exists in SIA database
                 if ($siaResult['valid']) {
                     // Licence is valid! Continue with your logic
-                    \Log::info('SIA Licence Verified', [
+                    Log::info('SIA Licence Verified', [
                         'licence' => $data['sia_licence'],
                         'found_details' => [
                             'name' => $siaResult['holder_name'] ?? 'Could not parse',
@@ -416,7 +443,7 @@ class EmployeeController extends Controller
                     ], 400);
                 }
             } catch (\Exception $e) {
-                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
                 return response()->json([
                     'error' => 'Error checking SIA licence. Please try again.'
                 ], 500);
@@ -461,6 +488,11 @@ class EmployeeController extends Controller
             $imageName = time() . '_profile.' . $image->getClientOriginalExtension();
             $image->move(public_path('uploads/profile_pics'), $imageName);
             $data['profile_picture'] = $imageName;
+            try {
+                (new FileCompressor())->compress(public_path('uploads/profile_pics/' . $imageName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController (update): profile_picture compression failed', ['file' => $imageName, 'error' => $e->getMessage()]);
+            }
         }
 
         // Handle signature update
@@ -469,6 +501,11 @@ class EmployeeController extends Controller
             $fileName = time() . '_signature.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/signatures'), $fileName);
             $data['signature'] = $fileName;
+            try {
+                (new FileCompressor())->compress(public_path('uploads/signatures/' . $fileName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController (update): signature compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+            }
         }
 
         $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
@@ -478,6 +515,11 @@ class EmployeeController extends Controller
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
+                try {
+                    (new FileCompressor())->compress(public_path('uploads/' . $document . '/' . $fileName));
+                } catch (\Throwable $e) {
+                    Log::error('EmployeeController (update): document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                }
             }
         }
         if ($validator->fails()) {
@@ -503,6 +545,11 @@ class EmployeeController extends Controller
                     if ($moved) {
                         // Save relative path to array
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
+                            try {
+                                (new FileCompressor())->compress(public_path('uploads/additional_docs/' . $fileName));
+                            } catch (\Throwable $e) {
+                                Log::error('EmployeeController (update): additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                            }
                     } else {
                         return response()->json([
                             'error' => 'Failed to move file: ' . $file->getClientOriginalName()

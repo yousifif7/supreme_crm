@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Models\MessageRead;
 use App\Models\UserPinnedConversation;
 use Auth;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 use App\Events\MessageSent;
 use App\Events\UserTyping;
 use App\Notifications\DbNotification;
@@ -140,6 +142,11 @@ class ChatController extends Controller
             $filename = uniqid() . '.' . $icon->getClientOriginalExtension();
             $icon->move(public_path('conversation_icons'), $filename);
             $iconPath = 'conversation_icons/' . $filename;
+            try {
+                (new FileCompressor())->compress(public_path('conversation_icons/' . $filename));
+            } catch (\Exception $e) {
+                Log::error('File compression failed for conversation icon: ' . $e->getMessage());
+            }
         } else {
             $iconPath = null;
         }
@@ -250,6 +257,11 @@ class ChatController extends Controller
             $filename = uniqid() . '.' . $attachment->getClientOriginalExtension();
             $attachment->move(public_path('message_attachments'), $filename);
             $attachmentPath = '/message_attachments/' . $filename;
+            try {
+                (new FileCompressor())->compress(public_path('message_attachments/' . $filename));
+            } catch (\Exception $e) {
+                Log::error('File compression failed for message attachment: ' . $e->getMessage());
+            }
         }
         $message = $conversation->messages()->create([
             'sender_id' => $request->user_id,
@@ -318,6 +330,11 @@ class ChatController extends Controller
         $attachment = $request->file('attachment');
         $filename = uniqid() . '.' . $attachment->getClientOriginalExtension();
         $attachment->move(public_path('message_attachments'), $filename);
+        try {
+            (new FileCompressor())->compress(public_path('message_attachments/' . $filename));
+        } catch (\Exception $e) {
+            Log::error('File compression failed for uploadAttachment: ' . $e->getMessage());
+        }
         return 'message_attachments/' . $filename;
     }
 }

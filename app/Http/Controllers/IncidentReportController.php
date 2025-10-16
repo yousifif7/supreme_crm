@@ -9,6 +9,8 @@ use App\Models\IncidentMedia;
 use App\Models\IncidentPerson;
 use App\Models\IncidentReport;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
 use App\Exports\IncidentReportsExport;
@@ -173,6 +175,11 @@ class IncidentReportController extends Controller
                 if ($file instanceof \Illuminate\Http\UploadedFile) {
                     $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path("incidents/$type"), $fileName);
+                    try {
+                        (new FileCompressor())->compress(public_path("incidents/$type/$fileName"));
+                    } catch (\Exception $e) {
+                        Log::error('File compression failed for incident uploaded file: ' . $e->getMessage());
+                    }
                     $filePath = "incidents/$type/$fileName";
                 } elseif (is_string($file) && preg_match('/^data:/', $file)) {
                     $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
@@ -188,6 +195,11 @@ class IncidentReportController extends Controller
                     $fileName = time() . '_' . uniqid() . '.' . $extension;
                     file_put_contents(public_path("incidents/$type/$fileName"), base64_decode($fileData));
                     $filePath = "incidents/$type/$fileName";
+                    try {
+                        (new FileCompressor())->compress(public_path("incidents/$type/$fileName"));
+                    } catch (\Exception $e) {
+                        Log::error('File compression failed for incident base64 file: ' . $e->getMessage());
+                    }
                 } else {
                     continue;
                 }

@@ -17,6 +17,7 @@ use App\Models\ShiftDate;
 use Illuminate\Http\Request;
 use App\Models\EmergencyAlert;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
@@ -138,6 +139,15 @@ class AdminAPIController extends Controller
     public function dashboardAlerts(Request $request)
     {
         $alerts = [];
+
+        $user = Auth::user();
+
+        $skipRoles = ['superadmin', 'security_staff', 'client', 'subcontractor'];
+
+        // Only check roles if user exists
+        if ($user && method_exists($user, 'getRoleNames') && $user->getRoleNames()->intersect($skipRoles)->isNotEmpty()) {
+            return response()->json(['alerts' => []]);
+        }
 
         // --- 1. Emergency Alerts ---
         $emergencyAlerts = EmergencyAlert::where('acknowledged_by_control', false)

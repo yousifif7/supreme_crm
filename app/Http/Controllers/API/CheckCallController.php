@@ -14,6 +14,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 
 class CheckCallController extends Controller
 {
@@ -76,6 +78,11 @@ class CheckCallController extends Controller
                 $filename = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('check_calls'), $filename);
                 $filePath = 'check_calls/' . $filename;
+                try {
+                    (new FileCompressor())->compress(public_path('check_calls/' . $filename));
+                } catch (\Exception $e) {
+                    Log::error('File compression failed for check_calls uploaded file: ' . $e->getMessage());
+                }
             } elseif (is_string($file) && preg_match('/^data:/', $file)) {
                 $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
                 $extension = 'png';
@@ -94,6 +101,11 @@ class CheckCallController extends Controller
                 $filename = time() . '_' . uniqid() . '.' . $extension;
                 file_put_contents(public_path('check_calls/' . $filename), base64_decode($fileData));
                 $filePath = 'check_calls/' . $filename;
+                try {
+                    (new FileCompressor())->compress(public_path('check_calls/' . $filename));
+                } catch (\Exception $e) {
+                    Log::error('File compression failed for check_calls base64 file: ' . $e->getMessage());
+                }
             } else {
                 continue;
             }
@@ -166,6 +178,12 @@ class CheckCallController extends Controller
                 }
 
                 imagedestroy($img);
+                // Compress after watermark/edit
+                try {
+                    (new FileCompressor())->compress($imgPath);
+                } catch (\Exception $e) {
+                    Log::error('File compression failed after watermark for check_calls file: ' . $e->getMessage());
+                }
             }
 
             // Save to DB
@@ -220,7 +238,7 @@ class CheckCallController extends Controller
                 ['checkcall' => $checkCall]
             );
         } catch (\Exception $e) {
-            \Log::error('Notification failed: ' . $e->getMessage());
+            Log::error('Notification failed: ' . $e->getMessage());
         }
 
         return response()->json([

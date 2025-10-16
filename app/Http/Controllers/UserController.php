@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
@@ -289,6 +291,11 @@ class UserController extends Controller
             $file->move($uploadPath, $fileName);
 
             $validated['profile_picture'] = $fileName;
+            try {
+                (new FileCompressor())->compress($uploadPath . '/' . $fileName);
+            } catch (\Exception $e) {
+                Log::error('File compression failed for user profile_picture: ' . $e->getMessage());
+            }
         }
 
         $user = User::create($validated);
@@ -355,6 +362,11 @@ class UserController extends Controller
             $file->move($uploadPath, $fileName);
 
             $validated['profile_picture'] = $fileName;
+            try {
+                (new FileCompressor())->compress($uploadPath . '/' . $fileName);
+            } catch (\Exception $e) {
+                Log::error('File compression failed for user profile_picture (update): ' . $e->getMessage());
+            }
         }
 
         $user->update($validated);
@@ -445,20 +457,19 @@ class UserController extends Controller
             return;
         }
 
-        // ✅ Prevent duplicate runs: cache key per calendar week (ISO week) so it runs once per week
-        $isoYear = $today->isoFormat('GGGG'); // ISO week-year
-        $isoWeek = $today->isoFormat('WW');   // ISO week number
-        $cacheKey = "weekly_hours_notification_{$isoYear}_week_{$isoWeek}";
+        // ✅ Prevent duplicate runs: cache key for this Thursday
+        $cacheKey = 'weekly_hours_notification_' . $today->toDateString();
 
         if (Cache::has($cacheKey)) {
-            return; // Already sent this week
+            return; // Already sent today
         }
 
         $weekStart = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
         $weekEnd   = $today->copy()->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
 
-        // Normalize status check by lowercasing column comparison to be resilient to casing
-        $guards = \App\Models\Employee::whereRaw('LOWER(status) = ?', ['active'])->get();
+        $guards = \App\Models\Employee::where('sia_status', 'Active')
+            ->orWhere('sia_status', 'valid')
+            ->get();
 
         foreach ($guards as $staff) {
             $entity = $staff->entity;
@@ -481,11 +492,7 @@ class UserController extends Controller
             }
         }
 
-        // ✅ Store flag in cache until the end of the ISO week (Sunday 23:59:59) to be safe
-        // Calculate TTL as seconds until end of week
-        $endOfWeek = $today->copy()->endOfWeek();
-        $ttlSeconds = $endOfWeek->diffInSeconds($today);
-        // Put cache with TTL (seconds)
-        Cache::put($cacheKey, true, $ttlSeconds);
+        // ✅ Store flag in cache until the end of Thursday (23:59:59)
+        Cache::put($cacheKey, true, $today->copy()->endOfDay());
     }
 }
