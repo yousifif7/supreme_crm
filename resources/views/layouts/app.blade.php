@@ -169,7 +169,7 @@
                         <!-- /Horizontal Single -->
                         @php
                             $notifications = \App\Models\Notification::where('user_id', 1)
-                                ->orderBy('created_at', 'desc')
+                                ->orderBy('created_at', 'desc')->limit(10)
                                 ->get();
                         @endphp
                         <div class="d-flex align-items-center">
@@ -248,7 +248,7 @@
 
                                     <!-- Footer buttons -->
                                     <div class="d-flex p-0 pt-3 border-top mt-3">
-                                        <a href="#" class="btn btn-light w-100 me-2">Cancel</a>
+                                        <a href="{{ url('notifications') }}" class="btn btn-light w-100 me-2">View All</a>
                                         {{-- <a href="#" class="btn btn-primary w-100">View All</a> --}}
                                     </div>
                                 </div>
@@ -428,9 +428,7 @@ document.addEventListener('click', () => {
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
     <script src="{{ asset('assets/toast/alerts6.js') }}" defer></script>
-        @yield('scripts')
-
-    @stack('scripts')
+      
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
         if (addShiftBtn) {
@@ -645,6 +643,9 @@ document.addEventListener('click', () => {
             });
         });
     </script>
+      @yield('scripts')
+
+    @stack('scripts')
 </body>
 
 </html>

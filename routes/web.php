@@ -36,7 +36,7 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-
+use App\Http\Controllers\NotificationsController;
 Route::get('/', function () {
     return view('auth.login');
 });
@@ -68,6 +68,13 @@ Route::group(['middleware' => ['auth']], function () {
 });
 
 
+Route::prefix('notifications')->group(function () {
+    Route::get('/', [NotificationsController::class, 'index'])->name('notifications.index');
+
+    // Bulk actions
+    Route::post('/mark-as-read', [NotificationsController::class, 'bulkMarkAsRead'])->name('notifications.bulkMarkAsRead');
+    Route::post('/delete', [NotificationsController::class, 'bulkDelete'])->name('notifications.bulkDelete');
+});
 Route::middleware('auth')->group(function () {
     Route::post('/logout', function () {
         Auth::logout();

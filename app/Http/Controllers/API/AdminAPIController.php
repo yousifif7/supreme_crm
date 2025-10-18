@@ -310,6 +310,11 @@ class AdminAPIController extends Controller
                 }
             }
         }
+        if (Auth::user()->hasRole('')) {
+            $alerts=$alerts;
+        } else{
+            $alerts=[];
+        }
 
         return response()->json(['alerts' => $alerts]);
     }

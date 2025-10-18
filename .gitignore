@@ -11,6 +11,7 @@
 /storage/*.key
 /storage/pail
 /vendor
+/ffmpeg
 .env
 .env.backup
 .env.production
