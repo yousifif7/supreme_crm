@@ -24,7 +24,6 @@ return new class extends Migration
             $table->decimal('holiday_days_used', 5, 2)->nullable()->after('ssp_days');
 
             // Unpaid leave tracking
-            $table->decimal('unpaid_days', 5, 2)->nullable()->after('holiday_days_used');
 
             // Approval / management info
             $table->unsignedBigInteger('approved_by')->nullable()->after('unpaid_days');
@@ -45,7 +44,6 @@ return new class extends Migration
                 'processed_by_payroll',
                 'ssp_days',
                 'holiday_days_used',
-                'unpaid_days',
                 'approved_by',
                 'approval_date',
                 'notes',
