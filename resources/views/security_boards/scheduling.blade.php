@@ -1418,7 +1418,7 @@
     </div>
 ${shift.note 
     ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
-    : `<i class="fa-solid note-icon fa-file-pen text-muted" data-shift-id="${shift.id}" style="color:#6c757d"></i>`
+    : `<i class="fa-solid note-icon fa-file-pen " data-shift-id="${shift.id}" style="color:#ffffff"></i>`
 }
                     `);
 
