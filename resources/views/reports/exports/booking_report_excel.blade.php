@@ -28,7 +28,7 @@
                             {{ ucfirst(str_replace('_', ' ', $type)) }}
                         </span>
                     </td>
-                    <td>{{ $booking->shift?->shift_date ?? 'N/A' }}</td>
+                    <td>{{ $booking->shift?->shift_date ? format_date($booking->shift?->shift_date) : 'N/A' }}</td>
                                     <td>
                     @if (!empty($booking->timestamp))
                         {{ \Carbon\Carbon::parse($booking->timestamp)->format('d/m/Y H:i') }}

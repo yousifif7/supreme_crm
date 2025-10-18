@@ -41,7 +41,7 @@ class SubcontractorsDataTable extends DataTable
                 return $subcontractor->contact_number;
             })
             ->editColumn('created_at', function ($user) {
-                return $user->created_at?->format('Y-m-d');
+                return $user->created_at?->format('m-d-Y');
             })
             ->editColumn('email', function ($subcontractor) {
                 return $subcontractor->email;

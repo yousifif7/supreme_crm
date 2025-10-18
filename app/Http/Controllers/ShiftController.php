@@ -34,8 +34,19 @@ class ShiftController extends Controller
     public function unassign(Request $request, $id)
     {
         $shiftDate = ShiftDate::findOrFail($id);
+
+        send_push_notification(
+            $shiftDate->staff->id,
+            'Shift Unassigned',
+            'An admin unassigned a shift for you, check your schedule.',
+            ['shiftDate' => $shiftDate],
+        );
+
         $shiftDate->staff_id = null; // Remove assigned staff
         $shiftDate->is_assign=0;
+        $shiftDate->status="pending";
+
+
         $shiftDate->save();
 
         return response()->json(['success' => true]);
@@ -349,7 +360,26 @@ class ShiftController extends Controller
 
 
             if ($validator->fails()) {
-                return response()->json(['errors' => $validator->errors(), 'index' => $i], 422);
+                $errors = $validator->errors();
+                $response = ['errors' => $errors, 'index' => $i];
+
+                // If the current user is an admin/superadmin, include an override message
+                // so the frontend can present an override confirmation to privileged users.
+                try {
+                    $user = auth()->user();
+                    if ($user && method_exists($user, 'getRoleNames')) {
+                        $roles = $user->getRoleNames();
+                        if ($roles->contains('superadmin') || $roles->contains('admin')) {
+                            // Prefer staff-specific restriction message if present, otherwise first message
+                            $firstMsg = $errors->has('staff_id') ? $errors->first('staff_id') : $errors->first();
+                            if ($firstMsg) $response['override_message'] = $firstMsg;
+                        }
+                    }
+                } catch (\Exception $e) {
+                    // ignore any role-checking errors and continue returning validation errors
+                }
+
+                return response()->json($response, 422);
             }
 
             $data = $validator->validated();
@@ -955,8 +985,8 @@ class ShiftController extends Controller
                 'status' => $sd->is_assign,
                 'is_assigned' => $sd->is_assign != 0,
                 'duration_hours' => $durationHours + ($durationMinutes / 60),
-                'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
-                'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
+                'start_datetime' => $startDate->format('m-d-Y\TH:i:s'),
+                'end_datetime' => $endDate->format('m-d-Y\TH:i:s'),
                 'note' => $note?->note ?? null,          // ✅ include note text
                 'note_type' => $note?->note_type ?? null // ✅ include note type
             ];
@@ -1874,9 +1904,12 @@ class ShiftController extends Controller
         ]);
     }
 
-    public function deleteNote($noteId)
+    public function deleteNote($shiftDateId)
     {
-        $note = ShiftNote::find($noteId);
+        // The routes use /shift-dates/{id}/note for GET/POST/DELETE where {id}
+        // refers to the shift_date id. For consistency, delete the ShiftNote
+        // associated with the given shift_date_id.
+        $note = ShiftNote::where('shift_date_id', $shiftDateId)->first();
         if ($note) {
             $note->delete();
             return response()->json(['success' => true]);
@@ -2096,6 +2129,7 @@ class ShiftController extends Controller
             ], [
                 'client_id' => 'required|integer',
                 'site_id' => 'required|integer',
+                'days' => 'nullable|string',
                 'staff_id' => 'nullable|integer',
                 'start_shift' => 'required|date_format:H:i',
                 'end_shift' => 'required|date_format:H:i',

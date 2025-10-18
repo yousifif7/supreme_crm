@@ -43,7 +43,7 @@ class ShiftApiController extends Controller
             },
         ])
             ->where('staff_id', $userId)
-            ->orderBy('shift_date','desc');
+            ->orderBy('shift_date', 'desc');
 
         // category filter
         if ($category) {
@@ -125,10 +125,10 @@ class ShiftApiController extends Controller
                 'category' => $category,
                 'trainings' => $trainings,
                 // ✅ Add note info here
-                'note' => $note ? [
-                    'id' => $note->id,
+                'note' => ($note?->note_type === 'guard') ? [
+                    'id'        => $note->id,
                     'note_type' => $note->note_type,
-                    'note' => $note->note,
+                    'note'      => $note->note,
                 ] : null,
             ];
         });

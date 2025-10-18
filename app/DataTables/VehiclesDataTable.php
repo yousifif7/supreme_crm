@@ -35,7 +35,7 @@ class VehiclesDataTable extends DataTable
                 return ucfirst($vehicle->vehicle_category);
             })
             ->editColumn('first_registration_date', function ($vehicle) {
-                return \Carbon\Carbon::parse($vehicle->first_registration_date)->format('d M Y');
+                return \Carbon\Carbon::parse($vehicle->first_registration_date)->format('M d Y');
             })
             ->editColumn('odometer_reading', function ($vehicle) {
                 return number_format($vehicle->odometer_reading) . ' mile';

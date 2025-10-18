@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use App\Models\Invoice;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -38,7 +39,16 @@ class InvoicesDataTable extends DataTable
                 return $row->client ? $row->client->first_name : '';
             })
             ->addColumn('invoice_date', function ($row) {
-                return $row->created_at ? $row->created_at->format('Y-m-d') : '';
+                if ($row->created_at) {
+                    try { return Carbon::parse($row->created_at)->format('m/d/Y'); }
+                    catch (\Exception $e) { return $row->created_at; }
+                }
+                return '';
+            })
+            ->addColumn('issue_date', function ($row) {
+                if (empty($row->issue_date)) return '';
+                try { return Carbon::parse($row->issue_date)->format('m/d/Y'); }
+                catch (\Exception $e) { return $row->issue_date; }
             })
             ->addColumn('client_name', function ($row) {
                 return $row->client ? $row->client->first_name : '';
@@ -120,7 +130,6 @@ class InvoicesDataTable extends DataTable
             Column::make('client_name')->title('Client Name'),
             Column::make('site_name')->title('Site Name'),
             Column::make('issue_date')->title('Issue Date'),
-            Column::make('due_date')->title('Due Date'),
             Column::make('total_shift_hours')->title('Total Shift Hours'),
             Column::make('net_amount')->title('Net Amount'),
 
@@ -135,6 +144,6 @@ class InvoicesDataTable extends DataTable
      */
     protected function filename(): string
     {
-        return 'Invoices_' . date('YmdHis');
+        return 'Invoices_' . date('mdYHis');
     }
 }

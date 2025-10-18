@@ -12,6 +12,8 @@ use App\Models\IncidentReport;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 
 class IncidentReportController extends Controller
 {
@@ -67,6 +69,11 @@ class IncidentReportController extends Controller
                     $fileName = time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
                     $file->move(public_path("incidents/$type"), $fileName);
                     $filePath = "incidents/$type/$fileName";
+                    try {
+                        (new FileCompressor())->compress(public_path("incidents/$type/$fileName"));
+                    } catch (\Exception $e) {
+                        Log::error('API IncidentReport: compression failed for uploaded file: ' . $e->getMessage());
+                    }
                 } elseif (is_string($file) && preg_match('/^data:/', $file)) {
                     $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
                     $extension = 'png';
@@ -81,6 +88,11 @@ class IncidentReportController extends Controller
                     $fileName = time() . '_' . uniqid() . '.' . $extension;
                     file_put_contents(public_path("incidents/$type/$fileName"), base64_decode($fileData));
                     $filePath = "incidents/$type/$fileName";
+                    try {
+                        (new FileCompressor())->compress(public_path("incidents/$type/$fileName"));
+                    } catch (\Exception $e) {
+                        Log::error('API IncidentReport: compression failed for base64 file: ' . $e->getMessage());
+                    }
                 } else {
                     continue;
                 }

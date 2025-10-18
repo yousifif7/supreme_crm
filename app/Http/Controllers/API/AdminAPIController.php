@@ -17,6 +17,7 @@ use App\Models\ShiftDate;
 use Illuminate\Http\Request;
 use App\Models\EmergencyAlert;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Validator;
 
@@ -139,6 +140,15 @@ class AdminAPIController extends Controller
     {
         $alerts = [];
 
+        $user = Auth::user();
+
+        $skipRoles = ['superadmin', 'security_staff', 'client', 'subcontractor'];
+
+        // Only check roles if user exists
+        if ($user && method_exists($user, 'getRoleNames') && $user->getRoleNames()->intersect($skipRoles)->isNotEmpty()) {
+            return response()->json(['alerts' => []]);
+        }
+
         // --- 1. Emergency Alerts ---
         $emergencyAlerts = EmergencyAlert::where('acknowledged_by_control', false)
             ->with('user') // assuming EmergencyAlert has a relation to User
@@ -192,7 +202,7 @@ class AdminAPIController extends Controller
                 $alerts[] = [
                     'type' => 'patrol_missed',
                     'user_id' => $patrol?->shift?->staff_id ?? 'N/A',
-                    'user_name' => $patrol->shift->staff->name ?? '',
+                    'user_name' => $patrol->shift->staff->first_name ?? '',
                     'patrol_id' => $patrol->id,
                     'title' => 'Missed Patrol',
                     'message' => "Staff {$userName} missed patrol: {$patrol->name}",

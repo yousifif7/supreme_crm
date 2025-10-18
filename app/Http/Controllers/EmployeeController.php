@@ -14,13 +14,24 @@ use App\Models\EmployeeType;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Spatie\Permission\Models\Role;
+use App\Services\SiaLicenceChecker;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\DataTables\EmployeesDataTable;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
+use App\Services\FileCompressor;
 
 class EmployeeController extends Controller
 {
+
+        protected SiaLicenceChecker $siaChecker;
+
+    public function __construct(SiaLicenceChecker $siaChecker)
+    {
+        $this->siaChecker = $siaChecker;
+    }
+    
     public function index(EmployeesDataTable $dataTable)
     {
         $employeeUserIds = Employee::pluck('user_id')->filter()->toArray();
@@ -47,8 +58,8 @@ class EmployeeController extends Controller
             'email' => 'required|email:dns|max:255|unique:users,email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string|unique:employees,ni_number',
-            'sia_licence' => 'nullable|string|unique:employees,sia_licence',
-            'driving_licence_number' => 'nullable|string|unique:employees,sia_licence',
+            'sia_licence' => ['nullable', 'string','unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
+            'driving_licence_number' => 'nullable|string|unique:employees,driving_licence_number',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'entry_date' => 'nullable',
@@ -149,39 +160,16 @@ class EmployeeController extends Controller
         $data = $validator->validated();
 
         // Check and verify SIA Licence via SiaLicenceChecker if provided
-        if (!empty($data['sia_licence'])) {
-            try {
-                $siaChecker = new \App\Services\SiaLicenceChecker();
-                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
-
-                // Just check if the request was successful
-                if (!$siaResult['success']) {
-                    return response()->json([
-                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
-                    ], 400);
-                }
-
-                // If success = true and valid = true, licence exists in SIA database
-                if ($siaResult['valid']) {
-                    // Licence is valid! Continue with your logic
-                    \Log::info('SIA Licence Verified', [
-                        'licence' => $data['sia_licence'],
-                        'found_details' => [
-                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
-                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
-                        ]
-                    ]);
-                } else {
-                    return response()->json([
-                        'error' => 'SIA licence not found in register'
-                    ], 400);
-                }
-            } catch (\Exception $e) {
-                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
-                return response()->json([
-                    'error' => 'Error checking SIA licence. Please try again.'
-                ], 500);
+                if ($request->filled('license_number')) {
+            $siaResult = $this->siaChecker->checkByLicenceNumber($request->input('license_number'), false);
+            if (! $siaResult['success']) {
+                return back()->withInput()->withErrors(['license_number' => $siaResult['error']]);
             }
+            if (! $siaResult['valid']) {
+                return back()->withInput()->withErrors(['license_number' => 'SIA licence not active: ' . ($siaResult['error'] ?? 'unknown')]);
+            }
+            // optional: save parsed holder_name / sector / expiry to employee record
+            // $holder = $siaResult['holder_name'] ?? null;
         }
 
         // ✅ Handle the checkbox manually
@@ -191,6 +179,12 @@ class EmployeeController extends Controller
             $imageName = time() . '_profile.' . $image->getClientOriginalExtension();
             $image->move(public_path('uploads/profile_pics'), $imageName);
             $data['profile_picture'] = $imageName;
+
+            try {
+                (new FileCompressor())->compress(public_path('uploads/profile_pics/' . $imageName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController: profile_picture compression failed', ['file' => $imageName, 'error' => $e->getMessage()]);
+            }
         }
 
         if ($request->hasFile('signature')) {
@@ -198,6 +192,12 @@ class EmployeeController extends Controller
             $fileName = time() . '_signature.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/signatures'), $fileName);
             $data['signature'] = $fileName;
+
+            try {
+                (new FileCompressor())->compress(public_path('uploads/signatures/' . $fileName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController: signature compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+            }
         }
 
         $documents = ['sia_licence_file', 'passport_file', 'driving_licence_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
@@ -207,6 +207,12 @@ class EmployeeController extends Controller
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
+
+                try {
+                    (new FileCompressor())->compress(public_path('uploads/' . $document . '/' . $fileName));
+                } catch (\Throwable $e) {
+                    Log::error('EmployeeController: document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                }
             }
         }
 
@@ -224,6 +230,13 @@ class EmployeeController extends Controller
 
                     if ($moved) {
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
+
+                        try {
+                            (new FileCompressor())->compress(public_path('uploads/additional_docs/' . $fileName));
+                        } catch (\Throwable $e) {
+                            Log::error('EmployeeController: additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                        }
+
                     } else {
                         return response()->json([
                             'error' => 'Failed to move file: ' . $file->getClientOriginalName()
@@ -300,7 +313,7 @@ class EmployeeController extends Controller
             'email' => 'email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
-            'sia_licence' => 'nullable|string',
+            'sia_licence' => ['nullable', 'string', 'unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'driving_licence_number' => 'nullable|string',
@@ -417,7 +430,7 @@ class EmployeeController extends Controller
                 // If success = true and valid = true, licence exists in SIA database
                 if ($siaResult['valid']) {
                     // Licence is valid! Continue with your logic
-                    \Log::info('SIA Licence Verified', [
+                    Log::info('SIA Licence Verified', [
                         'licence' => $data['sia_licence'],
                         'found_details' => [
                             'name' => $siaResult['holder_name'] ?? 'Could not parse',
@@ -430,7 +443,7 @@ class EmployeeController extends Controller
                     ], 400);
                 }
             } catch (\Exception $e) {
-                \Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
                 return response()->json([
                     'error' => 'Error checking SIA licence. Please try again.'
                 ], 500);
@@ -475,6 +488,11 @@ class EmployeeController extends Controller
             $imageName = time() . '_profile.' . $image->getClientOriginalExtension();
             $image->move(public_path('uploads/profile_pics'), $imageName);
             $data['profile_picture'] = $imageName;
+            try {
+                (new FileCompressor())->compress(public_path('uploads/profile_pics/' . $imageName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController (update): profile_picture compression failed', ['file' => $imageName, 'error' => $e->getMessage()]);
+            }
         }
 
         // Handle signature update
@@ -483,6 +501,11 @@ class EmployeeController extends Controller
             $fileName = time() . '_signature.' . $file->getClientOriginalExtension();
             $file->move(public_path('uploads/signatures'), $fileName);
             $data['signature'] = $fileName;
+            try {
+                (new FileCompressor())->compress(public_path('uploads/signatures/' . $fileName));
+            } catch (\Throwable $e) {
+                Log::error('EmployeeController (update): signature compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+            }
         }
 
         $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
@@ -492,6 +515,11 @@ class EmployeeController extends Controller
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
                 $file->move(public_path('uploads/' . $document), $fileName);
                 $data[$document] = $fileName;
+                try {
+                    (new FileCompressor())->compress(public_path('uploads/' . $document . '/' . $fileName));
+                } catch (\Throwable $e) {
+                    Log::error('EmployeeController (update): document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                }
             }
         }
         if ($validator->fails()) {
@@ -517,6 +545,11 @@ class EmployeeController extends Controller
                     if ($moved) {
                         // Save relative path to array
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
+                            try {
+                                (new FileCompressor())->compress(public_path('uploads/additional_docs/' . $fileName));
+                            } catch (\Throwable $e) {
+                                Log::error('EmployeeController (update): additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                            }
                     } else {
                         return response()->json([
                             'error' => 'Failed to move file: ' . $file->getClientOriginalName()
@@ -597,8 +630,8 @@ class EmployeeController extends Controller
 
         Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
 
-        $empUser->delete();
-        $employee->delete();
+        $empUser->forceDelete();
+        $employee->forceDelete();
 
         return response()->json(['success' => true]);
     }
@@ -775,4 +808,7 @@ class EmployeeController extends Controller
 
         return $pdf->download("employment_report_{$employee->id}.pdf");
     }
+    
+
+
 }

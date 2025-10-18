@@ -13,6 +13,8 @@ use Maatwebsite\Excel\Facades\Excel;
 use App\DataTables\MaterialDataTable;
 use App\Models\TrainingAcknowledgement;
 use Illuminate\Support\Facades\Storage;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 
 class TrainingController extends Controller
 {
@@ -92,10 +94,15 @@ class TrainingController extends Controller
         if ($request->hasFile('pdf_url')) {
             // Move file into the public/materials folder
             $fileName = time() . '_' . $request->file('pdf_url')->getClientOriginalName();
-            $filePath = $request->file('pdf_url')->move(public_path('materials'), $fileName);
+            $request->file('pdf_url')->move(public_path('materials'), $fileName);
 
             // Save only the relative path for later use
             $filePath = 'materials/' . $fileName;
+            try {
+                (new FileCompressor())->compress(public_path('materials/' . $fileName));
+            } catch (\Exception $e) {
+                Log::error('File compression failed for training material pdf: ' . $e->getMessage());
+            }
         }
 
         TrainingMaterial::create([
@@ -147,10 +154,16 @@ class TrainingController extends Controller
 
         // If file uploaded, replace the old file
         if ($request->hasFile('pdf_url')) {
-            $filePath = $request->file('pdf_url')->store('materials', 'public');
-            $validated['pdf_url'] = $filePath;
+            $fileName = time() . '_' . $request->file('pdf_url')->getClientOriginalName();
+            $request->file('pdf_url')->move(public_path('materials'), $fileName);
+            $validated['pdf_url'] = 'materials/' . $fileName;
+            try {
+                (new FileCompressor())->compress(public_path('materials/' . $fileName));
+            } catch (\Exception $e) {
+                Log::error('File compression failed for training material pdf (update): ' . $e->getMessage());
+            }
         } else {
-            unset($validated['pdf_url']); // don’t overwrite with null if no file uploaded
+            unset($validated['pdf_url']); // dont overwrite with null if no file uploaded
         }
 
         // Update instead of create

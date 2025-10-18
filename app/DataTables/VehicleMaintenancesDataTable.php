@@ -30,16 +30,16 @@ class VehicleMaintenancesDataTable extends DataTable
                 return '';
             })
             ->editColumn('last_service_date', function ($maintenance) {
-                return Carbon::parse($maintenance->last_service_date)->format('d M Y');
+                return Carbon::parse($maintenance->last_service_date)->format('M d Y');
             })
             ->editColumn('next_service_due_date', function ($maintenance) {
-                return Carbon::parse($maintenance->next_service_due_date)->format('d M Y');
+                return Carbon::parse($maintenance->next_service_due_date)->format('M d Y');
             })
             ->editColumn('work_type', function ($maintenance) {
                 return $maintenance->work_type;
             })
             ->editColumn('maintenance_date', function ($maintenance) {
-                return Carbon::parse($maintenance->maintenance_date)->format('d M Y');
+                return Carbon::parse($maintenance->maintenance_date)->format('M d Y');
             })
             ->editColumn('garage_provider', function ($maintenance) {
                 return $maintenance->garage_provider;
@@ -48,7 +48,7 @@ class VehicleMaintenancesDataTable extends DataTable
                 return $maintenance->reported_by;
             })
             ->editColumn('date_reported', function ($maintenance) {
-                return Carbon::parse($maintenance->date_reported)->format('d M Y');
+                return Carbon::parse($maintenance->date_reported)->format('M d Y');
             })
             ->editColumn('resolution_status', function ($maintenance) {
                 $status = $maintenance->resolution_status;

@@ -326,7 +326,7 @@
                                                         ->first();
                                                 @endphp
                                                 <tr class="text-center">
-                                                    <td>{{ Carbon::parse($shift->shift_date)->format('D, M j') }}</td>
+                                                    <td>{{ format_date($shift->shift_date) }}</td>
                                                     <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                                     <td>{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
                                                     <td>{{ $shift->break_time ?? '-' }}</td>

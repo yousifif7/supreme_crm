@@ -69,7 +69,7 @@ class IncidentReportsDataTable extends DataTable
                 }
                 return $html;
             })
-            ->editColumn('created_at', fn($report) => $report->created_at?->format('Y-m-d'))
+            ->editColumn('created_at', fn($report) => $report->created_at?->format('m-d-Y'))
             ->filterColumn('category', fn($query, $keyword) => $query->where('category', 'like', "%{$keyword}%"))
             ->filterColumn('severity', fn($query, $keyword) => $query->where('severity', 'like', "%{$keyword}%"))
             ->rawColumns(['actions', 'checkbox', 'number', 'files', 'status'])

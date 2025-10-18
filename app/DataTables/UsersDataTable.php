@@ -47,7 +47,7 @@ class UsersDataTable extends DataTable
                 return ucfirst($user->status ?? 'active');
             })
             ->editColumn('created_at', function ($user) {
-                return $user->created_at?->format('Y-m-d');
+                return $user->created_at?->format('m-d-Y');
             })
             ->filterColumn('name', function($query, $keyword) {
                 $query->where('name', 'like', "%{$keyword}%")

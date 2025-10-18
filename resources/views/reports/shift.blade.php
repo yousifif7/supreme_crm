@@ -108,7 +108,7 @@
                                             <td>{{ $shiftDate->shift->site->site_name ?? 'N/A' }}</td>
                                             <td>{{ $shiftDate->staff->first_name ?? 'N/A' }}
                                                 {{ $shiftDate->staff->last_name ?? '' }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($shiftDate->shift_date)->format('d/m/Y') }}</td>
+                                            <td>{{ format_date($shiftDate->shift_date) }}</td>
                                             <td>{{ $shiftDate->start_time ?? '-' }}</td>
                                             <td>{{ $shiftDate->end_time ?? '-' }}</td>
                                             <td>{!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}</td>

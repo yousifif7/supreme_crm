@@ -122,6 +122,7 @@ class SubContractorController extends Controller
     public function delete($id)
     {
         $subcontractor = Subcontractor::findOrFail($id);
+        $empSubcontractor = User::role('subcontractor')->find($subcontractor->user_id);
 
         // Delete related user if exists
         if ($subcontractor->user_id) {
@@ -130,7 +131,8 @@ class SubContractorController extends Controller
 
         Logger::log(Auth::user(), 'Delete', 'Subcontractor ' . $subcontractor->company_name . ' and related user deleted.');
 
-        $subcontractor->delete();
+        $empSubcontractor->forceDelete();
+        $subcontractor->forceDelete();
 
         return response()->json(['message' => 'Subcontractor and related user deleted successfully.']);
     }
@@ -150,14 +152,14 @@ class SubContractorController extends Controller
         $userIds = $subcontractors->pluck('user_id')->filter()->toArray();
 
         // Delete related users
-        User::whereIn('id', $userIds)->delete();
+        User::whereIn('id', $userIds)->forceDelete();
 
         foreach ($subcontractors as $sc) {
             Logger::log(Auth::user(), 'Delete', 'Subcontractor ' . $sc->company_name . ' and related user deleted.');
         }
 
         // Delete subcontractors
-        Subcontractor::whereIn('id', $request->ids)->delete();
+        Subcontractor::whereIn('id', $request->ids)->forceDelete();
 
         return response()->json(['message' => 'Selected subcontractors and related users deleted successfully.']);
     }

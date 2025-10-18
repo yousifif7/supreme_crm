@@ -57,6 +57,20 @@ if (!document.getElementById("toast-styles")) {
         .toast-icon.success { background: rgba(76,175,80,0.15); color: #4caf50; }
         .toast-icon.error   { background: rgba(244,67,54,0.15); color: #f44336; }
         .toast-icon.info    { background: rgba(33,150,243,0.15); color: #2196f3; }
+        .custom-toast .close-btn {
+            position: absolute;
+            top: 8px;
+            right: 10px;
+            background: rgba(255,255,255,0.9);
+            border: 1px solid rgba(0,0,0,0.08);
+            border-radius: 4px;
+            font-size: 14px;
+            line-height: 1;
+            cursor: pointer;
+            color: rgba(0,0,0,0.7);
+            padding: 2px 6px;
+            z-index: 9999;
+        }
     `;
     document.head.appendChild(style);
 }

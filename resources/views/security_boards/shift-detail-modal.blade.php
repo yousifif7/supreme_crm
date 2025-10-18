@@ -86,7 +86,7 @@
                                 </div>
                                 <div class="box">
                                     <h6>Date</h6>
-                                    <span id="date">{{ $shiftDate->shift_date ?? '' }}</span>
+                                    <span id="date">{{ format_date($shiftDate->shift_date) }}</span>
                                 </div>
                                 <div class="box">
                                     <h6>Shift Time</h6>
@@ -139,7 +139,7 @@
                                     <div class="mb-1">
                                         <i class="ti ti-calendar"></i>
                                         <span
-                                            id="book_on">{{ $shiftDate->shift_date . ', at  ' . $shiftDate->absentee_start_time }}</span>
+                                            id="book_on">{{ (format_date($shiftDate->shift_date) ?: '') . ', at  ' . ($shiftDate->absentee_start_time ?? '') }}</span>
                                     </div>
                                     <div>
                                         <i class="ti ti-map-pin"></i>
@@ -173,7 +173,7 @@
                                     <div class="mb-1">
                                         <i class="ti ti-calendar"></i>
                                         <span id="book_off">
-                                            {{ $shiftDate->shift_date . ', at  ' . $shiftDate->absentee_end_time }}</span>
+                                            {{ (format_date($shiftDate->shift_date) ?: '') . ', at  ' . ($shiftDate->absentee_end_time ?? '') }}</span>
                                     </div>
                                     <div>
                                         <i class="ti ti-map-pin"></i>

@@ -151,88 +151,92 @@
             box-shadow: 0 6px 14px rgba(40, 167, 69, 0.6);
             transform: translateY(-2px);
         }
-#custom-toast-container {
-    position: fixed;
-    top: 10%;
-    left: 52%;
-    transform: translate(-50%, -50%);
-    z-index: 9999;
-    width: 90%;        /* Responsive width */
-    max-width: 400px;  /* Maximum width on larger screens */
-}
 
-.custom-toast {
-    background: #fff3cd;
-    color: #856404;
-    border: 1px solid #ffeeba;
-    padding: 16px 20px;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    opacity: 0;
-    transform: translateY(-20px);
-    transition: opacity 0.3s ease, transform 0.3s ease;
-}
+        #custom-toast-container {
+            position: fixed;
+            top: 10%;
+            left: 52%;
+            transform: translate(-50%, -50%);
+            z-index: 9999;
+            width: 90%;
+            /* Responsive width */
+            max-width: 400px;
+            /* Maximum width on larger screens */
+        }
 
-.custom-toast.show {
-    opacity: 1;
-    transform: translateY(0);
-}
+        .custom-toast {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeeba;
+            padding: 16px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            opacity: 0;
+            transform: translateY(-20px);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+        }
 
-.toast-icon {
-    font-size: 24px;
-    margin-bottom: 10px;
-    text-align: center;
-}
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
 
-.toast-content p {
-    margin: 0 0 10px 0;
-    text-align: center;
-    word-wrap: break-word;
-}
+        .toast-icon {
+            font-size: 24px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
 
-.toast-actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-    flex-wrap: wrap;  /* Wrap buttons on small screens */
-}
+        .toast-content p {
+            margin: 0 0 10px 0;
+            text-align: center;
+            word-wrap: break-word;
+        }
 
-.toast-actions button {
-    padding: 6px 12px;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    flex: 1 1 auto;   /* Make buttons responsive */
-    min-width: 100px;
-}
+        .toast-actions {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            /* Wrap buttons on small screens */
+        }
 
-.override-btn {
-    background-color: #ffc107;
-    color: #212529;
-}
+        .toast-actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1 1 auto;
+            /* Make buttons responsive */
+            min-width: 100px;
+        }
 
-.confirm-btn {
-    background-color: #28a745;
-    color: #fff;
-}
+        .override-btn {
+            background-color: #ffc107;
+            color: #212529;
+        }
 
-.cancel-btn {
-    background-color: #dc3545;
-    color: #fff;
-}
+        .confirm-btn {
+            background-color: #28a745;
+            color: #fff;
+        }
 
-/* Optional: small screens tweaks */
-@media (max-width: 480px) {
-    #custom-toast-container {
-        width: 100%;
-    }
-    .toast-actions button {
-        font-size: 14px;
-        padding: 8px;
-    }
-}
+        .cancel-btn {
+            background-color: #dc3545;
+            color: #fff;
+        }
 
+        /* Optional: small screens tweaks */
+        @media (max-width: 480px) {
+            #custom-toast-container {
+                width: 100%;
+            }
 
+            .toast-actions button {
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
     </style>
 @endsection
 @section('contents')
@@ -250,14 +254,14 @@
                 </div>
             @endif
             <!-- Breadcrumb -->
-          <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
-    <div class="my-auto mb-2">
-        <h2 class="mb-1">Shift details</h2>
-    </div>
-    <div class="my-auto mb-2">
-        <button class="btn btn-danger" onclick="closeTab()">× Close</button>
-    </div>
-</div>
+            <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
+                <div class="my-auto mb-2">
+                    <h2 class="mb-1">Shift details</h2>
+                </div>
+                <div class="my-auto mb-2">
+                    <button class="btn btn-danger" onclick="closeTab()">× Close</button>
+                </div>
+            </div>
 
 
             <div class="row" id="eventModal">
@@ -305,22 +309,25 @@
                                             </div>
 
                                             <div class="profile-details">
-                                               <h6 id="name">
-    {{ $shiftDate->staff?->first_name ?? '' }}
-    {{ $shiftDate->staff?->last_name ?? '' }}
-    
-    <!-- Edit Icon -->
-    <a href="#" onclick="editShift({{ $shiftDate->id }})" title="Edit Shift">
-        <i class="fas fa-edit"></i> <!-- FontAwesome Edit Icon -->
-    </a>
+                                                <h6 id="name">
+                                                    {{ $shiftDate->staff?->first_name ?? '' }}
+                                                    {{ $shiftDate->staff?->last_name ?? '' }}
 
-    <!-- Unassign Icon -->
-    @if($shiftDate->staff)
-        <a href="#" onclick="unassignShift({{ $shiftDate->id }})" title="Unassign Shift">
-            <i class="fas fa-user-slash"></i> <!-- FontAwesome Unassign Icon -->
-        </a>
-    @endif
-</h6>
+                                                    <!-- Edit Icon -->
+                                                    <a href="#" onclick="editShift({{ $shiftDate->id }})"
+                                                        title="Edit Shift">
+                                                        <i class="fas fa-edit"></i> <!-- FontAwesome Edit Icon -->
+                                                    </a>
+
+                                                    <!-- Unassign Icon -->
+                                                    @if ($shiftDate->staff)
+                                                        <a href="#" onclick="unassignShift({{ $shiftDate->id }})"
+                                                            title="Unassign Shift">
+                                                            <i class="fas fa-user-slash"></i>
+                                                            <!-- FontAwesome Unassign Icon -->
+                                                        </a>
+                                                    @endif
+                                                </h6>
 
                                                 <div class="mb-1">
                                                     <i class="ti ti-phone"></i>
@@ -351,7 +358,7 @@
                                             </div>
                                             <div class="box">
                                                 <h6>Date</h6>
-                                                <span id="date">{{ $shiftDate->shift_date ?? '' }}</span>
+                                                <span id="date">{{ format_date($shiftDate->shift_date) }}</span>
                                             </div>
                                             <div class="box">
                                                 <h6>Shift Time</h6>
@@ -410,7 +417,7 @@
                                                 <div class="mb-1">
                                                     <i class="ti ti-calendar"></i>
                                                     <span
-                                                        id="book_on">{{ $shiftDate->shift_date . ', at  ' . $shiftDate->absentee_start_time }}</span>
+                                                        id="book_on">{{ (format_date($shiftDate->shift_date) ?: '') . ', at ' . ($shiftDate->absentee_start_time ?? '') }}</span>
                                                 </div>
                                                 <div>
                                                     <i class="ti ti-map-pin"></i>
@@ -445,8 +452,8 @@
                                                 <h6>Book Off </h6>
                                                 <div class="mb-1">
                                                     <i class="ti ti-calendar"></i>
-                                                    <span id="book_off">
-                                                        {{ $shiftDate->shift_date . ', at  ' . $shiftDate->absentee_end_time }}</span>
+                                                    <span
+                                                        id="book_off">{{ (format_date($shiftDate->shift_date) ?: '') . ', at ' . ($shiftDate->absentee_end_time ?? '') }}</span>
                                                 </div>
                                                 <div>
                                                     <i class="ti ti-map-pin"></i>
@@ -481,7 +488,7 @@
                                                 View Heatmap
                                             </a>
                                         </div> --}}
-                                        <div >
+                                        <div>
                                             @include('map')
                                         </div>
                                     </div>
@@ -647,7 +654,7 @@
                                             <td>{{ $log->user_name ?? 'N/A' }}</td>
                                             {{-- <td>{{ $log->action }}</td> --}}
                                             <td>{!! $log->description !!}</td>
-                                            <td>{{ $log->created_at->format('Y-m-d H:i') }}</td>
+                                            <td>{{ $log->created_at->format('m-d-Y H:i') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -747,6 +754,10 @@
                         @endphp
 
                         @if ($patrols->isNotEmpty())
+                            <script>
+                                // Declare once for use by initPatrolMap calls below
+                                const siteCheckpoints = @json($checkpoints);
+                            </script>
                             <table class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
@@ -764,9 +775,6 @@
                                 </thead>
                                 <tbody>
                                     @foreach ($patrols as $patrol)
-                                        <script>
-                                            const siteCheckpoints = @json($checkpoints);
-                                        </script>
                                         <tr>
                                             <td>{{ $patrol->name }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('H:i') }}</td>
@@ -918,24 +926,25 @@
     @endphp
 
     <script>
-    window.isSuperAdmin = @json(
-        auth()->check() && auth()->user() && auth()->user()->getRoleNames() && auth()->user()->getRoleNames()->contains('superadmin')
-    );
+        window.isSuperAdmin = @json(auth()->check() &&
+                auth()->user() &&
+                auth()->user()->getRoleNames() &&
+                auth()->user()->getRoleNames()->contains('superadmin'));
     </script>
 
     <script>
-function showRestrictionToast(message, onOverride) {
-    let container = document.getElementById('custom-toast-container');
-    if (!container) {
-        container = document.createElement('div');
-        container.id = 'custom-toast-container';
-        document.body.appendChild(container);
-    }
+        function showRestrictionToast(message, onOverride) {
+            let container = document.getElementById('custom-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'custom-toast-container';
+                document.body.appendChild(container);
+            }
 
-    const toast = document.createElement('div');
-    toast.className = 'custom-toast';
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
 
-    toast.innerHTML = `
+            toast.innerHTML = `
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
@@ -945,40 +954,40 @@ function showRestrictionToast(message, onOverride) {
         </div>
     `;
 
-    container.appendChild(toast);
+            container.appendChild(toast);
 
-    setTimeout(() => toast.classList.add('show'), 50);
+            setTimeout(() => toast.classList.add('show'), 50);
 
-    // Step 1: Override clicked
-    toast.querySelector('.override-btn').addEventListener('click', function () {
-        // Replace actions with confirmation buttons
-        const actions = toast.querySelector('.toast-actions');
-        actions.innerHTML = `
+            // Step 1: Override clicked
+            toast.querySelector('.override-btn').addEventListener('click', function() {
+                // Replace actions with confirmation buttons
+                const actions = toast.querySelector('.toast-actions');
+                actions.innerHTML = `
             <button class="confirm-btn">Yes, Override</button>
             <button class="cancel-btn">Cancel</button>
         `;
 
-        // Step 2: Confirm override
-        actions.querySelector('.confirm-btn').addEventListener('click', function () {
-            if (typeof onOverride === 'function') {
-                onOverride();
+                // Step 2: Confirm override
+                actions.querySelector('.confirm-btn').addEventListener('click', function() {
+                    if (typeof onOverride === 'function') {
+                        onOverride();
+                    }
+                    closeToast();
+                });
+
+                // Step 2: Cancel override
+                actions.querySelector('.cancel-btn').addEventListener('click', function() {
+                    closeToast();
+                });
+            });
+
+            function closeToast() {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) container.removeChild(toast);
+                }, 300);
             }
-            closeToast();
-        });
-
-        // Step 2: Cancel override
-        actions.querySelector('.cancel-btn').addEventListener('click', function () {
-            closeToast();
-        });
-    });
-
-    function closeToast() {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            if (toast.parentNode) container.removeChild(toast);
-        }, 300);
-    }
-}
+        }
 
         $(document).off('submit', '#bookonForm, #bookoffForm')
             .on('submit', '#bookonForm, #bookoffForm', function(e) {
@@ -1107,57 +1116,59 @@ function showRestrictionToast(message, onOverride) {
 
     <script>
         $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
-    e.preventDefault();
+            e.preventDefault();
 
-    $.ajax({
-        url: `${baseUrl}/assign-shift`,
-        type: 'POST',
-        data: $(this).serialize(),
-        success: function(response) {
-            showToast(response.success, 'success', 5000);
-            location.reload();
-        },
-        error: function(xhr) {
-            $('#assignShiftErrors').addClass('d-none').empty(); // clear old errors
+            $.ajax({
+                url: `${baseUrl}/assign-shift`,
+                type: 'POST',
+                data: $(this).serialize(),
+                success: function(response) {
+                    showToast(response.success, 'success', 5000);
+                    location.reload();
+                },
+                error: function(xhr) {
+                    $('#assignShiftErrors').addClass('d-none').empty(); // clear old errors
 
-            if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                let messages = Object.values(xhr.responseJSON.errors).flat();
-                const restrictionMsg = messages[0]; // first error
+                    if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                        let messages = Object.values(xhr.responseJSON.errors).flat();
+                        const restrictionMsg = messages[0]; // first error
 
-                if (window.isSuperAdmin) {
-                    showRestrictionToast(restrictionMsg, () => {
-                        // Clear errors before override
-                        $('#assignShiftErrors').addClass('d-none').empty();
+                        if (window.isSuperAdmin) {
+                            showRestrictionToast(restrictionMsg, () => {
+                                // Clear errors before override
+                                $('#assignShiftErrors').addClass('d-none').empty();
 
-                        // Send override request
-                        $.ajax({
-                            url: `${baseUrl}/assign-shift-override`,
-                            type: 'POST',
-                            data: $('#assignShiftForm').serialize(),
-                            success: function(res) {
-                                showToast(res.success, 'success', 5000);
-                                location.reload();
-                            },
-                            error: function(err) {
-                                showToast("Override failed. Try again.", "error", 5000);
-                            }
-                        });
-                    });
-                } else {
-                    showToast(restrictionMsg, 'error', 5000);
+                                // Send override request
+                                $.ajax({
+                                    url: `${baseUrl}/assign-shift-override`,
+                                    type: 'POST',
+                                    data: $('#assignShiftForm').serialize(),
+                                    success: function(res) {
+                                        showToast(res.success, 'success', 5000);
+                                        location.reload();
+                                    },
+                                    error: function(err) {
+                                        showToast("Override failed. Try again.",
+                                            "error", 5000);
+                                    }
+                                });
+                            });
+                        } else {
+                            showToast(restrictionMsg, 'error', 5000);
+                        }
+
+                        // Optional fallback in error div
+                        messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
+                        $('#assignShiftErrors').removeClass('d-none');
+                    } else if (xhr.responseJSON?.error) {
+                        showToast(xhr.responseJSON.error, 'error', 5000);
+                    } else {
+                        showToast('An unexpected error occurred while assigning the shift.', 'error',
+                            5000);
+                    }
                 }
-
-                // Optional fallback in error div
-                messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
-                $('#assignShiftErrors').removeClass('d-none');
-            } else if (xhr.responseJSON?.error) {
-                showToast(xhr.responseJSON.error, 'error', 5000);
-            } else {
-                showToast('An unexpected error occurred while assigning the shift.', 'error', 5000);
-            }
-        }
-    });
-});
+            });
+        });
         setTimeout(() => {
             const alertBox = document.querySelector('.alert');
             if (alertBox) {
@@ -1196,227 +1207,236 @@ function showRestrictionToast(message, onOverride) {
         });
     </script>
 
-   <script>
-function initPatrolMap(patrolId, shiftDateId, checkpoints) {
-    const mapDiv = document.getElementById("patrol-map-" + patrolId);
-    if (!mapDiv) return;
+    <script>
+        function initPatrolMap(patrolId, shiftDateId, checkpoints) {
+            const mapDiv = document.getElementById("patrol-map-" + patrolId);
+            if (!mapDiv) return;
 
-    const map = new google.maps.Map(mapDiv, {
-        zoom: 16,
-        center: { lat: 0, lng: 0 },
-        mapTypeId: "roadmap",
-    });
-
-    const bounds = new google.maps.LatLngBounds();
-    let hasPoints = false;
-    let heatmap = null; // 🔸 We'll initialize later
-
-    // 🔹 Draw checkpoints
-    checkpoints.forEach(cp => {
-        const lat = parseFloat(cp.latitude);
-        const lng = parseFloat(cp.longitude);
-        if (!isNaN(lat) && !isNaN(lng)) {
-            hasPoints = true;
-            const pos = { lat, lng };
-            new google.maps.Marker({
-                position: pos,
-                map,
-                title: cp.name,
-                icon: {
-                    url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                    scaledSize: new google.maps.Size(40, 40)
-                }
+            const map = new google.maps.Map(mapDiv, {
+                zoom: 16,
+                center: {
+                    lat: 0,
+                    lng: 0
+                },
+                mapTypeId: "roadmap",
             });
-            bounds.extend(pos);
-        }
-    });
 
-    // 🔹 Fetch guard locations
-    fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
-        .then(res => res.json())
-        .then(data => {
-            const locations = data.locations || [];
-            if (locations.length === 0) {
-                if (!hasPoints) {
-                    map.setCenter({ lat: 51.5074, lng: -0.1278 });
-                    map.setZoom(16);
-                } else {
-                    map.fitBounds(bounds);
-                    google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
-                        if (map.getZoom() > 16) {
-                            map.setZoom(16);
+            const bounds = new google.maps.LatLngBounds();
+            let hasPoints = false;
+            let heatmap = null; // 🔸 We'll initialize later
+
+            // 🔹 Draw checkpoints
+            checkpoints.forEach(cp => {
+                const lat = parseFloat(cp.latitude);
+                const lng = parseFloat(cp.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    hasPoints = true;
+                    const pos = {
+                        lat,
+                        lng
+                    };
+                    new google.maps.Marker({
+                        position: pos,
+                        map,
+                        title: cp.name,
+                        icon: {
+                            url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                            scaledSize: new google.maps.Size(40, 40)
                         }
                     });
+                    bounds.extend(pos);
                 }
-                return;
-            }
-
-            // Filter valid locations
-            const validLocations = locations.filter(loc => {
-                const lat = parseFloat(loc.latitude);
-                const lng = parseFloat(loc.longitude);
-                return !isNaN(lat) && !isNaN(lng);
             });
 
-            if (validLocations.length === 0) return;
-
-            hasPoints = true;
-
-            // Create polyline for route
-            const pathCoordinates = validLocations.map(loc => ({
-                lat: parseFloat(loc.latitude),
-                lng: parseFloat(loc.longitude)
-            }));
-
-            const routePolyline = new google.maps.Polyline({
-                path: pathCoordinates,
-                geodesic: true,
-                strokeColor: "#FF0000",
-                strokeOpacity: 0.2,
-                strokeWeight: 1,
-                map: map
-            });
-
-            // Start marker
-            if (validLocations[0]) {
-                new google.maps.Marker({
-                    position: {
-                        lat: parseFloat(validLocations[0].latitude),
-                        lng: parseFloat(validLocations[0].longitude)
-                    },
-                    map,
-                    label: {
-                        text: "START",
-                        color: "#FFFFFF",
-                        fontWeight: "bold",
-                        fontSize: "14px"
-                    },
-                    icon: {
-                        url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                        scaledSize: new google.maps.Size(45, 45)
+            // 🔹 Fetch guard locations
+            fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
+                .then(res => res.json())
+                .then(data => {
+                    const locations = data.locations || [];
+                    if (locations.length === 0) {
+                        if (!hasPoints) {
+                            map.setCenter({
+                                lat: 51.5074,
+                                lng: -0.1278
+                            });
+                            map.setZoom(16);
+                        } else {
+                            map.fitBounds(bounds);
+                            google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+                                if (map.getZoom() > 16) {
+                                    map.setZoom(16);
+                                }
+                            });
+                        }
+                        return;
                     }
-                });
-            }
 
-            // End marker
-            if (validLocations.length > 1) {
-                new google.maps.Marker({
-                    position: {
-                        lat: parseFloat(validLocations[validLocations.length - 1].latitude),
-                        lng: parseFloat(validLocations[validLocations.length - 1].longitude)
-                    },
-                    map,
-                    label: {
-                        text: "END",
-                        color: "#FFFFFF",
-                        fontWeight: "bold",
-                        fontSize: "14px"
-                    },
-                    icon: {
-                        url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                        scaledSize: new google.maps.Size(45, 45)
+                    // Filter valid locations
+                    const validLocations = locations.filter(loc => {
+                        const lat = parseFloat(loc.latitude);
+                        const lng = parseFloat(loc.longitude);
+                        return !isNaN(lat) && !isNaN(lng);
+                    });
+
+                    if (validLocations.length === 0) return;
+
+                    hasPoints = true;
+
+                    // Create polyline for route
+                    const pathCoordinates = validLocations.map(loc => ({
+                        lat: parseFloat(loc.latitude),
+                        lng: parseFloat(loc.longitude)
+                    }));
+
+                    const routePolyline = new google.maps.Polyline({
+                        path: pathCoordinates,
+                        geodesic: true,
+                        strokeColor: "#FF0000",
+                        strokeOpacity: 0.2,
+                        strokeWeight: 1,
+                        map: map
+                    });
+
+                    // Start marker
+                    if (validLocations[0]) {
+                        new google.maps.Marker({
+                            position: {
+                                lat: parseFloat(validLocations[0].latitude),
+                                lng: parseFloat(validLocations[0].longitude)
+                            },
+                            map,
+                            label: {
+                                text: "START",
+                                color: "#FFFFFF",
+                                fontWeight: "bold",
+                                fontSize: "14px"
+                            },
+                            icon: {
+                                url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                                scaledSize: new google.maps.Size(45, 45)
+                            }
+                        });
                     }
-                });
-            }
 
-            // 🔹 Heatmap setup
-            heatmap = new google.maps.visualization.HeatmapLayer({
-                data: validLocations.map(loc =>
-                    new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude))
-                ),
-                radius: 20,
-                opacity: 0.7,
-                dissipating: true,
-                maxIntensity: 5,
-                gradient: [
-                    'rgba(0, 255, 0, 0)',
-                    'rgba(0, 255, 0, 0.6)',
-                    'rgba(255, 255, 0, 0.7)',
-                    'rgba(255, 165, 0, 0.8)',
-                    'rgba(255, 0, 0, 0.9)'
-                ],
-                map: map
-            });
+                    // End marker
+                    if (validLocations.length > 1) {
+                        new google.maps.Marker({
+                            position: {
+                                lat: parseFloat(validLocations[validLocations.length - 1].latitude),
+                                lng: parseFloat(validLocations[validLocations.length - 1].longitude)
+                            },
+                            map,
+                            label: {
+                                text: "END",
+                                color: "#FFFFFF",
+                                fontWeight: "bold",
+                                fontSize: "14px"
+                            },
+                            icon: {
+                                url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
+                                scaledSize: new google.maps.Size(45, 45)
+                            }
+                        });
+                    }
 
-            // Extend map bounds
-            validLocations.forEach(loc => {
-                bounds.extend({
-                    lat: parseFloat(loc.latitude),
-                    lng: parseFloat(loc.longitude)
-                });
-            });
-            map.fitBounds(bounds);
+                    // 🔹 Heatmap setup
+                    heatmap = new google.maps.visualization.HeatmapLayer({
+                        data: validLocations.map(loc =>
+                            new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude))
+                        ),
+                        radius: 20,
+                        opacity: 0.7,
+                        dissipating: true,
+                        maxIntensity: 5,
+                        gradient: [
+                            'rgba(0, 255, 0, 0)',
+                            'rgba(0, 255, 0, 0.6)',
+                            'rgba(255, 255, 0, 0.7)',
+                            'rgba(255, 165, 0, 0.8)',
+                            'rgba(255, 0, 0, 0.9)'
+                        ],
+                        map: map
+                    });
 
-            setTimeout(() => {
-                if (map.getZoom() < 16) map.setZoom(16);
-            }, 200);
+                    // Extend map bounds
+                    validLocations.forEach(loc => {
+                        bounds.extend({
+                            lat: parseFloat(loc.latitude),
+                            lng: parseFloat(loc.longitude)
+                        });
+                    });
+                    map.fitBounds(bounds);
 
-            // 🔸 Add Heatmap Controls
-            addHeatmapControls(map, heatmap);
-        })
-        .catch(err => console.error("Error fetching patrol locations:", err));
-}
+                    setTimeout(() => {
+                        if (map.getZoom() < 16) map.setZoom(16);
+                    }, 200);
 
-// 🔸 Adds toggle, radius, opacity, gradient controls
-function addHeatmapControls(map, heatmap) {
-    const controlDiv = document.createElement("div");
-    controlDiv.style.background = "#fff";
-    controlDiv.style.border = "1px solid #999";
-    controlDiv.style.borderRadius = "6px";
-    controlDiv.style.padding = "6px";
-    controlDiv.style.margin = "10px";
-    controlDiv.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
-    controlDiv.innerHTML = `
+                    // 🔸 Add Heatmap Controls
+                    addHeatmapControls(map, heatmap);
+                })
+                .catch(err => console.error("Error fetching patrol locations:", err));
+        }
+
+        // 🔸 Adds toggle, radius, opacity, gradient controls
+        function addHeatmapControls(map, heatmap) {
+            const controlDiv = document.createElement("div");
+            controlDiv.style.background = "#fff";
+            controlDiv.style.border = "1px solid #999";
+            controlDiv.style.borderRadius = "6px";
+            controlDiv.style.padding = "6px";
+            controlDiv.style.margin = "10px";
+            controlDiv.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+            controlDiv.innerHTML = `
         <button id="toggleHeatmap">Toggle Heatmap</button>
         <button id="changeGradient">Change Gradient</button>
         <button id="changeRadius">Change Radius</button>
         <button id="changeOpacity">Change Opacity</button>
     `;
-    map.controls[google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
 
-    // Default gradient from Google demo
-    const gradient = [
-        "rgba(0, 255, 255, 0)",
-        "rgba(0, 255, 255, 1)",
-        "rgba(0, 191, 255, 1)",
-        "rgba(0, 127, 255, 1)",
-        "rgba(0, 63, 255, 1)",
-        "rgba(0, 0, 255, 1)",
-        "rgba(0, 0, 223, 1)",
-        "rgba(0, 0, 191, 1)",
-        "rgba(0, 0, 159, 1)",
-        "rgba(0, 0, 127, 1)",
-        "rgba(63, 0, 91, 1)",
-        "rgba(127, 0, 63, 1)",
-        "rgba(191, 0, 31, 1)",
-        "rgba(255, 0, 0, 1)"
-    ];
+            // Default gradient from Google demo
+            const gradient = [
+                "rgba(0, 255, 255, 0)",
+                "rgba(0, 255, 255, 1)",
+                "rgba(0, 191, 255, 1)",
+                "rgba(0, 127, 255, 1)",
+                "rgba(0, 63, 255, 1)",
+                "rgba(0, 0, 255, 1)",
+                "rgba(0, 0, 223, 1)",
+                "rgba(0, 0, 191, 1)",
+                "rgba(0, 0, 159, 1)",
+                "rgba(0, 0, 127, 1)",
+                "rgba(63, 0, 91, 1)",
+                "rgba(127, 0, 63, 1)",
+                "rgba(191, 0, 31, 1)",
+                "rgba(255, 0, 0, 1)"
+            ];
 
-    // Button actions
-    controlDiv.querySelector("#toggleHeatmap").addEventListener("click", () => {
-        heatmap.setMap(heatmap.getMap() ? null : map);
-    });
+            // Button actions
+            controlDiv.querySelector("#toggleHeatmap").addEventListener("click", () => {
+                heatmap.setMap(heatmap.getMap() ? null : map);
+            });
 
-    controlDiv.querySelector("#changeGradient").addEventListener("click", () => {
-        heatmap.set("gradient", heatmap.get("gradient") ? null : gradient);
-    });
+            controlDiv.querySelector("#changeGradient").addEventListener("click", () => {
+                heatmap.set("gradient", heatmap.get("gradient") ? null : gradient);
+            });
 
-    controlDiv.querySelector("#changeRadius").addEventListener("click", () => {
-        heatmap.set("radius", heatmap.get("radius") === 20 ? 40 : 20);
-    });
+            controlDiv.querySelector("#changeRadius").addEventListener("click", () => {
+                heatmap.set("radius", heatmap.get("radius") === 20 ? 40 : 20);
+            });
 
-    controlDiv.querySelector("#changeOpacity").addEventListener("click", () => {
-        heatmap.set("opacity", heatmap.get("opacity") === 0.7 ? 0.3 : 0.7);
-    });
-}
+            controlDiv.querySelector("#changeOpacity").addEventListener("click", () => {
+                heatmap.set("opacity", heatmap.get("opacity") === 0.7 ? 0.3 : 0.7);
+            });
+        }
 
 
-// 🔹 Initialize maps
-window.onload = function() {
-    @foreach ($patrols as $patrol)
-        initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
-    @endforeach
-};
+        // 🔹 Initialize maps
+        window.onload = function() {
+            @foreach ($patrols as $patrol)
+                initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
+            @endforeach
+        };
 
         $(document).ready(function() {
             // Open edit modal
@@ -1579,60 +1599,58 @@ window.onload = function() {
     </script>
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
-<script>
-function closeTab() {
-    window.close(); // Attempts to close the current tab
-}
+    <script>
+        function closeTab() {
+            window.close(); // Attempts to close the current tab
+        }
 
-function unassignShift(shiftId) {
-    Swal.fire({
-        title: 'Are you sure?',
-        text: "Do you want to unassign this shift?",
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonColor: '#28a745',
-        cancelButtonColor: '#dc3545',
-        confirmButtonText: 'Yes, Unassign',
-        cancelButtonText: 'Cancel'
-    }).then((result) => {
-        if (result.isConfirmed) {
-            fetch(`/shifts/${shiftId}/unassign`, {
-                method: 'POST',
-                headers: {
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json',
-                },
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success) {
-                    Swal.fire(
-                        'Unassigned!',
-                        'Shift has been unassigned successfully.',
-                        'success'
-                    ).then(() => location.reload()); // refresh after success
-                } else {
-                    Swal.fire(
-                        'Error!',
-                        'Failed to unassign shift.',
-                        'error'
-                    );
+        function unassignShift(shiftId) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "Do you want to unassign this shift?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Yes, Unassign',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/shifts/${shiftId}/unassign`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json',
+                            },
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire(
+                                    'Unassigned!',
+                                    'Shift has been unassigned successfully.',
+                                    'success'
+                                ).then(() => location.reload()); // refresh after success
+                            } else {
+                                Swal.fire(
+                                    'Error!',
+                                    'Failed to unassign shift.',
+                                    'error'
+                                );
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            Swal.fire('Error!', 'Something went wrong.', 'error');
+                        });
                 }
-            })
-            .catch(err => {
-                console.error(err);
-                Swal.fire('Error!', 'Something went wrong.', 'error');
             });
         }
-    });
-}
-
-</script>
+    </script>
 
 
 
-    <script src="https://maps.googleapis.com/maps/api/js?key={{ env('GOOGLE_MAPS_API_KEY') }}&libraries=visualization"
-        async defer></script>
+    <!-- Google Maps API is loaded dynamically by the included map partial (map.blade.php) -->
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>

@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\DB;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\File;
+use App\Services\FileCompressor;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
@@ -57,7 +59,8 @@ class UserController extends Controller
 
         $bookings = ShiftBooking::with('shift')
             ->whereHas('shift')
-            ->orderBy('timestamp')
+            ->orderBy('timestamp', 'desc')
+            ->take(10)
             ->get();
 
         $today = Carbon::today();
@@ -288,6 +291,11 @@ class UserController extends Controller
             $file->move($uploadPath, $fileName);
 
             $validated['profile_picture'] = $fileName;
+            try {
+                (new FileCompressor())->compress($uploadPath . '/' . $fileName);
+            } catch (\Exception $e) {
+                Log::error('File compression failed for user profile_picture: ' . $e->getMessage());
+            }
         }
 
         $user = User::create($validated);
@@ -354,6 +362,11 @@ class UserController extends Controller
             $file->move($uploadPath, $fileName);
 
             $validated['profile_picture'] = $fileName;
+            try {
+                (new FileCompressor())->compress($uploadPath . '/' . $fileName);
+            } catch (\Exception $e) {
+                Log::error('File compression failed for user profile_picture (update): ' . $e->getMessage());
+            }
         }
 
         $user->update($validated);
@@ -454,8 +467,8 @@ class UserController extends Controller
         $weekStart = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
         $weekEnd   = $today->copy()->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
 
-        $guards = \App\Models\Employee::where('status', 'Active')
-            ->orWhere('status', 'active')
+        $guards = \App\Models\Employee::where('sia_status', 'Active')
+            ->orWhere('sia_status', 'valid')
             ->get();
 
         foreach ($guards as $staff) {

@@ -321,7 +321,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     /** Begin: documentation upload controller */
     Route::get('/documentation_uploads/data', [DocumentationUploadController::class, 'data'])->name('documents.data');
     Route::get('/documentation_uploads', [DocumentationUploadController::class, 'index'])->name('documents');
-    Route::post('documents', [DocumentationUploadController::class, 'store'])->name('documents.store');
+    Route::post('documentation_uploads', [DocumentationUploadController::class, 'store'])->name('documents.store');
     Route::get('/editdocument/{id}', [DocumentationUploadController::class, 'edit'])->name('documents.edit');
     Route::delete('/deletedocument/{id}', [DocumentationUploadController::class, 'delete'])->name('documents.delete');
     Route::post('/updatedocument/{id}', [DocumentationUploadController::class, 'update'])->name('documents.update');

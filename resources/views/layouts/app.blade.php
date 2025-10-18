@@ -277,14 +277,14 @@
                                                 </div>
                                             </div>
                                         </div>
-                                        <div class="card-body">
+                                        {{-- <div class="card-body">
 
                                             <a class="dropdown-item d-inline-flex align-items-center p-0 py-2"
                                                 href="#">
                                                 <i class="ti ti-settings me-1"></i>Settings
                                             </a>
 
-                                        </div>
+                                        </div> --}}
                                         <div class="card-footer py-1">
                                             <form method="POST" action="{{ route('logout') }}">
                                                 @csrf
@@ -309,7 +309,7 @@
                     <div class="dropdown-menu dropdown-menu-end">
                         <a class="dropdown-item" href="#">My
                             Profile</a>
-                        <a class="dropdown-item" href="#">Settings</a>
+                        {{-- <a class="dropdown-item" href="#">Settings</a> --}}
                         <a class="dropdown-item" href="#">Logout</a>
                     </div>
                 </div>

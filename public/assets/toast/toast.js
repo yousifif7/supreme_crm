@@ -34,6 +34,7 @@ function showToast(message, type = 'info', duration = 2500) {
     toast.innerHTML = `
         ${iconHtml}
         <p>${message}</p>
+        <button class="close-btn" aria-label="Close">&times;</button>
     `;
 
     container.appendChild(toast);
@@ -48,6 +49,16 @@ function showToast(message, type = 'info', duration = 2500) {
             if (toast.parentNode) container.removeChild(toast);
         }, 300);
     }, duration);
+
+    // Close button handler
+    const closeBtn = toast.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            toast.classList.remove('show');
+            setTimeout(() => { if (toast.parentNode) container.removeChild(toast); }, 300);
+        });
+    }
 }
 
 /**
@@ -68,6 +79,7 @@ function showRestrictionToast(message, onOverride) {
     toast.className = 'custom-toast';
 
     toast.innerHTML = `
+        <button class="close-btn" aria-label="Close">&times;</button><br>
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
@@ -110,6 +122,20 @@ function showRestrictionToast(message, onOverride) {
             if (toast.parentNode) container.removeChild(toast);
         }, 300);
     }
+
+    // Close button handler (visible X)
+    const closeBtn = toast.querySelector('.close-btn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function (e) {
+            e.stopPropagation();
+            closeToast();
+        });
+    }
+
+    // Prevent clicks inside the toast from propagating to underlying page
+    toast.addEventListener('click', function (e) {
+        e.stopPropagation();
+    });
 }
 
 

@@ -316,6 +316,53 @@
 @endsection
 @section('scripts')
     <script>
+        // Delegated handlers for site actions (prevents inline onclick reference errors)
+        document.addEventListener('click', function(e) {
+            const view = e.target.closest('.site-view');
+            if (view) {
+                e.preventDefault();
+                const id = view.dataset.id;
+                if (window.viewSiteDetail) return window.viewSiteDetail(id);
+            }
+
+            const edit = e.target.closest('.site-edit');
+            if (edit) {
+                e.preventDefault();
+                const id = edit.dataset.id;
+                if (window.editSite) return window.editSite(id);
+            }
+
+            const del = e.target.closest('.site-delete');
+            if (del) {
+                e.preventDefault();
+                const id = del.dataset.id;
+                return deleteSite(id);
+            }
+        });
+
+        // Backwards-compatible wrapper: some templates call initSiteMap()
+        // but our map initializer is named initEditMap(). Provide a thin
+        // wrapper that delegates to initEditMap if available and avoids
+        // a ReferenceError if called before initEditMap is defined.
+        function initSiteMap() {
+            var args = Array.prototype.slice.call(arguments);
+                // Prefer create map initializer if present
+                if (typeof initCreateMap === 'function') {
+                    return initCreateMap.apply(this, args);
+                }
+                if (typeof initEditMap === 'function') {
+                    return initEditMap.apply(this, args);
+                }
+                // If neither is defined yet (script ordering), try again shortly.
+                setTimeout(function() {
+                    if (typeof initCreateMap === 'function') {
+                        initCreateMap.apply(this, args);
+                    } else if (typeof initEditMap === 'function') {
+                        initEditMap.apply(this, args);
+                    }
+                }, 50);
+        }
+
         $(document).ready(function() {
             $('.select-client').select2({
                 width: '100%',
@@ -357,8 +404,8 @@
                     const submitButton = $('#savesite');
                     submitButton.prop('disabled', true).html('Saving...');
 
-                    if (siteMarker) {
-                        const p = siteMarker.getLatLng();
+                    if (typeof createSiteMarker !== 'undefined' && createSiteMarker) {
+                        const p = createSiteMarker.getLatLng();
                         $('#latitude').val(p.lat);
                         $('#longitude').val(p.lng);
                     }
@@ -396,7 +443,9 @@
 
                 // Optional: re-render map on modal show
                 $('#add_site').on('shown.bs.modal', function() {
-                    setTimeout(() => editMap.invalidateSize(), 300);
+                    setTimeout(() => {
+                        if (typeof createMap !== 'undefined' && createMap) createMap.invalidateSize();
+                    }, 300);
                 });
             });
             
@@ -448,7 +497,7 @@
 
         });
 
-        function editSite(record_id) {
+    window.editSite = function(record_id) {
             $.get(`${baseUrl}/editsite/` + record_id, function(data) {
                 if (data.site) {
                     $('#site_id').val(data.site.id);
@@ -495,11 +544,18 @@
                 }
 
                 $('#edit_site').modal('show');
+                // Ensure map renders correctly after modal is visible
+                setTimeout(function() {
+                    if (typeof editMap !== 'undefined' && editMap) {
+                        editMap.invalidateSize();
+                        try { editMap.setView([lat, lng], 13); } catch(e){}
+                    }
+                }, 300);
             }
         });
     }
 
-    function viewSiteDetail(id) {
+    window.viewSiteDetail = function(id) {
         $.get(`${baseUrl}/sites/${id}/view`, function(data) {
             $('#site_name_heading').text(data.site_name);
             $('#site_name_detail').text(data.site_name);
@@ -553,8 +609,9 @@
         });
     }
 
-    let editMap, siteMarker;
-    let checkpointMarkers = []; // store {marker, index}
+    if (typeof editMap === 'undefined') var editMap = null;
+    if (typeof siteMarker === 'undefined') var siteMarker = null;
+    if (typeof checkpointMarkers === 'undefined') var checkpointMarkers = []; // store {marker, index}
     function initEditMap(lat = 51.505, lng = -0.09, checkpoints = []) {
         if (!editMap) {
             editMap = L.map('editSiteMap').setView([lat, lng], 13);
@@ -568,8 +625,8 @@
             }).addTo(editMap);
             siteMarker.on('dragend', function() {
                 let pos = siteMarker.getLatLng();
-                $('#latitude').val(pos.lat);
-                $('#longitude').val(pos.lng);
+                $('#edit_latitude').val(pos.lat);
+                $('#edit_longitude').val(pos.lng);
             });
 
             // Click to add new checkpoint
@@ -584,13 +641,13 @@
             siteMarker.setLatLng([lat, lng]);
         }
 
-        $('#latitude').val(lat);
-        $('#longitude').val(lng);
+    $('#edit_latitude').val(lat);
+    $('#edit_longitude').val(lng);
 
-        // Reset old
-        checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
-        checkpointMarkers = [];
-        $('#checkpointList').empty();
+    // Reset old
+    checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
+    checkpointMarkers = [];
+    $('#edit_checkpointList').empty();
 
         // Load checkpoints
         checkpoints.forEach(cp => {
@@ -611,8 +668,8 @@
             index
         });
 
-        let row = `
-                            <tr id="checkpoint_row_${index}">
+    let row = `
+                <tr id="edit_checkpoint_row_${index}">
                                 <td>
                                     <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
                                     <input type="text" class="form-control"
@@ -637,12 +694,12 @@
                                 </td>
                             </tr>
                         `;
-        $('#checkpointList').append(row);
+        $('#edit_checkpointList').append(row);
 
         marker.on('dragend', function() {
             let pos = marker.getLatLng();
-            $(`#checkpoint_row_${index} input[name="checkpoints[${index}][latitude]"]`).val(pos.lat);
-            $(`#checkpoint_row_${index} input[name="checkpoints[${index}][longitude]"]`).val(pos.lng);
+            $(`#edit_checkpoint_row_${index} input[name="checkpoints[${index}][latitude]"]`).val(pos.lat);
+            $(`#edit_checkpoint_row_${index} input[name="checkpoints[${index}][longitude]"]`).val(pos.lng);
         });
     }
 
@@ -650,7 +707,7 @@
         let cp = checkpointMarkers.find(c => c.index === index);
         if (cp) {
             editMap.removeLayer(cp.marker);
-            $(`#checkpoint_row_${index}`).remove();
+            $(`#edit_checkpoint_row_${index}`).remove();
         }
     }
     let selectedId = null;
