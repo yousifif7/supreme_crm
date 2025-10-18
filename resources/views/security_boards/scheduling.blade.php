@@ -5,10 +5,6 @@
 
     <!-- Flatpickr CSS -->
     <style>
-        /* Gantt v4 CSS - Wider cells + improved contrast and readable stacked content.
-       Day columns and bars are larger so bar content remains visible in week/month views.
-       Checkboxes only visible when .selection-mode is applied to .gantt-container.
-    */
 
         .gantt-timeline-header,
         .gantt-row-content {
@@ -1913,7 +1909,6 @@ ${shift.note
         });
     </script>
 
-    </script>
 
     <script type="text/javascript">
         $(document).on("change", "#clientSelect", function() {

@@ -23,7 +23,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Client <span
                                                         class="text-danger">*</span></label>
-                                                <select name="client_id[]" class="form-select" id="clientSelect">
+                                                <select name="client_id[]" class="form-select select2" id="clientSelect">
                                                     <option value="">--choose--</option>
                                                     @foreach ($clients as $client)
                                                         <option value="{{ $client->id }}">

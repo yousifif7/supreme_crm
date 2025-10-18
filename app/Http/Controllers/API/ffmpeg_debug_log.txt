@@ -1,0 +1,32 @@
+"D:\xampp\htdocs\supreme\ffmpeg\bin\ffmpeg.exe" -y -i "D:\xampp\htdocs\supreme\public\check_calls/1760723638_68f282b69bd19.mp4" -vf "drawtext=fontfile=D\:/xampp/htdocs/supreme/ffmpeg/static/Roboto_Condensed-Black.ttf:text=Hello:x=10:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5" -c:a copy "D:/xampp/htdocs/supreme/public/temp_videos/1760723638_68f282b69bd19_timestamped.mp4" 2>&1
+
+ffmpeg version 8.0-essentials_build-www.gyan.dev Copyright (c) 2000-2025 the FFmpeg developers
+  built with gcc 15.2.0 (Rev8, Built by MSYS2 project)
+  configuration: --enable-gpl --enable-version3 --enable-static --disable-w32threads --disable-autodetect --enable-fontconfig --enable-iconv --enable-gnutls --enable-libxml2 --enable-gmp --enable-bzlib --enable-lzma --enable-zlib --enable-libsrt --enable-libssh --enable-libzmq --enable-avisynth --enable-sdl2 --enable-libwebp --enable-libx264 --enable-libx265 --enable-libxvid --enable-libaom --enable-libopenjpeg --enable-libvpx --enable-mediafoundation --enable-libass --enable-libfreetype --enable-libfribidi --enable-libharfbuzz --enable-libvidstab --enable-libvmaf --enable-libzimg --enable-amf --enable-cuda-llvm --enable-cuvid --enable-dxva2 --enable-d3d11va --enable-d3d12va --enable-ffnvcodec --enable-libvpl --enable-nvdec --enable-nvenc --enable-vaapi --enable-openal --enable-libgme --enable-libopenmpt --enable-libopencore-amrwb --enable-libmp3lame --enable-libtheora --enable-libvo-amrwbenc --enable-libgsm --enable-libopencore-amrnb --enable-libopus --enable-libspeex --enable-libvorbis --enable-librubberband
+  libavutil      60.  8.100 / 60.  8.100
+  libavcodec     62. 11.100 / 62. 11.100
+  libavformat    62.  3.100 / 62.  3.100
+  libavdevice    62.  1.100 / 62.  1.100
+  libavfilter    11.  4.100 / 11.  4.100
+  libswscale      9.  1.100 /  9.  1.100
+  libswresample   6.  1.100 /  6.  1.100
+Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'D:\xampp\htdocs\supreme\public\check_calls/1760723638_68f282b69bd19.mp4':
+  Metadata:
+    major_brand     : isom
+    minor_version   : 1
+    compatible_brands: isom
+    creation_time   : 2025-08-26T15:41:55.000000Z
+  Duration: 00:00:13.21, start: 0.000000, bitrate: 1277 kb/s
+  Stream #0:0[0x1](und): Video: h264 (High) (avc1 / 0x31637661), yuv420p(progressive), 720x1280, 1142 kb/s, SAR 1:1 DAR 9:16, 29.85 fps, 30 tbr, 1536k tbn (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, stereo, fltp, 128 kb/s (default)
+    Metadata:
+      handler_name    : Twitter-vork muxer
+      vendor_id       : [0][0][0][0]
+[AVFilterGraph @ 000001d272eec680] No option name near '/xampp/htdocs/supreme/ffmpeg/static/Roboto_Condensed-Black.ttf:text=Hello:x=10:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5'
+[AVFilterGraph @ 000001d272eec680] Error parsing a filter description around: 
+[AVFilterGraph @ 000001d272eec680] Error parsing filterchain 'drawtext=fontfile=D\:/xampp/htdocs/supreme/ffmpeg/static/Roboto_Condensed-Black.ttf:text=Hello:x=10:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.5' around: 
+Error opening output file D:/xampp/htdocs/supreme/public/temp_videos/1760723638_68f282b69bd19_timestamped.mp4.
+Error opening output files: Invalid argument
