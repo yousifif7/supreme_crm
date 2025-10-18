@@ -17,7 +17,7 @@ class UserSeeder extends Seeder
     {
 
         User::where(['email' => 'admin@gmail.com'])->update(['password' => Hash::make('654321')]);
-/*        $user = User::firstOrCreate(
+        $user = User::firstOrCreate(
             ['email' => 'admin@gmail.com'],
             [
                 'first_name' => 'Super',
@@ -39,6 +39,6 @@ class UserSeeder extends Seeder
         if ($role) {
             $user->assignRole($role);
             $user1->assignRole($role);
-        }*/
+        }
     }
 }

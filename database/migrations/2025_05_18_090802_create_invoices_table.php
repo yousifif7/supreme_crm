@@ -19,17 +19,12 @@ return new class extends Migration
             $table->foreignId('site_id')->nullable()->constrained();
             $table->date('issue_date');
             $table->date('due_date');
-            $table->date('date_from');
-            $table->date('date_to');
             $table->decimal('total_amount', 10, 2);
             $table->decimal('tax_amount', 10, 2)->default(0);
             $table->string('status')->default('draft'); // draft, sent, paid, overdue
             $table->text('notes')->nullable();
             $table->text('payment_note')->nullable();
-            $table->decimal('rate_per_hour', 10, 2)->nullable();
             $table->decimal('total_shift_hours', 10, 2)->nullable();
-            $table->decimal('total_duration_hours', 10, 2)->nullable();
-            $table->decimal('total_break_hours', 10, 2)->nullable();
             $table->decimal('total_deductions_hours', 10, 2)->nullable();
             $table->decimal('gross_amount', 10, 2)->nullable();
             $table->decimal('net_amount', 10, 2)->nullable();
