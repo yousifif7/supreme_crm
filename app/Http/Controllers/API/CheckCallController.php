@@ -454,42 +454,55 @@ private function addWatermarkToImage($imagePath, $timestampData)
 
 private function addTimestampToVideo($videoPath, $timestampData)
 {
-    // FFmpeg executable path
-    $ffmpegPath = base_path('ffmpeg\\bin\\ffmpeg.exe');
+    $ffmpegPath = base_path('ffmpeg-7.0.2-amd64-static/ffmpeg');
 
-    // Normalize input video path for Windows CMD
-    $videoPath = str_replace(['/', '\\\\'], '/', $videoPath);
+    // Normalize input video path
+    $videoPath = str_replace(['\\', '/'], '/', $videoPath);
 
-    // Temp output folder
+    // Temp directories
     $tempDir = base_path('public/temp_videos');
     if (!file_exists($tempDir)) {
         mkdir($tempDir, 0777, true);
     }
-    $outputPath = $videoPath. '.tmp.mp4';;
+    $outputPath = $videoPath . '.tmp.mp4';
 
-
-    // Build FFmpeg command
-
-
-$font = 'D\\\:/xampp/htdocs/supreme/ffmpeg/static/Roboto_Condensed-Black.ttf';
+    // Prepare text
     $text = "Time - {$timestampData['time']}  Employee - {$timestampData['employee']}  Location - {$timestampData['latitude']}, {$timestampData['longitude']}";
+    $text = str_replace([':', ','], '-', $text);
 
-$text = str_replace([':',','], '-', $text);
+    // Create temporary PNG with text
+    $textImage = $tempDir . '/text_overlay.png';
+    $fontPath = base_path('ffmpeg/static/Roboto_Condensed-Black.ttf');
+    $fontSize = 24;
+    $im = imagecreatetruecolor(1000, 50); // width x height
+    imagesavealpha($im, true);
+    $trans_color = imagecolorallocatealpha($im, 0, 0, 0, 127);
+    imagefill($im, 0, 0, $trans_color);
+    $white = imagecolorallocate($im, 255, 255, 255);
+    imagettftext($im, $fontSize, 0, 10, 35, $white, $fontPath, $text);
+    imagepng($im, $textImage);
+    imagedestroy($im);
 
-// Build the command
-$cmd = "\"$ffmpegPath\" -i \"$videoPath\" -vf \"drawtext=fontfile=$font:text=$text:x=10:y=10:fontsize=24:fontcolor=white:box=1:boxcolor=black@0.9\" -c:a copy \"$outputPath\"";
+    // FFmpeg command to overlay the PNG
+    $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"overlay=10:10\" -c:a copy \"$outputPath\" -y";
 
-// Execute
-exec($cmd, $outputLines, $returnVar);
-    if (file_exists($outputPath)) {
-        // Replace original file
+    exec($cmd, $outputLines, $returnVar);
+
+
+    // Debug
+    // echo $cmd; exit;
+
+    if ($returnVar === 0 && file_exists($outputPath)) {
         unlink($videoPath);
         rename($outputPath, $videoPath);
+        unlink($textImage); // cleanup
+        echo "Video processed successfully!";
     } else {
-        // Fallback: create metadata file
-        $this->createMetadataFile($videoPath, $timestampData);
+        echo "Error processing video!";
+        echo json_encode($outputLines);
     }
 }
+
 
 
 private function addTimestampToPdf($pdfPath, $timestampData)
