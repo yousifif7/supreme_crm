@@ -18,6 +18,7 @@ class RoleSeeder extends Seeder
         $role = Role::firstOrCreate(['name' => 'superadmin']);
         $role1 = Role::firstOrCreate(['name' => 'client']);
         $role2 = Role::firstOrCreate(['name' => 'security_staff']);
+        $role2 = Role::firstOrCreate(['name' => 'subcontractor']);
 
         // Assign all existing permissions to superadmin
         $allPermissions = Permission::all();
