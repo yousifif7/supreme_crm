@@ -54,7 +54,7 @@ class PermissionSeeder extends Seeder
         }
 
         // Create or get admin role
-        $adminRole = Role::firstOrCreate(['name' => 'Admin', 'guard_name' => 'web']);
+        $adminRole = Role::firstOrCreate(['name' => 'superadmin', 'guard_name' => 'web']);
 
         // Assign all permissions to admin
         $adminRole->syncPermissions(Permission::all());
