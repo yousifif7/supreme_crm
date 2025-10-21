@@ -7,184 +7,183 @@ use App\Models\User;
 use App\Models\Subcontractor;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
-use Maatwebsite\Excel\Concerns\ToModel;
+use Illuminate\Support\Str;
+use Illuminate\Support\Collection;
+use Maatwebsite\Excel\Concerns\ToCollection;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
-use Maatwebsite\Excel\Concerns\SkipsOnError;
-use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Spatie\Permission\Models\Role;
 use Carbon\Carbon;
+use Exception;
 
-class EmployeesImport implements ToModel, WithHeadingRow, WithValidation, SkipsOnError
+class EmployeesImport implements ToCollection, WithHeadingRow
 {
-    use SkipsErrors;
-
-    public function model(array $row)
+    public function collection(Collection $rows)
     {
-        // Skip empty rows or rows where full_name is empty
-        if (empty($row['full_name']) || trim($row['full_name']) === '') {
-            return null;
-        }
+        $employeesData = [];
+        $usersData = [];
+        $processedEmails = [];
+        $now = now();
+        $password = Hash::make('password123');
+        $role = Role::firstOrCreate(['name' => 'security_staff']);
 
-        // Parse full name into first and last name
-        $fullName = trim($row['full_name']);
-        $nameParts = explode(' ', $fullName, 2);
-        $firstName = $nameParts[0];
-        $lastName = isset($nameParts[1]) ? $nameParts[1] : '';
+        /** ------------------------
+         *  1️⃣ PROCESS USERS
+         *  ------------------------ */
+        foreach ($rows as $row) {
+            try {
+                $fullName = trim($row['full_name'] ?? '');
+                if ($fullName === '') continue;
 
-        $userId = null;
-        $subcontractorId = null;
+                $nameParts = explode(' ', $fullName, 2);
+                $firstName = $nameParts[0];
+                $lastName = $nameParts[1] ?? '';
 
-        // Create user if username is provided (username will be used as email)
-        if (!empty($row['username']) && trim($row['username']) !== '') {
-            $password = 'password123'; // Default password
+                // Generate/validate email
+                $email = trim($row['email'] ?? '');
+                if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $base = strtolower(preg_replace('/\s+/', '', $fullName));
+                    do {
+                        $random = Str::random(6);
+                        $email = "{$base}_{$random}@example.com";
+                    } while (
+                        in_array($email, $processedEmails) ||
+                        User::where('email', $email)->exists()
+                    );
+                }
 
-            $user = User::create([
-                'name' => $fullName,
-                'first_name' => $firstName,
-                'last_name' => $lastName,
-                'username' => $row['username'],
-                'email' => $row['username'], // Use username as email
-                'password' => Hash::make($password),
-            ]);
+                // Skip duplicates (file + DB)
+                if (in_array(strtolower($email), $processedEmails)) continue;
+                if (User::where('email', $email)->exists()) continue;
 
-            // Assign security_staff role
-            $role = Role::firstOrCreate(['name' => 'security_staff']);
-            $user->assignRole($role);
+                $processedEmails[] = strtolower($email);
 
-            $userId = $user->id;
-        }
-
-        // Handle subcontractor
-        $subcontractorValue = null;
-        if (!empty($row['subcontractor']) && trim($row['subcontractor']) !== '') {
-            $subcontractor = Subcontractor::where('company_name', trim($row['subcontractor']))->first();
-
-            if (!$subcontractor) {
-                // Create new subcontractor if doesn't exist
-                $subcontractor = Subcontractor::create([
-                    'company_name' => trim($row['subcontractor']),
-                    'is_active' => true,
-                ]);
+                $usersData[] = [
+                    'name' => $fullName,
+                    'first_name' => $firstName,
+                    'last_name' => $lastName,
+                    'username' => $fullName,
+                    'email' => $email,
+                    'password' => $password,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            } catch (Exception $e) {
+                Log::error('Error processing user row: ' . $e->getMessage(), ['row' => $row]);
             }
-
-            $subcontractorValue = $subcontractor->id;
         }
 
-        return new Employee([
-            'user_id' => $userId,
-            'entry_date' => $this->parseDate($row['date_of_registration'] ?? null),
-            'fore_name' => $firstName,
-            'sur_name' => $lastName,
-            'subcontractor' => $subcontractorValue,
-            'guard_rate' => !empty($row['pay_rate']) ? (float)$row['pay_rate'] : null,
-            'contact' => $row['contact'] ?? null,
-            'sia_licence' => $row['sia_number'] ?? null,
-            'service_type' => $row['service_type'] ?? null,
-            'sia_expiry' => $this->parseDate($row['sia_expiry'] ?? null),
-            'dob' => $this->parseDate($row['dob'] ?? null),
-            'email' => $row['email'] ?? null, // Use username as email, fallback to email field
-            'address_group' => $row['address_with_post_code'] ?? $row['address_group'] ?? null,
-            'account_name' => $row['account_name'] ?? null,
-            'sort_code' => $row['sort_code'] ?? null,
-            'account_number' => $row['account_number'] ?? null,
-            'ni_number' => $row['ni_number'] ?? null,
-            'visa_type' => $row['visa_status'] ?? null,
-            'visa_expiry' => $this->parseDate($row['visa_expiry_date'] ?? null),
-            'status' => 'active', // Default status
-            'gender' => 'male', // Default gender (required field)
-            'licence_type' => 'SIA', // Default licence type (required field)
-            'place_work' => 'Various', // Default place of work (required field)
-            'hour_per_week' => 40, // Default hours (required field)
-            'passport_no' => null,
-            'passport_expiry' => now()->addYears(10), // Default passport expiry (required field)
-            'pin' => rand(1000, 9999), // Generate random PIN (required field)
-            'share_code' => null, // Default share code (required field)
-            'share_code_expiry' => now()->addYears(1), // Default share code expiry (required field)
-        ]);
+        /** ------------------------
+         *  2️⃣ BULK INSERT USERS (IN CHUNKS)
+         *  ------------------------ */
+        if (!empty($usersData)) {
+            collect($usersData)->chunk(500)->each(function ($chunk) {
+                User::insert($chunk->toArray());
+            });
+        }
+
+        $insertedEmails = array_column($usersData, 'email');
+        $userMap = User::whereIn('email', $insertedEmails)->pluck('id', 'email');
+
+        /** ------------------------
+         *  3️⃣ BUILD EMPLOYEE RECORDS
+         *  ------------------------ */
+        foreach ($rows as $row) {
+            try {
+                $fullName = trim($row['full_name'] ?? '');
+                if ($fullName === '') continue;
+
+                $nameParts = explode(' ', $fullName, 2);
+                $firstName = $nameParts[0];
+                $lastName = $nameParts[1] ?? '';
+
+                // Match or regenerate same email
+                $email = trim($row['email'] ?? '');
+                if (empty($email) || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                    $base = strtolower(preg_replace('/\s+/', '', $fullName));
+                    foreach ($userMap as $userEmail => $id) {
+                        if (Str::startsWith($userEmail, $base . "_")) {
+                            $email = $userEmail;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isset($userMap[$email])) continue;
+
+                // Subcontractor
+                $subcontractorId = null;
+                if (!empty($row['subcontractor']) && trim($row['subcontractor']) !== '') {
+                    $sub = Subcontractor::firstOrCreate(
+                        ['company_name' => trim($row['subcontractor'])],
+                        ['is_active' => true]
+                    );
+                    $subcontractorId = $sub->id;
+                }
+
+                $employeesData[] = [
+                    'user_id' => $userMap[$email],
+                    'entry_date' => $this->parseDate($row['date_of_registration'] ?? null),
+                    'fore_name' => $firstName,
+                    'sur_name' => $lastName,
+                    'subcontractor' => $subcontractorId,
+                    'guard_rate' => !empty($row['pay_rate']) ? (float)$row['pay_rate'] : null,
+                    'contact' => $row['contact'] ?? null,
+                    'sia_licence' => $row['sia_number'] ?? null,
+                    'service_type' => $row['service_type'] ?? null,
+                    'sia_expiry' => $this->parseDate($row['sia_expiry'] ?? null),
+                    'dob' => $this->parseDate($row['dob'] ?? null),
+                    'email' => $email,
+                    'address_group' => $row['address_with_post_code'] ?? $row['address_group'] ?? null,
+                    'account_name' => $row['account_name'] ?? null,
+                    'sort_code' => $row['sort_code'] ?? null,
+                    'account_number' => $row['account_number'] ?? null,
+                    'ni_number' => $row['ni_number'] ?? null,
+                    'visa_type' => $row['visa_status'] ?? null,
+                    'visa_expiry' => $this->parseDate($row['visa_expiry_date'] ?? null),
+                    'status' => 'active',
+                    'gender' => 'male',
+                    'licence_type' => 'SIA',
+                    'place_work' => 'Various',
+                    'hour_per_week' => 40,
+                    'passport_no' => null,
+                    'passport_expiry' => now()->addYears(10)->format('Y-m-d'),
+                    'pin' => rand(1000, 9999),
+                    'share_code' => null,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ];
+            } catch (Exception $e) {
+                Log::error('Error building employee record: ' . $e->getMessage(), ['row' => $row]);
+            }
+        }
+
+        /** ------------------------
+         *  4️⃣ BULK INSERT EMPLOYEES (IN CHUNKS)
+         *  ------------------------ */
+        if (!empty($employeesData)) {
+            collect($employeesData)->chunk(500)->each(function ($chunk) {
+                Employee::insert($chunk->toArray());
+            });
+            Log::info(count($employeesData) . ' employees imported successfully (chunked).');
+        }
     }
 
-    public function rules(): array
-    {
-        return [
-            '#' => 'nullable', // Ignore the # column
-            'date_of_registration' => 'nullable',
-            'full_name' => 'required|max:255',
-            'subcontractor' => 'nullable|max:255',
-            'pay_rate' => 'nullable|min:0',
-            'contact' => 'nullable|max:255',
-            'sia_number' => 'nullable|max:255',
-            'service_type' => 'nullable|max:255',
-            'sia_expiry' => 'nullable',
-            'dob' => 'nullable',
-            'email' => 'nullable|email|max:255',
-            'username' => 'nullable|email|max:255|unique:users,email',
-            'address_with_post_code' => 'nullable|max:500',
-            'address_group' => 'nullable|max:500',
-            'account_name' => 'nullable|max:255',
-            'sort_code' => 'nullable|max:255',
-            'account_number' => 'nullable|max:255',
-            'ni_number' => 'nullable|max:255',
-            'visa_status' => 'nullable|max:255',
-            'visa_expiry_date' => 'nullable',
-            'remaining_sia_days' => 'nullable',
-            'remaining_visa_days' => 'nullable',
-        ];
-    }
-
-    public function customValidationMessages()
-    {
-        return [
-            'full_name.required' => 'Full name is required.',
-            'username.unique' => 'This username (email) is already registered.',
-            'username.email' => 'Username must be a valid email address.',
-            'email.email' => 'Email must be a valid email address.',
-            'pay_rate.numeric' => 'Pay rate must be a valid number.',
-            'pay_rate.min' => 'Pay rate must be at least 0.',
-        ];
-    }
-
-    /**
-     * Parse date from various formats
-     */
     private function parseDate($dateString): ?string
     {
-        if (empty($dateString) || trim($dateString) === '') {
-            return null;
-        }
+        if (empty($dateString) || trim($dateString) === '') return null;
 
         try {
-            // Handle format like "02-Aug-24"
             if (preg_match('/^\d{2}-[A-Za-z]{3}-\d{2}$/', $dateString)) {
-                $date = Carbon::createFromFormat('d-M-y', $dateString);
+                return Carbon::createFromFormat('d-M-y', $dateString)->format('Y-m-d');
+            } elseif (preg_match('/^\d{2}-[A-Za-z]{3}-\d{4}$/', $dateString)) {
+                return Carbon::createFromFormat('d-M-Y', $dateString)->format('Y-m-d');
+            } elseif (is_numeric($dateString) && strlen($dateString) >= 4) {
+                return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateString))->format('Y-m-d');
             }
-            // Handle format like "02-Aug-2024"
-            elseif (preg_match('/^\d{2}-[A-Za-z]{3}-\d{4}$/', $dateString)) {
-                $date = Carbon::createFromFormat('d-M-Y', $dateString);
-            }
-            // handle excel formate like 45871 instead of 02-Aug-2025
-            elseif (is_numeric($dateString) && strlen($dateString) >= 4) {
-                $date = Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateString));
-            }
-            // Handle standard date formats
-            else {
-                $date = Carbon::parse($dateString);
-            }
-
-            return $date->format('Y-m-d');
-        } catch (\Exception $e) {
-            Log::warning("Could not parse date: " . $dateString);
+            return Carbon::parse($dateString)->format('Y-m-d');
+        } catch (Exception $e) {
+            Log::warning("Date parse failed: {$dateString} | " . $e->getMessage());
             return null;
         }
-    }
-
-    /**
-     * Safely get column value with default
-     */
-    private function getColumnValue(array $row, string $column, $default = null)
-    {
-        return array_key_exists($column, $row) ? $row[$column] : $default;
     }
 }

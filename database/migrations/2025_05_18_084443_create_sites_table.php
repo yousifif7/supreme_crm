@@ -17,7 +17,7 @@ return new class extends Migration
             $table->unsignedBigInteger('client_id')->nullable();
             $table->foreign('client_id')
                 ->references('id')
-                ->on('clients')
+                ->on('users')
                 ->onDelete('cascade');
             $table->string('site_name');
             $table->string('guard_names')->nullable();
