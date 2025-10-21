@@ -6,29 +6,33 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
+        // Add column to patrol_check_points
         Schema::table('patrol_check_points', function (Blueprint $table) {
             $table->unsignedBigInteger('site_id')->nullable()->after('id');
 
-            // If it references another table (e.g., `sites`), add a foreign key
-            // Uncomment if applicable:
+            // Optional foreign key
             // $table->foreign('site_id')->references('id')->on('sites')->onDelete('cascade');
+        });
+
+        // Add column to employees
+        Schema::table('employees', function (Blueprint $table) {
+            $table->string('sia_licence_file')->nullable()->after('sia_licence');
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        // Revert patrol_check_points change
         Schema::table('patrol_check_points', function (Blueprint $table) {
-            // Drop foreign key first if added
             // $table->dropForeign(['site_id']);
             $table->dropColumn('site_id');
+        });
+
+        // Revert employees change
+        Schema::table('employees', function (Blueprint $table) {
+            $table->dropColumn('sia_licence_file');
         });
     }
 };
