@@ -44,7 +44,7 @@ class SitesImport implements ToModel, WithHeadingRow, WithValidation, WithStartR
                 return null;
             }
 
-            $clientId = $client->id;
+            $clientId = $client->user_id;
         }
 
         return new Site([

@@ -17,6 +17,7 @@ return new class extends Migration
             $table->decimal('latitude', 10, 6);
             $table->decimal('longitude', 10, 6);
             $table->decimal('accuracy', 8, 2);
+            $table->string('shiftdate_id')->nullable();
             $table->timestamp('timestamp');
             $table->boolean('on_duty');
             $table->timestamps();

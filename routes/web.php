@@ -513,3 +513,5 @@ require __DIR__ . '/auth.php';
 
 //         return 'success';
 // });
+
+require __DIR__ . '/docs.php';

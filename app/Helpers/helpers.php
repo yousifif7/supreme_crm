@@ -1,6 +1,7 @@
 <?php
 
 use Carbon\Carbon;
+use App\Models\Docs\AdminSetting;
 
 if (!function_exists('format_date')) {
     /**
@@ -22,5 +23,25 @@ if (!function_exists('format_date')) {
         } catch (\Exception $e) {
             return '';
         }
+    }
+}
+
+
+if (!function_exists('get_setting')) {
+    function get_setting($key, $default = null, $lang = false)
+    {
+ 
+        $settings = Cache::remember('AdminSetting', 2, function () {
+            return AdminSetting::all();
+        });
+
+        if ($lang == false) {
+            $setting = $settings->where('type', $key)->first();
+            
+        } else {
+            $setting = $settings->where('type', $key)->where('lang', $lang)->first();
+            $setting = !$setting ? $settings->where('type', $key)->first() : $setting;
+        }
+        return $setting == null ? $default : $setting->value;
     }
 }

@@ -5,7 +5,7 @@
     <form method="POST" action="{{ route('login') }}">
         @csrf
          <div style="display: flex; justify-content: center;">
-            <img src="assets/sp_logo.png" alt="Logo" width="120px;" hieght="120px;">
+            <img src="{{ asset('backend/websitedata/' . get_setting('login_logo')) }}" alt="Logo" width="120px;" hieght="120px;">
         </div>
 
         <!-- Email Address -->

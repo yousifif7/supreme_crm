@@ -108,15 +108,16 @@ return new class extends Migration
             $table->string('share_code')->nullable();
             $table->string('biometric_residence_permit')->nullable();
             $table->date('biometric_residence_permit_expiry')->nullable();
-            $table->string('brp_status')->nullable();
+            $table->string('brp_status', 50)->nullable();
             $table->string('settlement')->nullable();
             $table->text('tags')->nullable();
-            $table->string('pay_rate')->nullable();
+            $table->string('pay_rate', 50)->nullable();
             $table->string('employee_password')->nullable();
             $table->boolean('is_permanent')->nullable();
             $table->string('added_from')->nullable();
             $table->boolean('is_active')->default(true);
             $table->string('holidays_entitlement_additional')->nullable();
+            $table->string('reference_number', 50)->nullable();
             $table->text('holiday_from_additional')->nullable();
             $table->text('holiday_to_additional')->nullable();
             $table->timestamps();

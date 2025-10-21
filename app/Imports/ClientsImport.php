@@ -12,6 +12,7 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Spatie\Permission\Models\Role;
+use Illuminate\Support\Str;
 
 class ClientsImport implements ToModel, WithHeadingRow, WithValidation, WithStartRow, SkipsOnError
 {
@@ -37,15 +38,22 @@ class ClientsImport implements ToModel, WithHeadingRow, WithValidation, WithStar
         $userId = null;
 
         // Create user only if username is provided
-        if (!empty($row['username'])) {
+        if (!empty($row['name'])) {
             $password = !empty($row['password']) ? $row['password'] : 'password123';
+
+              // Validate contact_email or generate random one
+    if (empty($row['contact_email']) || !filter_var($row['contact_email'], FILTER_VALIDATE_EMAIL)) {
+        // Generate a random email using username or random string
+        $random = Str::random(8);
+        $row['contact_email'] = strtolower(preg_replace('/\s+/', '', $row['name'])) . "_{$random}@example.com";
+    }
 
             $user = User::create([
                 'name' => $row['name'],
                 'first_name' => $row['name'],
                 'last_name' => '',
-                'username' => $row['username'],
-                'email' => $row['username'],
+                'username' => $row['name'],
+                'email' => $row['contact_email'],
                 'password' => Hash::make($password),
             ]);
 

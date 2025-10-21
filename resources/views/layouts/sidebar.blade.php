@@ -2,13 +2,13 @@
       <!-- Logo -->
       <div class="sidebar-logo">
           <a href="{{ url('dashboard') }}" class="logo logo-normal">
-              <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+              <img src="{{ asset('backend/websitedata/' . get_setting('dashboard_logo')) }}" alt="Logo">
           </a>
           <a href="{{ url('dashboard') }}" class="logo-small">
-              <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+              <img src="{{ asset('backend/websitedata/' . get_setting('dashboard_logo')) }}" alt="Logo">
           </a>
           <a href="{{ url('dashboard') }}" class="dark-logo">
-              <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+              <img src="{{ asset('backend/websitedata/' . get_setting('dashboard_logo')) }}" alt="Logo">
           </a>
       </div>
       <div class="sidebar-inner slimscroll">
@@ -234,34 +234,51 @@
                           @endcan
 
                           @can('Read HR Managment')
-                              <li class="submenu">
-                                  <a href="javascript:void(0);"
-                                      class="{{ request()->is('leaves*') || request()->is('calendar') || request()->is('hr') || request()->is('leaves/pending') ? 'subdrop' : '' }}">
-                                      <i class="fa fa-phone"></i>
-                                      <span>HR Managment</span>
-                                      <span class="menu-arrow"></span>
-                                  </a>
-                                  <ul
-                                      style="display: {{ request()->is('leaves*') || request()->is('calendar') || request()->is('hr') || request()->is('leaves/pending') ? 'block' : 'none' }};">
-                                      <li class="{{ request()->is('hr') ? 'active' : '' }}">
-                                          <a href="{{ route('materials.index') }}">
-                                              <i class="fa fa-phone"></i>HR</a>
-                                      </li>
-                                      <li class="{{ request()->is('leaves') ? 'active' : '' }}">
-                                          <a href="{{ route('leaves.index') }}">
-                                              <i class="ti ti-door-exit"></i>Leaves </a>
-                                      </li>
-                                      <li class="{{ request()->is('leaves/pending') ? 'active' : '' }}">
-                                          <a href="{{ route('leaves.pending') }}">
-                                              <i class="ti ti-door-exit"></i>New Leave Requests </a>
-                                      </li>
-                                      <li class="{{ request()->is('calendar') ? 'active' : '' }}">
-                                          <a href="{{ url('calendar') }}">
-                                              <i class="ti ti-calendar"></i>Holidays Calendar </a>
-                                      </li>
-                                  </ul>
-                              </li>
-                          @endcan
+<li class="submenu">
+    <a href="javascript:void(0);"
+        class="{{ request()->is('leaves*') || request()->is('calendar') || request()->is('hr') || request()->is('leaves/pending') || request()->is('admin/setting') || request()->is('page/form') || request()->is('digital/form/index') || request()->is('form/shows') || request()->is('application/form/show') ? 'subdrop' : '' }}">
+        <i class="fa fa-phone"></i>
+        <span>HR Management</span>
+        <span class="menu-arrow"></span>
+    </a>
+
+    <ul style="display: {{ request()->is('leaves*') || request()->is('calendar') || request()->is('hr') || request()->is('leaves/pending') || request()->is('admin/setting') || request()->is('page/form') || request()->is('digital/form/index') || request()->is('form/shows') || request()->is('application/form/show') ? 'block' : 'none' }};">
+        <li class="{{ request()->is('hr') ? 'active' : '' }}">
+            <a href="{{ route('materials.index') }}"><i class="fa fa-phone"></i> HR</a>
+        </li>
+        <li class="{{ request()->is('leaves') ? 'active' : '' }}">
+            <a href="{{ route('leaves.index') }}"><i class="ti ti-door-exit"></i> Leaves</a>
+        </li>
+        <li class="{{ request()->is('leaves/pending') ? 'active' : '' }}">
+            <a href="{{ route('leaves.pending') }}"><i class="ti ti-door-exit"></i> New Leave Requests</a>
+        </li>
+        <li class="{{ request()->is('calendar') ? 'active' : '' }}">
+            <a href="{{ url('calendar') }}"><i class="ti ti-calendar"></i> Holidays Calendar</a>
+        </li>
+        <li class="{{ request()->is('admin/setting') ? 'active' : '' }}">
+            <a href="{{ url('admin/setting') }}"><i class="ti ti-settings"></i> General Setting</a>
+        </li>
+        <li class="{{ request()->is('page/form') ? 'active' : '' }}">
+            <a href="{{ url('page/form') }}"><i class="ti ti-file-text"></i> Pages</a>
+        </li>
+        <li class="{{ request()->is('digital/form/index') ? 'active' : '' }}">
+            <a href="{{ url('digital/form/index') }}"><i class="ti ti-layout"></i> Digital Form</a>
+        </li>
+        <li class="{{ request()->is('form/shows') ? 'active' : '' }}">
+            <a href="{{ url('form/shows') }}"><i class="ti ti-list"></i> Form List</a>
+        </li>
+        <li class="{{ request()->is('application/form/show') ? 'active' : '' }}">
+            <a href="{{ url('application/form/show') }}"><i class="ti ti-clipboard"></i> Application Form</a>
+        </li>
+         <li class="{{ request()->is('User/form/incident/data') ? 'active' : '' }}">
+            <a href="{{ url('User/form/incident/data') }}"><i class="ti ti-clipboard"></i> Incident Data</a>
+        </li>
+
+        
+    </ul>
+</li>
+@endcan
+
 
                           @can('Read Restrictions')
                               <li class="{{ request()->is('restrictions*') ? 'active' : '' }}">

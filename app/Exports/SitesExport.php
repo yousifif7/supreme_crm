@@ -144,7 +144,7 @@ class SitesExport implements FromCollection, WithHeadings, WithMapping, WithStyl
     {
         return [
             ++$this->rowNumber,
-            $site->client ? $site->client->client_name : ($site->client_name ?? 'N/A'),
+            $site->client_name ?? 'N/A',
             $site->site_name,
             $site->address,
             $site->site_code,
