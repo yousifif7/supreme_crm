@@ -2,7 +2,7 @@
 
 use App\Http\Controllers\Docs\AdminSettingController;
 use App\Http\Controllers\Docs\AuthController;
-use App\Http\Controllers\Docs\DigitalformController;
+use App\Http\Controllers\Docs\DigitalFormController;
 use App\Http\Controllers\Docs\DigitalFormSubmitController;
 use App\Http\Controllers\Docs\DynamicInputsController;
 use App\Http\Controllers\Docs\PageController;
@@ -24,7 +24,7 @@ Route::group(['middleware' => 'auth'], function () {
     });
 
     // ========================= Digital Form =========================
-    Route::controller(DigitalformController::class)->group(function () {
+    Route::controller(DigitalFormController::class)->group(function () {
         Route::get('digital/form/index', 'index')
             ->name('digital.form.index')
             ->middleware('can:Read HR Managment');
