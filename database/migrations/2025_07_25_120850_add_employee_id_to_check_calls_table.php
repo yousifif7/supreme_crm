@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::table('check_calls', function (Blueprint $table) {
             //
             $table->unsignedBigInteger('employee_id')->nullable()->after('id'); // or after any existing column
-            $table->foreign('employee_id')->references('id')->on('employees')->onDelete('set null');
+            $table->foreign('employee_id')->references('id')->on('users')->onDelete('set null');
         });
     }
 

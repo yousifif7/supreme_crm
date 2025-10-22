@@ -21,6 +21,11 @@ return new class extends Migration
          Schema::table('sites', function (Blueprint $table) {
             $table->string('has_qr',50)->nullable()->after('id');
           });
+
+          Schema::table('check_calls', function (Blueprint $table) {
+            $table->string('name',50)->nullable()->after('id');
+          });
+        
         
     }
 
@@ -38,6 +43,9 @@ return new class extends Migration
 
          Schema::table('sites', function (Blueprint $table) {
             $table->dropColumn('has_qr');
+        });
+         Schema::table('check_calls', function (Blueprint $table) {
+            $table->dropColumn('name');
         });
     }
 };

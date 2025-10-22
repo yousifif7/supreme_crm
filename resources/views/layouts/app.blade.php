@@ -427,7 +427,11 @@ document.addEventListener('click', () => {
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
+
+    @if(Auth::user()->hasRole('security_staff'))
     <script src="{{ asset('assets/toast/alerts6.js') }}" defer></script>
+
+    @endif
       
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');
