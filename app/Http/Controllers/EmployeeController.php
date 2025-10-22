@@ -168,8 +168,7 @@ class EmployeeController extends Controller
             if (! $siaResult['valid']) {
                 return back()->withInput()->withErrors(['license_number' => 'SIA licence not active: ' . ($siaResult['error'] ?? 'unknown')]);
             }
-            // optional: save parsed holder_name / sector / expiry to employee record
-            // $holder = $siaResult['holder_name'] ?? null;
+            
         }
 
         // ✅ Handle the checkbox manually
