@@ -84,6 +84,13 @@ class EmployeesImport implements ToCollection, WithHeadingRow
         $insertedEmails = array_column($usersData, 'email');
         $userMap = User::whereIn('email', $insertedEmails)->pluck('id', 'email');
 
+        if ($role) {
+    $users = User::whereIn('email', $insertedEmails)->get();
+    foreach ($users as $user) {
+        $user->assignRole($role); // ✅ Assign security_staff role
+    }
+}
+
         /** ------------------------
          *  3️⃣ BUILD EMPLOYEE RECORDS
          *  ------------------------ */
