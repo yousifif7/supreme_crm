@@ -19,6 +19,9 @@ return new class extends Migration
         // Add column to employees
         Schema::table('employees', function (Blueprint $table) {
             $table->string('sia_licence_file')->nullable()->after('sia_licence');
+            $table->string('sia_status',50)->nullable()->after('sia_licence_file');
+            $table->string('driving_licence_number',50)->nullable()->after('sia_status');
+            
         });
     }
 
@@ -33,6 +36,8 @@ return new class extends Migration
         // Revert employees change
         Schema::table('employees', function (Blueprint $table) {
             $table->dropColumn('sia_licence_file');
+             $table->dropColumn('sia_status');
+             $table->dropColumn('driving_licence_number');
         });
     }
 };

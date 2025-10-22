@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('patrols', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('shift_id')->constrained()->onDelete('cascade');
+            $table->foreignId('shift_id')->references('id')->on('shift_dates')->onDelete('set null');;
             $table->string('name');
             $table->text('summary')->nullable();
             $table->integer('total_checkpoints')->nullable();

@@ -2130,7 +2130,7 @@ class ShiftController extends Controller
                 'client_id' => 'required|integer',
                 'site_id' => 'required|integer',
                 'days' => 'nullable|string',
-                'staff_id' => 'nullable|integer',
+                'staff_id' => 'nullable|integer|exists:users,id',
                 'start_shift' => 'required|date_format:H:i',
                 'end_shift' => 'required|date_format:H:i',
                 'from_shift' => 'required|date',
