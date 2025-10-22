@@ -14,8 +14,8 @@ return new class extends Migration
         Schema::table('employees', function (Blueprint $table) {
             $table->string('driving_licence_expiry',50)->nullable()->after('driving_licence_number');
 
-             $table->date('employment_start_date');
-             $table->date('employment_end_date');
+             $table->date('employment_start_date')->nullable();
+             $table->date('employment_end_date')->nullable();
 
         });
          Schema::table('sites', function (Blueprint $table) {
