@@ -11,6 +11,9 @@ import 'laravel-datatables-vite';
 import select2 from 'select2';
 
 import $ from 'jquery';
+import 'summernote/dist/summernote-lite.css';
+import 'summernote/dist/summernote-lite.js';
+
 
 window.jQuery = window.$ = $;
 

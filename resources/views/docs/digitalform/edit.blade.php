@@ -140,11 +140,8 @@
     </div>
 </div>		
 @endsection	  
-@section('script')
-    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
-
-    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
-
+@section('scripts')
+   
         <script>
         $(document).ready(function() {
         $('#summernotemail').summernote();

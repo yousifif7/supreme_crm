@@ -2,6 +2,9 @@
 @extends('layouts.app')
 @section('contents')
 @section('title') Digital Form List @endsection
+<style>
+
+</style>
 <meta name="csrf-token" content="{{ csrf_token() }}">
 <div class="page-wrapper">
     <div class="content">
@@ -38,7 +41,7 @@
         <div class="card">
             <div class="card-body">
                 <div class="table-responsive">
-                    <table id="myTable" class="table datanew" data-update-route="{{ route('digital.form.order') }}">
+                    <table id="" class="table datanew" data-update-route="{{ route('digital.form.order') }}">
                         <thead>
                             <tr>
                                 <th>#</th>
@@ -97,4 +100,8 @@
         <!-- /product list -->
     </div>
 </div>
+@endsection
+@section('scripts')
+
+@include('docs.partial.script')
 @endsection
