@@ -13,7 +13,7 @@ return new class extends Migration
     {
         Schema::create('shifts', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('client_id')->nullable();
+            $table->unsignedBigInteger('s')->nullable();
             $table->unsignedBigInteger('site_id')->nullable();
             $table->unsignedBigInteger('company_id')->nullable();
             $table->time('start_shift')->nullable();

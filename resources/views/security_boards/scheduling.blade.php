@@ -2,6 +2,7 @@
 @section('title', 'CRM - Scheduling')
 @section('styles')
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <!-- Flatpickr CSS -->
     <style>
@@ -559,7 +560,7 @@
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
                 <div class="my-auto mb-2">
-                    <h2 class="mb-1">Scheduling</h2>
+                    <h2 class="mb-1">Scheduling <i class="fa-solid note-icon fa-pencil "></i></h2>
                 </div>
             </div>
 
@@ -1418,7 +1419,7 @@
     </div>
 ${shift.note 
     ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
-    : `<i class="fa-solid note-icon fa-file-pen " data-shift-id="${shift.id}" style="color:#ffffff"></i>`
+    : `<i class="fa-solid note-icon  " data-shift-id="${shift.id}" style="color:#ffffff">📝</i>`
 }
                     `);
 
@@ -2122,11 +2123,9 @@ ${shift.note
                         // Ensure a view-note-icon exists
                         if (noteIcon.length) {
                             noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd');
-                            noteIcon.html('📝');
+                            noteIcon.html('📄');
                         }
-                        if (viewIcon.length) {
-                            viewIcon.css('color', '#0d6efd').html('📝');
-                        }
+                        
                     } else {
                         // No note -> show inactive note-icon
                         if (viewIcon.length) {
