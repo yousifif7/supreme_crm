@@ -51,21 +51,21 @@ public function completeCheckCall(Request $request, $id)
     $earliest = $scheduledUtc->copy()->subMinutes(5);
     $latest   = $scheduledUtc->copy()->addMinutes(15);
 
-   /* if ($now->lt($earliest)) {
+   if ($now->lt($earliest)) {
         return response()->json([
             'message' => 'Too early! Check call can only be completed 5 minutes before its due time. '
                 . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
         ], 422);
-    }*/
+    }
 
-   /* if ($now->gt($latest)) {
+   if ($now->gt($latest)) {
         $checkCall->status = 'missed';
         $checkCall->save();
         return response()->json([
             'message' => 'Missed! Check call can only be completed within 15 minutes after its due time. '
                 . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
         ], 422);
-    }*/
+    }
 
     // Prepare timestamp data for all file types
     $shiftdate = ShiftDate::find($checkCall->shift_id);

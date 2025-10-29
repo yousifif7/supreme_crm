@@ -1,5 +1,5 @@
 <?php $page="userlist";?>
-@extends('layputs.app')
+@extends('layouts.app')
 @section('contents')
 @section('title') Incident Form View @endsection
 
