@@ -81,6 +81,7 @@
                 </div>
             </div>
 
+            @if(request()->hasAny(['search','company_id','manager_id','status','contract_start','contract_end']))
             <div class="card">
                 <div class="card-body p-0">
                     @if ($clients->isEmpty())
@@ -130,6 +131,13 @@
                     @endif
                 </div>
             </div>
+            @else
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-info mb-0">Please apply filters above to view client data.</div>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 

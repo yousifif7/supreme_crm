@@ -80,6 +80,7 @@
                 </div>
             </div>
 
+            @if(request()->hasAny(['client_id','employee_id','status','shift_date']))
             <!-- Results -->
             <div class="card">
                 <div class="card-body p-0">
@@ -120,6 +121,13 @@
                     @endif
                 </div>
             </div>
+            @else
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-info mb-0">Please apply filters above to view shift data.</div>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 @endsection

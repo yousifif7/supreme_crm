@@ -326,10 +326,11 @@ class ReportController extends Controller
 
     public function performanceReport(Request $request)
     {
-        $from = $request->input('from_date');
-        $to = $request->input('to_date');
-        $clientId = $request->input('client_id');
-        $siteId = $request->input('site_id');
+    $from = $request->input('from_date');
+    $to = $request->input('to_date');
+    $clientId = $request->input('client_id');
+    $siteId = $request->input('site_id');
+    $staffId = $request->input('staff_id');
 
         // Build with-array defensively: always include required relations
         $with = ['shift', 'shift.client', 'shift.site', 'shift.staff'];
@@ -348,6 +349,13 @@ class ReportController extends Controller
             })
             ->when($siteId, function ($q) use ($siteId) {
                 $q->whereHas('shift.site', fn($q2) => $q2->where('id', $siteId));
+            })
+            ->when($staffId, function ($q) use ($staffId) {
+                // apply staff filter either from ShiftDate.staff_id or related shift.staff_id
+                $q->where(function ($q2) use ($staffId) {
+                    $q2->where('staff_id', $staffId)
+                        ->orWhereHas('shift', fn($qq) => $qq->where('staff_id', $staffId));
+                });
             });
 
         $shiftDates = $query->get();
@@ -556,6 +564,8 @@ class ReportController extends Controller
         $clients = User::role('client')->pluck('name', 'id');
         $sites = collect();
         if ($clientId) $sites = Site::where('client_id', $clientId)->pluck('site_name', 'id');
+    // Staff dropdown: security staff role
+    $staffs = User::role('security_staff')->orderBy('first_name')->get();
 
         // Totals array passed to view / exports
         $totals = [
@@ -585,7 +595,7 @@ class ReportController extends Controller
                     'stats' => $statsArray,
                     'statusOptions' => $statusOptions,
                     'totals' => $totals,
-                    'filters' => ['from' => $from, 'to' => $to, 'client' => $clientId, 'site' => $siteId],
+                    'filters' => ['from' => $from, 'to' => $to, 'client' => $clientId, 'site' => $siteId, 'staff' => $staffId],
                 ]);
                 return $pdf->download($fileNameBase . '.pdf');
             }
@@ -645,8 +655,10 @@ class ReportController extends Controller
             'stats' => $stats,
             'clients' => $clients,
             'sites' => $sites,
+            'staffs' => $staffs,
             'selectedClient' => $clientId,
             'selectedSite' => $siteId,
+            'selectedStaff' => $staffId,
             'fromDate' => $from,
             'toDate' => $to,
             'statusOptions' => $statusOptions,

@@ -3,6 +3,8 @@
 
 @section('styles')
 <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
+    <!-- Select2 for searchable staff select -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 <style>
     .totals-row .card { min-width: 180px; }
     .report-table th, .report-table td { vertical-align: middle; }
@@ -50,6 +52,30 @@
                             @endif
                         </select>
                     </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Staff</label>
+                        <select id="staffSelect" name="staff_id" class="form-select staff-select">
+                            <option value="">-- All Staff --</option>
+                            @if(!empty($staffs))
+                                @foreach($staffs as $key => $item)
+                                    @php
+                                        // handle different shapes: object, array, or id=>name
+                                        if (is_object($item)) {
+                                            $sid = $item->id ?? $item->user_id ?? $key;
+                                            $sname = trim(($item->first_name ?? $item->firstName ?? '') . ' ' . ($item->last_name ?? $item->lastName ?? '')) ?: ($item->name ?? $item->full_name ?? '');
+                                        } elseif (is_array($item)) {
+                                            $sid = $item['id'] ?? $key;
+                                            $sname = trim(($item['first_name'] ?? '') . ' ' . ($item['last_name'] ?? '')) ?: ($item['name'] ?? '');
+                                        } else {
+                                            $sid = $key;
+                                            $sname = $item;
+                                        }
+                                    @endphp
+                                    <option value="{{ $sid }}" {{ (string)($selectedStaff ?? request('staff_id', '')) === (string)$sid ? 'selected' : '' }}>{{ $sname }}</option>
+                                @endforeach
+                            @endif
+                        </select>
+                    </div>
                     <div class="col-md-2 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-primary">Apply</button>
                         <div class="dropdown">
@@ -67,8 +93,9 @@
             </div>
         </div>
 
-        <!-- Totals -->
-        <div class="row totals-row mb-3 gx-2">
+    @if(request()->hasAny(['from_date','to_date','client_id','site_id','staff_id']))
+    <!-- Totals -->
+    <div class="row totals-row mb-3 gx-2">
             <div class="col-auto">
                 <div class="card p-2">
                     <div class="card-body text-center">
@@ -110,8 +137,8 @@
                 </div>
             </div>
         </div>
-
-        <!-- Results -->
+        
+    <!-- Results -->
         <div class="card">
             <div class="card-body p-3">
                 @if($stats && $stats->count())
@@ -152,12 +179,21 @@
                 @endif
             </div>
         </div>
+        @else
+        <div class="card">
+            <div class="card-body p-3">
+                <div class="alert alert-info mb-0">Please apply filters above to view report data.</div>
+            </div>
+        </div>
+        @endif
     </div>
 </div>
 @endsection
 
 @section('scripts')
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<!-- Select2 JS -->
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
     flatpickr('.datepicker', { dateFormat: 'Y-m-d', allowInput: true });
@@ -195,6 +231,20 @@ document.addEventListener('DOMContentLoaded', function () {
                 siteSelect.innerHTML = '<option value="">-- All Sites --</option>';
             });
     });
+
+    // Initialize Select2 for staff select (if jQuery & select2 are present)
+    try {
+        if (window.jQuery && typeof jQuery.fn.select2 === 'function') {
+            // use dropdownParent to ensure the dropdown appears inside the card/overflow container
+            jQuery('.staff-select').select2({
+                placeholder: '-- All Staff --',
+                allowClear: true,
+                width: '100%'
+            });
+        }
+    } catch (e) {
+        console.warn('Select2 init failed', e);
+    }
 });
 </script>
 @endsection
