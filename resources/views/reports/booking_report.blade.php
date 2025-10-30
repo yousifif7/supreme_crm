@@ -67,50 +67,61 @@
                     </div>
                 </div>
             </div>
+            @if (request()->hasAny(['shift_date', 'employee_id', 'type', 'client_id']))
 
-            <div class="card">
-                <div class="card-body p-0">
-                    @if ($bookings->isEmpty())
-                        <div class="alert alert-warning m-3">No bookings found for current filters.</div>
-                    @else
-                        <div class="table-responsive">
-                            <table class="table datatables table-striped">
-                                <thead>
-                                    <tr> <th>#</th>
-                                        <th>Employee</th>
-                                        <th>Client</th>
-                                        <th>Site</th>
-                                        <th>Type</th>
-                                        <th>Shift Date</th>
-                                        <th>Timestamp</th>
-                                        <th>Address</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($bookings as $key=>$booking)
+                <div class="card">
+                    <div class="card-body p-0">
+                        @if ($bookings->isEmpty())
+                            <div class="alert alert-warning m-3">No bookings found for current filters.</div>
+                        @else
+                            <div class="table-responsive">
+                                <table class="table datatables table-striped">
+                                    <thead>
                                         <tr>
-                                            <td>{{ ++$key }}</td>
-                                            <td>{{ $booking->shift?->staff?->first_name ?? '' }}
-                                                {{ $booking->shift?->staff->last_name ?? '' }}</td>
-                                            <td>{{ $booking->shift?->shift?->client?->name ?? 'N/A' }}</td>
-                                            <td>{{ $booking->shift?->shift?->site?->site_name ?? 'N/A' }}</td>
-                                            <td>
-                                                <span
-                                                    class="badge bg-{{ $booking->type === 'book_on' ? 'success' : 'secondary' }}">
-                                                    {{ ucfirst(str_replace('_', ' ', $booking->type)) }}
-                                                </span>
-                                            </td>
-                                            <td>{{ $booking->shift?->shift_date ? format_date($booking->shift?->shift_date) : 'N/A' }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('d/m/Y H:i') }}</td>
-                                            <td>{{ $booking->address ?? 'N/A' }}</td>
+                                            <th>#</th>
+                                            <th>Employee</th>
+                                            <th>Client</th>
+                                            <th>Site</th>
+                                            <th>Type</th>
+                                            <th>Shift Date</th>
+                                            <th>Timestamp</th>
+                                            <th>Address</th>
                                         </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
-                    @endif
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($bookings as $key => $booking)
+                                            <tr>
+                                                <td>{{ ++$key }}</td>
+                                                <td>{{ $booking->shift?->staff?->first_name ?? '' }}
+                                                    {{ $booking->shift?->staff->last_name ?? '' }}</td>
+                                                <td>{{ $booking->shift?->shift?->client?->name ?? 'N/A' }}</td>
+                                                <td>{{ $booking->shift?->shift?->site?->site_name ?? 'N/A' }}</td>
+                                                <td>
+                                                    <span
+                                                        class="badge bg-{{ $booking->type === 'book_on' ? 'success' : 'secondary' }}">
+                                                        {{ ucfirst(str_replace('_', ' ', $booking->type)) }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ $booking->shift?->shift_date ? format_date($booking->shift?->shift_date) : 'N/A' }}
+                                                </td>
+                                                <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('d/m/Y H:i') }}
+                                                </td>
+                                                <td>{{ $booking->address ?? 'N/A' }}</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            </div>
+                        @endif
+                    </div>
                 </div>
-            </div>
+            @else
+                <div class="card">
+                    <div class="card-body p-3">
+                        <div class="alert alert-info mb-0">Please apply filters above to view report data.</div>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 
@@ -129,11 +140,13 @@
 
     <!-- Initialize DataTable -->
     <script>
-        $(document).ready(function () {
+        $(document).ready(function() {
             $('.datatables').DataTable({
                 responsive: true,
                 pageLength: 10,
-                order: [[0, 'asc']],
+                order: [
+                    [0, 'asc']
+                ],
                 language: {
                     search: "_INPUT_",
                     searchPlaceholder: "Search client..."
@@ -149,6 +162,7 @@
             padding: 6px 10px;
             width: 250px;
         }
+
         .dataTables_wrapper .dataTables_paginate .paginate_button {
             border-radius: 6px !important;
         }
