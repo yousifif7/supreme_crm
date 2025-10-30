@@ -42,7 +42,7 @@
                                   <select class="form-select" name="status">
                                       <option value="Active" selected>Active</option>
                                       <option value="Terminated">Terminated</option>
-                                      <option value="Need Approval">Need Approval</option>
+                                      <option value="need_approval">Need Approval</option>
                                   </select>
                                   <span class="text-danger form-error" id="error_status"></span>
                               </div>

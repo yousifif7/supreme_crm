@@ -6,6 +6,7 @@ use App\Models\User;
 use App\Models\Employee;
 use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
+use Illuminate\Support\Facades\Log;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -143,6 +144,23 @@ class EmployeesDataTable extends DataTable
             }
         }
 
+        // Apply general employee status filter (e.g. 'Active', 'Terminated', 'Need Approval')
+        $empStatus = request('status');
+        if ($empStatus) {
+
+            try {
+                $s = preg_replace('/\s+/', ' ', trim(strtolower(preg_replace('/[^a-z0-9]+/i', ' ', $empStatus))));
+            } catch (\Exception $e) {
+                // fallback to a simple normalize if preg_replace fails for some reason
+                $s = strtolower(str_replace('_', ' ', trim($empStatus)));
+            }
+
+            $query->whereRaw(
+                "LOWER(TRIM(REPLACE(REPLACE(REPLACE(COALESCE(status, ''), '_', ' '), '-', ' '), '\\t', ' '))) = ?",
+                [$s]
+            );
+        }
+
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()
                 ->select('employees.*')
@@ -175,7 +193,8 @@ class EmployeesDataTable extends DataTable
             ->parameters([
                 // send selected SIA status from the UI select (#siaStatusFilter)
                 'ajax' => [
-                    'data' => "function(d) { d.sia_status = $('#siaStatusFilter').val(); }",
+                    // include UI filters and log to browser console for debugging
+                    'data' => "function(d) { d.sia_status = $('#siaStatusFilter').val(); d.status = $('#empStatusFilter').val(); console.log('EmployeesDataTable ajax data', {sia_status: d.sia_status, status: d.status}); }",
                 ],
                 "scrollX" => true,
                 "pageLength" => 25,
