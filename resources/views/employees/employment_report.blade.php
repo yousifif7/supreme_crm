@@ -22,7 +22,8 @@
                                     <option value="">-- Choose Employee --</option>
                                     @foreach ($allEmployees as $emp)
                                         @php $fullName = trim($emp->fore_name . ' ' . $emp->sur_name); @endphp
-                                        <option value="{{ $fullName }}" {{ request('name') == $fullName ? 'selected' : '' }}>
+                                        <option value="{{ $fullName }}"
+                                            {{ request('name') == $fullName ? 'selected' : '' }}>
                                             {{ $fullName }}
                                         </option>
                                     @endforeach
@@ -71,9 +72,15 @@
                                             if ($start) {
                                                 $diff = $start->diff($end);
                                                 $parts = [];
-                                                if ($diff->y > 0) $parts[] = $diff->y . ' year' . ($diff->y > 1 ? 's' : '');
-                                                if ($diff->m > 0) $parts[] = $diff->m . ' month' . ($diff->m > 1 ? 's' : '');
-                                                if ($diff->d > 0) $parts[] = $diff->d . ' day' . ($diff->d > 1 ? 's' : '');
+                                                if ($diff->y > 0) {
+                                                    $parts[] = $diff->y . ' year' . ($diff->y > 1 ? 's' : '');
+                                                }
+                                                if ($diff->m > 0) {
+                                                    $parts[] = $diff->m . ' month' . ($diff->m > 1 ? 's' : '');
+                                                }
+                                                if ($diff->d > 0) {
+                                                    $parts[] = $diff->d . ' day' . ($diff->d > 1 ? 's' : '');
+                                                }
                                                 $duration = implode(', ', $parts) ?: '0 days';
                                             } else {
                                                 $duration = 'N/A';
@@ -83,15 +90,18 @@
                                             <td>{{ $employee->id }}</td>
                                             <td>{{ $employee->fore_name }} {{ $employee->sur_name }}</td>
                                             <td>
-                                                <span class="badge bg-{{ $employee->status == 'active' ? 'success' : 'danger' }}">
+                                                <span
+                                                    class="badge bg-{{ $employee->status == 'active' ? 'success' : 'danger' }}">
                                                     {{ ucfirst($employee->status) }}
                                                 </span>
                                             </td>
                                             <td>{{ $start ? $start->format('d/m/Y') : 'N/A' }}</td>
-                                            <td>{{ $employee->employment_end_date ? $end->format('d/m/Y') : 'Present' }}</td>
+                                            <td>{{ $employee->employment_end_date ? $end->format('d/m/Y') : 'Present' }}
+                                            </td>
                                             <td>{{ $duration }}</td>
                                             <td>
-                                                <a href="{{ url('employees#' . $employee->id) }}" class="btn btn-sm btn-primary">
+                                                <a href="{{ url('employees#' . $employee->id) }}"
+                                                    class="btn btn-sm btn-primary">
                                                     View
                                                 </a>
                                             </td>
@@ -126,7 +136,7 @@
                 }
             });
 
-     
+
         });
     </script>
 @endsection

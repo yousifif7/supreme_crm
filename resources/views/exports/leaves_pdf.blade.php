@@ -50,11 +50,11 @@
         </thead>
         <tbody>
             @foreach ($leaves as $lv)
-            @php
-                $employee = App\Models\user::find($lv->user_id);
-            @endphp
+                @php
+                    $employee = App\Models\user::find($lv->user_id);
+                @endphp
                 <tr>
-                    <td>{{ $employee?->first_name .' '. $employee?->last_name }}</td>
+                    <td>{{ $employee?->first_name . ' ' . $employee?->last_name }}</td>
                     <td>{{ $lv->leave_entitlement }}</td>
                     <td>{{ ucwords($lv->type) }}</td>
                     <td>{{ $lv->from_date }}</td>

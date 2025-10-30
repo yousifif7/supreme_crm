@@ -288,35 +288,6 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/vehicles/bulk-delete', [VehicleController::class, 'bulkDelete'])->name('vehicles.bulkDelete');
     /** End: Vehicle Controller */
 
-    /** Begin: Vehicle compliance controller */
-    Route::get('/vehicle_compliances/data', [VehicleComplianceController::class, 'compailance_data'])->name('complainces.data');
-    Route::get('/vehicle_compliances', [VehicleComplianceController::class, 'index'])->name('complainces');
-    Route::post('compliances', [VehicleComplianceController::class, 'store'])->name('compliances.store');
-    Route::get('/editcompliance/{id}', [VehicleComplianceController::class, 'edit'])->name('compliances.edit');
-    Route::delete('/deletecompliance/{id}', [VehicleComplianceController::class, 'delete'])->name('compliances.delete');
-    Route::post('/updatecompliance/{id}', [VehicleComplianceController::class, 'update'])->name('compliances.update');
-    Route::post('/compliances/bulk-delete', [VehicleComplianceController::class, 'bulkDelete'])->name('compliances.bulkDelete');
-    /** End: Vehicle Maintainace controller */
-
-    /** Begin: Vehicle Maintainance */
-    Route::get('/vehicle_maintenances/data', [VehicleMaintenanceController::class, 'data'])->name('maintenances.data');
-    Route::get('/vehicle_maintenances', [VehicleMaintenanceController::class, 'index'])->name('maintenances');
-    Route::post('maintenances', [VehicleMaintenanceController::class, 'store'])->name('maintenances.store');
-    Route::get('/editmaintenance/{id}', [VehicleMaintenanceController::class, 'edit'])->name('maintenances.edit');
-    Route::delete('/deletemaintenance/{id}', [VehicleMaintenanceController::class, 'delete'])->name('maintenances.delete');
-    Route::post('/updatemaintenance/{id}', [VehicleMaintenanceController::class, 'update'])->name('maintenances.update');
-    Route::post('/maintenances/bulk-delete', [VehicleMaintenanceController::class, 'bulkDelete'])->name('maintenances.bulkDelete');
-    /** End: Vehicle Maintainance */
-
-    /** Begin: roadworthinessCheck controller */
-    Route::get('/roadworthiness_check/data', [RoadworthinessCheckController::class, 'data'])->name('checks.data');
-    Route::get('/roadworthiness_check', [RoadworthinessCheckController::class, 'index'])->name('checks');
-    Route::post('checks', [RoadworthinessCheckController::class, 'store'])->name('checks.store');
-    Route::get('/editcheck/{id}', [RoadworthinessCheckController::class, 'edit'])->name('checks.edit');
-    Route::delete('/deletecheck/{id}', [RoadworthinessCheckController::class, 'delete'])->name('checks.delete');
-    Route::post('/updatecheck/{id}', [RoadworthinessCheckController::class, 'update'])->name('checks.update');
-    Route::post('/checks/bulk-delete', [RoadworthinessCheckController::class, 'bulkDelete'])->name('checks.bulkDelete');
-    //** End: roadworthinessCheck controller */
 
     /** Begin: documentation upload controller */
     Route::get('/documentation_uploads/data', [DocumentationUploadController::class, 'data'])->name('documents.data');
@@ -331,16 +302,6 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
 
     //** End: documentation upload controller */
     Route::get('/weekly-hours-alerts', [UserController::class, 'weeklyHoursNotification']);
-
-    /** Begin: alert and remainder controller */
-    Route::get('/alert_reminders/data', [AlertReminderController::class, 'data'])->name('reminders.data');
-    Route::get('/alert_reminders', [AlertReminderController::class, 'index'])->name('reminders');
-    Route::post('reminders', [AlertReminderController::class, 'store'])->name('reminders.store');
-    Route::get('/editreminder/{id}', [AlertReminderController::class, 'edit'])->name('reminders.edit');
-    Route::delete('/deletereminder/{id}', [AlertReminderController::class, 'delete'])->name('reminders.delete');
-    Route::post('/updatereminder/{id}', [AlertReminderController::class, 'update'])->name('reminders.update');
-    Route::post('/reminders/bulk-delete', [AlertReminderController::class, 'bulkDelete'])->name('reminders.bulkDelete');
-    //** End: alert and remainder controller */
 
 
     Route::get('/vehicle_management', [VehicleController::class, 'management'])
@@ -493,25 +454,5 @@ Route::get('/reports/clients/export/pdf', [ReportController::class, 'exportClien
 Route::get('/reports/clients/export/excel', [ReportController::class, 'exportClientReportExcel'])->name('client.report.export.excel');
 
 require __DIR__ . '/auth.php';
-
-// Route::get('/test-read-update', function () {
-//     Notification::where('user_id', Auth::id())
-//         ->where('read', false)
-//         ->update(['read' => true]);
-
-//     return 'done';
-// });
-
-
-// Route::get('/push',function(){
-// send_push_notification(
-//     135,
-//     'Test',
-//     'Test notification content.',
-//     ['user_id' => Auth::id()] //must be object/array
-// );
-
-//         return 'success';
-// });
 
 require __DIR__ . '/docs.php';

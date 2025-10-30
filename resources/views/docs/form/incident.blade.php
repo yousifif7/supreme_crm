@@ -141,7 +141,8 @@
 
 
 <body>
-    <form action="{{route('application.form.incident.submit')}}" method="post" enctype="multipart/form-data" id="dynamicformsubmit" autocomplete="off">
+    <form action="{{ route('application.form.incident.submit') }}" method="post" enctype="multipart/form-data"
+        id="dynamicformsubmit" autocomplete="off">
         @csrf
 
         <div class="form-container">
@@ -337,8 +338,8 @@
                                 style="width:200px;">
 
                             <label for="time_occurrence" style="margin-left:10px;">Time of Occurrence</label>
-                            <input type="time" id="time_occurrence" name="time_occurrence" class="form-control datetimepicker"
-                                style="width:150px; display:inline-block;">
+                            <input type="time" id="time_occurrence" name="time_occurrence"
+                                class="form-control datetimepicker" style="width:150px; display:inline-block;">
 
                         </div>
 
@@ -509,8 +510,8 @@
                             style="width:200px;">
 
                         <label for="time_occurrence_info" style="margin-top:10px;">Time of Occurrence</label>
-                        <input type="time" id="time_occurrence_info" name="time_occurrence3" class="form-control datetimepicker"
-                            style="width:200px;">
+                        <input type="time" id="time_occurrence_info" name="time_occurrence3"
+                            class="form-control datetimepicker" style="width:200px;">
                     </div>
 
                     <!-- Information Security Section (hidden by default) -->
@@ -629,10 +630,12 @@
                             <label class="form-label">Name of casualty</label>
                             <div class="row">
                                 <div class="col">
-                                    <input type="text" class="form-control" placeholder="First Name" name="casuality_name">
+                                    <input type="text" class="form-control" placeholder="First Name"
+                                        name="casuality_name">
                                 </div>
                                 <div class="col">
-                                    <input type="text" class="form-control" placeholder="Last Name" name="casuality_last_name">
+                                    <input type="text" class="form-control" placeholder="Last Name"
+                                        name="casuality_last_name">
                                 </div>
                             </div>
                         </div>
@@ -655,17 +658,22 @@
                         <!-- DOB -->
                         <div class="mb-3">
                             <label class="form-label">Date of Birth</label>
-                            <input type="date" class="form-control datetimepicker" style="max-width:310px;" name="date_of_birth">
+                            <input type="date" class="form-control datetimepicker" style="max-width:310px;"
+                                name="date_of_birth">
                         </div>
 
                         <!-- Address -->
                         <div class="mb-3">
                             <label class="form-label">Address</label>
-                            <input type="text" class="form-control mb-2" placeholder="Street Address" name="street_address">
-                            <input type="text" class="form-control mb-2" placeholder="Street Address Line 2" name="address_line_2">
+                            <input type="text" class="form-control mb-2" placeholder="Street Address"
+                                name="street_address">
+                            <input type="text" class="form-control mb-2" placeholder="Street Address Line 2"
+                                name="address_line_2">
                             <input type="text" class="form-control mb-2" placeholder="City" name="city">
-                            <input type="text" class="form-control mb-2" placeholder="State / Province" name="state_province">
-                            <input type="text" class="form-control mb-2" placeholder="Postal / Zip Code" name="zip">
+                            <input type="text" class="form-control mb-2" placeholder="State / Province"
+                                name="state_province">
+                            <input type="text" class="form-control mb-2" placeholder="Postal / Zip Code"
+                                name="zip">
                         </div>
 
                         <!-- Email -->
@@ -685,7 +693,8 @@
                         <!-- Medical Required -->
                         <div class="mb-3">
                             <label for="input_23" class="form-label">Did the injury require medical?</label>
-                            <select class="form-select" id="input_23" name="didThe_inquiry_medical" style="max-width:310px;">
+                            <select class="form-select" id="input_23" name="didThe_inquiry_medical"
+                                style="max-width:310px;">
                                 <option value="">Please Select</option>
                                 <option value="Yes">Yes</option>
                                 <option value="No">No</option>
@@ -778,8 +787,8 @@
                                 <div class="mb-3">
                                     <label for="injury_cause" class="form-label">What was the cause of the
                                         injury?</label>
-                                    <input type="text" id="injury_cause" name="injury_cause_6" class="form-control"
-                                        placeholder="Describe cause of injury…">
+                                    <input type="text" id="injury_cause" name="injury_cause_6"
+                                        class="form-control" placeholder="Describe cause of injury…">
                                 </div>
                             </div>
 
@@ -846,202 +855,219 @@
     </form>
     @include('docs.partial.script')
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-<!-- put this after jQuery is loaded and after your form -->
-<script>
-$(function() {
-    const $form = $('#dynamicformsubmit');
-    const $submitBtn = $form.find('#submitBtn');
+    <!-- put this after jQuery is loaded and after your form -->
+    <script>
+        $(function() {
+            const $form = $('#dynamicformsubmit');
+            const $submitBtn = $form.find('#submitBtn');
 
-    // Utility: check if element is visible to user (not only :visible, but has visible ancestor)
-    function isTrulyVisible($el) {
-        return $el.is(':visible') && $el.css('visibility') !== 'hidden' && $el.css('display') !== 'none';
-    }
-
-    // Validate radio groups: return true if every visible radio-name-group has one checked among visible radios
-    function validateVisibleRadioGroups() {
-        const radioNames = {};
-        // find all visible radio inputs that have a name
-        $form.find('input[type="radio"][name]').each(function() {
-            const $r = $(this);
-            if (!isTrulyVisible($r)) return;
-            radioNames[$r.attr('name')] = true;
-        });
-
-        for (const name in radioNames) {
-            // among radios with this name, consider only those that are visible
-            const $visibleGroup = $form.find('input[type="radio"][name="' + name + '"]').filter(function() {
-                return isTrulyVisible($(this));
-            });
-            // if there are visible radios, require at least one checked
-            if ($visibleGroup.length > 0) {
-                const anyChecked = $visibleGroup.is(':checked');
-                if (!anyChecked) return false;
+            // Utility: check if element is visible to user (not only :visible, but has visible ancestor)
+            function isTrulyVisible($el) {
+                return $el.is(':visible') && $el.css('visibility') !== 'hidden' && $el.css('display') !== 'none';
             }
-        }
-        return true;
-    }
 
-    // Validate all visible simple controls: input (not radio), textarea, select
-    function validateVisibleControls() {
-        let ok = true;
-        // inputs except radio
-        $form.find('input[name]').filter(function() {
-            return $(this).attr('type') !== 'radio';
-        }).each(function() {
-            const $el = $(this);
-            if (!isTrulyVisible($el) || $el.prop('disabled')) return;
-            // For file inputs, if visible require at least one file if input has attribute data-required-if-visible="1"
-            if ($el.attr('type') === 'file') {
-                // if file visible and has files required (we treat all visible file inputs as optional unless they have special data attr)
-                if ($el.data('required-if-visible') === 1) {
-                    if ($el[0].files.length === 0) { ok = false; return false; }
-                }
-                return; // skip optional file inputs
-            }
-            // regular input: require not empty
-            const val = $el.val();
-            if (val === null) { ok = false; return false; }
-            if (String(val).trim() === '') { ok = false; return false; }
-        });
-        if (!ok) return false;
+            // Validate radio groups: return true if every visible radio-name-group has one checked among visible radios
+            function validateVisibleRadioGroups() {
+                const radioNames = {};
+                // find all visible radio inputs that have a name
+                $form.find('input[type="radio"][name]').each(function() {
+                    const $r = $(this);
+                    if (!isTrulyVisible($r)) return;
+                    radioNames[$r.attr('name')] = true;
+                });
 
-        // textareas
-        $form.find('textarea[name]').each(function() {
-            const $el = $(this);
-            if (!isTrulyVisible($el) || $el.prop('disabled')) return;
-            const val = $el.val();
-            if (val === null || String(val).trim() === '') { ok = false; return false; }
-        });
-        if (!ok) return false;
-
-        // selects
-        $form.find('select[name]').each(function() {
-            const $el = $(this);
-            if (!isTrulyVisible($el) || $el.prop('disabled')) return;
-            const val = $el.val();
-            // treat empty string or null as not selected
-            if (val === null || String(val).trim() === '') { ok = false; return false; }
-        });
-
-        return ok;
-    }
-
-    // Full validation
-    function validateForm() {
-        // If there are no visible controls at all, keep disabled (safe)
-        const visibleControls = $form.find('input[name], textarea[name], select[name]').filter(function() {
-            return isTrulyVisible($(this)) && !$(this).prop('disabled');
-        });
-        if (visibleControls.length === 0) {
-            $submitBtn.prop('disabled', true);
-            return false;
-        }
-
-        const controlsOk = validateVisibleControls();
-        const radiosOk = validateVisibleRadioGroups();
-
-        const result = controlsOk && radiosOk;
-        $submitBtn.prop('disabled', !result);
-        return result;
-    }
-
-    // Run validation on common events
-    $form.on('input change keyup paste', 'input, textarea, select', function() {
-        validateForm();
-    });
-
-    // Check radio clicks
-    $form.on('click change', 'input[type="radio"]', function() {
-        validateForm();
-    });
-
-    // Observe DOM mutations (style/display changes) to handle sections shown/hidden by other scripts
-    const observer = new MutationObserver(function(mutations) {
-        // cheap: just validate when something relevant changes
-        let shouldCheck = false;
-        mutations.forEach(m => {
-            // if attribute changed (like style, class), or childList changed
-            if (m.type === 'attributes' || m.type === 'childList' || m.type === 'subtree') {
-                shouldCheck = true;
-            }
-        });
-        if (shouldCheck) validateForm();
-    });
-
-    // Observe the form subtree for attribute changes and childList mutations
-    observer.observe($form[0], {
-        attributes: true,
-        childList: true,
-        subtree: true,
-        attributeFilter: ['style', 'class', 'hidden']
-    });
-
-    // initial check on DOM ready
-    validateForm();
-
-    // AJAX submit handler
-    $form.on('submit', function(e) {
-        e.preventDefault();
-
-        // final validation before sending
-        if (!validateForm()) {
-            // optionally show a message
-            alert('Please complete all visible required fields before submitting.');
-            return;
-        }
-
-        // disable submit to prevent double submits
-        $submitBtn.prop('disabled', true).text('Submitting...');
-
-        const url = $form.attr('action');
-        const method = ($form.attr('method') || 'POST').toUpperCase();
-
-        // Prepare form data (with files)
-        const formData = new FormData(this);
-
-        // Add CSRF token header (Laravel) from hidden _token field
-        const csrfToken = $form.find('input[name="_token"]').val() || $('meta[name="csrf-token"]').attr('content');
-
-        $.ajax({
-            url: url,
-            type: method,
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                'X-CSRF-TOKEN': csrfToken
-            },
-                success: function(response) {
-                    Swal.fire({
-                        title: 'Thank you for submitting this form!',
-                        text: 'Click OK to submit another',
-                        icon: 'success',
-                        confirmButtonText: 'OK'
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            location.reload(); // page reload
-                        }
+                for (const name in radioNames) {
+                    // among radios with this name, consider only those that are visible
+                    const $visibleGroup = $form.find('input[type="radio"][name="' + name + '"]').filter(function() {
+                        return isTrulyVisible($(this));
                     });
-                },
-
-            error: function(xhr, status, err) {
-                // handle error
-                let msg = 'Submission failed. ';
-                if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
-                    msg += xhr.responseJSON.message;
-                } else if (xhr && xhr.responseText) {
-                    msg += 'Server responded with: ' + xhr.status + ' ' + xhr.statusText;
+                    // if there are visible radios, require at least one checked
+                    if ($visibleGroup.length > 0) {
+                        const anyChecked = $visibleGroup.is(':checked');
+                        if (!anyChecked) return false;
+                    }
                 }
-                alert(msg);
-                $submitBtn.prop('disabled', false).text('Submit');
+                return true;
             }
-        });
-    });
 
-    // Optional: If you want any specific file input to be required when visible, add data-required-if-visible="1" to that input in markup.
-    // Example in HTML: <input type="file" name="event_photos[]" data-required-if-visible="1" multiple>
-});
-</script>
+            // Validate all visible simple controls: input (not radio), textarea, select
+            function validateVisibleControls() {
+                let ok = true;
+                // inputs except radio
+                $form.find('input[name]').filter(function() {
+                    return $(this).attr('type') !== 'radio';
+                }).each(function() {
+                    const $el = $(this);
+                    if (!isTrulyVisible($el) || $el.prop('disabled')) return;
+                    // For file inputs, if visible require at least one file if input has attribute data-required-if-visible="1"
+                    if ($el.attr('type') === 'file') {
+                        // if file visible and has files required (we treat all visible file inputs as optional unless they have special data attr)
+                        if ($el.data('required-if-visible') === 1) {
+                            if ($el[0].files.length === 0) {
+                                ok = false;
+                                return false;
+                            }
+                        }
+                        return; // skip optional file inputs
+                    }
+                    // regular input: require not empty
+                    const val = $el.val();
+                    if (val === null) {
+                        ok = false;
+                        return false;
+                    }
+                    if (String(val).trim() === '') {
+                        ok = false;
+                        return false;
+                    }
+                });
+                if (!ok) return false;
+
+                // textareas
+                $form.find('textarea[name]').each(function() {
+                    const $el = $(this);
+                    if (!isTrulyVisible($el) || $el.prop('disabled')) return;
+                    const val = $el.val();
+                    if (val === null || String(val).trim() === '') {
+                        ok = false;
+                        return false;
+                    }
+                });
+                if (!ok) return false;
+
+                // selects
+                $form.find('select[name]').each(function() {
+                    const $el = $(this);
+                    if (!isTrulyVisible($el) || $el.prop('disabled')) return;
+                    const val = $el.val();
+                    // treat empty string or null as not selected
+                    if (val === null || String(val).trim() === '') {
+                        ok = false;
+                        return false;
+                    }
+                });
+
+                return ok;
+            }
+
+            // Full validation
+            function validateForm() {
+                // If there are no visible controls at all, keep disabled (safe)
+                const visibleControls = $form.find('input[name], textarea[name], select[name]').filter(function() {
+                    return isTrulyVisible($(this)) && !$(this).prop('disabled');
+                });
+                if (visibleControls.length === 0) {
+                    $submitBtn.prop('disabled', true);
+                    return false;
+                }
+
+                const controlsOk = validateVisibleControls();
+                const radiosOk = validateVisibleRadioGroups();
+
+                const result = controlsOk && radiosOk;
+                $submitBtn.prop('disabled', !result);
+                return result;
+            }
+
+            // Run validation on common events
+            $form.on('input change keyup paste', 'input, textarea, select', function() {
+                validateForm();
+            });
+
+            // Check radio clicks
+            $form.on('click change', 'input[type="radio"]', function() {
+                validateForm();
+            });
+
+            // Observe DOM mutations (style/display changes) to handle sections shown/hidden by other scripts
+            const observer = new MutationObserver(function(mutations) {
+                // cheap: just validate when something relevant changes
+                let shouldCheck = false;
+                mutations.forEach(m => {
+                    // if attribute changed (like style, class), or childList changed
+                    if (m.type === 'attributes' || m.type === 'childList' || m.type === 'subtree') {
+                        shouldCheck = true;
+                    }
+                });
+                if (shouldCheck) validateForm();
+            });
+
+            // Observe the form subtree for attribute changes and childList mutations
+            observer.observe($form[0], {
+                attributes: true,
+                childList: true,
+                subtree: true,
+                attributeFilter: ['style', 'class', 'hidden']
+            });
+
+            // initial check on DOM ready
+            validateForm();
+
+            // AJAX submit handler
+            $form.on('submit', function(e) {
+                e.preventDefault();
+
+                // final validation before sending
+                if (!validateForm()) {
+                    // optionally show a message
+                    alert('Please complete all visible required fields before submitting.');
+                    return;
+                }
+
+                // disable submit to prevent double submits
+                $submitBtn.prop('disabled', true).text('Submitting...');
+
+                const url = $form.attr('action');
+                const method = ($form.attr('method') || 'POST').toUpperCase();
+
+                // Prepare form data (with files)
+                const formData = new FormData(this);
+
+                // Add CSRF token header (Laravel) from hidden _token field
+                const csrfToken = $form.find('input[name="_token"]').val() || $('meta[name="csrf-token"]')
+                    .attr('content');
+
+                $.ajax({
+                    url: url,
+                    type: method,
+                    data: formData,
+                    processData: false,
+                    contentType: false,
+                    headers: {
+                        'X-CSRF-TOKEN': csrfToken
+                    },
+                    success: function(response) {
+                        Swal.fire({
+                            title: 'Thank you for submitting this form!',
+                            text: 'Click OK to submit another',
+                            icon: 'success',
+                            confirmButtonText: 'OK'
+                        }).then((result) => {
+                            if (result.isConfirmed) {
+                                location.reload(); // page reload
+                            }
+                        });
+                    },
+
+                    error: function(xhr, status, err) {
+                        // handle error
+                        let msg = 'Submission failed. ';
+                        if (xhr && xhr.responseJSON && xhr.responseJSON.message) {
+                            msg += xhr.responseJSON.message;
+                        } else if (xhr && xhr.responseText) {
+                            msg += 'Server responded with: ' + xhr.status + ' ' + xhr
+                            .statusText;
+                        }
+                        alert(msg);
+                        $submitBtn.prop('disabled', false).text('Submit');
+                    }
+                });
+            });
+
+            // Optional: If you want any specific file input to be required when visible, add data-required-if-visible="1" to that input in markup.
+            // Example in HTML: <input type="file" name="event_photos[]" data-required-if-visible="1" multiple>
+        });
+    </script>
 
 
 
@@ -1074,34 +1100,34 @@ $(function() {
 
     <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
     <script>
-$(document).ready(function() {
-    $(".datetimepicker").each(function() {
-        // prevent double initialization
-        if (this._flatpickr) return;
+        $(document).ready(function() {
+            $(".datetimepicker").each(function() {
+                // prevent double initialization
+                if (this._flatpickr) return;
 
-        // create instance (no onClose calling instance.close())
-        let picker = flatpickr(this, {
-            enableTime: true,
-            noCalendar: true,
-            dateFormat: "H:i",
-            time_24hr: true,
-            allowInput: true,
-            // optional: use onOpen / onReady if you need extra behavior
-            onOpen: function(selectedDates, dateStr, instance) {
-                // do something when opened (optional)
-            }
-            // DON'T call instance.close() inside onClose — it'll recursively trigger onClose again
+                // create instance (no onClose calling instance.close())
+                let picker = flatpickr(this, {
+                    enableTime: true,
+                    noCalendar: true,
+                    dateFormat: "H:i",
+                    time_24hr: true,
+                    allowInput: true,
+                    // optional: use onOpen / onReady if you need extra behavior
+                    onOpen: function(selectedDates, dateStr, instance) {
+                        // do something when opened (optional)
+                    }
+                    // DON'T call instance.close() inside onClose — it'll recursively trigger onClose again
+                });
+
+                // open button (ensure it's not triggering re-init)
+                $(this).siblings(".open-picker").off('click.openPicker').on("click.openPicker", function(
+                e) {
+                    e.preventDefault();
+                    // safe check before calling open
+                    if (picker && typeof picker.open === 'function') picker.open();
+                });
+            });
         });
-
-        // open button (ensure it's not triggering re-init)
-        $(this).siblings(".open-picker").off('click.openPicker').on("click.openPicker", function(e) {
-            e.preventDefault();
-            // safe check before calling open
-            if (picker && typeof picker.open === 'function') picker.open();
-        });
-    });
-});
-
     </script>
 
     <script>
@@ -1229,7 +1255,7 @@ $(document).ready(function() {
                 section.style.display = "none"; // show section
                 hazardousNoWrap.style.display = "none"; // show section
                 date_time_section.style.display = "none"; // show section
-                
+
             } else {
                 section2.style.display = "none"; // hide section if unchecked
                 section.style.display = "none"; // hide section if unchecked
@@ -1251,39 +1277,40 @@ $(document).ready(function() {
         });
     </script>
 
-<script>
-document.getElementById("time_occurrence").addEventListener("change", function() {
-    let medicalSection   = document.getElementById("medicalSection");
-    let damageSection    = document.getElementById("damageSection");
-    let hazardousNoWrap  = document.getElementById("hazardousNoWrap");
+    <script>
+        document.getElementById("time_occurrence").addEventListener("change", function() {
+            let medicalSection = document.getElementById("medicalSection");
+            let damageSection = document.getElementById("damageSection");
+            let hazardousNoWrap = document.getElementById("hazardousNoWrap");
 
-    let incidentRadio4 = document.getElementById("flexCheckDefault5814"); // An Accident
-    let incidentRadio5 = document.getElementById("flexCheckDefault5815"); // An Incident...
-    let incidentRadio6 = document.getElementById("flexCheckDefault5816"); // A Near Miss
+            let incidentRadio4 = document.getElementById("flexCheckDefault5814"); // An Accident
+            let incidentRadio5 = document.getElementById("flexCheckDefault5815"); // An Incident...
+            let incidentRadio6 = document.getElementById("flexCheckDefault5816"); // A Near Miss
 
-    // Reset sabko hide karo pehle
-    damageSection.style.display   = "none";
-    medicalSection.style.display  = "none";
-    hazardousNoWrap.style.display = "none";
+            // Reset sabko hide karo pehle
+            damageSection.style.display = "none";
+            medicalSection.style.display = "none";
+            hazardousNoWrap.style.display = "none";
 
-    if (incidentRadio6.checked && incidentRadio6.value === "A Near Miss") {
-        // ✅ A Near Miss -> hazardous
-        hazardousNoWrap.style.display = "block";
+            if (incidentRadio6.checked && incidentRadio6.value === "A Near Miss") {
+                // ✅ A Near Miss -> hazardous
+                hazardousNoWrap.style.display = "block";
 
-    } else if (incidentRadio5.checked && incidentRadio5.value === "An Incident (incl. Security Incidents)") {
-        // ✅ An Incident -> medical
-        medicalSection.style.display = "block";
+            } else if (incidentRadio5.checked && incidentRadio5.value ===
+                "An Incident (incl. Security Incidents)") {
+                // ✅ An Incident -> medical
+                medicalSection.style.display = "block";
 
-    } else if (incidentRadio4.checked && incidentRadio4.value === "An Accident") {
-        // ✅ An Accident -> medical
-        medicalSection.style.display = "block";
+            } else if (incidentRadio4.checked && incidentRadio4.value === "An Accident") {
+                // ✅ An Accident -> medical
+                medicalSection.style.display = "block";
 
-    } else {
-        // ✅ Agar koi select nahi hua to default damageSection
-        damageSection.style.display = "block";
-    }
-});
-</script>
+            } else {
+                // ✅ Agar koi select nahi hua to default damageSection
+                damageSection.style.display = "block";
+            }
+        });
+    </script>
 
 
 
@@ -1664,7 +1691,7 @@ document.getElementById("time_occurrence").addEventListener("change", function()
             // list of radios jinko single select banana hai
             const $radios = $(
                 '#flexCheckDefault5814, #flexCheckDefault5815, #flexCheckDefault5816, #flexCheckDefault5817, #flexCheckDefault5818'
-                );
+            );
 
             $radios.on('change', function() {
                 // sabko uncheck karo
@@ -1756,15 +1783,15 @@ document.getElementById("time_occurrence").addEventListener("change", function()
 
         });
     </script>
-<script>
-$(document).ready(function () {
-    $('input[name="reportingType"]').on('change', function () {
-        if ($(this).is(':checked')) {
-            $('#main-card').show(); // card show
-        }
-    });
-});
-</script>
+    <script>
+        $(document).ready(function() {
+            $('input[name="reportingType"]').on('change', function() {
+                if ($(this).is(':checked')) {
+                    $('#main-card').show(); // card show
+                }
+            });
+        });
+    </script>
 
 </body>
 

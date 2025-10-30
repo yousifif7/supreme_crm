@@ -479,7 +479,7 @@
                             toast_danger('Failed to fetch material details.');
                         });
                     });
-                    
+
                     // when type changes in the modal
                     $(document).on('change', '#editType', function() {
                         updateEditFieldsByType($(this).val());

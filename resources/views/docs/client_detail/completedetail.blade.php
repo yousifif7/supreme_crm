@@ -1,7 +1,9 @@
-<?php $page = "userlist"; ?>
+<?php $page = 'userlist'; ?>
 @extends('layouts.app')
 @section('contents')
-@section('title') Client Detail @endsection
+@section('title')
+    Client Detail
+@endsection
 
 <meta name="csrf-token" content="{{ csrf_token() }}">
 
@@ -17,7 +19,8 @@
                         <div class="col-md-3 mb-3">
                             <div class="p-3 border rounded shadow-sm bg-light">
                                 @php
-                                      $dynamicFields = App\Models\Docs\DynamicInputs::where('child_id', 0)->where('id',$key)
+                                    $dynamicFields = App\Models\Docs\DynamicInputs::where('child_id', 0)
+                                        ->where('id', $key)
                                         ->distinct()
                                         ->first();
                                 @endphp
@@ -25,7 +28,8 @@
                                 <br>
                                 @if (Str::startsWith($value, 'uploads/'))
                                     <a href="{{ asset($value) }}" target="_blank">
-                                        <img src="{{ asset($value) }}" alt="Uploaded Image" class="img-fluid rounded" style="max-width: 100px; max-height: 100px;">
+                                        <img src="{{ asset($value) }}" alt="Uploaded Image" class="img-fluid rounded"
+                                            style="max-width: 100px; max-height: 100px;">
                                     </a>
                                 @else
                                     <p class="text-muted">{!! nl2br(e($value)) !!}</p>

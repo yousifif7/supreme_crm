@@ -53,42 +53,17 @@
                             Vehicle Details
                         </a>
                     </li>
-                    {{-- <li class="nav-item">
-                        <a class="nav-link" id="compliances-tab" data-bs-toggle="tab" href="#compliances" role="tab">
-                            Legal & Compliance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="maintenance-tab" data-bs-toggle="tab" href="#maintenance" role="tab">
-                            Service & Maintenance
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" id="roadworthiness-tab" data-bs-toggle="tab" href="#roadworthiness"
-                            role="tab">
-                            Roadworthiness Checks
-                        </a>
-                    </li> --}}
                     <li class="nav-item">
                         <a class="nav-link" id="documents-tab" data-bs-toggle="tab" href="#documents" role="tab">
                             Documentation Uploads
                         </a>
                     </li>
-                    {{-- <li class="nav-item">
-                        <a class="nav-link" id="alerts-tab" data-bs-toggle="tab" href="#alerts" role="tab">
-                            Alerts & Reminders
-                        </a>
-                    </li> --}}
                 </ul>
 
                 <!-- Tabs Content -->
                 <div class="tab-content mt-3" id="vehicleTabsContent" style="min-height: calc(100vh - 200px);">
                     <div class="tab-pane fade show active" id="details" role="tabpanel"></div>
-                    {{-- <div class="tab-pane fade" id="compliances" role="tabpanel"></div>
-                    <div class="tab-pane fade" id="maintenance" role="tabpanel"></div>
-                    <div class="tab-pane fade" id="roadworthiness" role="tabpanel"></div> --}}
                     <div class="tab-pane fade" id="documents" role="tabpanel"></div>
-                    {{-- <div class="tab-pane fade" id="alerts" role="tabpanel"></div> --}}
                 </div>
 
             </div>
@@ -128,21 +103,9 @@
                     case '#details':
                         loadTab(target, "{{ route('vehicle_details') }}");
                         break;
-                    // case '#compliances':
-                    //     loadTab(target, "{{ route('complainces') }}");
-                    //     break;
-                    // case '#maintenance':
-                    //     loadTab(target, "{{ route('maintenances') }}");
-                    //     break;
-                    // case '#roadworthiness':
-                    //     loadTab(target, "{{ route('checks') }}");
-                    //     break;
                     case '#documents':
                         loadTab(target, "{{ route('documents') }}");
                         break;
-                    // case '#alerts':
-                    //     loadTab(target, "{{ route('reminders') }}");
-                    //     break;
                 }
             });
 

@@ -69,9 +69,11 @@
                     <!-- SIA Status Filter -->
                     <div class="d-inline-block ms-2 d-flex align-items-center">
                         <select id="siaStatusFilter" class="form-select form-select-sm">
-                            <option value="" {{ request('sia_status') == '' ? 'selected' : '' }}>All SIA Statuses</option>
+                            <option value="" {{ request('sia_status') == '' ? 'selected' : '' }}>All SIA Statuses
+                            </option>
                             <option value="Active" {{ request('sia_status') == 'Active' ? 'selected' : '' }}>Active</option>
-                            <option value="Inactive" {{ request('sia_status') == 'Inactive' ? 'selected' : '' }}>Inactive</option>
+                            <option value="Inactive" {{ request('sia_status') == 'Inactive' ? 'selected' : '' }}>Inactive
+                            </option>
                         </select>
                     </div>
                 </div>
@@ -581,7 +583,7 @@
                             );
                         } else {
                             let response = xhr.responseJSON;
-                        
+
                             if (response && response.error) {
                                 // Show backend error (like invalid SIA licence)
                                 toast_danger(response.error);
@@ -645,7 +647,7 @@
                             );
                         } else {
                             let response = xhr.responseJSON;
-                        
+
                             if (response && response.error) {
                                 // Show backend error (like invalid SIA licence)
                                 toast_danger(response.error);
