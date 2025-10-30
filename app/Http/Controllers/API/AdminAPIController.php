@@ -140,27 +140,21 @@ class AdminAPIController extends Controller
     {
         $alerts = [];
 
-        $user = Auth::user();
-
-        $skipRoles = ['superadmin', 'security_staff', 'client', 'subcontractor'];
-
-        // Only check roles if user exists
-        if ($user && method_exists($user, 'getRoleNames') && $user->getRoleNames()->intersect($skipRoles)->isNotEmpty()) {
-            return response()->json(['alerts' => []]);
-        }
-
         // --- 1. Emergency Alerts ---
         $emergencyAlerts = EmergencyAlert::where('acknowledged_by_control', false)
             ->with('user') // assuming EmergencyAlert has a relation to User
             ->get();
 
         foreach ($emergencyAlerts as $alert) {
-            $user = User::find($alert->user_id);
+            // Avoid shadowing $currentUser; use a distinct variable for the alert owner.
+            $alertUser = User::find($alert->user_id);
+            $alertUserName = $alertUser ? trim(($alertUser->first_name ?? '') . ' ' . ($alertUser->last_name ?? '')) : 'Unknown';
+
             $alerts[] = [
                 'type' => 'panic_button',
                 'alert_id' => $alert->id,
                 'user_id' => $alert->user_id,
-                'user_name' => $user?->first_name . ' ' . $user?->last_name ?? 'Unknown',
+                'user_name' => $alertUserName,
                 'latitude' => $alert->latitude,
                 'longitude' => $alert->longitude,
                 'address' => $alert->address,
@@ -202,7 +196,7 @@ class AdminAPIController extends Controller
                 $alerts[] = [
                     'type' => 'patrol_missed',
                     'user_id' => $patrol?->shift?->staff_id ?? 'N/A',
-                    'user_name' => $patrol->shift->staff->first_name ?? '',
+                    'user_name' => $patrol->shift->staff->name ?? '',
                     'patrol_id' => $patrol->id,
                     'title' => 'Missed Patrol',
                     'message' => "Staff {$userName} missed patrol: {$patrol->name}",
@@ -320,9 +314,6 @@ class AdminAPIController extends Controller
                 }
             }
         }
-      
-            $alerts=$alerts;
-       
 
         return response()->json(['alerts' => $alerts]);
     }

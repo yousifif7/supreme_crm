@@ -38,15 +38,15 @@ class ProfileAPIController extends Controller
         return response()->json([
             'id' => $user->id,
             'email' => $user->email,
-            'first_name' => $profile->first_name,
-            'last_name' => $profile->last_name,
-            'phone' => $profile->phone,
-            'address' => $profile->address,
+            'first_name' => $profile->first_name ?? '',
+            'last_name' => $profile->last_name ?? '',
+            'phone' => $profile->phone ?? '',
+            'address' => $profile->address ??'',
             'emergency_contact' => $profile->emergencyContact ?? null,
             'bank_details' => $profile->bankDetail ?? null,
-            'face_data' => $profile->face_data,
-            'created_at' => $profile->created_at,
-            'updated_at' => $profile->updated_at,
+            'face_data' => $profile->face_data ??'',
+            'created_at' => $profile->created_at ??'',
+            'updated_at' => $profile->updated_at ?? '',
         ]);
     }
 
