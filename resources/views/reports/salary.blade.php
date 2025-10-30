@@ -62,6 +62,8 @@
       </div>
     </div>
 
+    @if(request()->hasAny(['from_date','to_date','client_id','site_id','staff_id']))
+
     @if(!empty($invoices) && $invoices->count())
       <div class="card mb-3">
         <div class="card-body">
@@ -111,8 +113,16 @@
     @elseif(request()->filled('staff_id'))
       <div class="alert alert-info">No invoices found for the selected staff / date range.</div>
     @endif
+            @else
+        <div class="card">
+            <div class="card-body p-3">
+                <div class="alert alert-info mb-0">Please apply filters above to view report data.</div>
+            </div>
+        </div>
+        @endif
   </div>
 </div>
+
 @endsection
 
 @section('scripts')
