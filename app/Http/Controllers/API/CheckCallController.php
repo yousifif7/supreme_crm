@@ -8,6 +8,7 @@ use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\Notification;
+use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\Models\CheckCallMedia;
 use App\Http\Controllers\Controller;
@@ -69,13 +70,27 @@ public function completeCheckCall(Request $request, $id)
 
     // Prepare timestamp data for all file types
     $shiftdate = ShiftDate::find($checkCall->shift_id);
+    $lat = $data['location']['latitude'];
+    $lng = $data['location']['longitude'];
+
+    // Try to resolve human-readable address from coordinates (GeoService caches results)
+    $geoService = new GeoService();
+    $resolvedAddress = null;
+    try {
+        $resolvedAddress = $geoService->getAddressFromCoordinates($lat, $lng);
+    } catch (\Exception $e) {
+        // Fail silently; we'll fall back to site address
+        \Log::warning('GeoService failed: ' . $e->getMessage());
+    }
+
     $timestampData = [
         'time' => Carbon::now()->format('Y-m-d H:i:s'),
         'employee' => $employee->fore_name . ' ' . $employee->sur_name,
-        'latitude' => $data['location']['latitude'],
-        'longitude' => $data['location']['longitude'],
+        'latitude' => $lat,
+        'longitude' => $lng,
         'site' => $shiftdate->shift->site->site_name ?? 'N/A',
-        'location' => $shiftdate->shift->site->address ?? 'N/A'
+        // Prefer geocoded address when available, otherwise fall back to site address
+        'location' => $resolvedAddress ?? ($shiftdate->shift->site->address ?? 'N/A')
     ];
     // Handle media files
     foreach ($data['media_files'] ?? [] as $file) {
