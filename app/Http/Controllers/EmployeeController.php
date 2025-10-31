@@ -449,11 +449,19 @@ class EmployeeController extends Controller
             }
         }
 
-        if ($request->email || $request->password) {
+        if ($request->email || $request->password || $request->fore_name || $request->sur_name) {
             $employee = Employee::find($id);
             $user = User::role('security_staff')->where('id', $employee->user_id)->first();
 
             if ($user) {
+                if($request->fore_name){
+                    $user->first_name = $request->fore_name;
+                }
+
+                if($request->sur_name){
+                    $user->last_name = $request->sur_name;
+                }
+
                 if ($request->email) {
                     $user->email = $request->email;
                     $employee->email = $request->email;
