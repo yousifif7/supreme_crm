@@ -985,10 +985,13 @@ class ShiftController extends Controller
                 'status' => $sd->is_assign,
                 'is_assigned' => $sd->is_assign != 0,
                 'duration_hours' => $durationHours + ($durationMinutes / 60),
-                'start_datetime' => $startDate->format('m-d-Y\TH:i:s'),
-                'end_datetime' => $endDate->format('m-d-Y\TH:i:s'),
-                'note' => $note?->note ?? null,          // ✅ include note text
-                'note_type' => $note?->note_type ?? null // ✅ include note type
+                // Use ISO date format (YYYY-MM-DDTHH:MM:SS) for reliable JS parsing
+                'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
+                'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
+                'note' => $note?->note ?? null,         
+                'note_type' => $note?->note_type ?? null, 
+                // include the shift_date created_at so frontend can order by creation time
+                'created_at' => $sd->created_at ? $sd->created_at->format('Y-m-d\TH:i:s') : null,
             ];
         }
 

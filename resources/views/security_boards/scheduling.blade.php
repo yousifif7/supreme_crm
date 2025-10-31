@@ -1272,6 +1272,10 @@
                     success: function(response) {
                         // normalize payload: some endpoints return { data: [...] } others return array directly
                         const payload = response.data || response.shift_dates || response || [];
+                        // TEMP LOG: inspect incoming payload shape to debug client ordering
+                        try {
+                            console.debug('GANTT PAYLOAD SAMPLE', payload.slice(0, 10).map(p => ({ id: p.id, client_id: p.client_id, client_name: p.client_name, start_datetime: p.start_datetime, start_date: p.start_date, start_time: p.start_time })));
+                        } catch (e) { console.debug('GANTT payload debug failed', e); }
                         allShiftsData = payload;
                         // keep global copy in sync
                         window.allShiftsData = allShiftsData;
@@ -1334,6 +1338,83 @@
                     sites[shift.site_id].shifts.push(shift);
                 });
 
+                // After grouping shifts into sites, order by client so clients with the
+                // nearest upcoming shifts appear first. Within each client, sites are
+                // ordered by their nearest shift and shifts are ordered by start time.
+                function parseShiftDateTime(shift) {
+                    // Prefer backend-provided full datetime if available
+                    if (shift.start_datetime) {
+                        let s = String(shift.start_datetime);
+                        // Backend uses m-d-YTH:i:s (e.g. 10-31-2025T14:00:00). Convert to YYYY-MM-DD for reliable parsing.
+                        const m = s.match(/^(\d{2})-(\d{2})-(\d{4})T(.*)$/);
+                        if (m) s = `${m[3]}-${m[1]}-${m[2]}T${m[4]}`;
+                        const parsed = Date.parse(s);
+                        if (!isNaN(parsed)) return parsed;
+                    }
+
+                    // Fallback: combine date + time fields
+                    const datePart = shift.start_date || shift.shift_date || shift.shiftDate || '';
+                    const timePart = shift.start_time || shift.startTime || shift.start || '00:00';
+                    if (!datePart) return Infinity;
+
+                    let d = String(datePart);
+                    // Normalize MM-DD-YYYY -> YYYY-MM-DD if necessary
+                    const m2 = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                    if (m2) d = `${m2[3]}-${m2[1]}-${m2[2]}`;
+
+                    const dt = new Date(d + ' ' + timePart);
+                    const t = dt.getTime();
+                    return isNaN(t) ? Infinity : t;
+                }
+
+                // Sort shifts within each site by start datetime (keep this for cell placement)
+                Object.values(sites).forEach(site => {
+                    site.shifts.sort((a, b) => parseShiftDateTime(a) - parseShiftDateTime(b));
+                });
+
+                // Group sites by client
+                const clients = {};
+                Object.values(sites).forEach(site => {
+                    // Determine a client key - prefer client_id from a shift (allow numeric 0), else fallback to client_name
+                    const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0].client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId) : undefined;
+                    const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ? String(clientIdField) : (site.client_name || 'unknown_client');
+                    if (!clients[clientKey]) clients[clientKey] = { id: clientKey, name: site.client_name || clientKey, sites: [] };
+                    // attach a reference to client_name for safety
+                    site.client_name = site.client_name || clients[clientKey].name;
+                    clients[clientKey].sites.push(site);
+                });
+
+                // Compute newest created_at per site and per client, then sort clients by newest created_at (desc)
+                function parseCreatedAt(shift) {
+                    const s = shift.created_at || shift.createdAt || shift.createdAtDate || null;
+                    if (!s) return -Infinity;
+                    const parsed = Date.parse(String(s));
+                    return isNaN(parsed) ? -Infinity : parsed;
+                }
+
+                Object.values(clients).forEach(client => {
+                    client.sites.forEach(site => {
+                        // compute site._latest as the maximum created_at across its shifts
+                        let latest = -Infinity;
+                        site.shifts.forEach(sh => {
+                            const t = parseCreatedAt(sh);
+                            if (t > latest) latest = t;
+                        });
+                        site._latest = latest;
+                    });
+                    // sort sites by newest created_at first
+                    client.sites.sort((a, b) => b._latest - a._latest);
+                    // client._latest is the newest time among its sites
+                    client._latest = client.sites.length ? client.sites[0]._latest : -Infinity;
+                });
+
+                // Order clients by their newest created_at (newest first)
+                const orderedClients = Object.values(clients).sort((c1, c2) => c2._latest - c1._latest);
+
+                // Flatten ordered sites in client order
+                const orderedSites = [];
+                orderedClients.forEach(client => client.sites.forEach(site => orderedSites.push(site)));
+
                 // Header
                 let headerHtml = `<div class="gantt-header">
             <div class="gantt-sidebar-header">Client Name</div>
@@ -1357,7 +1438,7 @@
 
                 // Body
                 let bodyHtml = `<div class="gantt-body">`;
-                Object.values(sites).forEach(site => {
+                orderedSites.forEach(site => {
                     bodyHtml += `<div class="gantt-row" data-site-id="${site.id}">
                 <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
                 <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
@@ -1385,7 +1466,7 @@
                 });
 
                 // Place shifts
-                Object.values(sites).forEach(site => {
+                orderedSites.forEach(site => {
                     const shiftsByDate = {};
                     site.shifts.forEach(shift => {
                         const dateStr = formatDate(new Date(shift.start_date));
