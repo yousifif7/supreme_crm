@@ -423,7 +423,7 @@ private function addWatermarkToImage($imagePath, $timestampData)
         "\nLat: " . $timestampData['latitude'] . "  " .
         "Lng: " . $timestampData['longitude'] .
         "\nSite: " . $timestampData['site'] .
-        "\nLocation: " . $timestampData['location'];
+"\nLocation: " . ($timestampData['location']['formatted_address'] ?? 'Unknown');
 
     $lines = explode("\n", $text);
     $fontPath = public_path('fonts/Arial.ttf');
@@ -470,51 +470,91 @@ private function addWatermarkToImage($imagePath, $timestampData)
 private function addTimestampToVideo($videoPath, $timestampData)
 {
     $ffmpegPath = base_path('ffmpeg-7.0.2-amd64-static/ffmpeg');
+    $ffprobePath = base_path('ffmpeg-7.0.2-amd64-static/ffprobe');
 
-    // Normalize input video path
+    // Normalize input path
     $videoPath = str_replace(['\\', '/'], '/', $videoPath);
 
-    // Temp directories
+    // Temporary directory
     $tempDir = base_path('public/temp_videos');
     if (!file_exists($tempDir)) {
         mkdir($tempDir, 0777, true);
     }
+
     $outputPath = $videoPath . '.tmp.mp4';
 
-    // Prepare text
-    $text = "Time - {$timestampData['time']}  Employee - {$timestampData['employee']}  Location - {$timestampData['latitude']}, {$timestampData['longitude']}";
+    // Prepare overlay text
+    $text = "Time: " . $timestampData['time'] .
+        "\nEmployee: " . $timestampData['employee'] .
+        "\nLat: " . $timestampData['latitude'] . "  " .
+        "Lng: " . $timestampData['longitude'] .
+        "\nSite: " . $timestampData['site'] .
+        "\nLocation: " . $timestampData['location'];
+
     $text = str_replace([':', ','], '-', $text);
 
-    // Create temporary PNG with text
+    // Generate text overlay PNG
     $textImage = $tempDir . '/text_overlay.png';
     $fontPath = base_path('ffmpeg/static/Roboto_Condensed-Black.ttf');
-    $fontSize = 24;
-    $im = imagecreatetruecolor(1000, 50); // width x height
+    $fontSize = 10;
+    $im = imagecreatetruecolor(200, 300);
     imagesavealpha($im, true);
-    $trans_color = imagecolorallocatealpha($im, 0, 0, 0, 127);
-    imagefill($im, 0, 0, $trans_color);
+    $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
+    imagefill($im, 0, 0, $transparent);
     $white = imagecolorallocate($im, 255, 255, 255);
     imagettftext($im, $fontSize, 0, 10, 35, $white, $fontPath, $text);
     imagepng($im, $textImage);
     imagedestroy($im);
 
-    // FFmpeg command to overlay the PNG
-    $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"overlay=10:10\" -c:a copy \"$outputPath\" -y";
+    // ✅ FIXED ffprobe command — NO spaces after `v:0`
+    $cmdProbe = "\"$ffprobePath\" -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"$videoPath\" 2>&1";
+    $dimensions = trim(shell_exec($cmdProbe));
 
-    exec($cmd, $outputLines, $returnVar);
+    $rotateNeeded = false;
+    $width = 0;
+    $height = 0;
 
+    // Parse dimensions safely
+    if (!empty($dimensions)) {
+        $parts = explode(',', $dimensions);
+        if (count($parts) >= 2) {
+            $width = (int)$parts[0];
+            $height = (int)$parts[1];
+        }
+    }
 
-    // Debug
-    // echo $cmd; exit;
+    // Determine if rotation is required
+    if ($width === 0 || $height === 0) {
+        // ffprobe failed to detect — rotate by default
+        $rotateNeeded = true;
+    } elseif ($height < $width) {
+        // Portrait mode → rotate
+        $rotateNeeded = true;
+    }
+
+    // FFmpeg command
+    if ($rotateNeeded) {
+        // Rotate 90° clockwise + overlay
+        $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"transpose=1,overlay=10:10\" -c:a copy \"$outputPath\" -y";
+    } else {
+        // Normal overlay
+        $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"overlay=10:10\" -c:a copy \"$outputPath\" -y";
+    }
+
+    // Execute FFmpeg
+    exec($cmd . ' 2>&1', $outputLines, $returnVar);
 
     if ($returnVar === 0 && file_exists($outputPath)) {
         unlink($videoPath);
         rename($outputPath, $videoPath);
-        unlink($textImage); // cleanup
+        unlink($textImage);
+        echo "width:  $width , height: $height"; 
         echo "Video processed successfully!";
     } else {
-        echo "Error processing video!";
-        echo json_encode($outputLines);
+        echo "Error processing video! width:  $width , height: $height <br><pre>" . implode("\n", $outputLines) . "</pre>";
+        echo "<br><b>Probe:</b> $cmdProbe";
+        echo "<br><b>Dimensions:</b> $dimensions";
+        echo "<br><b>Command:</b> $cmd";
     }
 }
 

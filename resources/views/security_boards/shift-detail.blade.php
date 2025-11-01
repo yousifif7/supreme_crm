@@ -701,7 +701,7 @@
                                         <tr>
                                             <td>{{ $checkcall?->name }}</td>
                                             <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($checkcall->scheduled_time)->format('H:i') }}
+                                            <td>{{ \Carbon\Carbon::parse($checkcall->scheduled_time)->format('Y-d-m H:i') }}
                                             </td>
                                             <td>
                                                 @if ($checkcall->status == 'pending')
@@ -777,7 +777,7 @@
                                     @foreach ($patrols as $patrol)
                                         <tr>
                                             <td>{{ $patrol->name }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('H:i') }}</td>
+                                            <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('Y-d-m H:i') }}</td>
                                             <td>{{ $patrol->total_checkpoints }}</td>
                                             <td>{{ $patrol->completed_checkpoints }}</td>
                                             <td>{{ $patrol->issues_reported }}</td>

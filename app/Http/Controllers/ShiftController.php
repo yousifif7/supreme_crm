@@ -509,7 +509,7 @@ class ShiftController extends Controller
                     $numberOfCheckCalls = ceil($durationMinutes / 60);
                     // dd($durationMinutes, $numberOfCheckCalls);
 
-                    $start = Carbon::createFromFormat('H:i', $data['start_shift']); // string -> Carbon
+                    $start = Carbon::parse($date->format('Y-m-d') . ' ' . $data['start_shift']);
 
                     $site = Site::with('checkpoints')->find($shift->site_id);
 

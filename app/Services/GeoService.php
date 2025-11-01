@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Cache;
 
 class GeoService
 {
-    public function getAddressFromCoordinates($lat, $lng): ?string
+    public function getAddressFromCoordinates($lat, $lng): ?array
     {
         return Cache::remember("geo_address_{$lat}_{$lng}", 86400, function () use ($lat, $lng) {
             $apiKey = config('services.google_maps.key');
@@ -17,51 +17,41 @@ class GeoService
 
             if ($response->successful()) {
                 $data = $response->json();
+
                 if (isset($data['status']) && $data['status'] === 'OK' && !empty($data['results'])) {
-                    $first = $data['results'][0];
-                    $formatted = $first['formatted_address'] ?? null;
+                    $addressComponents = $data['results'][0]['address_components'];
+                    $formattedAddress = $data['results'][0]['formatted_address'];
 
-                    // Google may return a Plus Code (e.g. "8G3P97FP+R5") when a
-                    // human-friendly street address isn't available for the coords.
-                    // In that case try to assemble a readable address from
-                    // address_components (city / admin / country). If those
-                    // components are also missing, fall back to the formatted value.
-                    $looksLikePlusCode = false;
-                    if ($formatted) {
-                        // Plus codes often contain a "+" and are short
-                        if (strpos($formatted, '+') !== false || preg_match('/^[0-9A-Z+\- ]{3,}$/i', $formatted)) {
-                            // Heuristic: if formatted contains a '+' and no comma it's likely a plus-code
-                            if (strpos($formatted, '+') !== false && strpos($formatted, ',') === false) {
-                                $looksLikePlusCode = true;
-                            }
-                        }
-                    }
+                    $city = $this->getComponent($addressComponents, 'locality')
+                        ?? $this->getComponent($addressComponents, 'administrative_area_level_2');
+                    $street = $this->getComponent($addressComponents, 'route');
+                    $streetNumber = $this->getComponent($addressComponents, 'street_number');
+                    $country = $this->getComponent($addressComponents, 'country');
+                    $postalCode = $this->getComponent($addressComponents, 'postal_code');
 
-                    if ($looksLikePlusCode && !empty($first['address_components'])) {
-                        $components = $first['address_components'];
-                        $wanted = ['route','sublocality','locality','postal_town','administrative_area_level_2','administrative_area_level_1','country'];
-                        $parts = [];
-                        foreach ($wanted as $type) {
-                            foreach ($components as $c) {
-                                if (in_array($type, $c['types'] ?? [])) {
-                                    $parts[] = $c['long_name'];
-                                    break;
-                                }
-                            }
-                        }
-                        // Remove duplicates and empty
-                        $parts = array_values(array_filter(array_unique($parts)));
-                        if (!empty($parts)) {
-                            return implode(', ', $parts);
-                        }
-                    }
-
-                    // Default: return the formatted address (may still be a plus code)
-                    return $formatted;
+                    return [
+                        'formatted_address' => $formattedAddress,
+                        'street' => trim("{$streetNumber} {$street}"),
+                        'city' => $city,
+                        'country' => $country,
+                        'postal_code' => $postalCode,
+                        'lat' => $lat,
+                        'lng' => $lng,
+                    ];
                 }
             }
 
             return null;
         });
+    }
+
+    private function getComponent($components, $type)
+    {
+        foreach ($components as $component) {
+            if (in_array($type, $component['types'])) {
+                return $component['long_name'];
+            }
+        }
+        return null;
     }
 }
