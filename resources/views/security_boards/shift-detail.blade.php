@@ -1127,7 +1127,7 @@
                     location.reload();
                 },
                 error: function(xhr) {
-                    $('#assignShiftErrors').addClass('d-none').empty(); // clear old errors
+                    // $('#assignShiftErrors').addClass('d-none').empty(); // clear old errors
 
                     if (xhr.status === 422 && xhr.responseJSON?.errors) {
                         let messages = Object.values(xhr.responseJSON.errors).flat();
@@ -1136,7 +1136,7 @@
                         if (window.isSuperAdmin) {
                             showRestrictionToast(restrictionMsg, () => {
                                 // Clear errors before override
-                                $('#assignShiftErrors').addClass('d-none').empty();
+                                // $('#assignShiftErrors').addClass('d-none').empty();
 
                                 // Send override request
                                 $.ajax({
@@ -1158,8 +1158,8 @@
                         }
 
                         // Optional fallback in error div
-                        messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
-                        $('#assignShiftErrors').removeClass('d-none');
+                        // messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
+                        // $('#assignShiftErrors').removeClass('d-none');
                     } else if (xhr.responseJSON?.error) {
                         showToast(xhr.responseJSON.error, 'error', 5000);
                     } else {

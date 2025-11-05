@@ -91,9 +91,19 @@ class ShiftsDataTable extends DataTable
      */
     public function query(ShiftDate $model): QueryBuilder
     {
-        return $model->newQuery()
+        $query = $model->newQuery()
             ->with(['shift.client', 'shift.site', 'shift.staff', 'staff'])
             ->select('shift_dates.*');
+
+        // Accept both AJAX param (shift_status) and query param (shiftStatus) for compatibility
+        $status = request()->get('shift_status', request()->get('shiftStatus'));
+
+        if ($status !== null && $status !== '') {
+            // Filter by the is_assign field which is used as the status indicator
+            $query->where('is_assign', $status);
+        }
+
+        return $query;
     }
 
     /**

@@ -82,6 +82,16 @@
                         <input type="text" class="form-control search_box" placeholder="Search...">
                         <!-- /Search -->
                     </div>
+                    <div class="d-inline-block ms-2 d-flex align-items-center">
+                        <select id="shiftStatus" class="form-select form-select-sm">
+                            <option value="" {{ request('shiftStatus') === null || request('shiftStatus') === '' ? 'selected' : '' }}>
+                                All Statuses
+                            </option>
+                            @foreach(\App\Models\ShiftDate::getStatusLabels() as $key => $label)
+                                <option value="{{ $key }}" {{ (string)request('shiftStatus') === (string)$key ? 'selected' : '' }}>{{ $label }}</option>
+                            @endforeach
+                        </select>
+                    </div>
                 </div>
             </div>
             <!-- /Breadcrumb -->
@@ -97,11 +107,11 @@
 
             <!-- /Breadcrumb -->
         </div>
-      
-                @include('security_boards.shiftmodal')
+
+        @include('security_boards.shiftmodal')
 
         <!-- Edit Shift -->
-    
+
         <!-- Import modal -->
         <div class="modal fade" id="import_modal">
             <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -127,23 +137,29 @@
                                                     <li>Headers should be in Row 1 starting from Column A</li>
                                                     <li>Data should start from Row 2, Column A onwards</li>
                                                     <li><strong>Required:</strong> Date, Client, Site, Start, End</li>
-                                                    <li><strong>Optional:</strong> #, Day, Officer, Phone, Lost Time, Hours, Comments</li>
-                                                    <li><strong>Date format:</strong> 01-May-2025, 2025-05-01, 01/05/2025</li>
+                                                    <li><strong>Optional:</strong> #, Day, Officer, Phone, Lost Time, Hours,
+                                                        Comments</li>
+                                                    <li><strong>Date format:</strong> 01-May-2025, 2025-05-01, 01/05/2025
+                                                    </li>
                                                     <li><strong>Time format:</strong> 06:00, 18:00, 6:00, 18:00</li>
                                                     <li>Client and Site names must exist in the database</li>
-                                                    <li>Officer names are matched against employee records (first name, last name, or full name)</li>
+                                                    <li>Officer names are matched against employee records (first name, last
+                                                        name, or full name)</li>
                                                     <li>Hours will be calculated automatically if not provided</li>
-                                                    <li>If Officer is assigned, SIA license expiry and overlapping shifts will be checked</li>
+                                                    <li>If Officer is assigned, SIA license expiry and overlapping shifts
+                                                        will be checked</li>
                                                 </ul>
                                             </div>
                                         </div>
                                         <div class="col-md-8">
                                             <div class="d-flex gap-2">
-                                                <input type="file" name="file" class="form-control" required accept=".xlsx,.xls,.csv">
+                                                <input type="file" name="file" class="form-control" required
+                                                    accept=".xlsx,.xls,.csv">
                                             </div>
                                         </div>
                                         <div class="col-md-4">
-                                            <a href="{{ route('shifts.export.excel', ['template' => 1]) }}" class="btn btn-outline-primary w-100">
+                                            <a href="{{ route('shifts.export.excel', ['template' => 1]) }}"
+                                                class="btn btn-outline-primary w-100">
                                                 <i class="ti ti-download"></i> Download Template
                                             </a>
                                         </div>
@@ -214,6 +230,31 @@
 @endsection
 @section('scripts')
     <script>
+        $(document).ready(function() {
+            // Auto-apply when the select changes
+            $('#shiftStatus').on('change', function() {
+                const val = $(this).val();
+                try {
+                    const table = $('#shifts-table').DataTable();
+                    // Use draw(false) to keep the current paging where possible
+                    table.draw(false);
+                } catch (err) {
+                    const url = new URL(window.location.href);
+                    if (val) url.searchParams.set('shiftStatus', val);
+                    else url.searchParams.delete('shiftStatus');
+                    window.location.href = url.toString();
+                }
+            });
+
+            $(document).on('preXhr.dt', '#shifts-table', function(e, settings, data) {
+                try {
+                    data.shift_status = $('#shiftStatus').val();
+                } catch (err) {
+                    // ignore
+                }
+            });
+        });
+
         document.addEventListener('DOMContentLoaded', function() {
             function initDaySelector(shiftGroup) {
                 const dayBoxes = shiftGroup.querySelectorAll('.day-box');
@@ -286,7 +327,7 @@
             $(".select2_modal").select2({
                 dropdownParent: $("#edit_shift")
             });
-            
+
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
 
@@ -334,7 +375,7 @@
                     }
                 });
             });
-          
+
 
             // Bulk delete button
             $('#bulkDeleteBtn').on('click', function() {
@@ -441,7 +482,6 @@
                 }
             });
         });
-
     </script>
 
     <script>
