@@ -315,16 +315,39 @@
         }
 
         function customMatcher(params, data) {
-            if ($.trim(params.term) === '') {
+            // Default behavior: if empty term, show all
+            if (!params || !params.term || $.trim(params.term) === '') {
                 return data;
             }
 
-            let term = params.term.toLowerCase();
-            let first = $(data.element).data('first') || '';
-            let last = $(data.element).data('last') || '';
-            let full = (first + ' ' + last).trim();
+            // Coerce term to string
+            const term = String(params.term).toLowerCase();
+
+            // data may not always have an element (select2 internals) — guard against it
+            let first = '';
+            let last = '';
+
+            if (data && data.element) {
+                // Use dataset/read attribute safely
+                try {
+                    first = $(data.element).data('first') || '';
+                    last = $(data.element).data('last') || '';
+                } catch (e) {
+                    first = '';
+                    last = '';
+                }
+            }
+
+            first = String(first).toLowerCase();
+            last = String(last).toLowerCase();
+            const full = (first + ' ' + last).trim();
 
             if (first.includes(term) || last.includes(term) || full.includes(term)) {
+                return data;
+            }
+
+            // Fall back to checking the option text as well
+            if (data && data.text && String(data.text).toLowerCase().includes(term)) {
                 return data;
             }
 

@@ -7,6 +7,7 @@ use App\Models\DobEntry;
 use App\Models\ShiftDate;
 use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
+use Illuminate\Support\Facades\DB;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -58,7 +59,47 @@ class DobsDataTable extends DataTable
             ->addColumn('checkbox', function ($dob) {
                 return '<input type="checkbox" class="dob-checkbox" value="' . $dob->id . '">';
             })
-            ->rawColumns(['actions', 'files', 'address', 'checkbox']);
+            ->rawColumns(['actions', 'files', 'address', 'checkbox'])
+
+            // Global search across dob_entries columns and related user / site fields
+            ->filter(function ($query, $keyword) {
+                if (empty($keyword)) return;
+
+                $kw = "%{$keyword}%";
+
+                $query->where(function ($q) use ($kw) {
+                    $q->where('title', 'like', $kw)
+                        ->orWhere('entry_type', 'like', $kw)
+                        ->orWhere('timestamp', 'like', $kw)
+                        ->orWhere('location', 'like', $kw)
+                        ->orWhere('description', 'like', $kw)
+
+                        // Match against user first/last/full name
+                        ->orWhereExists(function ($sub) use ($kw) {
+                            $sub->select(DB::raw(1))
+                                ->from('users')
+                                ->whereRaw('users.id = dob_entries.user_id')
+                                ->where(function ($u) use ($kw) {
+                                    $u->where('first_name', 'like', $kw)
+                                      ->orWhere('last_name', 'like', $kw)
+                                      ->orWhere(DB::raw("CONCAT(first_name, ' ', last_name)"), 'like', $kw);
+                                });
+                        })
+
+                        // Match against site name or address via shift_dates -> shifts -> sites
+                        ->orWhereExists(function ($sub) use ($kw) {
+                            $sub->select(DB::raw(1))
+                                ->from('shift_dates')
+                                ->join('shifts', 'shift_dates.shift_id', '=', 'shifts.id')
+                                ->join('sites', 'shifts.site_id', '=', 'sites.id')
+                                ->whereRaw('shift_dates.id = dob_entries.shift_id')
+                                ->where(function ($u) use ($kw) {
+                                    $u->where('sites.site_name', 'like', $kw)
+                                      ->orWhere('sites.address', 'like', $kw);
+                                });
+                        });
+                });
+            }, true);
     }
     public function query(DobEntry $model)
     {
