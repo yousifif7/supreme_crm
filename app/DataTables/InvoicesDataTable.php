@@ -12,6 +12,17 @@ use Yajra\DataTables\Services\DataTable;
 
 class InvoicesDataTable extends DataTable
 {
+    /** Optional client filter id when rendering for client dashboard */
+    protected $client_id = null;
+
+    /**
+     * Set the client id to scope the query to.
+     */
+    public function withClient($clientId)
+    {
+        $this->client_id = $clientId;
+        return $this;
+    }
     /**
      * Build the DataTable class.
      *
@@ -80,10 +91,17 @@ class InvoicesDataTable extends DataTable
      */
     public function query(Invoice $model): QueryBuilder
     {
-        return $model->newQuery()
-            ->with(['client', 'site'])
-            ->whereNotNull('client_id') // Only client invoices
-            ->orderBy('id', 'desc');
+        $query = $model->newQuery()->with(['client', 'site']);
+
+        // If a client_id was provided (client dashboard), scope to that client.
+        if ($this->client_id) {
+            $query->where('client_id', $this->client_id);
+        } else {
+            // Default behavior: only client invoices
+            $query->whereNotNull('client_id');
+        }
+
+        return $query->orderBy('id', 'desc');
     }
 
     /**

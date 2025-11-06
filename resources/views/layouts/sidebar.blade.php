@@ -17,12 +17,12 @@
                   <li>
                       <ul>
 
-                          <li class="{{ request()->is('dashboard*') ? 'active' : '' }}">
-                              <a href="{{ url('dashboard') }}">
-                                  <i class="ti ti-layout-dashboard"></i>
-                                  <span>Dashboard</span>
-                              </a>
-                          </li>
+                        <li class="{{ request()->is('dashboard*') || request()->is('client/dashboard*') ? 'active' : '' }}">
+                            <a href="{{ auth()->user()->hasRole('client') ? route('client.dashboard') : route('dashboard') }}">
+                                <i class="ti ti-layout-dashboard"></i>
+                                <span>Dashboard</span>
+                            </a>
+                        </li>
 
                           @can('Read Security Board')
                               <li class="submenu">
@@ -308,13 +308,14 @@
                           @endcan
 
 
+                        @hasrole('superadmin')     
                           <li class="{{ request()->is('logs*') ? 'active' : '' }}">
                               <a href="{{ url('logs') }}">
                                   <i class="bi bi-clock"></i>
                                   <span>Edit Logs</span>
                               </a>
                           </li>
-
+                        @endhasrole
                           <li>
                               <!-- Logout Link -->
                               <a href="{{ route('logout') }}"

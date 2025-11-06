@@ -173,6 +173,7 @@
                                 ->get();
                         @endphp
                         <div class="d-flex align-items-center">
+                            @hasanyrole('superadmin|controller|staff_leader|control_room')
                             <div class="me-1 notification_item" style="padding:7px;">
                                 <a href="" class="btn btn-menubar position-relative me-1" id="notificationBell"
                                     data-bs-toggle="dropdown">
@@ -252,8 +253,8 @@
                                         {{-- <a href="#" class="btn btn-primary w-100">View All</a> --}}
                                     </div>
                                 </div>
-
                             </div>
+                            @endhasanyrole
                             <div class="dropdown profile-dropdown">
                                 <a href="javascript:void(0);" class="dropdown-toggle d-flex align-items-center"
                                     data-bs-toggle="dropdown">

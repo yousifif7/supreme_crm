@@ -36,6 +36,10 @@ class UserController extends Controller
 {
     public function dashboard()
     {
+        if(auth()->user()->hasRole('client')){
+            return redirect()->route('client.dashboard');
+        }
+        
         $shifts = ShiftDate::where('shift_date', Carbon::today()->toDateString())->with('shift.staff')->get();
         $invoices = Invoice::with(['client', 'site'])
             ->whereNotNull('client_id')->get();

@@ -37,6 +37,7 @@ use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
 use App\Http\Controllers\NotificationsController;
+
 Route::get('/', function () {
     return view('auth.login');
 });
@@ -147,6 +148,23 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/clients/import', [ExportController::class, 'importClientExcel'])->name('clients.import');
     /**  End: Client Controller */
 
+    /** Begin: Client-facing dashboard and management (client role) */
+    Route::group(['prefix' => 'client', 'as' => 'client.', 'middleware' => ['auth', 'role:client']], function() {
+        Route::get('/dashboard', [App\Http\Controllers\ClientDashboardController::class, 'index'])->name('dashboard');
+        Route::get('/rota', [App\Http\Controllers\ClientDashboardController::class, 'rota'])->name('rota');
+
+        // Client invoices (scoped)
+        Route::get('/invoices', [App\Http\Controllers\ClientInvoicesController::class, 'index'])->name('invoices.index');
+
+        // Client sites management
+        Route::get('/sites', [App\Http\Controllers\ClientSiteController::class, 'index'])->name('sites.index');
+        Route::get('/sites/create', [App\Http\Controllers\ClientSiteController::class, 'create'])->name('sites.create');
+        Route::post('/sites', [App\Http\Controllers\ClientSiteController::class, 'store'])->name('sites.store');
+        Route::get('/sites/{id}/edit', [App\Http\Controllers\ClientSiteController::class, 'edit'])->name('sites.edit');
+        Route::post('/sites/{id}', [App\Http\Controllers\ClientSiteController::class, 'update'])->name('sites.update');
+        Route::get('/sites/{id}', [App\Http\Controllers\ClientSiteController::class, 'show'])->name('sites.show');
+    });
+    /** End: Client-facing */
     /** Begin: Invoice Controller  */
     Route::get('/invoices', [InvoiceController::class, 'index'])->name('invoices.index');
 
