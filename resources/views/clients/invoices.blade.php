@@ -3,6 +3,7 @@
 @section('contents')
 <div class="page-wrapper">
     <div class="content">
+        <h3>My Invoices</h3>
         <div class="card">
             <div class="card-body p-0">
                 <div class="table-responsive custom-datatable-filter">

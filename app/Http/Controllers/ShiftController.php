@@ -1077,7 +1077,13 @@ class ShiftController extends Controller
 
     public function getShiftsBySite()
     {
-        $shifts = Shift::with(['site'])->get();
+        // If the current user is a client, only return shifts for that client's sites
+        $user = Auth::user();
+        if ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) {
+            $shifts = Shift::with(['site'])->where('client_id', $user->id)->get();
+        } else {
+            $shifts = Shift::with(['site'])->get();
+        }
         $events = [];
         $highlightDates = [];
 
@@ -1117,16 +1123,23 @@ class ShiftController extends Controller
                     'start' => $calendarStart,
                     'end' => $calendarEnd,
                     'allDay' => false,
-                    'className' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
+                    'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
                     'color' => '#3a87ad',
                     'extendedProps' => [
                         'duration' => $durationFormatted,
                         'startTime' => $startTime->format('H:i'),
                         'endTime' => $endTime->format('H:i'), // keep correct display even if overnight
+                        'start_time' => $startTime->format('H:i:s'),
+                        'end_time' => $endTime->format('H:i:s'),
+                        'startTimeStr' => $startTime->format('H:i'),
+                        'endTimeStr' => $endTime->format('H:i'),
                         'urgent' => rand(0, 1) === 1,
                         'sd_id' => $sd->id,
                     ]
                 ];
+
+                // collect highlight dates
+                $highlightDates[] = $sd->shift_date;
             }
         }
 

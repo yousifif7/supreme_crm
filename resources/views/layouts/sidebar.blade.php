@@ -307,6 +307,37 @@
                               </li>
                           @endcan
 
+                          {{-- Client-only links (Rota, Profile) --}}
+                          @hasrole('client')
+                            <li class="{{ request()->is('client/rota*') ? 'active' : '' }}">
+                                <a href="{{ route('client.rota') }}">
+                                    <i class="ti ti-calendar"></i>
+                                    <span>Rota</span>
+                                </a>
+                            </li>
+
+                              <li class="{{ request()->is('client/sites*') ? 'active' : '' }}">
+                                  <a href="{{ route('client.sites.index') }}">
+                                      <i class="fa fa-location"></i>
+                                      <span>My Sites</span>
+                                  </a>
+                              </li>
+
+                              <li class="{{ request()->is('client/invoices*') ? 'active' : '' }}">
+                                  <a href="{{ route('client.invoices.index') }}">
+                                      <i class="fa fa-file-invoice-dollar"></i>
+                                      <span>My Invoices</span>
+                                  </a>
+                              </li>
+
+                            <li class="{{ request()->is('client/profile*') ? 'active' : '' }}">
+                                <a href="{{ route('client.profile') }}">
+                                    <i class="ti ti-user"></i>
+                                    <span>Profile</span>
+                                </a>
+                            </li>
+                          @endhasrole
+
 
                         @hasrole('superadmin')     
                           <li class="{{ request()->is('logs*') ? 'active' : '' }}">

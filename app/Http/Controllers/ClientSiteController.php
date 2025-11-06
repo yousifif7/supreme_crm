@@ -29,10 +29,23 @@ class ClientSiteController extends BaseController
     {
         $data = $request->validate([
             'site_name' => 'required|string|max:255',
+            'guard_names' => 'nullable|string',
             'address' => 'nullable|string|max:500',
             'post_code' => 'nullable|string|max:50',
+            'site_code' => 'nullable|string|max:100',
             'contact_number' => 'nullable|string|max:50',
             'contact_person' => 'nullable|string|max:255',
+            'note' => 'nullable|string',
+            'manager_1_id' => 'nullable|integer|exists:users,id',
+            'manager_2_id' => 'nullable|integer|exists:users,id',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
+            'break_time' => 'nullable|integer',
+            'guard_rate' => 'nullable|numeric',
+            'office_rate' => 'nullable|numeric',
+            'billable_rate' => 'nullable|numeric',
+            'payable_rate' => 'nullable|numeric',
+            'has_qr' => 'nullable|boolean',
         ]);
 
         $data['client_id'] = Auth::id();
@@ -56,10 +69,23 @@ class ClientSiteController extends BaseController
 
         $data = $request->validate([
             'site_name' => 'required|string|max:255',
+            'guard_names' => 'nullable|string',
             'address' => 'nullable|string|max:500',
             'post_code' => 'nullable|string|max:50',
+            'site_code' => 'nullable|string|max:100',
             'contact_number' => 'nullable|string|max:50',
             'contact_person' => 'nullable|string|max:255',
+            'note' => 'nullable|string',
+            'manager_1_id' => 'nullable|integer|exists:users,id',
+            'manager_2_id' => 'nullable|integer|exists:users,id',
+            'start_time' => 'nullable|date_format:H:i',
+            'end_time' => 'nullable|date_format:H:i',
+            'break_time' => 'nullable|integer',
+            'guard_rate' => 'nullable|numeric',
+            'office_rate' => 'nullable|numeric',
+            'billable_rate' => 'nullable|numeric',
+            'payable_rate' => 'nullable|numeric',
+            'has_qr' => 'nullable|boolean',
         ]);
 
         $site->update($data);

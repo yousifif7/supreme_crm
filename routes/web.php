@@ -163,6 +163,9 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
         Route::get('/sites/{id}/edit', [App\Http\Controllers\ClientSiteController::class, 'edit'])->name('sites.edit');
         Route::post('/sites/{id}', [App\Http\Controllers\ClientSiteController::class, 'update'])->name('sites.update');
         Route::get('/sites/{id}', [App\Http\Controllers\ClientSiteController::class, 'show'])->name('sites.show');
+    // Client profile (view & update own client record)
+    Route::get('/profile', [App\Http\Controllers\ClientDashboardController::class, 'profile'])->name('profile');
+    Route::post('/profile', [App\Http\Controllers\ClientDashboardController::class, 'updateProfile'])->name('profile.update');
     });
     /** End: Client-facing */
     /** Begin: Invoice Controller  */
