@@ -37,39 +37,78 @@ class InvoiceController extends Controller
         $newStart = Carbon::parse($request->date_from);
         $newEnd   = Carbon::parse($request->date_to);
 
-        // Overlap check
-        $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
-            $query->whereBetween('date_from', [$newStart, $newEnd])
-                ->orWhereBetween('date_to', [$newStart, $newEnd])
-                ->orWhere(function ($query) use ($newStart, $newEnd) {
-                    $query->where('date_from', '<=', $newStart)
-                        ->where('date_to', '>=', $newEnd);
-                });
-        })
-            ->where('client_id', $request->client_id)
-            ->where('site_id', $request->site_id)
-            ->exists();
+        // If a specific site is chosen, generate a single invoice for that site.
+        if (!empty($request->site_id)) {
+            // Overlap check for the chosen site
+            $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
+                $query->whereBetween('date_from', [$newStart, $newEnd])
+                    ->orWhereBetween('date_to', [$newStart, $newEnd])
+                    ->orWhere(function ($query) use ($newStart, $newEnd) {
+                        $query->where('date_from', '<=', $newStart)
+                            ->where('date_to', '>=', $newEnd);
+                    });
+            })
+                ->where('client_id', $request->client_id)
+                ->where('site_id', $request->site_id)
+                ->exists();
 
-        if ($overlap) {
-            return response()->json([
-                'errors' => ['date_from' => ['An invoice already exists for this date range.']]
-            ], 422);
-        }
+            if ($overlap) {
+                return response()->json([
+                    'errors' => ['date_from' => ['An invoice already exists for this site in the selected date range.']]
+                ], 422);
+            }
 
-        try {
-            $invoice = $this->invoiceService->generateClientInvoice(
-                $request->client_id,
-                $request->site_id,
-                $request->date_from,
-                $request->date_to,
-                $request->due_date,
-                $request->notes,
-                $request->frequency // <-- new parameter
-            );
-        } catch (ModelNotFoundException $e) {
-            return response()->json([
-                'errors' => ['shift' => ['No shifts were found for the selected date range.']]
-            ], 422);
+            try {
+                $invoice = $this->invoiceService->generateClientInvoice(
+                    $request->client_id,
+                    $request->site_id,
+                    $request->date_from,
+                    $request->date_to,
+                    $request->due_date,
+                    $request->notes,
+                    $request->frequency
+                );
+            } catch (ModelNotFoundException $e) {
+                return response()->json([
+                    'errors' => ['shift' => ['No shifts were found for the selected site and date range.']]
+                ], 422);
+            }
+        } else {
+            // No site chosen: create a single aggregated invoice for all client's sites
+            // Overlap check across any invoice for this client
+            $overlap = Invoice::where(function ($query) use ($newStart, $newEnd) {
+                $query->whereBetween('date_from', [$newStart, $newEnd])
+                    ->orWhereBetween('date_to', [$newStart, $newEnd])
+                    ->orWhere(function ($query) use ($newStart, $newEnd) {
+                        $query->where('date_from', '<=', $newStart)
+                            ->where('date_to', '>=', $newEnd);
+                    });
+            })
+                ->where('client_id', $request->client_id)
+                ->exists();
+
+            if ($overlap) {
+                return response()->json([
+                    'errors' => ['date_from' => ['An invoice already exists for this client in the selected date range.']]
+                ], 422);
+            }
+
+            try {
+                // Let service determine client's sites when siteIds array is empty
+                $invoice = $this->invoiceService->generateClientInvoiceForSites(
+                    $request->client_id,
+                    [],
+                    $request->date_from,
+                    $request->date_to,
+                    $request->due_date,
+                    $request->notes,
+                    $request->frequency
+                );
+            } catch (ModelNotFoundException $e) {
+                return response()->json([
+                    'errors' => ['shift' => ['No shifts were found for the selected client/sites in the date range.']]
+                ], 422);
+            }
         }
 
         // ----------------------------
@@ -109,6 +148,7 @@ class InvoiceController extends Controller
             $leave->save();
         }
 
+        // Apply payroll leave totals to the created invoice
         $invoice->total_hours = $totalHours;
         $invoice->total_sick_pay = $totalSSP;
         $invoice->total_holiday_pay = $totalHolidayPay;
@@ -116,11 +156,12 @@ class InvoiceController extends Controller
         $invoice->processed_by_payroll = true;
         $invoice->save();
 
-        Logger::log(Auth::user(), 'Create', 'Invoice NO. ' . $invoice->ivoice_number . ' Generated for Client ' . $invoice->client->name);
+        Logger::log(Auth::user(), 'Create', 'Invoice NO. ' . ($invoice->ivoice_number ?? $invoice->invoice_number ?? $invoice->id) . ' Generated for Client ' . ($invoice->client->name ?? 'N/A'));
 
         return response()->json([
             'message' => 'Client invoice generated successfully',
             'invoice' => $invoice->load('items'),
+            'warnings' => [],
         ]);
     }
 

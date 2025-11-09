@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Shift;
 use App\Models\Client;
+use App\Models\Site;
 use App\Models\Invoice;
 use App\Models\Employee;
 use App\Models\ShiftDate;
@@ -66,6 +67,91 @@ class InvoiceService
             'gross_amount' => $grossAmount,
             'net_amount' => $netAmount,
             'frequency' => $frequency, // <-- store frequency here
+        ]);
+
+        foreach ($invoiceItems as $itemData) {
+            $invoice->items()->create($itemData);
+        }
+
+        return $invoice;
+    }
+
+    /**
+     * Generate a single client invoice that aggregates shifts across multiple sites.
+     * If $siteIds is empty it will attempt to find all sites for the client.
+     */
+    public function generateClientInvoiceForSites($clientId, array $siteIds = [], $dateFrom = null, $dateTo = null, $dueDate = null, $notes = null, $frequency = null)
+    {
+        $client = Client::where('user_id', $clientId)->first();
+        if (!$client) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Client not found');
+        }
+
+        if (empty($siteIds)) {
+            $siteIds = Site::where('client_id', $clientId)->pluck('id')->toArray();
+        }
+
+        $invoiceItems = [];
+        $totalHours = 0;
+        $totalBreaks = 0;
+        $totalBookOnHours = 0;
+        $totalBookOffHours = 0;
+
+        foreach ($siteIds as $siteId) {
+            $shift = Shift::where('client_id', $clientId)
+                ->where('site_id', $siteId)
+                ->first();
+
+            if (!$shift) {
+                // no shift for this site; skip
+                continue;
+            }
+
+            $shiftDates = ShiftDate::where('shift_id', $shift->id)
+                ->whereBetween('shift_date', [$dateFrom, $dateTo])
+                ->orderBy('shift_date')
+                ->get();
+
+            foreach ($shiftDates as $shiftDate) {
+                $item = $this->processShiftDate($shiftDate, $client->office_rate);
+                $invoiceItems[] = $item;
+
+                $totalHours += $item['hours'] + $item['break_hours'] + $item['book_on_hours'] + $item['book_off_hours'];
+                $totalBreaks += $item['break_hours'];
+                $totalBookOnHours += $item['book_on_hours'];
+                $totalBookOffHours += $item['book_off_hours'];
+            }
+        }
+
+        if (empty($invoiceItems)) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('No shifts found for selected sites');
+        }
+
+        $totalDeductionsHours = $totalBreaks + $totalBookOnHours + $totalBookOffHours;
+        $grossAmount = ($totalHours - $totalBreaks) * $client->office_rate;
+        $netAmount = $grossAmount - (($totalBookOnHours + $totalBookOffHours) * $client->office_rate);
+
+        // Create single invoice for all sites. site_id left null to indicate multiple sites.
+        $invoice = Invoice::create([
+            'type' => 'client',
+            'client_id' => $clientId,
+            'site_id' => null,
+            'issue_date' => now(),
+            'due_date' => $dueDate,
+            'date_from' => $dateFrom,
+            'date_to' => $dateTo,
+            'total_amount' => $netAmount,
+            'status' => 'draft',
+            'notes' => $notes ? $notes . ' | Sites: ' . json_encode($siteIds) : 'Sites: ' . json_encode($siteIds),
+            'payment_note' => $client->payment_terms,
+            'rate_per_hour' => $client->office_rate,
+            'total_shift_hours' => $totalHours - $totalDeductionsHours,
+            'total_duration_hours' => $totalHours,
+            'total_break_hours' => $totalBreaks,
+            'total_deductions_hours' => $totalDeductionsHours,
+            'gross_amount' => $grossAmount,
+            'net_amount' => $netAmount,
+            'frequency' => $frequency,
         ]);
 
         foreach ($invoiceItems as $itemData) {
