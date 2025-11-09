@@ -62,7 +62,9 @@
 
                     @php
                         $staffs = App\Models\User::role('security_staff')->get();
-                        $sites = App\Models\Site::all();
+                        // Do not load all sites here — site select should be populated
+                        // only with sites the selected staff has worked on (via AJAX).
+                        $sites = [];
                     @endphp
 
                     <form method="POST" id="generate_payroll-form">
@@ -86,11 +88,9 @@
 
                             <div class="mb-3">
                                 <label for="site_id" class="form-label">Employee Site</label>
-                                <select name="site_id" id="payroll_site_id" class="form-select" required>
+                                <select name="site_id" id="payroll_site_id" class="form-select">
                                     <option value="">-- Choose Site --</option>
-                                    {{-- @foreach ($sites as $site)
-                                    <option value="{{ $site->id }}">{{ $site->site_name }}</option>
-                                @endforeach --}}
+                                    {{-- populated dynamically when a staff is selected --}}
                                 </select>
                                 <span class="text-danger form-error" id="payrollerror_site_id"></span>
                             </div>
@@ -160,7 +160,7 @@
 @section('scripts')
     <script>
         $(document).ready(function() {
-            $('#btn-generate').on('click', function(e) {
+                $('#btn-generate').on('click', function(e) {
                 e.preventDefault();
 
                 // Clear errors
@@ -192,8 +192,8 @@
                     }
     
                     // Inject dates into form before serializing
-                    $('#payroll_date_from').val(fromDate.toISOString().split('T')[0]);
-                    $('#payroll_date_to').val(toDate.toISOString().split('T')[0]);
+                    $('#date_from').val(fromDate.toISOString().split('T')[0]);
+                    $('#date_to').val(toDate.toISOString().split('T')[0]);
                 }
 
                 let formData = $('#generate_payroll-form').serialize();
@@ -230,11 +230,40 @@
         });
 
         function generatePayroll(record_id) {
+            // Fetch sites for this staff and pre-select the staff in the modal
             $.get(`${baseUrl}/generatepayroll/` + record_id, function(data) {
                 if (data.employee) {
-                    $('#employee_id').val(record_id);
+                    // set staff select and trigger change so sites load consistently
+                    $('#security_staff_id').val(record_id).trigger('change');
 
-                    $('#payroll_site_id').empty().append('<option value="">--choose--</option>');
+                    // populate sites from response; if none, show a disabled 'No assigned sites' entry
+                    $('#payroll_site_id').empty().append('<option value="">-- Choose Site --</option>');
+                    if (data.sites && data.sites.length) {
+                        $.each(data.sites, function(index, item) {
+                            $('#payroll_site_id').append(
+                                $('<option>', {
+                                    value: item.site.id,
+                                    text: item.site.site_name
+                                })
+                            );
+                        });
+                    } else {
+                        $('#payroll_site_id').append('<option value="" disabled>No assigned sites</option>');
+                    }
+
+                    $('#generate_payroll').modal('show');
+                }
+            });
+        }
+
+        // When a staff is selected in the modal, fetch the sites they have worked on
+        $(document).on('change', '#security_staff_id', function() {
+            const staffId = $(this).val();
+            $('#payroll_site_id').empty().append('<option value="">-- Choose Site --</option>');
+            if (!staffId) return;
+
+            $.get(`${baseUrl}/generatepayroll/` + staffId, function(data) {
+                if (data.sites && data.sites.length) {
                     $.each(data.sites, function(index, item) {
                         $('#payroll_site_id').append(
                             $('<option>', {
@@ -243,12 +272,11 @@
                             })
                         );
                     });
-
-                    $('#payroll_employee_name').val(`${data.employee.first_name} ${data.employee.last_name}`);
-                    $('#generate_payroll').modal('show');
+                } else {
+                    $('#payroll_site_id').append('<option value="" disabled>No assigned sites</option>');
                 }
             });
-        }
+        });
 
         let selectedId = null;
         let selectedTable = null;

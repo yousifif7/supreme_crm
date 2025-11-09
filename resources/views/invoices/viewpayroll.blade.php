@@ -159,34 +159,42 @@
                     <div class="mb-4">
                         <h5 class="mb-3">Shift Details</h5>
                         <div class="table-responsive mb-3">
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Site</th>
-                                        <th class="text-end">Hours</th>
-                                        <th class="text-end">Breaks</th>
-                                        <th class="text-end">Book On</th>
-                                        <th class="text-end">Book Off</th>
-                                        <th class="text-end">Rate</th>
-                                        <th class="text-end">Amount</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($invoice->items as $item)
+                            @php
+                                // Group items by site name so shifts show under their specific site section
+                                $grouped = $invoice->items->groupBy(function ($i) {
+                                    return $i->site->site_name ?? 'No Site';
+                                });
+                            @endphp
+
+                            @foreach ($grouped as $siteName => $items)
+                                <h6 class="mb-2">Site: <strong>{{ $siteName }}</strong></h6>
+                                <table class="table table-bordered mb-4">
+                                    <thead>
                                         <tr>
-                                            <td>{{ $item->date }}</td>
-                                            <td>{{ $item->site->site_name ?? 'N/A' }}</td>
-                                            <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
-                                            <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
+                                            <th>Date</th>
+                                            <th class="text-end">Hours</th>
+                                            <th class="text-end">Breaks</th>
+                                            <th class="text-end">Book On</th>
+                                            <th class="text-end">Book Off</th>
+                                            <th class="text-end">Rate</th>
+                                            <th class="text-end">Amount</th>
                                         </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody>
+                                        @foreach ($items as $item)
+                                            <tr>
+                                                <td>{{ $item->date }}</td>
+                                                <td class="text-end">{{ number_format($item->hours, 2) }}</td>
+                                                <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
+                                                <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
+                                                <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
+                                                <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
+                                                <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
+                                            </tr>
+                                        @endforeach
+                                    </tbody>
+                                </table>
+                            @endforeach
                         </div>
                     </div>
 
@@ -219,8 +227,22 @@
                                 <h5>{{ number_format($invoice->net_amount, 2) }}£</h5>
                             </div>
                             @php
-                                $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
-                                $words = $formatter->format($invoice->net_amount);
+                                // Intl NumberFormatter may not be available on all PHP installs.
+                                if (class_exists('\\NumberFormatter')) {
+                                    try {
+                                        $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
+                                        $words = $formatter->format($invoice->net_amount);
+                                        if (! $words) {
+                                            $words = (string) $invoice->net_amount;
+                                        }
+                                    } catch (\Throwable $e) {
+                                        // Fallback to numeric representation if formatter fails
+                                        $words = (string) $invoice->net_amount;
+                                    }
+                                } else {
+                                    // Intl extension not installed — fallback
+                                    $words = (string) $invoice->net_amount;
+                                }
                             @endphp
                             <p class="fs-12">
                                 Amount in Words: UK POUND {{ ucwords($words) }} Only

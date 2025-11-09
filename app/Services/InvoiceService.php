@@ -223,11 +223,17 @@ class InvoiceService
     {
         $staff = User::findOrFail($staffId);
 
-        $shiftDates = ShiftDate::where('staff_id', $staffId)->whereHas('shift', function ($query) use ($site_id) {
-            $query->where('site_id', $site_id);
-        })->whereBetween('shift_date', [$dateFrom, $dateTo])
-            ->with('shift.site')
-            ->get();
+        $shiftDatesQuery = ShiftDate::where('staff_id', $staffId)
+            ->whereBetween('shift_date', [$dateFrom, $dateTo])
+            ->with('shift.site');
+
+        if (!empty($site_id)) {
+            $shiftDatesQuery->whereHas('shift', function ($query) use ($site_id) {
+                $query->where('site_id', $site_id);
+            });
+        }
+
+        $shiftDates = $shiftDatesQuery->get();
 
 
         $invoiceItems = [];
@@ -278,7 +284,7 @@ class InvoiceService
             $end->addDay();
         }
 
-        $breakHours = $shiftDate->break_minutes / 60;
+        $breakHours = ($shiftDate->break_time ?? 0) / 60;
         $bookOnHours = $shiftDate->absentee_start_time ?
             Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time)
             ->diffInMinutes($end) / 60 : 0;
@@ -295,7 +301,7 @@ class InvoiceService
             'security_staff_id' => $shiftDate->staff_id,
             'site_id' => $shiftDate->shift->site_id,
             'date' => $date->format('Y-m-d'),
-            'description' => "Security services at {$shiftDate->shift->site->name} on {$date->format('Y-m-d')}",
+            'description' => "Security services at " . ($shiftDate->shift->site->site_name ?? 'Unknown site') . " on {$date->format('Y-m-d')}",
             'start_time' => $shiftDate->start_time,
             'end_time' => $shiftDate->end_time,
             'hours' => $payableHours,

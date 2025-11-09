@@ -67,10 +67,7 @@ class PayrollController extends Controller
 
         $staff = Employee::where('user_id', $data['security_staff_id'])->firstOrFail();
 
-        // 🔹 Base payroll calculations
-        $payroll = $calc->calculatePayroll($staff, $data['site_id'] ?? null, $startDate, $endDate);
-
-        // 🔹 Process leaves (SSP, Holiday, Unpaid)
+        // 🔹 Process leaves (SSP, Holiday, Unpaid) first so we can mark them and incorporate into totals
         $leaves = LeaveRequest::where('user_id', $staff->user_id)
             ->where('status', 'approved')
             ->whereBetween('start_date', [$startDate, $endDate])
@@ -92,43 +89,52 @@ class PayrollController extends Controller
 
             if ($leave->holiday_days_used) {
                 $holidayHours  += $leave->holiday_days_used;
-                $holidayAmount += $leave->holiday_days_used * $payroll['rate'];
+                // we'll add holiday amount after invoice is generated using the payroll rate
+                $holidayAmount += 0; // placeholder
             }
 
             if ($leave->unpaid_days) {
                 $unpaidHours  += $leave->unpaid_days;
-                $unpaidAmount += $leave->unpaid_days * $payroll['rate'];
+                $unpaidAmount += 0; // placeholder
             }
 
             $leave->processed_by_payroll = true;
             $leave->save();
         }
 
-        // 🔹 Save payroll (as invoice with type=security_staff)
-        $invoice = Invoice::create([
-            'security_staff_id'      => $staff->user_id,
-            'site_id'                => $data['site_id'] ?? null,
-            'notes'                  => $data['notes'] ?? null,
-            'issue_date'             => now(),
-            'due_date'               => now()->addDays(15),
-            'date_from'              => $startDate,
-            'date_to'                => $endDate,
-            'rate_per_hour'          => $payroll['rate'],
-            'total_shift_hours'      => $payroll['total_hours'] - $payroll['total_book_on_hours'] - $payroll['total_book_off_hours'],
-            'total_duration_hours'   => $payroll['total_hours'],
-            'total_break_hours'      => $payroll['total_breaks'],
-            'total_deductions_hours' => $payroll['total_book_on_hours'] + $payroll['total_book_off_hours'],
-            'gross_amount'           => $payroll['gross_amount'] + $holidayAmount + $sspAmount - $unpaidAmount,
-            'net_amount'             => $payroll['net_amount'] + $holidayAmount + $sspAmount - $unpaidAmount,
-            'ssp_amount'             => $sspAmount,
-            'ssp_days'               => $sspDays,
-            'holiday_amount'         => $holidayAmount,
-            'holiday_hours'          => $holidayHours,
-            'unpaid_leave_amount'    => $unpaidAmount,
-            'unpaid_leave_hours'     => $unpaidHours,
-            'type'                   => 'security_staff',
-            'invoice_number'         => Invoice::generateInvoiceNumber('security_staff'),
-        ]);
+        // Use InvoiceService to create invoice items and invoice for the staff (this populates items)
+        $invoice = $calc->generateSecurityStaffInvoice(
+            $data['security_staff_id'],
+            $data['site_id'] ?? null,
+            $startDate,
+            $endDate,
+            now()->addDays(15),
+            $data['notes'] ?? null
+        );
+
+        // Now update invoice totals to include SSP/holiday/unpaid adjustments (if applicable)
+        // Determine payroll rate from invoice.rate_per_hour
+        $rate = $invoice->rate_per_hour ?? 0;
+        // If holiday/unpaid placeholders exist, compute amounts based on rate
+        if ($holidayHours > 0) {
+            $holidayAmount = $holidayHours * $rate;
+        }
+        if ($unpaidHours > 0) {
+            $unpaidAmount = $unpaidHours * $rate;
+        }
+
+        // Adjust invoice amounts and save
+        $invoice->ssp_amount = $sspAmount;
+        $invoice->ssp_days = $sspDays;
+        $invoice->holiday_amount = $holidayAmount;
+        $invoice->holiday_hours = $holidayHours;
+        $invoice->unpaid_leave_amount = $unpaidAmount;
+        $invoice->unpaid_leave_hours = $unpaidHours;
+
+        // Recalculate gross/net to include adjustments
+        $invoice->gross_amount = ($invoice->items->sum('amount') + $holidayAmount + $sspAmount - $unpaidAmount);
+        $invoice->net_amount = $invoice->gross_amount;
+        $invoice->save();
 
         send_push_notification(
             $staff->user_id,
@@ -162,18 +168,19 @@ class PayrollController extends Controller
         // Get the user (staff)
         $employee = User::findOrFail($userId);
 
-        // Get all shifts this staff has worked
-        $sites = Shift::where('staff_id', $employee->id) // assuming 'staff_id' in shifts references 'users.id'
-            ->with('site:id,site_name')
-            ->get()
-            ->map(function ($shift) {
-                return [
-                    'shift_id' => $shift->id,
-                    'site' => $shift->site,
-                ];
-            })
-            ->unique('site.id') // avoid duplicates if multiple shifts in same site
-            ->values();
+        // Collect sites from ShiftDate records where this staff is assigned.
+        // For each ShiftDate -> load shift and its site, then dedupe by site id.
+        $shiftDates = ShiftDate::where('staff_id', $employee->id)
+            ->with(['shift.site'])
+            ->get();
+
+        $sites = $shiftDates->map(function ($sd) {
+            if (! $sd->shift || ! $sd->shift->site) return null;
+            return [
+                'shift_id' => $sd->shift->id,
+                'site' => $sd->shift->site,
+            ];
+        })->filter()->unique('site.id')->values();
 
         return response()->json([
             'employee' => $employee,
