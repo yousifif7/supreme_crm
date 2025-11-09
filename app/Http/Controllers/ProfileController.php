@@ -57,9 +57,20 @@ class ProfileController extends Controller
 
         return Redirect::to('/');
     }
-    public function logout()
+    public function logout(Request $request)
     {
+        // If we're currently impersonating, restore the impersonator (admin) instead of fully logging out
+        if ($request->session()->has('impersonator_id')) {
+            $impersonatorId = $request->session()->pull('impersonator_id');
+            $returnUrl = $request->session()->pull('impersonator_return_url', '/');
+            Auth::loginUsingId($impersonatorId);
+            return redirect($returnUrl);
+        }
+
         Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect('/login');
     }
 }

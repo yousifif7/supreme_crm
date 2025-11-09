@@ -138,6 +138,13 @@
                                                               lowercase, number, and special character.
                                                           </div>
                                                       </div>
+
+                                                      {{-- Open Client system button (visible to admin/superadmin) --}}
+                                                      @hasanyrole('admin|superadmin')
+                                                      <div class="mb-3" id="open-client-system-container" style="display:none;">
+                                                          <a href="#" id="open_client_system" target="_blank" class="btn btn-primary w-100">Open Client system</a>
+                                                      </div>
+                                                      @endhasanyrole
                                                   </div>
                                               </div>
                                               <div class="mb-3">
@@ -244,3 +251,29 @@
           </div>
       </div>
   </div>
+
+  @push('scripts')
+  <script>
+      // When the edit modal is shown, set the Open Client system link to the admin client view for the selected client
+      document.addEventListener('DOMContentLoaded', function () {
+          var editModal = document.getElementById('edit_client');
+          if (!editModal) return;
+
+          $('#edit_client').on('shown.bs.modal', function () {
+              var id = document.getElementById('client_id').value;
+              if (!id) {
+                  document.getElementById('open-client-system-container') && (document.getElementById('open-client-system-container').style.display = 'none');
+                  return;
+              }
+
+              // Build impersonation start URL: /impersonate/{clientId}
+              var impersonateUrl = "{{ url('/impersonate') }}" + '/' + id;
+              var link = document.getElementById('open_client_system');
+              if (link) {
+                  link.setAttribute('href', impersonateUrl);
+                  document.getElementById('open-client-system-container').style.display = '';
+              }
+          });
+      });
+  </script>
+  @endpush

@@ -121,12 +121,7 @@
                                                           </div>
                                                       </div>
                                                   </div>
-                                                  <div class="col-md-4">
-                                                      <div class="mb-3">
-                                                          <button type="button" class="btn btn-primary w-100">Open
-                                                              Client system</button>
-                                                      </div>
-                                                  </div>
+                                                  
                                               </div>
 
                                               <div class="mb-3">

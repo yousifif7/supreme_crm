@@ -77,8 +77,19 @@ Route::prefix('notifications')->group(function () {
     Route::post('/delete', [NotificationsController::class, 'bulkDelete'])->name('notifications.bulkDelete');
 });
 Route::middleware('auth')->group(function () {
-    Route::post('/logout', function () {
+    Route::post('/logout', function (\Illuminate\Http\Request $request) {
+        // If we're currently impersonating, restore the impersonator (admin) instead of fully logging out
+        if ($request->session()->has('impersonator_id')) {
+            $impersonatorId = $request->session()->pull('impersonator_id');
+            $returnUrl = $request->session()->pull('impersonator_return_url', '/');
+            Auth::loginUsingId($impersonatorId);
+            return redirect($returnUrl);
+        }
+
         Auth::logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+
         return redirect('/login');
     })->name('logout');
 
@@ -147,6 +158,19 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/clients/export/pdf', [ExportController::class, 'exportClientPdf'])->name('clients.export.pdf');
     Route::post('/clients/import', [ExportController::class, 'importClientExcel'])->name('clients.import');
     /**  End: Client Controller */
+
+    /** Begin: Impersonation (admin -> client) */
+    // Start impersonation (admin or superadmin only)
+    Route::group(['middleware' => ['auth', 'role:admin|superadmin']], function() {
+        // constrain clientId to digits so the literal '/impersonate/leave' URL doesn't get matched by this route
+        Route::get('/impersonate/{clientId}', [App\Http\Controllers\ImpersonationController::class, 'start'])
+            ->where('clientId', '[0-9]+')
+            ->name('impersonate.start');
+    });
+
+    // Stop impersonation (available to any authenticated user while impersonating)
+    Route::get('/impersonate/leave', [App\Http\Controllers\ImpersonationController::class, 'stop'])->name('impersonate.stop')->middleware('auth');
+    /** End: Impersonation */
 
     /** Begin: Client-facing dashboard and management (client role) */
     Route::group(['prefix' => 'client', 'as' => 'client.', 'middleware' => ['auth', 'role:client']], function() {

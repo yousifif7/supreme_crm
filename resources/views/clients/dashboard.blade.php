@@ -4,7 +4,15 @@
     <div class="page-wrapper">
         <div class="content">
 
-            <h3>Welcome, {{ auth()->user()->name }}</h3>
+            <div class="d-flex align-items-center justify-content-between">
+                <h3>Welcome, {{ auth()->user()->name }}</h3>
+
+                @if(session('impersonator_id'))
+                <div>
+                    <a href="{{ route('impersonate.stop') }}" class="btn btn-warning">Return to Admin dashboard</a>
+                </div>
+                @endif
+            </div>
             <div class="row">
                 <div class="col-md-3">
                     <a href="{{ route('client.invoices.index') }}">
