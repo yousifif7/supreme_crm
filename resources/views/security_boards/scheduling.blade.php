@@ -2000,34 +2000,107 @@ ${shift.note
 
 
     <script type="text/javascript">
-        $(document).on("change", "#clientSelect", function() {
-            var $this = $(this);
-            const clientId = $(this).val();
-            if (!clientId) return;
+        $(document).ready(function() {
+            $('.select2_client').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#add_shift'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+            // Ensure Select2 selection and clear propagate a native change event
+            .on('select2:select', function(e) { $(this).trigger('change'); })
+            .on('select2:clear', function(e) { $(this).val(''); $(this).trigger('change'); });
 
-            var $siteSelect = $('#siteSelect');
+            // Extra safeguard: directly handle Select2 select by calling AJAX
+            $('.select2_client').on('select2:select', function(e) {
+                var $target = $(this);
+                var clientId = $target.val();
+                if (!clientId) return;
+
+                var $shiftGroup = $target.closest('.shift-group');
+                if (!$shiftGroup.length) $shiftGroup = $target.parents('.shift-group').first();
+                var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest('form').find('#siteSelect');
+                if (!$siteSelect || !$siteSelect.length) $siteSelect = $('#siteSelect');
+                $siteSelect.html('<option value="">--choose--</option>');
+
+                $.ajax({
+                    url: `${baseUrl}/api/client/${clientId}`,
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        try { $shiftGroup.find('.siteRate').val(data.client.office_rate || ''); } catch (err) {}
+                        if (data.sites && data.sites.length > 0) {
+                            $.each(data.sites, function(index, site) {
+                                $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                            });
+                        } else {
+                            $siteSelect.append('<option value="">No sites found</option>');
+                        }
+                        try { if ($siteSelect.hasClass('select2')) $siteSelect.trigger('change.select2'); else $siteSelect.trigger('change'); } catch (err) {}
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Fetch error:', error);
+                    }
+                });
+            });
+        });
+
+        // Handle client -> site population for both native selects and Select2-enhanced selects
+        $(document).on("change select2:select", "#clientSelect, .select2_client", function(e) {
+            // Prefer the event target when it's the original <select>, otherwise use this
+            var $target = $(e.target && e.target.nodeName === 'SELECT' ? e.target : this);
+            const clientId = $target.val();
+            console.debug('clientSelect handler fired, clientId=', clientId, 'event=', e.type);
+
+            // Determine the shift-group context (may be multiple groups on the page)
+            var $shiftGroup = $target.closest('.shift-group');
+            if (!$shiftGroup.length) $shiftGroup = $target.parents('.shift-group').first();
+
+            // Find the site select within the same group, falling back to global
+            var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest('form').find('#siteSelect');
+            if (!$siteSelect || !$siteSelect.length) $siteSelect = $('#siteSelect');
+
+            // Reset options
             $siteSelect.html('<option value="">--choose--</option>');
+
+            if (!clientId) {
+                try { $shiftGroup.find('.siteRate').val(''); } catch (err) {}
+                try { $siteSelect.trigger('change'); } catch (err) {}
+                return;
+            }
 
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+                    console.debug('getClient response', data);
+                    try { $shiftGroup.find('.siteRate').val(data.client.office_rate || ''); } catch (err) {}
                     if (data.sites && data.sites.length > 0) {
                         $.each(data.sites, function(index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site
-                                .site_name + '</option>');
+                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
                     }
+
+                    // Notify enhancers (Select2) to refresh their UI if needed
+                    try {
+                        if ($siteSelect.hasClass('select2')) {
+                            // trigger Select2-specific change
+                            $siteSelect.trigger('change.select2');
+                        } else {
+                            $siteSelect.trigger('change');
+                        }
+                    } catch (err) { /* ignore */ }
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
                 }
             });
         });
+
 
         $(document).on("change", "#StaffSelect", function() {
             var $this = $(this);

@@ -408,14 +408,6 @@
             dropdownParent: $('#add_shift'), // make sure this matches your modal ID
             minimumResultsForSearch: 0 // force search bar for single select
         });
-        
-        $('.select2_client').select2({
-            placeholder: "--choose--",
-            allowClear: true,
-            width: '100%',
-            dropdownParent: $('#add_shift'), // make sure this matches your modal ID
-            minimumResultsForSearch: 0 // force search bar for single select
-        });
     });
     
 </script>
