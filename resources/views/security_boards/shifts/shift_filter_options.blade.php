@@ -28,7 +28,7 @@
                         <!-- Staff -->
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Staff</label>
-                            <select class="form-select" name="staff">
+                            <select class="form-select staff-select-filter" name="staff">
                                 <option value="">--choose--</option>
                                 @foreach ($staffs as $staff)
                                     <option value="{{ $staff->id }}">{{ $staff->first_name }} {{ $staff->last_name }}</option>
@@ -38,7 +38,7 @@
 
                          <div class="col-md-4 mb-3">
                             <label class="form-label">Client</label>
-                            <select class="form-select" name="client_id">
+                            <select class="form-select client-select-filter" name="client_id">
                                 <option value="">--choose--</option>
                                 @foreach ($clients as $client)
                                     <option value="{{ $client->id }}">{{ $client->first_name }} {{$client->last_name  }}</option>
@@ -49,7 +49,7 @@
                         <!-- Site -->
                         <div class="col-md-4 mb-3">
                             <label class="form-label">Site</label>
-                            <select class="form-select" name="site">
+                            <select class="form-select site-select-filter" name="site">
                                 <option value="">--choose--</option>
                                 @foreach ($sites as $site)
                                     <option value="{{ $site->id }}">{{ $site->site_name }}</option>

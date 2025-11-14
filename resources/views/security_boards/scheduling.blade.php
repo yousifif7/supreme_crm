@@ -2,11 +2,10 @@
 @section('title', 'CRM - Scheduling')
 @section('styles')
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
     <!-- Flatpickr CSS -->
     <style>
-
         .gantt-timeline-header,
         .gantt-row-content {
             display: flex;
@@ -96,7 +95,7 @@
         }
 
         /* Day column: much wider baseline so bars have room across all views.
-       JS will still dynamically set width, this just raises the baseline immediately. */
+           JS will still dynamically set width, this just raises the baseline immediately. */
         .day-column {
             flex: 1;
             min-width: 260px;
@@ -331,7 +330,8 @@
             flex-direction: column;
             align-items: center;
             gap: 10px;
-            pointer-events: none; /* allow clicks to pass through outside toasts */
+            pointer-events: none;
+            /* allow clicks to pass through outside toasts */
             width: auto;
             max-width: none;
             padding: 0;
@@ -352,9 +352,10 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
             opacity: 0;
             transform: translateY(20px);
-            transition: all .28s cubic-bezier(.2,.8,.2,1);
+            transition: all .28s cubic-bezier(.2, .8, .2, 1);
             font-family: Arial, sans-serif;
-            pointer-events: auto; /* allow interaction with the toast */
+            pointer-events: auto;
+            /* allow interaction with the toast */
             position: relative;
             overflow: visible;
         }
@@ -368,16 +369,16 @@
             position: absolute;
             top: 6px;
             right: 8px;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid rgba(0,0,0,0.08);
+            background: rgba(255, 255, 255, 0.9);
+            border: 1px solid rgba(0, 0, 0, 0.08);
             border-radius: 4px;
             font-size: 16px;
             line-height: 1;
             cursor: pointer;
-            color: rgba(0,0,0,0.7);
+            color: rgba(0, 0, 0, 0.7);
             padding: 2px 6px;
             z-index: 9999;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
         }
 
         .custom-toast .toast-icon {
@@ -468,23 +469,38 @@
             // Create a safe stub so other code can call window.loadAllShiftsData() before
             // the real implementation is ready. Calls will be queued and executed once
             // the real function is assigned below.
-            if (!window.loadAllShiftsData || window.loadAllShiftsData.__isStub !== true) {
-                window._pendingLoadAllShiftsCalls = window._pendingLoadAllShiftsCalls || [];
-                window.loadAllShiftsData = function() {
+            if ( !window.loadAllShiftsData || window.loadAllShiftsData.__isStub !==true) {
+                window._pendingLoadAllShiftsCalls=window._pendingLoadAllShiftsCalls || [];
+
+                window.loadAllShiftsData=function() {
                     window._pendingLoadAllShiftsCalls.push(arguments);
-                };
-                window.loadAllShiftsData.__isStub = true;
+                }
+
+                ;
+                window.loadAllShiftsData.__isStub=true;
             }
 
             // Now overwrite with the real function and flush pending calls
-            const _real_loadAllShiftsData = loadAllShiftsData;
-            window.loadAllShiftsData = function() { return _real_loadAllShiftsData.apply(this, arguments); };
-            window.loadAllShiftsData.__isStub = false;
+            const _real_loadAllShiftsData=loadAllShiftsData;
+
+            window.loadAllShiftsData=function() {
+                return _real_loadAllShiftsData.apply(this, arguments);
+            }
+
+            ;
+            window.loadAllShiftsData.__isStub=false;
+
             if (window._pendingLoadAllShiftsCalls && window._pendingLoadAllShiftsCalls.length) {
                 window._pendingLoadAllShiftsCalls.forEach(function(args) {
-                    try { _real_loadAllShiftsData.apply(window, args); } catch (e) { console.debug('flushed loadAllShiftsData call failed', e); }
-                });
-                window._pendingLoadAllShiftsCalls = [];
+                        try {
+                            _real_loadAllShiftsData.apply(window, args);
+                        }
+
+                        catch (e) {
+                            console.debug('flushed loadAllShiftsData call failed', e);
+                        }
+                    });
+                window._pendingLoadAllShiftsCalls=[];
             }
 
             .gantt-row {
@@ -798,7 +814,9 @@
         if (!window.loadAllShiftsData || window.loadAllShiftsData.__isStub !== false) {
             window._pendingLoadAllShiftsCalls = window._pendingLoadAllShiftsCalls || [];
             if (!window.loadAllShiftsData || window.loadAllShiftsData.__isStub !== true) {
-                window.loadAllShiftsData = function() { window._pendingLoadAllShiftsCalls.push(arguments); };
+                window.loadAllShiftsData = function() {
+                    window._pendingLoadAllShiftsCalls.push(arguments);
+                };
                 window.loadAllShiftsData.__isStub = true;
             }
         }
@@ -816,9 +834,10 @@
             document.body.appendChild(container);
         }
 
-            document.addEventListener('DOMContentLoaded', function() {
-                // Persist current filters so background refreshes don't reset user's view
-                window._ganttCurrentFilters = window._ganttCurrentFilters || {};
+        document.addEventListener('DOMContentLoaded', function() {
+            // Persist current filters so background refreshes don't reset user's view
+            window._ganttCurrentFilters = window._ganttCurrentFilters || {};
+
             function initDaySelector(shiftGroup) {
                 const dayBoxes = shiftGroup.querySelectorAll('.day-box');
                 const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
@@ -1257,16 +1276,25 @@
             $('#ganttSearchBtn').on('click', function() {
                 filterGanttChart($('#ganttSearch').val());
             });
-            $('#ganttSearch').on('keyup', function(e) {
-                if (e.key === 'Enter') filterGanttChart($(this).val());
-            });
+
+            // Auto-search while typing with debounce to avoid excessive filtering/network calls
+            try {
+                $('#ganttSearch').on('input', debounce(function() {
+                    filterGanttChart($(this).val());
+                }, 350));
+            } catch (err) {
+                // Fallback for older browsers: still support Enter key
+                $('#ganttSearch').on('keyup', function(e) {
+                    if (e.key === 'Enter') filterGanttChart($(this).val());
+                });
+            }
 
             function loadAllShiftsData(currentFilters = null) {
                 // Use persisted filters when caller doesn't provide any
                 const filtersToUse = currentFilters !== null ? currentFilters : (window._ganttCurrentFilters || {});
                 $('#ganttChart').html(
                     '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>'
-                    );
+                );
                 $.ajax({
                     url: `${baseUrl}/api/shifts`,
                     method: 'GET',
@@ -1278,8 +1306,17 @@
                         const payload = response.data || response.shift_dates || response || [];
                         // TEMP LOG: inspect incoming payload shape to debug client ordering
                         try {
-                            console.debug('GANTT PAYLOAD SAMPLE', payload.slice(0, 10).map(p => ({ id: p.id, client_id: p.client_id, client_name: p.client_name, start_datetime: p.start_datetime, start_date: p.start_date, start_time: p.start_time })));
-                        } catch (e) { console.debug('GANTT payload debug failed', e); }
+                            console.debug('GANTT PAYLOAD SAMPLE', payload.slice(0, 10).map(p => ({
+                                id: p.id,
+                                client_id: p.client_id,
+                                client_name: p.client_name,
+                                start_datetime: p.start_datetime,
+                                start_date: p.start_date,
+                                start_time: p.start_time
+                            })));
+                        } catch (e) {
+                            console.debug('GANTT payload debug failed', e);
+                        }
                         allShiftsData = payload;
                         // keep global copy in sync
                         window.allShiftsData = allShiftsData;
@@ -1380,9 +1417,16 @@
                 const clients = {};
                 Object.values(sites).forEach(site => {
                     // Determine a client key - prefer client_id from a shift (allow numeric 0), else fallback to client_name
-                    const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0].client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId) : undefined;
-                    const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ? String(clientIdField) : (site.client_name || 'unknown_client');
-                    if (!clients[clientKey]) clients[clientKey] = { id: clientKey, name: site.client_name || clientKey, sites: [] };
+                    const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0]
+                            .client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId
+                            ) : undefined;
+                    const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ?
+                        String(clientIdField) : (site.client_name || 'unknown_client');
+                    if (!clients[clientKey]) clients[clientKey] = {
+                        id: clientKey,
+                        name: site.client_name || clientKey,
+                        sites: []
+                    };
                     // attach a reference to client_name for safety
                     site.client_name = site.client_name || clients[clientKey].name;
                     clients[clientKey].sites.push(site);
@@ -1564,7 +1608,7 @@ ${shift.note
                                             '.multi-shift-checkbox').length || $(
                                             target).closest('.note-icon').length ||
                                         $(target).closest('.view-note-icon').length
-                                        )) return;
+                                    )) return;
                                 if (shiftIdLocal) window.open(
                                     `${baseUrl}/shift-dates/${shiftIdLocal}/view`,
                                     '_blank');
@@ -1594,8 +1638,10 @@ ${shift.note
                                         $('#viewNoteType').text(data
                                             .note_type);
                                         // Store both shift-date id and note id to be safe
-                                        $('#deleteNoteBtn').data('shift-id', shiftIdLocal);
-                                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                                        $('#deleteNoteBtn').data('shift-id',
+                                            shiftIdLocal);
+                                        if (data.id) $('#deleteNoteBtn')
+                                            .data('note-id', data.id);
                                         $('#viewNoteModal').modal('show');
                                     }
                                 });
@@ -1672,7 +1718,7 @@ ${shift.note
 
                     if (initialLoad) {
                         const wrapper = document.querySelector('.gantt-container') || ganttChartEl
-                        .parentElement;
+                            .parentElement;
                         try {
                             wrapper.scrollLeft = 0;
                         } catch (err) {}
@@ -1735,10 +1781,10 @@ ${shift.note
                     for (const [k, v] of formData.entries())
                         if (v) filters[k] = v;
 
-                        // Persist these filters so background reloads respect the user's selection
-                        window._ganttCurrentFilters = filters;
+                    // Persist these filters so background reloads respect the user's selection
+                    window._ganttCurrentFilters = filters;
 
-                        const filteredShifts = allShiftsData.filter(shift => {
+                    const filteredShifts = allShiftsData.filter(shift => {
                         if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
                             return false;
                         if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
@@ -1749,9 +1795,9 @@ ${shift.note
                             return false;
                         const shiftStart = new Date(shift.start_date);
                         if (filters.from_shift && shiftStart < new Date(filters.from_shift))
-                        return false;
+                            return false;
                         if (filters.to_shift && shiftStart > new Date(filters.to_shift))
-                        return false;
+                            return false;
                         return true;
                     });
 
@@ -2001,16 +2047,45 @@ ${shift.note
 
     <script type="text/javascript">
         $(document).ready(function() {
-            $('.select2_client').select2({
+
+            $('.staff-select-filter').select2({
                 placeholder: "--choose--",
                 allowClear: true,
                 width: '100%',
-                dropdownParent: $('#add_shift'), // make sure this matches your modal ID
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
                 minimumResultsForSearch: 0 // force search bar for single select
             })
-            // Ensure Select2 selection and clear propagate a native change event
-            .on('select2:select', function(e) { $(this).trigger('change'); })
-            .on('select2:clear', function(e) { $(this).val(''); $(this).trigger('change'); });
+            $('.client-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+            $('.site-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+
+
+            $('.select2_client').select2({
+                    placeholder: "--choose--",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#add_shift'), // make sure this matches your modal ID
+                    minimumResultsForSearch: 0 // force search bar for single select
+                })
+                // Ensure Select2 selection and clear propagate a native change event
+                .on('select2:select', function(e) {
+                    $(this).trigger('change');
+                })
+                .on('select2:clear', function(e) {
+                    $(this).val('');
+                    $(this).trigger('change');
+                });
 
             // Extra safeguard: directly handle Select2 select by calling AJAX
             $('.select2_client').on('select2:select', function(e) {
@@ -2020,7 +2095,8 @@ ${shift.note
 
                 var $shiftGroup = $target.closest('.shift-group');
                 if (!$shiftGroup.length) $shiftGroup = $target.parents('.shift-group').first();
-                var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest('form').find('#siteSelect');
+                var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest(
+                    'form').find('#siteSelect');
                 if (!$siteSelect || !$siteSelect.length) $siteSelect = $('#siteSelect');
                 $siteSelect.html('<option value="">--choose--</option>');
 
@@ -2029,15 +2105,22 @@ ${shift.note
                     method: 'GET',
                     dataType: 'json',
                     success: function(data) {
-                        try { $shiftGroup.find('.siteRate').val(data.client.office_rate || ''); } catch (err) {}
+                        try {
+                            $shiftGroup.find('.siteRate').val(data.client.office_rate || '');
+                        } catch (err) {}
                         if (data.sites && data.sites.length > 0) {
                             $.each(data.sites, function(index, site) {
-                                $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                                $siteSelect.append('<option value="' + site.id + '">' +
+                                    site.site_name + '</option>');
                             });
                         } else {
                             $siteSelect.append('<option value="">No sites found</option>');
                         }
-                        try { if ($siteSelect.hasClass('select2')) $siteSelect.trigger('change.select2'); else $siteSelect.trigger('change'); } catch (err) {}
+                        try {
+                            if ($siteSelect.hasClass('select2')) $siteSelect.trigger(
+                                'change.select2');
+                            else $siteSelect.trigger('change');
+                        } catch (err) {}
                     },
                     error: function(xhr, status, error) {
                         console.error('Fetch error:', error);
@@ -2058,15 +2141,20 @@ ${shift.note
             if (!$shiftGroup.length) $shiftGroup = $target.parents('.shift-group').first();
 
             // Find the site select within the same group, falling back to global
-            var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest('form').find('#siteSelect');
+            var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest('form').find(
+                '#siteSelect');
             if (!$siteSelect || !$siteSelect.length) $siteSelect = $('#siteSelect');
 
             // Reset options
             $siteSelect.html('<option value="">--choose--</option>');
 
             if (!clientId) {
-                try { $shiftGroup.find('.siteRate').val(''); } catch (err) {}
-                try { $siteSelect.trigger('change'); } catch (err) {}
+                try {
+                    $shiftGroup.find('.siteRate').val('');
+                } catch (err) {}
+                try {
+                    $siteSelect.trigger('change');
+                } catch (err) {}
                 return;
             }
 
@@ -2076,10 +2164,13 @@ ${shift.note
                 dataType: 'json',
                 success: function(data) {
                     console.debug('getClient response', data);
-                    try { $shiftGroup.find('.siteRate').val(data.client.office_rate || ''); } catch (err) {}
+                    try {
+                        $shiftGroup.find('.siteRate').val(data.client.office_rate || '');
+                    } catch (err) {}
                     if (data.sites && data.sites.length > 0) {
                         $.each(data.sites, function(index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                            $siteSelect.append('<option value="' + site.id + '">' + site
+                                .site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
@@ -2093,7 +2184,8 @@ ${shift.note
                         } else {
                             $siteSelect.trigger('change');
                         }
-                    } catch (err) { /* ignore */ }
+                    } catch (err) {
+                        /* ignore */ }
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
@@ -2198,7 +2290,11 @@ ${shift.note
                     if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, res.note);
                     // Force reload of shifts so the Gantt chart re-renders with authoritative data
                     if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
-                        try { window.loadAllShiftsData(); } catch (e) { console.debug('window.loadAllShiftsData failed', e); }
+                        try {
+                            window.loadAllShiftsData();
+                        } catch (e) {
+                            console.debug('window.loadAllShiftsData failed', e);
+                        }
                     } else {
                         console.debug('window.loadAllShiftsData not available yet');
                     }
@@ -2241,16 +2337,20 @@ ${shift.note
                         'success', // type
                         5000 // duration in ms
                     );
-            // update any view-note-icons for this shift-date id
-            // Update only the affected bar so we don't reload the whole chart
-            console.debug('Note delete success for shiftId=', shiftId);
-            if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, null);
-            // Force reload to ensure UI updates (safe, avoids full page refresh)
-            if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
-                try { window.loadAllShiftsData(); } catch (e) { console.debug('window.loadAllShiftsData failed', e); }
-            } else {
-                console.debug('window.loadAllShiftsData not available yet');
-            }
+                    // update any view-note-icons for this shift-date id
+                    // Update only the affected bar so we don't reload the whole chart
+                    console.debug('Note delete success for shiftId=', shiftId);
+                    if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, null);
+                    // Force reload to ensure UI updates (safe, avoids full page refresh)
+                    if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
+                        try {
+                            window.loadAllShiftsData();
+                        } catch (e) {
+                            console.debug('window.loadAllShiftsData failed', e);
+                        }
+                    } else {
+                        console.debug('window.loadAllShiftsData not available yet');
+                    }
                 },
                 error: function(xhr) {
                     $('#confirmDeleteModal').modal('hide');
@@ -2286,7 +2386,7 @@ ${shift.note
                             noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd');
                             noteIcon.html('📄');
                         }
-                        
+
                     } else {
                         // No note -> show inactive note-icon
                         if (viewIcon.length) {
@@ -2311,10 +2411,12 @@ ${shift.note
                         const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
 
                         if (hasNote) {
-                            if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                            if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color',
+                                '#0d6efd').html('📝');
                             if (viewIcon.length) viewIcon.css('color', '#0d6efd').html('📝');
                         } else {
-                            if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
+                            if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color',
+                                '#555').html('📝');
                             if (noteIcon.length) noteIcon.css('color', '#555').html('📝');
                         }
 
@@ -2324,7 +2426,8 @@ ${shift.note
                             // create appropriate icon span
                             const iconClass = hasNote ? 'view-note-icon' : 'note-icon';
                             const color = hasNote ? '#0d6efd' : '#555';
-                            const $icon = $(`<span class="${iconClass}" data-shift-id="${idStr}" style="color:${color}">📝</span>`);
+                            const $icon = $(
+                                `<span class="${iconClass}" data-shift-id="${idStr}" style="color:${color}">📝</span>`);
                             // append to bar
                             bar.append($icon);
 
@@ -2376,14 +2479,17 @@ ${shift.note
                     // resp expected to be { data: [...] } in some implementations
                     const payload = resp.data || resp.shift_dates || resp;
                     let found = null;
-                    if (Array.isArray(payload)) found = payload.find(s => String(s.id) === idStr || String(s.shift_id) === idStr);
-                    if (!found && resp.shift_dates && Array.isArray(resp.shift_dates)) found = resp.shift_dates.find(s => String(s.id) === idStr || String(s.shift_id) === idStr);
+                    if (Array.isArray(payload)) found = payload.find(s => String(s.id) === idStr || String(s
+                        .shift_id) === idStr);
+                    if (!found && resp.shift_dates && Array.isArray(resp.shift_dates)) found = resp.shift_dates
+                        .find(s => String(s.id) === idStr || String(s.shift_id) === idStr);
 
                     if (!found) return;
 
                     // Update local cache if present
                     if (window.allShiftsData && Array.isArray(window.allShiftsData)) {
-                        const idx = window.allShiftsData.findIndex(s => String(s.id) === idStr || String(s.shift_id) === idStr);
+                        const idx = window.allShiftsData.findIndex(s => String(s.id) === idStr || String(s
+                            .shift_id) === idStr);
                         if (idx !== -1) window.allShiftsData[idx] = found;
                     }
 
@@ -2392,10 +2498,12 @@ ${shift.note
                     const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
 
                     if (hasNote) {
-                        if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                        if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css(
+                            'color', '#0d6efd').html('📝');
                         if (viewIcon.length) viewIcon.css('color', '#0d6efd').html('📝');
                     } else {
-                        if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
+                        if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css(
+                            'color', '#555').html('📝');
                         if (noteIcon.length) noteIcon.css('color', '#555').html('📝');
                     }
                 });
@@ -2411,13 +2519,13 @@ ${shift.note
             function safeEscape(str) {
                 if (str === null || str === undefined) return '';
                 return String(str).replace(/[&<>"'`=\/]/g, function(s) {
-                    return ({
-                        '&': '&amp;',
-                        '<': '&lt;',
-                        '>': '&gt;',
-                        '"': '&quot;',
-                        "'": '&#39;',
-                        '`': '&#x60;',
+                return ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;',
+                    '`': '&#x60;',
                         '=': '&#x3D;',
                         '/': '&#x2F;'
                     })[s];
@@ -2426,7 +2534,8 @@ ${shift.note
             const idStr = String(shift.id || shift.shift_id || shift.shiftId);
             const subcontractorMatch = shift.staff_name ? shift.staff_name.match(/\(([^)]+)\)/) : null;
             const subcontractor = subcontractorMatch ? subcontractorMatch[0] : '';
-            const staffNameWithoutSub = subcontractorMatch ? shift.staff_name.replace(subcontractor, '').trim() : (shift.staff_name || '');
+            const staffNameWithoutSub = subcontractorMatch ? shift.staff_name.replace(subcontractor, '').trim() : (shift
+                .staff_name || '');
             const hasNote = !!(shift.note || (shift.note && shift.note.note));
 
             const $bar = $(`
@@ -2444,7 +2553,9 @@ ${shift.note
             `);
 
             // checkbox behavior
-            $bar.find('.multi-shift-checkbox').on('click', function(e) { e.stopPropagation(); });
+            $bar.find('.multi-shift-checkbox').on('click', function(e) {
+                e.stopPropagation();
+            });
 
             // icon handlers
             $bar.find('.note-icon').on('click', function(e) {
@@ -2482,7 +2593,9 @@ ${shift.note
                 if (!cell.length) return;
 
                 // find shifts for this site/date from cache
-                const shiftsForCell = (window.allShiftsData || []).filter(s => String(s.site_id || s.siteId) === String(siteId) && (s.start_date === dateStr || s.shift_date === dateStr || s.shift_date === dateStr || s.shift_date === dateStr));
+                const shiftsForCell = (window.allShiftsData || []).filter(s => String(s.site_id || s.siteId) === String(
+                    siteId) && (s.start_date === dateStr || s.shift_date === dateStr || s.shift_date === dateStr ||
+                    s.shift_date === dateStr));
 
                 cell.empty();
                 shiftsForCell.forEach(shift => {
