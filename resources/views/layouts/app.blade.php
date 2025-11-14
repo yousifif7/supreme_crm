@@ -423,19 +423,9 @@ document.addEventListener('click', () => {
     <script src="https://smarthr.co.in/demo/html/template/assets/plugins/fullcalendar/index.global.min.js"></script>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 
-
-
     <script src="{{ asset('assets/js/theme-colorpicker.js') }}" defer></script>
     <script src="{{ asset('assets/js/script.js') }}" defer></script>
     <script src="{{ asset('assets/toast/toast.js') }}" defer></script>
-
-    @php
-        $currentUser = auth()->user();
-    @endphp
-
-    @if ($currentUser->hasAnyRole('controller|staff_leader|control_room'))
-        <script src="{{ asset('assets/toast/alerts6.js') }}" defer></script>
-    @endif
     
     <script>
         const addShiftBtn = document.querySelector('.add-multiple-shifts_btn');

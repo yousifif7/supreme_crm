@@ -509,7 +509,10 @@ class ShiftController extends Controller
                     $numberOfCheckCalls = ceil($durationMinutes / 60);
                     // dd($durationMinutes, $numberOfCheckCalls);
 
-                    $start = Carbon::parse($date->format('Y-m-d') . ' ' . $data['start_shift']);
+                    // Use the persisted ShiftDate values to build per-day start times
+                    // This ensures checkcalls/patrols are scheduled for the specific
+                    // date that was saved for this ShiftDate (fixes multi-day shifts)
+                    $start = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
                     $site = Site::with('checkpoints')->find($shift->site_id);
 
@@ -522,9 +525,9 @@ class ShiftController extends Controller
                         if (request()->has('auto_checkcall_enabled') && request('auto_checkcall_enabled')) {
                             CheckCall::create([
                                 'shift_id'       => $shiftDate->id,
-                                'employee_id'       => $shiftDate->staff_id ?? null,
+                                'employee_id'    => $shiftDate->staff_id ?? null,
                                 'name'           => 'Auto CheckCall ' . ($n + 1),
-                                'scheduled_time' => $checkTime->format('Y-m-d H:i'),
+                                'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
                                 'status'         => 'pending',
                             ]);
                         }
@@ -533,7 +536,7 @@ class ShiftController extends Controller
                             'shift_id'              => $shiftDate->id,
                             'name'                  => 'Auto Patrol ' . ($n + 1),
                             'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
-                            'start_time'            => $patrolTime->format('Y-m-d H:i'),
+                            'start_time'            => $patrolTime->format('Y-m-d H:i:s'),
                             'status'                => 'pending',
                             'total_checkpoints'     => $totalCheckpoints,
                             'completed_checkpoints' => 0,
@@ -2226,24 +2229,30 @@ class ShiftController extends Controller
                 }
 
                 // Auto CheckCalls / Patrols
-                $startTime = Carbon::createFromFormat('H:i', $data['start_shift']);
-                $endTime   = Carbon::createFromFormat('H:i', $data['end_shift']);
-                $durationMinutes = ($endTime->diffInMinutes($startTime) + 1440) % 1440;
-                $durationMinutes = $durationMinutes ?: 1440; // handle exact 24h
+                $start = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+                $end   = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+
+                if ($end->lessThanOrEqualTo($start)) {
+                    $end->addDay();
+                }
+
+                $durationMinutes = $start->diffInMinutes($end);
+                $durationMinutes = $durationMinutes <= 0 ? 1440 : $durationMinutes;
                 $numberOfCheckCalls = ceil($durationMinutes / 60);
 
                 $site = Site::with('checkpoints')->find($shift->site_id);
                 $totalCheckpoints = $site->checkpoints->count() ?? 0;
 
                 for ($n = 0; $n < $numberOfCheckCalls; $n++) {
-                    $checkTime  = $startTime->copy()->addHours($n);
-                    $patrolTime = $startTime->copy()->addHours($n);
+                    $checkTime  = $start->copy()->addHours($n);
+                    $patrolTime = $start->copy()->addHours($n);
 
                     if ($request->has('auto_checkcall_enabled') && $request->auto_checkcall_enabled) {
                         CheckCall::create([
                             'shift_id' => $shiftDate->id,
+                            'employee_id' => $shiftDate->staff_id ?? null,
                             'name' => 'Auto CheckCall ' . ($n + 1),
-                            'scheduled_time' => $checkTime->format('Y-m-d H:i'),
+                            'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
                             'status' => 'pending',
                         ]);
                     }
@@ -2252,7 +2261,7 @@ class ShiftController extends Controller
                         'shift_id' => $shiftDate->id,
                         'name' => 'Auto Patrol ' . ($n + 1),
                         'summary' => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
-                        'start_time' => $patrolTime->format('Y-m-d H:i'),
+                        'start_time' => $patrolTime->format('Y-m-d H:i:s'),
                         'status' => 'pending',
                         'total_checkpoints' => $totalCheckpoints,
                         'completed_checkpoints' => 0,

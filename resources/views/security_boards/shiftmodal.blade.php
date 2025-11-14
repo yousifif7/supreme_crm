@@ -23,7 +23,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Client <span
                                                         class="text-danger">*</span></label>
-                                                <select name="client_id[]" class="form-select select2" id="clientSelect">
+                                                <select name="client_id[]" class="form-select select2_client" id="clientSelect">
                                                     <option value="">--choose--</option>
                                                     @foreach ($clients as $client)
                                                         <option value="{{ $client->id }}">
@@ -408,7 +408,14 @@
             dropdownParent: $('#add_shift'), // make sure this matches your modal ID
             minimumResultsForSearch: 0 // force search bar for single select
         });
+        
+        $('.select2_client').select2({
+            placeholder: "--choose--",
+            allowClear: true,
+            width: '100%',
+            dropdownParent: $('#add_shift'), // make sure this matches your modal ID
+            minimumResultsForSearch: 0 // force search bar for single select
+        });
     });
-
     
 </script>

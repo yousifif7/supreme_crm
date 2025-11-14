@@ -816,7 +816,9 @@
             document.body.appendChild(container);
         }
 
-        document.addEventListener('DOMContentLoaded', function() {
+            document.addEventListener('DOMContentLoaded', function() {
+                // Persist current filters so background refreshes don't reset user's view
+                window._ganttCurrentFilters = window._ganttCurrentFilters || {};
             function initDaySelector(shiftGroup) {
                 const dayBoxes = shiftGroup.querySelectorAll('.day-box');
                 const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
@@ -1259,7 +1261,9 @@
                 if (e.key === 'Enter') filterGanttChart($(this).val());
             });
 
-            function loadAllShiftsData(currentFilters = {}) {
+            function loadAllShiftsData(currentFilters = null) {
+                // Use persisted filters when caller doesn't provide any
+                const filtersToUse = currentFilters !== null ? currentFilters : (window._ganttCurrentFilters || {});
                 $('#ganttChart').html(
                     '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>'
                     );
@@ -1267,7 +1271,7 @@
                     url: `${baseUrl}/api/shifts`,
                     method: 'GET',
                     data: {
-                        ...currentFilters
+                        ...filtersToUse
                     },
                     success: function(response) {
                         // normalize payload: some endpoints return { data: [...] } others return array directly
@@ -1731,7 +1735,10 @@ ${shift.note
                     for (const [k, v] of formData.entries())
                         if (v) filters[k] = v;
 
-                    const filteredShifts = allShiftsData.filter(shift => {
+                        // Persist these filters so background reloads respect the user's selection
+                        window._ganttCurrentFilters = filters;
+
+                        const filteredShifts = allShiftsData.filter(shift => {
                         if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
                             return false;
                         if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters

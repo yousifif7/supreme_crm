@@ -19,7 +19,7 @@
                                          <div class="col-md-6 mb-3">
                                              <label class="form-label">Client Name <span
                                                      class="text-danger">*</span></label>
-                                             <select class="form-select select2 select-client" id="clientSelect"
+                                             <select class="form-select select2 select2_client" id="clientSelect"
                                                  name="client_id" style="height: 100px !important;">
                                                  <option value="">--choose--</option>
                                                  @foreach ($clients as $client)
@@ -375,6 +375,7 @@
      // =============================
      // DOM Ready + AJAX example
      // =============================
+
             $(document).ready(function() {
 
                 // Initialize map for create modal

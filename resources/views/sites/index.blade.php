@@ -346,28 +346,34 @@
         // a ReferenceError if called before initEditMap is defined.
         function initSiteMap() {
             var args = Array.prototype.slice.call(arguments);
-                // Prefer create map initializer if present
+            // Prefer create map initializer if present
+            if (typeof initCreateMap === 'function') {
+                return initCreateMap.apply(this, args);
+            }
+            if (typeof initEditMap === 'function') {
+                return initEditMap.apply(this, args);
+            }
+            // If neither is defined yet (script ordering), try again shortly.
+            setTimeout(function() {
                 if (typeof initCreateMap === 'function') {
-                    return initCreateMap.apply(this, args);
+                    initCreateMap.apply(this, args);
+                } else if (typeof initEditMap === 'function') {
+                    initEditMap.apply(this, args);
                 }
-                if (typeof initEditMap === 'function') {
-                    return initEditMap.apply(this, args);
-                }
-                // If neither is defined yet (script ordering), try again shortly.
-                setTimeout(function() {
-                    if (typeof initCreateMap === 'function') {
-                        initCreateMap.apply(this, args);
-                    } else if (typeof initEditMap === 'function') {
-                        initEditMap.apply(this, args);
-                    }
-                }, 50);
+            }, 50);
         }
 
+
         $(document).ready(function() {
-            $('.select-client').select2({
+            $('.select2_client').select2({
+                placeholder: "--choose--",
+                allowClear: true,
                 width: '100%',
+                dropdownParent: $('#add_site'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
             });
         });
+
         $(document).ready(function() {
 
             $(document).on("change", "#clientSelect", function() {
@@ -390,65 +396,66 @@
                 });
             });
 
-            $(document).ready(function() {
+            // $(document).ready(function() {
 
-                // Initialize map
-                initSiteMap();
+            //     // Initialize map
+            //     initSiteMap();
 
-                $('#add_site-form').on('submit', function(e) {
-                    e.preventDefault();
-                    $("[id^='error_']").text('');
+            //     $('#add_site-form').on('submit', function(e) {
+            //         e.preventDefault();
+            //         $("[id^='error_']").text('');
 
-                    const form = this;
-                    const formData = new FormData(form);
-                    const submitButton = $('#savesite');
-                    submitButton.prop('disabled', true).html('Saving...');
+            //         const form = this;
+            //         const formData = new FormData(form);
+            //         const submitButton = $('#savesite');
+            //         submitButton.prop('disabled', true).html('Saving...');
 
-                    if (typeof createSiteMarker !== 'undefined' && createSiteMarker) {
-                        const p = createSiteMarker.getLatLng();
-                        $('#latitude').val(p.lat);
-                        $('#longitude').val(p.lng);
-                    }
+            //         if (typeof createSiteMarker !== 'undefined' && createSiteMarker) {
+            //             const p = createSiteMarker.getLatLng();
+            //             $('#latitude').val(p.lat);
+            //             $('#longitude').val(p.lng);
+            //         }
 
-                    $.ajax({
-                        url: $(form).attr('action'),
-                        method: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        headers: {
-                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                        },
-                        success: function(response) {
-                            closeBsModal('#add_site');
-                            toast_success(response.message ||
-                                'Site created successfully');
-                            reloadDatatable('#sites-table');
-                        },
-                        error: function(xhr) {
-                            if (xhr.status === 422) {
-                                const errors = xhr.responseJSON.errors;
-                                $.each(errors, function(key, value) {
-                                    $('#error_' + key).text(value[0]);
-                                });
-                            } else {
-                                toast_danger('An error occurred. Please try again.');
-                            }
-                        },
-                        complete: function() {
-                            submitButton.prop('disabled', false).html('Save');
-                        }
-                    });
-                });
+            //         $.ajax({
+            //             url: $(form).attr('action'),
+            //             method: 'POST',
+            //             data: formData,
+            //             processData: false,
+            //             contentType: false,
+            //             headers: {
+            //                 'X-CSRF-TOKEN': $('input[name="_token"]').val()
+            //             },
+            //             success: function(response) {
+            //                 closeBsModal('#add_site');
+            //                 toast_success(response.message ||
+            //                     'Site created successfully');
+            //                 reloadDatatable('#sites-table');
+            //             },
+            //             error: function(xhr) {
+            //                 if (xhr.status === 422) {
+            //                     const errors = xhr.responseJSON.errors;
+            //                     $.each(errors, function(key, value) {
+            //                         $('#error_' + key).text(value[0]);
+            //                     });
+            //                 } else {
+            //                     toast_danger('An error occurred. Please try again.');
+            //                 }
+            //             },
+            //             complete: function() {
+            //                 submitButton.prop('disabled', false).html('Save');
+            //             }
+            //         });
+            //     });
 
-                // Optional: re-render map on modal show
-                $('#add_site').on('shown.bs.modal', function() {
-                    setTimeout(() => {
-                        if (typeof createMap !== 'undefined' && createMap) createMap.invalidateSize();
-                    }, 300);
-                });
-            });
-            
+            //     // Optional: re-render map on modal show
+            //     $('#add_site').on('shown.bs.modal', function() {
+            //         setTimeout(() => {
+            //             if (typeof createMap !== 'undefined' && createMap) createMap
+            //                 .invalidateSize();
+            //         }, 300);
+            //     });
+            // });
+
             $('#edit_site-form').on('submit', function(e) {
                 e.preventDefault();
 
@@ -497,7 +504,7 @@
 
         });
 
-    window.editSite = function(record_id) {
+        window.editSite = function(record_id) {
             $.get(`${baseUrl}/editsite/` + record_id, function(data) {
                 if (data.site) {
                     $('#site_id').val(data.site.id);
@@ -523,7 +530,8 @@
                     if (data.employee_types) {
                         data.employee_types.forEach(type => {
                             // Assuming checkbox: name="employee_types[]" value="type.id"
-                            $(`input[name="employee_types[]"][value="${type.id}"]`).prop('checked', true);
+                            $(`input[name="employee_types[]"][value="${type.id}"]`).prop('checked',
+                                true);
 
                             // Guard Rate field: name="employee_guard_rate[type.id]"
                             $(`input[name="employee_guard_rate[${type.id}]"]`).val(type.guard_rate);
@@ -548,7 +556,9 @@
                 setTimeout(function() {
                     if (typeof editMap !== 'undefined' && editMap) {
                         editMap.invalidateSize();
-                        try { editMap.setView([lat, lng], 13); } catch(e){}
+                        try {
+                            editMap.setView([lat, lng], 13);
+                        } catch (e) {}
                     }
                 }, 300);
             }
@@ -587,13 +597,13 @@
                 checkpointsHtml = `<ul class="list-group">`;
                 data.checkpoints.forEach(cp => {
                     checkpointsHtml += `
-                                                            <li class="list-group-item">
-                                                                <strong>${cp.name}</strong><br>
-                                                                Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
-                                                                QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
-                                                                Required: ${cp.required ? 'Yes' : 'No'}
-                                                            </li>
-                                                        `;
+                                                                <li class="list-group-item">
+                                                                    <strong>${cp.name}</strong><br>
+                                                                    Lat: ${cp.latitude ?? '-'} | Lng: ${cp.longitude ?? '-'}<br>
+                                                                    QR: ${cp.qr_code ?? '-'} | NFC: ${cp.nfc_tag ?? '-'}<br>
+                                                                    Required: ${cp.required ? 'Yes' : 'No'}
+                                                                </li>
+                                                            `;
                 });
                 checkpointsHtml += `</ul>`;
             } else {
@@ -641,13 +651,13 @@
             siteMarker.setLatLng([lat, lng]);
         }
 
-    $('#edit_latitude').val(lat);
-    $('#edit_longitude').val(lng);
+        $('#edit_latitude').val(lat);
+        $('#edit_longitude').val(lng);
 
-    // Reset old
-    checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
-    checkpointMarkers = [];
-    $('#edit_checkpointList').empty();
+        // Reset old
+        checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
+        checkpointMarkers = [];
+        $('#edit_checkpointList').empty();
 
         // Load checkpoints
         checkpoints.forEach(cp => {
@@ -668,32 +678,32 @@
             index
         });
 
-    let row = `
-                <tr id="edit_checkpoint_row_${index}">
-                                <td>
-                                    <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
-                                    <input type="text" class="form-control"
-                                           name="checkpoints[${index}][name]" 
-                                           value="${name}">
-                                </td>
-                                <td>
-                                    <input type="text" class="form-control" 
-                                           name="checkpoints[${index}][latitude]" 
-                                           value="${lat}" readonly>
-                                </td>
-                                <td>
-                                    <input type="text" class="form-control" 
-                                           name="checkpoints[${index}][longitude]" 
-                                           value="${lng}" readonly>
-                                </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-danger" 
-                                            onclick="removeCheckpoint(${index})">
-                                        Remove
-                                    </button>
-                                </td>
-                            </tr>
-                        `;
+        let row = `
+                    <tr id="edit_checkpoint_row_${index}">
+                                    <td>
+                                        <input type="hidden" name="checkpoints[${index}][id]" value="${id ?? ''}">
+                                        <input type="text" class="form-control"
+                                               name="checkpoints[${index}][name]" 
+                                               value="${name}">
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" 
+                                               name="checkpoints[${index}][latitude]" 
+                                               value="${lat}" readonly>
+                                    </td>
+                                    <td>
+                                        <input type="text" class="form-control" 
+                                               name="checkpoints[${index}][longitude]" 
+                                               value="${lng}" readonly>
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-danger" 
+                                                onclick="removeCheckpoint(${index})">
+                                            Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
         $('#edit_checkpointList').append(row);
 
         marker.on('dragend', function() {
@@ -786,11 +796,11 @@
                     data.logs.forEach(log => {
                         html +=
                             `<tr>
-                                                                                                                                                                                                                        <td>${log.user_name}</td>
-                                                                                                                                                                                                                        <td>${log.action}</td>
-                                                                                                                                                                                                                        <td>${log.description}</td>
-                                                                                                                                                                                                                        <td>${log.time}</td>
-                                                                                                                                                                                                                    </tr>`;
+                                                                                                                                                                                                                            <td>${log.user_name}</td>
+                                                                                                                                                                                                                            <td>${log.action}</td>
+                                                                                                                                                                                                                            <td>${log.description}</td>
+                                                                                                                                                                                                                            <td>${log.time}</td>
+                                                                                                                                                                                                                        </tr>`;
                         });
                         html += '</tbody></table>';
                         modalBody.innerHTML = html;
