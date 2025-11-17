@@ -1028,9 +1028,33 @@
                                         location.reload();
                                     },
                                     error: function(err) {
-                                        showToast(
-                                            'Failed to override shift. Try again.',
-                                            'error', 7000);
+                                        console.error('Override failed:', err);
+                                        let msg = 'Failed to override shift. Try again.';
+                                        try {
+                                            if (err && err.responseJSON) {
+                                                if (err.responseJSON.error) msg = err.responseJSON.error;
+                                                else if (err.responseJSON.message) msg = err.responseJSON.message;
+                                                else if (typeof err.responseJSON === 'string') msg = err.responseJSON;
+                                            } else if (err && err.responseText) {
+                                                try {
+                                                    const parsed = JSON.parse(err.responseText);
+                                                    if (parsed.error) msg = parsed.error;
+                                                    else if (parsed.message) msg = parsed.message;
+                                                } catch (e) {
+                                                    msg = err.responseText;
+                                                }
+                                            }
+                                        } catch (e) {
+                                            // ignore parsing errors
+                                        }
+
+                                        showToast(msg, 'error', 7000);
+
+                                        if (err && err.responseJSON && err.responseJSON.trace) {
+                                            console.debug('Override trace:', err.responseJSON.trace);
+                                        } else if (err && err.responseText) {
+                                            console.debug('Override responseText:', err.responseText);
+                                        }
                                     },
                                     complete: function() {
                                         submitButton.prop('disabled', false)

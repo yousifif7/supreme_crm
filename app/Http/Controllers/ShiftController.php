@@ -26,6 +26,7 @@ use Illuminate\Support\Facades\DB;
 use App\DataTables\ShiftsDataTable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Log;
 
 class ShiftController extends Controller
 {
@@ -168,6 +169,7 @@ class ShiftController extends Controller
 
     public function store(Request $request)
     {
+        try {
         $shiftCount = count($request->client_id);
 
         $documents = [
@@ -559,7 +561,7 @@ class ShiftController extends Controller
                         }
                     }
                 }
-                Logger::log(Auth::user(), 'Create', 'A Shift for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->date);
+                // Logger::log(Auth::user(), 'Create', 'A Shift for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->date);
             }
         }
 
@@ -569,6 +571,17 @@ class ShiftController extends Controller
                 'shiftDate' => $shiftDate->id,   // must match the {shiftDate} route param
             ])
         ]);
+        } catch (\Throwable $e) {
+            // Log full exception for diagnostics
+            \Log::error('ShiftController@store exception: ' . $e->getMessage(), ['exception' => $e]);
+
+            $payload = ['error' => $e->getMessage()];
+            if (config('app.debug')) {
+                $payload['trace'] = $e->getTraceAsString();
+            }
+
+            return response()->json($payload, 500);
+        }
     }
 
     public function edit($id)
@@ -2129,6 +2142,7 @@ class ShiftController extends Controller
 
     public function storeOverride(Request $request)
     {
+        try {
         $shiftCount = count($request->client_id);
 
         for ($i = 0; $i < $shiftCount; $i++) {
@@ -2275,5 +2289,15 @@ class ShiftController extends Controller
         return response()->json([
             'message' => 'Shifts overridden successfully!',
         ]);
+        } catch (\Throwable $e) {
+            \Log::error('ShiftController@storeOverride exception: ' . $e->getMessage(), ['exception' => $e]);
+
+            $payload = ['error' => $e->getMessage()];
+            if (config('app.debug')) {
+                $payload['trace'] = $e->getTraceAsString();
+            }
+
+            return response()->json($payload, 500);
+        }
     }
 }
