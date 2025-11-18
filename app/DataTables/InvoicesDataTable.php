@@ -67,6 +67,14 @@ class InvoicesDataTable extends DataTable
             ->addColumn('site_name', function ($row) {
                 return $row->site ? $row->site->site_name : '';
             })
+            ->editColumn('net_amount', function ($row) {
+                $amount = $row->net_amount ?? 0;
+                return '£' . number_format((float)$amount, 2);
+            })
+            ->editColumn('total_amount', function ($row) {
+                $amount = $row->total_amount ?? 0;
+                return '£' . number_format((float)$amount, 2);
+            })
             ->addColumn('action', function ($row) {
                 return view('invoices.action', compact('row'))->render();
             })
