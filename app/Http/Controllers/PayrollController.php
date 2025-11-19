@@ -46,8 +46,8 @@ class PayrollController extends Controller
             switch ($data['frequency']) {
                 case 'weekly':
                     // last full week (Mon–Sun)
-                    $startDate = $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY);
-                    $endDate   = $today->copy()->subWeek()->endOfWeek(Carbon::SUNDAY);
+                    $startDate = $today->copy()->subDays(7);
+                    $endDate   = $today;
                     break;
 
                 case 'fortnightly':
