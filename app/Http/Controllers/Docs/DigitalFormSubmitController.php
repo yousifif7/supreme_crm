@@ -76,7 +76,7 @@ public function form_detail(Request $request, $id)
 
     // Choose view based on header_status
     if ($digi->header_status == 1) {
-        return view('docs.client_detail.client_detail_table', compact('inputs', 'digi', 'perPage', 'searchQuery', 'createdAt'));
+        return view('docs.client_detail.client_detail', compact('inputs', 'digi', 'perPage', 'searchQuery', 'createdAt'));
     } else {
         return view('docs.client_detail.client_detail', compact('inputs', 'digi', 'perPage', 'searchQuery', 'createdAt'));
     }

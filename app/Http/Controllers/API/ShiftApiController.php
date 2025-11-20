@@ -945,36 +945,100 @@ class ShiftApiController extends Controller
         ]);
     }
 
-    public function calendar()
+    public function calendar(Request $request)
     {
         $userId = Auth::id();
+        $today  = now()->toDateString();
 
-        // Fetch shifts for this user
-        $shifts = ShiftDate::where('staff_id', $userId)
-            ->orderBy('shift_date')
-            ->get(['id', 'shift_date', 'start_time', 'end_time']);
+        // Eager-load trainings and site similar to getShifts but return ALL results (no pagination, no filters)
+        $shiftDates = ShiftDate::with([
+            'shift.site',
+            'trainings' => function ($q) use ($userId) {
+                $q->with(['acknowledgedUsers' => function ($q2) use ($userId) {
+                    $q2->where('user_id', $userId);
+                }]);
+            },
+        ])
+            ->where('staff_id', $userId)
+            ->orderBy('shift_date', 'desc')
+            ->get();
 
-        // Transform to calendar format
-        $calendarShifts = $shifts->map(function ($shift) {
-            $startDateTime = \Carbon\Carbon::parse($shift->shift_date . ' ' . $shift->start_time)->toIso8601String();
-            $endDateTime   = \Carbon\Carbon::parse($shift->shift_date . ' ' . $shift->end_time)->toIso8601String();
+        $transformed = $shiftDates->transform(function ($shiftDate) use ($today) {
+            $shift = $shiftDate->shift;
+            $site  = $shift?->site;
 
-            // Handle overnight shifts (end_time < start_time)
-            if (\Carbon\Carbon::parse($shift->end_time)->lt(\Carbon\Carbon::parse($shift->start_time))) {
-                $endDateTime = \Carbon\Carbon::parse($shift->shift_date)
-                    ->addDay()
-                    ->setTimeFromTimeString($shift->end_time)
-                    ->toIso8601String();
+            if ($shiftDate->shift_date < $today) {
+                $category = 'past';
+            } elseif ($shiftDate->shift_date == $today) {
+                $category = 'current';
+            } else {
+                $category = 'upcoming';
             }
 
+            $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
+
+            $trainings = $shiftDate->trainings->map(function ($training) {
+                $ack = $training->acknowledgedUsers->first();
+                $acknowledged = false;
+                $acknowledgedAt = null;
+                $completionSeconds = null;
+
+                if ($ack) {
+                    $acknowledged = !empty($ack->acknowledged_at);
+                    $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
+                    $completionSeconds = $ack->completion_time_seconds !== null
+                        ? (int) $ack->completion_time_seconds
+                        : null;
+                }
+
+                return [
+                    'id' => $training->id,
+                    'title' => $training->title,
+                    'description' => $training->description,
+                    'pdf_url' => $training->pdf_url,
+                    'content_url' => $training->content_url ?? null,
+                    'required' => (bool) ($training->required ?? false),
+                    'acknowledged' => $acknowledged,
+                    'acknowledged_at' => $acknowledgedAt,
+                    'completion_time_seconds' => $completionSeconds,
+                    'implementation_date' => $training->implementation_date,
+                    'complete_by_date' => $training->deadline,
+                    'acknowledge_by_date' => $training->acknowledge_by_date,
+                    'created_at' => $training->created_at,
+                    'updated_at' => $training->updated_at,
+                ];
+            });
+
             return [
-                'id'        => $shift->id,
-                'startTime' => $startDateTime,
-                'endTime'   => $endDateTime,
+                'id' => $shiftDate->id,
+                'shift_id' => $shiftDate->shift_id,
+                'site_id' => $site?->id,
+                'site_name' => $site?->site_name,
+                'site_address' => $site?->address,
+                'start_time' => $shiftDate->start_time,
+                'end_time' => $shiftDate->end_time,
+                'shift_date' => $shiftDate->shift_date,
+                'duties' => $shift?->duties,
+                'supervisor_name' => $shift?->supervisor_name,
+                'supervisor_contact' => $shift?->supervisor_contact,
+                'status' => $shiftDate->status,
+                'started_at' => $shiftDate->absentee_start_time,
+                'ended_at' => $shiftDate->absentee_end_time,
+                'briefing_pdf' => $shift?->briefing_pdf_url,
+                'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
+                'category' => $category,
+                'trainings' => $trainings,
+                'note' => ($note?->note_type === 'guard') ? [
+                    'id'        => $note->id,
+                    'note_type' => $note->note_type,
+                    'note'      => $note->note,
+                ] : null,
             ];
         });
 
-        return response()->json($calendarShifts);
+        return response()->json([
+            'shift_dates' => $transformed,
+        ]);
     }
 
     public function calculateSickPay(Employee $staff, Carbon $sickStart, Carbon $sickEnd, int $weeklyPay)
