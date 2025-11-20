@@ -130,8 +130,9 @@ class DobsDataTable extends DataTable
             Column::computed('user')->title('Guard'),
             Column::make('title')->title('Title'),
             Column::make('entry_type')->title('Type'),
+            Column::make('formatted_address')->title('Address'),
             Column::make('timestamp')->title('Timestamp'),
-            Column::computed('address')->title('Location'),
+            // Column::computed('address')->title('Location'),
             Column::computed('files')->title('Files')->orderable(false)->searchable(false),
             Column::computed('actions')->title('Actions')->exportable(false)->printable(false),
         ];

@@ -42,8 +42,33 @@ class IncidentReportsDataTable extends DataTable
             })
             ->editColumn('category', fn($report) => ucfirst(str_replace('_', ' ', $report->category)))
             ->editColumn('severity', fn($report) => ucfirst($report->severity))
-            ->editColumn('location', function ($report) {
-                return $report->formatted_address ?? 'N/A';
+            ->editColumn('formatted_address', function ($report) {
+                // Prefer the persisted DB value for formatted_address if present
+                $attrs = $report->getAttributes();
+                $rawPersisted = $attrs['formatted_address'] ?? null;
+
+                if ($rawPersisted) {
+                    // If stored as JSON string, try to decode to array then return human readable
+                    if (is_string($rawPersisted) && null !== ($decoded = @json_decode($rawPersisted, true))) {
+                        if (is_array($decoded)) {
+                            return $decoded['formatted_address'] ?? json_encode($decoded);
+                        }
+                    }
+                    return $rawPersisted;
+                }
+
+                // Fallback: location.address if present
+                $loc = $report->location ?? null;
+                if (is_array($loc) && !empty($loc['address'])) {
+                    return $loc['address'];
+                }
+
+                // Final fallback: model accessor (may compute via GeoService)
+                $addr = $report->formatted_address;
+                if (is_array($addr)) {
+                    return $addr['formatted_address'] ?? json_encode($addr);
+                }
+                return $addr ?: '-';
             })
             ->editColumn('police_notified', fn($report) => $report->police_notified ? 'Yes' : 'No')
             ->editColumn('status', function ($report) {
@@ -141,7 +166,7 @@ class IncidentReportsDataTable extends DataTable
             Column::make('title')->title('Title'),
             Column::make('category')->title('Category'),
             Column::make('severity')->title('Severity'),
-            Column::make('location')->title('Location')->orderable(false),
+            Column::make('formatted_address')->title('Address'),
             Column::make('police_notified')->title('Police Notified'),
             Column::make('status')->title('Status'),
             Column::make('files')->title('Files')->orderable(false)->searchable(false),

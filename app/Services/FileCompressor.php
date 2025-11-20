@@ -14,13 +14,52 @@ class FileCompressor
 
     public function __construct()
     {
-        // try to detect ffmpeg on the system
-        $this->ffmpegPath = trim(shell_exec('which ffmpeg 2>/dev/null')) ?: null;
-        if (empty($this->ffmpegPath)) {
-            // Windows fallback: try where
-            $win = trim(shell_exec('where ffmpeg 2>NUL'));
-            $this->ffmpegPath = $win ?: null;
+        // Try to detect ffmpeg in a safe way without relying on disabled shell functions.
+        // First, allow an explicit path through env/config (recommended for shared hosts).
+        $envPath = env('FFMPEG_PATH');
+        if (!empty($envPath) && is_executable($envPath)) {
+            $this->ffmpegPath = $envPath;
+            return;
         }
+
+        // Common unix paths
+        $candidates = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/bin/ffmpeg',
+        ];
+
+        // Common Windows paths
+        $candidates = array_merge($candidates, [
+            'C:\\ffmpeg\\bin\\ffmpeg.exe',
+            'C:\\Program Files\\ffmpeg\\bin\\ffmpeg.exe',
+        ]);
+
+        foreach ($candidates as $p) {
+            if (file_exists($p) && is_executable($p)) {
+                $this->ffmpegPath = $p;
+                return;
+            }
+        }
+
+        // Last-resort: if shell_exec/exec are available, try to use them quietly
+        if (function_exists('shell_exec')) {
+            $which = trim(@shell_exec('which ffmpeg 2>/dev/null'));
+            if (!empty($which) && is_executable($which)) {
+                $this->ffmpegPath = $which;
+                return;
+            }
+        }
+        if (function_exists('exec')) {
+            $out = null;
+            @exec('which ffmpeg 2>/dev/null', $out);
+            if (!empty($out[0]) && is_executable($out[0])) {
+                $this->ffmpegPath = $out[0];
+                return;
+            }
+        }
+
+        // if still not found, leave ffmpegPath null — video compression will be skipped
     }
 
     /**

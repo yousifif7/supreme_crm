@@ -49,10 +49,12 @@ class IncidentReport extends Model
 
                 if (!empty($location['latitude']) && !empty($location['longitude'])) {
                     $geo = app(GeoService::class);
-                    $incident->formatted_address = $geo->getAddressFromCoordinates(
+                    $geoResult = $geo->getAddressFromCoordinates(
                         $location['latitude'],
                         $location['longitude']
                     );
+                    // store only the human-readable formatted address (string) to avoid array=>string conversion
+                    $incident->formatted_address = is_array($geoResult) ? ($geoResult['formatted_address'] ?? null) : $geoResult;
                 }
             }
         });
@@ -65,8 +67,9 @@ class IncidentReport extends Model
             return $location['address'];
         }
         if (!empty($location['latitude']) && !empty($location['longitude'])) {
-            return app(GeoService::class)
+            $geoResult = app(GeoService::class)
                 ->getAddressFromCoordinates($location['latitude'], $location['longitude']);
+            return is_array($geoResult) ? ($geoResult['formatted_address'] ?? null) : $geoResult;
         }
         return null;
     }
