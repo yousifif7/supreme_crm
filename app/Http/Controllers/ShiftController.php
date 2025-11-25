@@ -31,6 +31,27 @@ use Illuminate\Support\Facades\Log;
 class ShiftController extends Controller
 {
 
+    /**
+     * Combine a date-like value with a time string into a Carbon instance.
+     * Ensures the date part is reduced to a YYYY-MM-DD string so concatenating
+     * a time does not accidentally produce double-time strings like
+     * "2025-11-26 00:00:00 00:00".
+     *
+     * @param  mixed  $dateVal
+     * @param  string $timeVal
+     * @return \Carbon\Carbon
+     */
+    protected function combineDateTime($dateVal, $timeVal)
+    {
+        try {
+            $dateOnly = Carbon::parse($dateVal)->toDateString();
+        } catch (\Exception $e) {
+            $dateOnly = (string) $dateVal;
+        }
+
+        return Carbon::parse(trim($dateOnly . ' ' . $timeVal));
+    }
+
 
     public function unassign(Request $request, $id)
     {
@@ -330,7 +351,14 @@ class ShiftController extends Controller
                     // Ensure $from and $start are valid
                     if (!empty($from) && !empty($start)) {
                         $shiftDateCarbon = \Carbon\Carbon::parse($from); // just the date part
-                        $newShiftStart   = \Carbon\Carbon::parse($from . ' ' . $start); // full datetime
+                        // Ensure $from is treated as a date (strip any time component) before appending start time
+                        try {
+                            $fromDateOnly = \Carbon\Carbon::parse($from)->toDateString();
+                            $newShiftStart   = \Carbon\Carbon::createFromFormat('Y-m-d H:i', $fromDateOnly . ' ' . $start);
+                        } catch (\Exception $e) {
+                            // Fallback: try a naive parse but let caller know if it fails later
+                            $newShiftStart   = \Carbon\Carbon::parse($from . ' ' . $start);
+                        }
 
                         // Get week start and end for that shift date
                         $weekStart = $shiftDateCarbon->copy()->startOfWeek(\Carbon\Carbon::MONDAY);
@@ -514,7 +542,7 @@ class ShiftController extends Controller
                     // Use the persisted ShiftDate values to build per-day start times
                     // This ensures checkcalls/patrols are scheduled for the specific
                     // date that was saved for this ShiftDate (fixes multi-day shifts)
-                    $start = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+                    $start = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
 
                     $site = Site::with('checkpoints')->find($shift->site_id);
 
@@ -1210,8 +1238,8 @@ class ShiftController extends Controller
                 $durationFormatted = sprintf('%d hr %02d min', $durationHours, $durationMinutes);
 
                 // Keep start/end on same day for display
-                $startDateTime = \Carbon\Carbon::parse($sd->shift_date . ' ' . $sd->start_time);
-                $endDateTime   = \Carbon\Carbon::parse($sd->shift_date . ' ' . $sd->end_time);
+                $startDateTime = $this->combineDateTime($sd->shift_date, $sd->start_time);
+                $endDateTime   = $this->combineDateTime($sd->shift_date, $sd->end_time);
 
                 $events[] = [
                     'title' => $shift->client->name ?? 'Unknown Client',
@@ -1375,7 +1403,7 @@ class ShiftController extends Controller
         $staff = Employee::findOrFail($staffUser->id);
 
         // ✅ Apply all restrictions (including 40hr/20hr student visa rule)
-        $newShiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+        $newShiftStart = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
 
         // ✅ Apply all restrictions (including 40hr, 20hr student visa, and 12hr rest rule)
         applyRestrictions(
@@ -1396,8 +1424,8 @@ class ShiftController extends Controller
         }
 
         // ✅ Overlapping check
-        $newStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
-        $newEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+        $newStart = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
+        $newEnd   = $this->combineDateTime($shiftDate->shift_date, $shiftDate->end_time);
 
         if ($newEnd->lte($newStart)) {
             $newEnd->addDay();
@@ -1754,8 +1782,8 @@ class ShiftController extends Controller
 
             // ====== 1️⃣ Check for approved leave ======
             if ($staffId) {
-                $shiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . ($request->start_times[$shiftId] ?? $shiftDate->start_time));
-                $shiftEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . ($request->end_times[$shiftId] ?? $shiftDate->end_time));
+                $shiftStart = $this->combineDateTime($shiftDate->shift_date, ($request->start_times[$shiftId] ?? $shiftDate->start_time));
+                $shiftEnd   = $this->combineDateTime($shiftDate->shift_date, ($request->end_times[$shiftId] ?? $shiftDate->end_time));
 
                 // Handle overnight shift
                 if ($shiftEnd->lte($shiftStart)) {
@@ -1790,8 +1818,8 @@ class ShiftController extends Controller
             $bookOn  = $request->book_on[$shiftId] ?? null;
             $bookOff = $request->book_off[$shiftId] ?? null;
 
-            $newShiftStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $newStart);
-            $newShiftEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $newEnd);
+            $newShiftStart = $this->combineDateTime($shiftDate->shift_date, $newStart);
+            $newShiftEnd   = $this->combineDateTime($shiftDate->shift_date, $newEnd);
             if ($newShiftEnd->lte($newShiftStart)) {
                 $newShiftEnd->addDay();
             }
@@ -1967,8 +1995,8 @@ class ShiftController extends Controller
 
         // ⚠ Skip restrictions entirely
         // ✅ Still enforce overlap check to avoid double booking
-        $newStart = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
-        $newEnd   = \Carbon\Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+        $newStart = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
+        $newEnd   = $this->combineDateTime($shiftDate->shift_date, $shiftDate->end_time);
 
         if ($newEnd->lte($newStart)) {
             $newEnd->addDay();
@@ -2243,8 +2271,14 @@ class ShiftController extends Controller
                 }
 
                 // Auto CheckCalls / Patrols
-                $start = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
-                $end   = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+                // Ensure we only use the date part of shift_date when appending times
+                try {
+                    $shiftDateOnly = Carbon::parse($shiftDate->shift_date)->toDateString();
+                } catch (\Exception $e) {
+                    $shiftDateOnly = (string) $shiftDate->shift_date;
+                }
+                $start = Carbon::parse($shiftDateOnly . ' ' . $shiftDate->start_time);
+                $end   = Carbon::parse($shiftDateOnly . ' ' . $shiftDate->end_time);
 
                 if ($end->lessThanOrEqualTo($start)) {
                     $end->addDay();

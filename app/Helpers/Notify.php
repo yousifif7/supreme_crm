@@ -29,6 +29,19 @@ if (!function_exists('notify_users')) {
             ]);
         }
     }
+
+        if (!function_exists('combine_date_time')) {
+            function combine_date_time($dateVal, $timeVal)
+            {
+                try {
+                    $dateOnly = \Carbon\Carbon::parse($dateVal)->toDateString();
+                } catch (\Exception $e) {
+                    $dateOnly = (string) $dateVal;
+                }
+
+                return \Carbon\Carbon::parse(trim($dateOnly . ' ' . $timeVal));
+            }
+        }
 }
 
 
@@ -109,8 +122,8 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
 
                     if ($lastShift) {
                         // Build last shift start and end
-                        $lastShiftStart = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->start_time);
-                        $lastShiftEnd   = \Carbon\Carbon::parse($lastShift->shift_date . ' ' . $lastShift->end_time);
+                        $lastShiftStart = combine_date_time($lastShift->shift_date, $lastShift->start_time);
+                        $lastShiftEnd   = combine_date_time($lastShift->shift_date, $lastShift->end_time);
 
                         // If shift crosses midnight (end <= start), add a day
                         if ($lastShiftEnd->lte($lastShiftStart)) {
@@ -155,8 +168,8 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                         $shiftHours = is_numeric($newShiftHours) ? (float) $newShiftHours : 0;
                         $shiftEnd = $newShiftStart->copy()->addHours($shiftHours);
 
-                        $availableStart = \Carbon\Carbon::parse($shiftDate . ' ' . $availability->start_time);
-                        $availableEnd   = \Carbon\Carbon::parse($shiftDate . ' ' . $availability->end_time);
+                        $availableStart = combine_date_time($shiftDate, $availability->start_time);
+                        $availableEnd   = combine_date_time($shiftDate, $availability->end_time);
 
                         // Handle overnight availability (end <= start)
                         if ($availableEnd->lte($availableStart)) {

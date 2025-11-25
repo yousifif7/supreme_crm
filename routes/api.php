@@ -101,6 +101,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/patrols/checkpoints/{checkpoint_id}/scan', [ShiftApiController::class, 'scanCheckpoint']);
     Route::post('/patrols/{patrol_id}/start', [ShiftApiController::class, 'startPatrol']);
     Route::post('/patrols/{patrol_id}/complete', [ShiftApiController::class, 'completePatrol']);
+    Route::get('/patrol/{patrol_id}', [ShiftApiController::class, 'patrolDetails']);
 });
 
 //DOB api controller routes

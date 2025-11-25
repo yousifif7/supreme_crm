@@ -675,6 +675,67 @@ class ShiftApiController extends Controller
         return response()->json(['patrols' => $patrols]);
     }
 
+    public function patrolDetails($id)
+    {
+        $patrol = Patrol::with('shift')->find($id);
+
+        if (!$patrol) {
+            return response()->json(['message' => 'Patrol not found'], 404);
+        }
+
+        // Try to resolve site_id from the related ShiftDate -> Shift -> site_id
+        $siteId = null;
+        if ($patrol->shift) {
+            // $patrol->shift is the ShiftDate relation; try to get the Shift -> site_id
+            $site = $patrol->shift->shift ?? null;
+            $siteId = $site->site_id ?? null;
+        }
+
+        // Fallback: if Patrol has site_id or direct relation (adjust if your model differs)
+        if (!$siteId && isset($patrol->site_id)) {
+            $siteId = $patrol->site_id;
+        }
+
+        $checkpoints = [];
+        if ($siteId) {
+            $checkpoints = PatrolCheckPoint::where('site_id', $siteId)->get();
+        }
+
+        $patrolData = [
+            'id' => $patrol->id,
+            'shift_id' => $patrol->shift_id,
+            'name' => $patrol->name,
+            'summary' => $patrol->summary ?? null,
+            'total_checkpoints' => (int) ($patrol->total_checkpoints ?? 0),
+            'completed_checkpoints' => (int) ($patrol->completed_checkpoints ?? 0),
+            'issues_reported' => (int) ($patrol->issues_reported ?? 0),
+            'completed_at' => $patrol->completed_at,
+            'start_time' => $patrol->start_time,
+            'status' => $patrol->status,
+            'started_at' => $patrol->started_at,
+            'created_at' => $patrol->created_at,
+            'updated_at' => $patrol->updated_at,
+            'checkpoints' => $checkpoints->map(function ($checkpoint) {
+                return [
+                    'id' => $checkpoint->id,
+                    'name' => $checkpoint->name,
+                    'qr_code' => $checkpoint->qr_code,
+                    'nfc_tag' => $checkpoint->nfc_tag,
+                    'location' => [
+                        'latitude' => $checkpoint->latitude,
+                        'longitude' => $checkpoint->longitude,
+                    ],
+                    'required' => (bool) $checkpoint->required,
+                ];
+            })->values(),
+        ];
+
+        return response()->json([
+            'patrol' => $patrolData,
+            'checkpoints' => $patrolData['checkpoints'],
+        ]);
+    }
+
     public function scanCheckpoint(Request $request, $checkpoint_id)
     {
         $request->validate([
