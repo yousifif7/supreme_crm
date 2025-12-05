@@ -46,31 +46,38 @@ class PayrollController extends Controller
             switch ($data['frequency']) {
                 case 'weekly':
                     // last full week (Mon–Sun)
-                    $startDate = $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY);
-                    $endDate   = $today->copy()->subWeek()->endOfWeek(Carbon::SUNDAY);
+                    $startDate = $today->copy()->subWeek()->startOfWeek(Carbon::MONDAY)->startOfDay();
+                    $endDate   = $today->copy()->subWeek()->endOfWeek(Carbon::SUNDAY)->endOfDay();
                     break;
 
                 case 'fortnightly':
-                    $startDate = $today->copy()->subWeeks(2);
-                    $endDate   = $today;
+                    $startDate = $today->copy()->subWeeks(2)->startOfDay();
+                    $endDate   = $today->copy()->endOfDay();
                     break;
 
                 case 'monthly':
-                    $startDate = $today->copy()->subDays(30);
-                    $endDate   = $today;
+                    $startDate = $today->copy()->subDays(30)->startOfDay();
+                    $endDate   = $today->copy()->endOfDay();
                     break;
             }
         } else {
-            $startDate = Carbon::parse($data['date_from'] ?? now());
-            $endDate   = Carbon::parse($data['date_to'] ?? now());
+            $startDate = Carbon::parse($data['date_from'] ?? now())->startOfDay();
+            $endDate   = Carbon::parse($data['date_to'] ?? now())->endOfDay();
         }
 
-        $staff = Employee::where('user_id', $data['security_staff_id'])->firstOrFail();
+        // Ensure the provided user id belongs to a security staff user
+        $user = User::find($data['security_staff_id']);
+        if (! $user || ! $user->hasRole('security_staff')) {
+            return response()->json(['error' => 'Selected user is not a security staff member.'], 422);
+        }
+
+        $staff = Employee::where('user_id', $user->id)->firstOrFail();
 
         // 🔹 Process leaves (SSP, Holiday, Unpaid) first so we can mark them and incorporate into totals
+        // Use date-only comparisons for leave periods (start_date likely stored as date)
         $leaves = LeaveRequest::where('user_id', $staff->user_id)
             ->where('status', 'approved')
-            ->whereBetween('start_date', [$startDate, $endDate])
+            ->whereBetween('start_date', [$startDate->toDateString(), $endDate->toDateString()])
             ->where('processed_by_payroll', false)
             ->get();
 
@@ -103,11 +110,12 @@ class PayrollController extends Controller
         }
 
         // Use InvoiceService to create invoice items and invoice for the staff (this populates items)
+        // Pass explicit date strings to avoid ambiguity inside the service
         $invoice = $calc->generateSecurityStaffInvoice(
             $data['security_staff_id'],
             $data['site_id'] ?? null,
-            $startDate,
-            $endDate,
+            $startDate->toDateString(),
+            $endDate->toDateString(),
             now()->addDays(15),
             $data['notes'] ?? null
         );
@@ -115,25 +123,35 @@ class PayrollController extends Controller
         // Now update invoice totals to include SSP/holiday/unpaid adjustments (if applicable)
         // Determine payroll rate from invoice.rate_per_hour
         $rate = $invoice->rate_per_hour ?? 0;
+
         // If holiday/unpaid placeholders exist, compute amounts based on rate
-        if ($holidayHours > 0) {
-            $holidayAmount = $holidayHours * $rate;
-        }
-        if ($unpaidHours > 0) {
-            $unpaidAmount = $unpaidHours * $rate;
-        }
+        // Defensive: treat incoming 'hours' values as hours; if they are days adjust accordingly
+        $holidayAmount = max(0, ($holidayHours ?: 0) * $rate);
+        $unpaidAmount = max(0, ($unpaidHours ?: 0) * $rate);
 
-        // Adjust invoice amounts and save
-        $invoice->ssp_amount = $sspAmount;
-        $invoice->ssp_days = $sspDays;
+        // Adjust invoice amounts and save (clamp to prevent negative totals)
+        $invoice->ssp_amount = max(0, $sspAmount);
+        $invoice->ssp_days = max(0, $sspDays);
         $invoice->holiday_amount = $holidayAmount;
-        $invoice->holiday_hours = $holidayHours;
+        $invoice->holiday_hours = max(0, $holidayHours);
         $invoice->unpaid_leave_amount = $unpaidAmount;
-        $invoice->unpaid_leave_hours = $unpaidHours;
+        $invoice->unpaid_leave_hours = max(0, $unpaidHours);
 
-        // Recalculate gross/net to include adjustments
-        $invoice->gross_amount = ($invoice->items->sum('amount') + $holidayAmount + $sspAmount - $unpaidAmount);
-        $invoice->net_amount = $invoice->gross_amount;
+        // Recalculate gross/net to include adjustments, defensively clamp negatives
+        $itemsSum = $invoice->items->sum('amount');
+        if ($itemsSum < 0) {
+            \Log::warning('Invoice items sum is negative', ['invoice_id' => $invoice->id, 'itemsSum' => $itemsSum]);
+            $itemsSum = 0;
+        }
+
+        $gross = $itemsSum + $holidayAmount + max(0, $invoice->ssp_amount) - $unpaidAmount;
+        if ($gross < 0) {
+            \Log::warning('Computed gross payroll is negative, clamping to zero', ['invoice_id' => $invoice->id, 'gross' => $gross]);
+            $gross = 0;
+        }
+
+        $invoice->gross_amount = $gross;
+        $invoice->net_amount = $gross;
         $invoice->save();
 
         send_push_notification(

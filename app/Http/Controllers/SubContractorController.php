@@ -11,11 +11,40 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
 use App\DataTables\SubcontractorsDataTable;
+use Illuminate\Support\Str;
 
 class SubContractorController extends Controller
 {
     public function index(SubcontractorsDataTable $dataTable)
     {
+        // $subcontractors = Subcontractor::all();
+
+        // foreach ($subcontractors as $s) {
+
+        //     $email = $s->email ?: Str::slug($s->company_name).'_'.$s->id.'@example.com';
+
+        //     $user = User::where('email', $email)
+        //                 ->orWhere('username', Str::slug($s->company_name).'_'.$s->id)
+        //                 ->first();
+
+        //     if (!$user) {
+        //         $user = User::create([
+        //             'name'       => $s->company_name,
+        //             'first_name' => $s->company_name,
+        //             'last_name'  => '',
+        //             'username'   => Str::slug($s->company_name).'_'.$s->id,
+        //             'email'      => $email,
+        //             'password'   => Hash::make('password'),
+        //         ]);
+
+        //         $user->assignRole('subcontractor');
+        //     }
+
+        //     $s->user_id = $user->id;
+        //     $s->email   = $user->email;
+        //     $s->save();
+        // }
+
         return $dataTable->render('subcontractors.index');
     }
     public function store(Request $request)

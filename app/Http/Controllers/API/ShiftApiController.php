@@ -237,7 +237,7 @@ class ShiftApiController extends Controller
 
         $totalDays   = $end->diffInDays($start) + 1;
         $hoursPerDay = $request->hours ?? 8;
-        $totalHours  = $totalDays * $hoursPerDay;
+        $totalHours  = max(0, $totalDays * $hoursPerDay);
 
         $paid          = false;
         $sspPaidDays   = 0;
@@ -245,41 +245,45 @@ class ShiftApiController extends Controller
         $unpaidHours   = 0;
 
         switch ($request->type) {
-            case 'sick_leave':
+                case 'sick_leave':
                 $weeklyPay = $employee->weekly_pay ?? 0;
                 $sickPay   = $this->calculateSickPay($employee, $start, $end, $weeklyPay);
 
                 $sspPaidDays = $sickPay['paid_days'];
-                $unpaidHours = $sickPay['unpaid_days'] * $hoursPerDay;
+                    $unpaidHours = max(0, ($sickPay['unpaid_days'] ?? 0) * $hoursPerDay);
                 $paid        = $sspPaidDays > 0;
                 break;
 
-            case 'annual_leave':
-                $holidayBalance = $employee->holiday_balance ?? 0; // in hours
-                if ($totalHours > $holidayBalance) {
-                    $holidayHours = $holidayBalance;
-                    $unpaidHours  = $totalHours - $holidayBalance;
-                    $paid = $holidayBalance > 0;
-                } else {
-                    $holidayHours = $totalHours;
-                    $paid = $holidayHours > 0;
-                }
+                case 'annual_leave':
+                    $holidayBalance = $employee->holiday_balance ?? 0; // in hours
+                    if ($totalHours > $holidayBalance) {
+                        $holidayHours = max(0, $holidayBalance);
+                        $unpaidHours  = max(0, $totalHours - $holidayBalance);
+                        $paid = $holidayBalance > 0;
+                    } else {
+                        $holidayHours = max(0, $totalHours);
+                        $paid = $holidayHours > 0;
+                    }
                 break;
 
-            case 'unpaid_leave':
-                $unpaidHours = $totalHours;
-                $paid = false;
+                case 'unpaid_leave':
+                    $unpaidHours = max(0, $totalHours);
+                    $paid = false;
                 break;
 
-            case 'other_leave':
-                $paid = $request->paid ?? false;
-                if ($paid) {
-                    $holidayHours = $totalHours;
-                } else {
-                    $unpaidHours = $totalHours;
-                }
+                case 'other_leave':
+                    $paid = $request->paid ?? false;
+                    if ($paid) {
+                        $holidayHours = max(0, $totalHours);
+                    } else {
+                        $unpaidHours = max(0, $totalHours);
+                    }
                 break;
         }
+        // Normalize and clamp values before storing
+        $unpaidHours = max(0, $unpaidHours ?? 0);
+        $holidayHours = max(0, $holidayHours ?? 0);
+        $sspPaidDays = max(0, $sspPaidDays ?? 0);
 
         $leave = LeaveRequest::create([
             'user_id'          => $user->id,
@@ -290,11 +294,11 @@ class ShiftApiController extends Controller
             'reason'           => $request->reason,
             'type'             => $request->type,
             'hours'            => $totalHours,
-            'approved_hours'   => $totalHours - $unpaidHours,
-            'paid'             => $paid,
+            'approved_hours'   => max(0, $totalHours - $unpaidHours),
+            'paid'             => (bool) $paid,
             'ssp_paid_days'    => $sspPaidDays,
             'holiday_days_used' => $holidayHours,
-            'unpaid_days'      => $unpaidHours / $hoursPerDay,
+            'unpaid_days'      => max(0, $unpaidHours / $hoursPerDay),
             'amount_paid'      => $sspPaidDays * 23.75,
             'status'           => 'pending',
         ]);
@@ -336,14 +340,14 @@ class ShiftApiController extends Controller
                 'reason'           => $l->reason,
                 'start_date'       => $l->start_date,
                 'end_date'         => $l->end_date,
-                'hours'            => $l->hours,
+                'hours'            => max(0, $l->hours ?? 0),
                 'reject_reason'    => $l->reject_reason,
-                'approved_hours'   => $l->approved_hours,
-                'paid'             => $l->paid,
-                'ssp_paid_days'    => $l->ssp_paid_days,
-                'holiday_days_used' => $l->holiday_days_used,
-                'unpaid_days'      => $l->unpaid_days,
-                'amount_paid'      => $l->amount_paid,
+                'approved_hours'   => max(0, $l->approved_hours ?? 0),
+                'paid'             => (bool) $l->paid,
+                'ssp_paid_days'    => max(0, $l->ssp_paid_days ?? 0),
+                'holiday_days_used' => max(0, $l->holiday_days_used ?? 0),
+                'unpaid_days'      => max(0, $l->unpaid_days ?? 0),
+                'amount_paid'      => max(0, $l->amount_paid ?? 0),
                 'created_at'       => $l->created_at,
                 'updated_at'       => $l->updated_at,
             ];
@@ -985,24 +989,26 @@ class ShiftApiController extends Controller
         $totalHolidayHours = $employee->holiday_balance ?? 0;
 
         // Sum of approved hours for all annual leaves
-        $usedHours = LeaveRequest::where('employee_id', $employee->id)
+        $leaves = LeaveRequest::where('employee_id', $employee->id)
             ->whereIn('status', ['approved', 'completed'])
-            ->sum('approved_hours');
+            ->get(['hours', 'approved_hours']);
+
+        $usedHours = $leaves->sum(function ($l) { return max(0, $l->approved_hours ?? 0); });
 
         // Available hours cannot be negative
-        $availableHours = max($totalHolidayHours - $usedHours, 0);
+        $availableHours = max(0, $totalHolidayHours - $usedHours);
 
-        // Unpaid hours (if a leave requested more than balance)
-        $unpaidHours = LeaveRequest::where('employee_id', $employee->id)
-            ->whereIn('status', ['approved', 'completed'])
-            ->sum(\DB::raw('hours - approved_hours'));
+        // Unpaid hours (per-leave max(0, hours - approved_hours))
+        $unpaidHours = $leaves->sum(function ($l) {
+            return max(0, ($l->hours ?? 0) - ($l->approved_hours ?? 0));
+        });
 
         return response()->json([
             'user_id'     => $user->id,
             'total_hours'     => $totalHolidayHours,
             'used_hours'      => $usedHours,
             'available_hours' => $availableHours,
-            'unpaid_hours'    => max($unpaidHours, 0),
+            'unpaid_hours'    => max(0, $unpaidHours),
         ]);
     }
 

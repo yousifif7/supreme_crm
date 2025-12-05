@@ -314,15 +314,13 @@
 
                            <div class="col-md-4 mb-3">
                                <label class="form-label" for="subcontractor">Subcontractor</label>
-                               <select class="form-select" name="subcontractor" id="subcontractor">
-                                   <option value="AWS SERVICES LTD">AWS SERVICES LTD</option>
-                                   <option value="GOOD HANDS LTD">GOOD HANDS LTD</option>
-                                   <option value="TOTAL PROTECTION SERVICES LTD">TOTAL PROTECTION SERVICES
-                                       LTD
-                                   </option>
-                                   <option value="MASSEC PROTECT LTD">MASSEC PROTECT LTD</option>
-                                   <option value="XL STRATEGY SERVICES LTD">XL STRATEGY SERVICES LTD</option>
-                               </select>
+                              <select class="form-select" name="subcontractor" id="subcontractor">
+                                  <option>----Select Subcontractor----</option>
+                                  @foreach ($subcontractors as $subcontractor)
+                                      <option value="{{ $subcontractor->id }}">
+                                          {{ $subcontractor->name }}</option>
+                                  @endforeach
+                              </select>
                            </div>
 
                            <div class="col-md-4 mb-3 d-flex align-items-end">

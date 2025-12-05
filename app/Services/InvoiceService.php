@@ -17,13 +17,22 @@ class InvoiceService
 {
     public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null, $frequency = null)
     {
+        // Normalize and validate dates to Y-m-d strings
+        $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->toDateString() : Carbon::today()->toDateString();
+        $dateTo = $dateTo ? Carbon::parse($dateTo)->toDateString() : Carbon::today()->toDateString();
+
+        if (Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
+            throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
+        }
+
         $client = Client::where('user_id', $clientId)->first();
         $shift = Shift::where('client_id', $clientId)
             ->where('site_id', $siteId)
             ->firstOrFail();
 
         $shiftDates = ShiftDate::where('shift_id', $shift->id)
-            ->whereBetween('shift_date', [$dateFrom, $dateTo])
+            ->whereDate('shift_date', '>=', $dateFrom)
+            ->whereDate('shift_date', '<=', $dateTo)
             ->orderBy('shift_date')
             ->get();
 
@@ -87,6 +96,13 @@ class InvoiceService
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Client not found');
         }
 
+        // Normalize and validate dates
+        $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->toDateString() : Carbon::today()->toDateString();
+        $dateTo = $dateTo ? Carbon::parse($dateTo)->toDateString() : Carbon::today()->toDateString();
+        if (Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
+            throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
+        }
+
         if (empty($siteIds)) {
             $siteIds = Site::where('client_id', $clientId)->pluck('id')->toArray();
         }
@@ -108,7 +124,8 @@ class InvoiceService
             }
 
             $shiftDates = ShiftDate::where('shift_id', $shift->id)
-                ->whereBetween('shift_date', [$dateFrom, $dateTo])
+                ->whereDate('shift_date', '>=', $dateFrom)
+                ->whereDate('shift_date', '<=', $dateTo)
                 ->orderBy('shift_date')
                 ->get();
 
@@ -166,18 +183,23 @@ class InvoiceService
     {
         $subcontractor = User::findOrFail($subcontractorId);
 
-        // Get all shifts managed by this subcontractor
-        $shifts = Shift::with([
-            'shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId) {
-                $q->when($subcontractorId, function ($query) use ($subcontractorId) {
-                    $query->whereHas('staff.employee', function ($q) use ($subcontractorId) {
-                        $q->where('subcontractor', $subcontractorId);
-                    });
-                });
+        // Normalize dates
+        $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->toDateString() : Carbon::today()->toDateString();
+        $dateTo = $dateTo ? Carbon::parse($dateTo)->toDateString() : Carbon::today()->toDateString();
+        if (Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
+            throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
+        }
 
-                $q->whereBetween('shift_date', [$dateFrom, $dateTo]);
-            }
-        ])->get();
+        // Get all shifts managed by this subcontractor
+        $shifts = Shift::with(['shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId) {
+            $q->when($subcontractorId, function ($query) use ($subcontractorId) {
+                $query->whereHas('staff.employee', function ($q) use ($subcontractorId) {
+                    $q->where('subcontractor', $subcontractorId);
+                });
+            });
+
+            $q->whereDate('shift_date', '>=', $dateFrom)->whereDate('shift_date', '<=', $dateTo);
+        }])->get();
 
 
 
@@ -223,8 +245,16 @@ class InvoiceService
     {
         $staff = User::findOrFail($staffId);
 
+        // Normalize and validate dates to Y-m-d
+        $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->toDateString() : Carbon::today()->toDateString();
+        $dateTo = $dateTo ? Carbon::parse($dateTo)->toDateString() : Carbon::today()->toDateString();
+        if (Carbon::parse($dateFrom)->gt(Carbon::parse($dateTo))) {
+            throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
+        }
+
         $shiftDatesQuery = ShiftDate::where('staff_id', $staffId)
-            ->whereBetween('shift_date', [$dateFrom, $dateTo])
+            ->whereDate('shift_date', '>=', $dateFrom)
+            ->whereDate('shift_date', '<=', $dateTo)
             ->with('shift.site');
 
         if (!empty($site_id)) {
@@ -365,7 +395,8 @@ class InvoiceService
 
         // 1️⃣ Get all relevant shifts for this staff
         $shiftDatesQuery = ShiftDate::where('staff_id', $staff->user_id)
-            ->whereBetween('shift_date', [$startDate, $endDate]);
+            ->whereDate('shift_date', '>=', $startDate->toDateString())
+            ->whereDate('shift_date', '<=', $endDate->toDateString());
 
         if ($siteId) {
             $shiftDatesQuery->whereHas('shift', fn($q) => $q->where('site_id', $siteId));
@@ -453,15 +484,16 @@ class InvoiceService
                     break;
 
                 case 'holiday':
-                    $requestedHours = $leaveStart->diffInHours($leaveEnd) + 8; // include last day
+                    // Use days * 8 to compute whole-day leave rather than diffInHours which may misbehave with datetimes
+                    $requestedHours = (int) ($leaveStart->diffInDays($leaveEnd) + 1) * 8;
                     $earnedHoliday = $staff->holiday_balance ?? 0;
 
                     $paidHours = min($requestedHours, $earnedHoliday);
                     $unpaidHoursLeave = max(0, $requestedHours - $earnedHoliday);
 
-                    $holidayHours += $paidHours;
-                    $holidayAmount += $paidHours * $rate;
-                    $deductions += $unpaidHoursLeave * $rate;
+                    $holidayHours += max(0, $paidHours);
+                    $holidayAmount += max(0, $paidHours * $rate);
+                    $deductions += max(0, $unpaidHoursLeave * $rate);
 
                     // Update holiday balance
                     $staff->holiday_balance = max(0, $earnedHoliday - $paidHours);
@@ -469,14 +501,16 @@ class InvoiceService
                     break;
 
                 case 'unpaid':
-                    $hours = $leaveStart->diffInHours($leaveEnd) + 8;
+                    $hours = (int) ($leaveStart->diffInDays($leaveEnd) + 1) * 8;
+                    $hours = max(0, $hours);
                     $unpaidHours += $hours;
                     $unpaidAmount += $hours * $rate;
                     $deductions += $hours * $rate;
                     break;
 
                 case 'other':
-                    $hours = $leaveStart->diffInHours($leaveEnd) + 8;
+                    $hours = (int) ($leaveStart->diffInDays($leaveEnd) + 1) * 8;
+                    $hours = max(0, $hours);
                     if ($leave->paid) {
                         $holidayHours += $hours;
                         $holidayAmount += $hours * $rate;

@@ -323,6 +323,7 @@
                           <div class="col-md-4 mb-3">
                               <label class="form-label">Subcontractor</label>
                               <select class="form-select" name="subcontractor">
+                                  <option>----Select Subcontractor----</option>
                                   @foreach ($subcontractors as $subcontractor)
                                       <option value="{{ $subcontractor->id }}">
                                           {{ $subcontractor->name }}</option>
