@@ -169,7 +169,7 @@
                         <!-- /Horizontal Single -->
                         @php
                             $notifications = \App\Models\Notification::where('user_id', 1)
-                                ->orderBy('created_at', 'desc')->limit(10)
+                                ->orderBy('created_at', 'desc')->limit(25)
                                 ->get();
                         @endphp
                         <div class="d-flex align-items-center">
@@ -335,6 +335,45 @@
     </div>
     <!-- /Main Wrapper -->
 
+    <!-- Profile Change Request Modal -->
+    <div class="modal fade" id="profileChangeModal" tabindex="-1" aria-labelledby="profileChangeModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="profileChangeModalLabel">Profile Change Request</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="pc_request_id" value="" />
+                    <div class="mb-2"><strong>Full name:</strong> <span id="pc_fullname"></span></div>
+                    <div class="mb-2"><strong>Current email:</strong> <span id="pc_old_email"></span></div>
+                    <div class="mb-2"><strong>Requested email:</strong> <span id="pc_new_email"></span></div>
+                    <div class="mb-2 text-muted small"><strong>Requested:</strong> <span id="pc_timestamp"></span></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-danger" id="denyRequestBtn">Deny</button>
+                    <button type="button" class="btn btn-success" id="approveRequestBtn">Approve</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Action Modal -->
+    <div class="modal fade" id="confirmActionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-sm modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <p id="confirmActionText">Are you sure?</p>
+                    <div class="text-end">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="button" class="btn btn-primary" id="confirmActionYesBtn">Yes</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- jQuery -->
     <script>
         let soundUnlocked = false;
@@ -489,20 +528,33 @@ document.addEventListener('click', () => {
                 link.addEventListener('click', async function(e) {
                     e.preventDefault();
                     const id = this.dataset.id;
+                    const href = this.href || '';
+                    const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
 
                     try {
-                        await fetch(`/api/notifications/${id}/read`, {
+                        await fetch(`/notifications/${id}/read`, {
                             method: 'POST',
                             headers: {
                                 'Accept': 'application/json',
-                                'Content-Type': 'application/json'
+                                'Content-Type': 'application/json',
+                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                             },
-                            credentials: 'include'
+                            credentials: 'same-origin'
                         });
 
-                        window.location.href = this.href;
+                        if (m) {
+                            // open modal instead of navigating to a web route
+                            openProfileChangeModal(m[1]);
+                        } else {
+                            window.location.href = this.href;
+                        }
                     } catch (err) {
                         console.error('Failed to mark as read:', err);
+                        if (m) {
+                            openProfileChangeModal(m[1]);
+                        } else {
+                            window.location.href = this.href;
+                        }
                     }
                 });
             });
@@ -601,21 +653,334 @@ document.addEventListener('click', () => {
             });
         });
 
+        // Poll notifications API every 1 minute and update bell + dropdown without reloading
+        (function setupNotificationPoller() {
+            const POLL_INTERVAL_MS = 60 * 1000; // 1 minute
+
+            async function fetchNotifications() {
+                try {
+                    const res = await fetch('/notifications/json?limit=25', {
+                        credentials: 'same-origin',
+                        headers: { 'Accept': 'application/json' }
+                    });
+
+                    if (!res.ok) return;
+                    const data = await res.json();
+
+                    // Expect data.notifications as array
+                    const notifications = data.notifications || [];
+                    const unreadCount = notifications.filter(n => !n.read).length;
+
+                    // --- Persistent seen/toasted logic (localStorage) ---
+                    const SEEN_KEY = 'seenNotificationIds_v1';
+                    const TOASTED_KEY = 'toastedNotificationIds_v1';
+                    // Load sets from storage safely
+                    let seenArr = [];
+                    let toastedArr = [];
+                    try { seenArr = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); } catch (e) { seenArr = []; }
+                    try { toastedArr = JSON.parse(localStorage.getItem(TOASTED_KEY) || '[]'); } catch (e) { toastedArr = []; }
+                    const seenIds = new Set(Array.isArray(seenArr) ? seenArr : []);
+                    const toastedIds = new Set(Array.isArray(toastedArr) ? toastedArr : []);
+
+                    window._activeNotificationToasts = window._activeNotificationToasts || [];
+                    const MAX_TOASTS = 5;
+
+                    // Determine whether this is the initial poll since page load
+                    const isInitialFetch = (window._notificationInitialFetch === undefined);
+
+                    // Compute notifications IDs
+                    const currentIds = (notifications || []).map(n => n.id);
+
+                    if (isInitialFetch) {
+                        // On first load: treat existing notifications as 'seen' (so they won't toast)
+                        currentIds.forEach(id => seenIds.add(id));
+                        // Persist seen IDs so reloads won't re-toast these
+                        try {
+                            // Keep size bounded: keep last 500 entries
+                            let arr = Array.from(seenIds);
+                            if (arr.length > 500) arr = arr.slice(arr.length - 500);
+                            localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
+                        } catch (e) {
+                            console.warn('Failed to persist seen IDs', e);
+                        }
+                        // mark initial fetch done
+                        window._notificationInitialFetch = false;
+                    } else {
+                        // Identify newly-arrived notifications compared to seenIds
+                        const newNotifications = notifications.filter(n => !seenIds.has(n.id));
+
+                        if (newNotifications.length > 0) {
+                            // Number of toast slots available
+                            const availableSlots = Math.max(0, MAX_TOASTS - window._activeNotificationToasts.length);
+                            const toDisplay = newNotifications.filter(n => !toastedIds.has(n.id)).slice(0, availableSlots);
+
+                            toDisplay.forEach(n => {
+                                try {
+                                    // Configure toastr for top-right, 5s
+                                    toastr.options = toastr.options || {};
+                                    toastr.options.positionClass = 'toast-top-right';
+                                    toastr.options.timeOut = 5000;
+                                    toastr.options.extendedTimeOut = 1000;
+                                    toastr.options.closeButton = true;
+
+                                    const title = n.title ? (n.title + ':') : '';
+                                    toastr.info(title + ' ' + (n.message || ''), 'New notification');
+
+                                    // Track active toast id to limit concurrents
+                                    window._activeNotificationToasts.push(n.id);
+                                    // Remove id after toast duration + small buffer
+                                    setTimeout(() => {
+                                        const idx = window._activeNotificationToasts.indexOf(n.id);
+                                        if (idx > -1) window._activeNotificationToasts.splice(idx, 1);
+                                    }, 5500);
+
+                                    // Mark as toasted and seen (persist)
+                                    toastedIds.add(n.id);
+                                    seenIds.add(n.id);
+                                } catch (e) {
+                                    console.warn('Toast failed', e);
+                                }
+                            });
+
+                            // Persist toasted and seen IDs (bounded)
+                            try {
+                                let tArr = Array.from(toastedIds);
+                                if (tArr.length > 1000) tArr = tArr.slice(tArr.length - 1000);
+                                localStorage.setItem(TOASTED_KEY, JSON.stringify(tArr));
+
+                                let sArr = Array.from(seenIds);
+                                if (sArr.length > 1000) sArr = sArr.slice(sArr.length - 1000);
+                                localStorage.setItem(SEEN_KEY, JSON.stringify(sArr));
+                            } catch (e) {
+                                console.warn('Failed to persist toast/seen IDs', e);
+                            }
+                        }
+                    }
+
+                    // Update badge
+                    const badge = document.querySelector('#notificationBell .text-danger') || document.querySelector('#notificationBell span.text-danger');
+                    if (badge) {
+                        badge.textContent = unreadCount;
+                    } else {
+                        // create badge if missing
+                        const bell = document.getElementById('notificationBell');
+                        if (bell) {
+                            const span = document.createElement('span');
+                            span.className = 'text-danger';
+                            span.style.marginLeft = '4px';
+                            span.textContent = unreadCount;
+                            bell.appendChild(span);
+                        }
+                    }
+
+                    // Update dropdown list (replace contents of #notif-list)
+                    const list = document.getElementById('notif-list');
+                    if (list) {
+                        list.innerHTML = '';
+                        if (notifications.length === 0) {
+                            list.innerHTML = '<p class="text-muted">No new notifications</p>';
+                        } else {
+                            notifications.forEach(n => {
+                                    const item = document.createElement('div');
+                                    var itemClass = 'notif-item border-bottom mb-3 pb-3 d-flex align-items-start ' + (n.read ? 'read' : 'unread');
+                                    item.className = itemClass;
+
+                                if (!n.read) {
+                                    const cb = document.createElement('input');
+                                    cb.type = 'checkbox';
+                                    cb.className = 'form-check-input me-2 notif-checkbox';
+                                    cb.name = 'ids[]';
+                                    cb.value = n.id;
+                                    item.appendChild(cb);
+                                }
+
+                                const a = document.createElement('a');
+                                a.href = n.action_url || '#';
+                                a.className = 'notification-link flex-grow-1';
+                                a.dataset.id = n.id;
+
+                                a.innerHTML = '<div class="d-flex"><div><p class="mb-1"><span class="fw-semibold"><b>' + (n.title || '') + ':</b></span> ' + (n.message || '') + '</p><span class="text-muted small">' + (new Date(n.created_at).toLocaleString()) + '</span></div></div>';
+
+                                // clicking should mark read and navigate — attach handler
+                                a.addEventListener('click', async function (e) {
+                                    e.preventDefault();
+                                    const id = this.dataset.id;
+                                    const href = this.href || '';
+                                    const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
+                                    try {
+                                        await fetch(`/notifications/${id}/read`, {
+                                            method: 'POST',
+                                            headers: {
+                                                'Accept': 'application/json',
+                                                'Content-Type': 'application/json',
+                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                            },
+                                            credentials: 'same-origin'
+                                        });
+                                    } catch (err) {
+                                        console.warn('Failed to mark notif read', err);
+                                    }
+                                    if (m) {
+                                        openProfileChangeModal(m[1]);
+                                    } else {
+                                        window.location.href = this.href;
+                                    }
+                                });
+
+                                item.appendChild(a);
+                                list.appendChild(item);
+                            });
+                        }
+                    }
+
+                    // Update notif count in header
+                    const countSpan = document.getElementById('notif-count');
+                    if (countSpan) countSpan.textContent = unreadCount;
+
+                } catch (err) {
+                    console.error('Notification poller error', err);
+                }
+            }
+
+            // expose for other code to trigger a manual refresh after actions
+            window.fetchNotifications = fetchNotifications;
+
+            // Initial fetch shortly after load
+            setTimeout(fetchNotifications, 2000);
+            // Periodic polling
+            setInterval(fetchNotifications, POLL_INTERVAL_MS);
+        })();
+
+        // Helper to open profile change request modal
+        async function openProfileChangeModal(id) {
+            try {
+                const res = await fetch('/api/admin/profile-change-requests/' + id, {
+                    credentials: 'include',
+                    headers: { 'Accept': 'application/json' }
+                });
+                if (!res.ok) throw new Error('Failed to load request');
+                const data = await res.json();
+                const req = data.request;
+                document.getElementById('pc_request_id').value = req.id;
+                document.getElementById('pc_fullname').textContent = (req.user?.first_name || '') + ' ' + (req.user?.last_name || '');
+                document.getElementById('pc_old_email').textContent = req.old_email || '';
+                document.getElementById('pc_new_email').textContent = req.requested_email || '';
+                document.getElementById('pc_timestamp').textContent = new Date(req.created_at).toLocaleString();
+
+                const modalEl = document.getElementById('profileChangeModal');
+                const bsModal = new bootstrap.Modal(modalEl);
+                bsModal.show();
+            } catch (err) {
+                console.error('Failed to open request modal', err);
+                toastr.error('Failed to load request details');
+            }
+        }
+
+        // Delegated click handler for notification links that point to profile-change requests
+        document.addEventListener('click', function(e) {
+            const target = e.target.closest && e.target.closest('.notification-link');
+            if (!target) return;
+            const href = target.getAttribute('href') || '';
+            const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
+            if (m) {
+                // prevent default behavior and open modal
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                const id = m[1];
+                openProfileChangeModal(id);
+            }
+        });
+
+        // Approve / Deny flow
+        let pendingAction = null; // {type: 'approve'|'deny', id}
+        document.getElementById('approveRequestBtn')?.addEventListener('click', function() {
+            pendingAction = { type: 'approve', id: document.getElementById('pc_request_id').value };
+            document.getElementById('confirmActionText').textContent = 'Approve this profile change request?';
+            new bootstrap.Modal(document.getElementById('confirmActionModal')).show();
+        });
+
+        document.getElementById('denyRequestBtn')?.addEventListener('click', function() {
+            pendingAction = { type: 'deny', id: document.getElementById('pc_request_id').value };
+            document.getElementById('confirmActionText').textContent = 'Deny this profile change request?';
+            new bootstrap.Modal(document.getElementById('confirmActionModal')).show();
+        });
+
+        document.getElementById('confirmActionYesBtn')?.addEventListener('click', async function() {
+            if (!pendingAction) return;
+            const id = pendingAction.id;
+            const type = pendingAction.type;
+            const csrf = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            try {
+                const res = await fetch('/api/admin/profile-change-requests/' + id + (type === 'approve' ? '/approve' : '/deny'), {
+                    method: 'POST',
+                    credentials: 'include',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrf
+                    },
+                    body: JSON.stringify({})
+                });
+
+                const json = await res.json();
+                if (!res.ok) {
+                    throw new Error(json.message || 'Action failed');
+                }
+
+                // Attempt to hide both modals reliably
+                try {
+                    const confirmEl = document.getElementById('confirmActionModal');
+                    const profileEl = document.getElementById('profileChangeModal');
+                    const confirmInst = bootstrap.Modal.getOrCreateInstance(confirmEl);
+                    const profileInst = bootstrap.Modal.getOrCreateInstance(profileEl);
+                    confirmInst.hide();
+                    profileInst.hide();
+                } catch (e) {
+                    console.warn('Modal hide failed:', e);
+                }
+
+                // Ensure any leftover backdrop / body classes removed
+                document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+                document.body.classList.remove('modal-open');
+                document.body.style.paddingRight = null;
+
+                toastr.success(json.message || 'Action successful');
+
+                // refresh notifications dropdown
+                if (window.fetchNotifications) window.fetchNotifications();
+
+                // As a fallback ensure UI fully refreshed — reload after a brief delay
+                setTimeout(() => {
+                    try {
+                        window.location.reload();
+                    } catch (e) {
+                        console.warn('Reload failed:', e);
+                    }
+                }, 700);
+            } catch (err) {
+                console.error('Approve/Deny failed', err);
+                toastr.error(err.message || 'Action failed');
+            } finally {
+                pendingAction = null;
+            }
+        });
+
         document.querySelectorAll('.notification-link').forEach(link => {
             link.addEventListener('click', async function(e) {
                 e.preventDefault();
                 const id = this.dataset.id;
+                const href = this.href || '';
+                const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
 
                 try {
-                    const res = await fetch(`/api/notifications/${id}/read`, {
+                    const res = await fetch(`/notifications/${id}/read`, {
                         method: 'POST',
                         headers: {
                             'Accept': 'application/json',
                             'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')
-                                .getAttribute('content'),
+                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
                         },
-                        credentials: 'include'
+                        credentials: 'same-origin'
                     });
 
                     if (!res.ok) throw new Error('Failed to mark as read');
@@ -632,11 +997,19 @@ document.addEventListener('click', () => {
                         countElement.textContent = Math.max(0, parseInt(countElement.textContent) - 1);
                     }
 
-                    // ✅ Redirect after marking as read
-                    window.location.href = this.href;
+                    // ✅ Open modal for admin requests or redirect
+                    if (m) {
+                        openProfileChangeModal(m[1]);
+                    } else {
+                        window.location.href = this.href;
+                    }
                 } catch (err) {
                     console.error('❌ Failed to mark as read:', err);
-                    window.location.href = this.href; // fallback redirect
+                    if (m) {
+                        openProfileChangeModal(m[1]);
+                    } else {
+                        window.location.href = this.href; // fallback redirect
+                    }
                 }
             });
         });

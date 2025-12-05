@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ShiftDate;
+use Illuminate\Http\Request;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
 use App\Models\TrainingMaterial;
@@ -71,6 +72,41 @@ Route::group(['middleware' => ['auth']], function () {
 
 Route::prefix('notifications')->group(function () {
     Route::get('/', [NotificationsController::class, 'index'])->name('notifications.index');
+
+    // JSON endpoint for web (session-authenticated) poller
+    Route::get('/json', function(Request $request) {
+        $user = auth()->user();
+        // Admin-like roles see system notifications (legacy uses user_id=1)
+        if ($user->hasAnyRole(['superadmin','controller','staff_leader','control_room'])) {
+            $notifications = \App\Models\Notification::where('user_id', 1)
+                ->orderBy('created_at', 'desc')
+                ->limit($request->input('limit', 25))
+                ->get();
+        } else {
+            $employee = \App\Models\Employee::where('user_id', $user->id)->first();
+            if ($employee) {
+                $notifications = \App\Models\Notification::where('employee_id', $employee->id)
+                    ->orWhere('user_id', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit($request->input('limit', 25))
+                    ->get();
+            } else {
+                $notifications = \App\Models\Notification::where('user_id', $user->id)
+                    ->orderBy('created_at', 'desc')
+                    ->limit($request->input('limit', 25))
+                    ->get();
+            }
+        }
+
+        return response()->json(['notifications' => $notifications]);
+    })->middleware('auth');
+
+    // Mark a notification as read via web session
+    Route::post('/{id}/read', function($id) {
+        $notif = \App\Models\Notification::findOrFail($id);
+        $notif->update(['read' => true]);
+        return response()->json(['message' => 'Notification marked as read']);
+    })->middleware('auth');
 
     // Bulk actions
     Route::post('/mark-as-read', [NotificationsController::class, 'bulkMarkAsRead'])->name('notifications.bulkMarkAsRead');

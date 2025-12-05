@@ -1213,7 +1213,7 @@
             if (!mapDiv) return;
 
             const map = new google.maps.Map(mapDiv, {
-                zoom: 16,
+                zoom: 12,
                 center: {
                     lat: 0,
                     lng: 0
@@ -1259,16 +1259,21 @@
                                 lat: 51.5074,
                                 lng: -0.1278
                             });
-                            map.setZoom(16);
+                            map.setZoom(12);
                         } else {
                             map.fitBounds(bounds);
                             google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
-                                if (map.getZoom() > 16) {
-                                    map.setZoom(16);
+                                if (map.getZoom() > 12) {
+                                    map.setZoom(12);
                                 }
                             });
                         }
                         return;
+                    } else {
+                         map.setCenter({
+                                lat: locations[0].latitude,
+                                lng: locations[0].longitude
+                            });
                     }
 
                     // Filter valid locations
@@ -1368,7 +1373,7 @@
                     map.fitBounds(bounds);
 
                     setTimeout(() => {
-                        if (map.getZoom() < 16) map.setZoom(16);
+                        if (map.getZoom() < 12) map.setZoom(12);
                     }, 200);
 
                     // 🔸 Add Heatmap Controls

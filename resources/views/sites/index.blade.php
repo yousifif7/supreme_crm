@@ -546,9 +546,10 @@
                     }
                     let lat = data.site.latitude ?? 51.505;
                     let lng = data.site.longitude ?? -0.09;
+                    console.log(data)
 
                     // ✅ Init map with site + checkpoints
-                    initEditMap(lat, lng, data.checkpoints || []);
+                    initEditMap(lat, lng, data.site.checkpoints || []);
                 }
 
                 $('#edit_site').modal('show');
@@ -590,7 +591,6 @@
             } else {
                 $('#has_qr').html('<span class="badge bg-secondary">No</span>');
             }
-
             // ✅ Render checkpoints
             let checkpointsHtml = '';
             if (data.checkpoints && data.checkpoints.length > 0) {
@@ -658,6 +658,7 @@
         checkpointMarkers.forEach(cp => editMap.removeLayer(cp.marker));
         checkpointMarkers = [];
         $('#edit_checkpointList').empty();
+        console.log(checkpoints)
 
         // Load checkpoints
         checkpoints.forEach(cp => {

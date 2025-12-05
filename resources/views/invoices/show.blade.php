@@ -88,9 +88,9 @@
                         <div class="col-md-4">
                             <h4 class="mb-1">Supreme Protection</h4>
                             <p class="mb-1">Wembley HA9,UK</p>
-                            <p class="mb-1">Email : <span class="text-dark">edison@example.com</span></p>
-                            <p>Phone : <span class="text-dark">+1 234567890</span></p>
-                        </div>
+                            <p class="mb-1">Email : <span class="text-dark">admin@splconnect.co.uk</span></p>
+<!--                            <p>Phone : <span class="text-dark">+1 234567890</span></p>
+-->                        </div>
                         <div class="col-md-4">
                             <div class="mb-2" style="width:80px; margin: 0 auto;">
                                 <img src="{{ asset('assets/sp_logo.png') }}" class="img-fluid" alt="logo">
@@ -102,18 +102,21 @@
                                 <p class="mb-1 fw-medium">
                                     Created Date :
                                     <span class="text-dark">
-                                        {{ $invoice->created_at ? $invoice->created_at->format('M d, Y') : 'N/A' }}
+                                        {{ $invoice->created_at ? $invoice->created_at->format('d/m/Y') : 'N/A' }}
                                     </span>
                                 </p>
-                                <p class="fw-medium">Due Date : <span class="text-dark">{{ $invoice->due_date }}</span> </p>
-                                <p class="fw-medium">Period : <span class="text-dark">{{ $invoice->date_from }} to
-                                        {{ $invoice->date_to }}</span> </p>
+                                <p class="fw-medium">Due Date : <span class="text-dark">{{ format_date($invoice->due_date) }}</span> </p>
+                                <p class="fw-medium">Period : <span class="text-dark">{{ format_date($invoice->date_from) }} to
+                                        {{ format_date($invoice->date_to) }}</span> </p>
+                                <p class="mb-1 fw-medium">Invoice Number : <span class="text-dark">{{ $invoice->invoice_number }}</span></p>
+                                <p class="mb-1 fw-medium">Reference : <span class="text-dark">{{ $invoice->reference ?? 'N/A' }}</span></p>
+                                <p class="mb-1 fw-medium">VAT Number : <span class="text-dark">{{ $invoice->vat_number ?? ($invoice->client->vat_number ?? 'N/A') }}</span></p>
                             </div>
                         </div>
                     </div>
 
                     <div class="row border-bottom mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             @if ($invoice->type === 'client')
                                 <p class="text-dark mb-2 fw-semibold">Client Details</p>
                                 <div>
@@ -154,19 +157,19 @@
                                 </div>
                             @endif
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <p class="text-dark mb-2 fw-semibold">Shift Summary</p>
                             <div class="row">
-                                <div class="col-md-6">
+                                <div class="col-md-12">
                                     <p class="mb-1">Period From : <span
-                                            class="text-dark">{{ $invoice->date_from }}</span></p>
-                                    <p class="mb-1">Period To : <span class="text-dark">{{ $invoice->date_to }}</span>
+                                            class="text-dark">{{ format_date($invoice->date_from) }}</span></p>
+                                    <p class="mb-1">Period To : <span class="text-dark">{{format_date($invoice->date_to) }}</span>
                                     </p>
                                     <p class="mb-1">Total Hours Worked : <span
                                             class="text-dark">{{ $totalHours }}</span></p>
-                                    <p>Hourly Rate : <span class="text-dark">{{ $invoice->rate_per_hour }}£</span></p>
+                                    <p>Hourly Rate : <span class="text-dark">£{{ $invoice->rate_per_hour }}</span></p>
                                 </div>
-                                <div class="col-md-6">
+                               <!-- <div class="col-md-6">
                                     <p class="mb-1">Break Deduction (Hrs) : <span
                                             class="text-dark">{{ $totalBreaks }}</span></p>
                                     <p class="mb-1">Book On Hours : <span
@@ -180,7 +183,7 @@
                                     </p>
                                     <p>Total Billable Hours : <span
                                             class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
-                                </div>
+                                </div>-->
                             </div>
                         </div>
                     </div>
@@ -212,8 +215,8 @@
                                             <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
                                             <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
                                             <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
-                                            <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
+                                            <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
+                                            <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -228,12 +231,12 @@
                                     <h6 class="mb-1">Payment Terms</h6>
                                     <p>{{ $invoice->payment_note ?? 'Payment due within 30 days' }}</p>
                                 </div>
-                                @if ($invoice->notes)
+                               <!-- @if ($invoice->notes)
                                     <div class="mb-3">
                                         <h6 class="mb-1">Notes</h6>
                                         <p>{{ $invoice->notes }}</p>
                                     </div>
-                                @endif
+                                @endif-->
                             </div>
                         </div>
                         <div class="col-md-5">
@@ -243,46 +246,52 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p class="mb-0">Hourly Rate</p>
-                                <p class="text-dark fw-medium mb-2">{{ $invoice->rate_per_hour }}£</p>
+                                <p class="text-dark fw-medium mb-2">£{{ $invoice->rate_per_hour }}</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p class="mb-0">Sub Total</p>
-                                <p class="text-dark fw-medium mb-2">{{ number_format($invoice->gross_amount, 2) }}£</p>
+                                <p class="text-dark fw-medium mb-2">£{{ number_format($invoice->gross_amount, 2) }}</p>
                             </div>
 
                             @if ($sspAmount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">SSP Amount</p>
-                                    <p class="text-dark fw-medium mb-2">{{ number_format($sspAmount, 2) }}£</p>
+                                    <p class="text-dark fw-medium mb-2">£{{ number_format($sspAmount, 2) }}</p>
                                 </div>
                             @endif
 
                             @if ($holidayAmount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Holiday Amount</p>
-                                    <p class="text-dark fw-medium mb-2">{{ number_format($holidayAmount, 2) }}£</p>
+                                    <p class="text-dark fw-medium mb-2">£{{ number_format($holidayAmount, 2) }}</p>
                                 </div>
                             @endif
 
                             @if ($unpaidAmount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Unpaid Deductions</p>
-                                    <p class="text-dark fw-medium mb-2">-{{ number_format($unpaidAmount, 2) }}£</p>
+                                    <p class="text-dark fw-medium mb-2">-£{{ number_format($unpaidAmount, 2) }}</p>
                                 </div>
                             @endif
                             @if ($invoice->tax_amount > 0)
                                 <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                     <p class="mb-0">Tax</p>
-                                    <p class="text-dark fw-medium mb-2">{{ number_format($invoice->tax_amount, 2) }}£</p>
+                                    <p class="text-dark fw-medium mb-2">£{{ number_format($invoice->tax_amount, 2) }}</p>
                                 </div>
                             @endif
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
                                 <h5>Total Amount</h5>
-                                <h5>{{ number_format($invoice->net_amount, 2) }}£</h5>
+                                <h5>£{{ number_format($invoice->net_amount, 2) }}</h5>
                             </div>
                             @php
-                                $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
-                                $words = $formatter->format($invoice->net_amount);
+                                // Use NumberFormatter if available (requires PHP intl extension).
+                                if (class_exists('NumberFormatter')) {
+                                    $formatter = new \NumberFormatter('en', \NumberFormatter::SPELLOUT);
+                                    $words = $formatter->format($invoice->net_amount);
+                                } else {
+                                    // Fallback: show numeric amount with two decimals as words unavailable.
+                                    $words = number_format($invoice->net_amount, 2);
+                                }
                             @endphp
                             <p class="fs-12">
                                 Amount in Words : UK POUND {{ ucwords($words) }} Only
@@ -299,6 +308,60 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            <!-- Payment Advice / Detachable section -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <div style="border-top:2px dashed #999; padding-top:16px; margin-top:8px;">
+                        <h4 class="mb-3">PAYMENT ADVICE</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <p class="mb-1"><strong>To:</strong></p>
+                                <p class="mb-1">Supreme protection Limited</p>
+                                <p class="mb-1">150 Chingford Road</p>
+                                <p class="mb-1">Walthamstow</p>
+                                <p class="mb-1">London</p>
+                                <p class="mb-1">E17 4PL</p>
+                                <p class="mb-1">UNITED KINGDOM</p>
+                            </div>
+                            <div class="col-md-6">
+                                <table class="table table-borderless" style="max-width:320px; float:right;">
+                                    <tr>
+                                        <td class="fs-12">Customer</td>
+                                        <td class="fs-12">{{ $invoice->client->name ?? ($invoice->securityStaff->name ?? 'N/A') }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fs-12">Invoice Number</td>
+                                        <td class="fs-12">{{ $invoice->invoice_number }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fs-12">Amount Due</td>
+                                        <td class="fs-12">£{{ number_format($invoice->net_amount, 2) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fs-12">Due Date</td>
+                                        <td class="fs-12">{{ format_date($invoice->due_date) }}</td>
+                                    </tr>
+                                    <tr>
+                                        <td class="fs-12">Amount Enclosed</td>
+                                        <td class="fs-12">______________________</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <p class="fs-12"><strong>Bank details</strong></p>
+                        <p class="fs-12 mb-0">Supreme protection limited</p>
+                        <p class="fs-12 mb-0">Sort Code 40-07-15</p>
+                        <p class="fs-12 mb-0">Account number 32164426</p>
+                        <p class="fs-12">Thanks For Your Business!</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3 fs-12">
+                Company Registration No: 08422367. Registered Office: 150 Chingford Road, Walthamstow, London, E17 4PL, United Kingdom.
             </div>
         </div>
     </div>

@@ -1389,178 +1389,196 @@
 
                 renderGanttChart(shiftsToRender, startDate, endDate);
                 updateWeekDisplay();
+                 filterGanttChart($('#ganttSearch').val())
             }
 
-            function renderGanttChart(data, startDate, endDate) {
-                const sites = {};
-                data.forEach(shift => {
-                    if (!sites[shift.site_id]) sites[shift.site_id] = {
-                        id: shift.site_id,
-                        name: shift.site_name,
-                        client_name: shift.client_name,
-                        shifts: []
-                    };
-                    sites[shift.site_id].shifts.push(shift);
-                });
+        function renderGanttChart(data, startDate, endDate) {
+    const sites = {};
+    
+    // Filter shifts that fall within the date range
+    data.forEach(shift => {
+        const shiftDateStr = formatDate(new Date(shift.start_date));
+        const shiftDate = new Date(shiftDateStr);
+        
+        // Only process shifts within the date range
+        if (shiftDate >= startDate && shiftDate <= endDate) {
+            if (!sites[shift.site_id]) sites[shift.site_id] = {
+                id: shift.site_id,
+                name: shift.site_name,
+                client_name: shift.client_name,
+                shifts: []
+            };
+            sites[shift.site_id].shifts.push(shift);
+        }
+    });
 
-                // After grouping shifts into sites, order by client so clients with the
-                // nearest upcoming shifts appear first. Within each client, sites are
-                // ordered by their nearest shift and shifts are ordered by start time.
-                function parseShiftDateTime(shift) {
-                    // Prefer backend-provided full datetime if available
-                    if (shift.start_datetime) {
-                        let s = String(shift.start_datetime);
-                        // Backend uses m-d-YTH:i:s (e.g. 10-31-2025T14:00:00). Convert to YYYY-MM-DD for reliable parsing.
-                        const m = s.match(/^(\d{2})-(\d{2})-(\d{4})T(.*)$/);
-                        if (m) s = `${m[3]}-${m[1]}-${m[2]}T${m[4]}`;
-                        const parsed = Date.parse(s);
-                        if (!isNaN(parsed)) return parsed;
-                    }
+    // If no sites have shifts in the date range, show empty chart
+    if (Object.keys(sites).length === 0) {
+        $('#ganttChart').html('<div class="alert alert-info text-center">No shifts found in the selected date range.</div>');
+        return;
+    }
 
-                    // Fallback: combine date + time fields
-                    const datePart = shift.start_date || shift.shift_date || shift.shiftDate || '';
-                    const timePart = shift.start_time || shift.startTime || shift.start || '00:00';
-                    if (!datePart) return Infinity;
+    // After grouping shifts into sites, order by client so clients with the
+    // nearest upcoming shifts appear first. Within each client, sites are
+    // ordered by their nearest shift and shifts are ordered by start time.
+    function parseShiftDateTime(shift) {
+        // Prefer backend-provided full datetime if available
+        if (shift.start_datetime) {
+            let s = String(shift.start_datetime);
+            // Backend uses m-d-YTH:i:s (e.g. 10-31-2025T14:00:00). Convert to YYYY-MM-DD for reliable parsing.
+            const m = s.match(/^(\d{2})-(\d{2})-(\d{4})T(.*)$/);
+            if (m) s = `${m[3]}-${m[1]}-${m[2]}T${m[4]}`;
+            const parsed = Date.parse(s);
+            if (!isNaN(parsed)) return parsed;
+        }
 
-                    let d = String(datePart);
-                    // Normalize MM-DD-YYYY -> YYYY-MM-DD if necessary
-                    const m2 = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-                    if (m2) d = `${m2[3]}-${m2[1]}-${m2[2]}`;
+        // Fallback: combine date + time fields
+        const datePart = shift.start_date || shift.shift_date || shift.shiftDate || '';
+        const timePart = shift.start_time || shift.startTime || shift.start || '00:00';
+        if (!datePart) return Infinity;
 
-                    const dt = new Date(d + ' ' + timePart);
-                    const t = dt.getTime();
-                    return isNaN(t) ? Infinity : t;
-                }
+        let d = String(datePart);
+        // Normalize MM-DD-YYYY -> YYYY-MM-DD if necessary
+        const m2 = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+        if (m2) d = `${m2[3]}-${m2[1]}-${m2[2]}`;
 
-                // Sort shifts within each site by start datetime (keep this for cell placement)
-                Object.values(sites).forEach(site => {
-                    site.shifts.sort((a, b) => parseShiftDateTime(a) - parseShiftDateTime(b));
-                });
+        const dt = new Date(d + ' ' + timePart);
+        const t = dt.getTime();
+        return isNaN(t) ? Infinity : t;
+    }
 
-                // Group sites by client
-                const clients = {};
-                Object.values(sites).forEach(site => {
-                    // Determine a client key - prefer client_id from a shift (allow numeric 0), else fallback to client_name
-                    const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0]
-                            .client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId
-                            ) : undefined;
-                    const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ?
-                        String(clientIdField) : (site.client_name || 'unknown_client');
-                    if (!clients[clientKey]) clients[clientKey] = {
-                        id: clientKey,
-                        name: site.client_name || clientKey,
-                        sites: []
-                    };
-                    // attach a reference to client_name for safety
-                    site.client_name = site.client_name || clients[clientKey].name;
-                    clients[clientKey].sites.push(site);
-                });
+    // Sort shifts within each site by start datetime (keep this for cell placement)
+    Object.values(sites).forEach(site => {
+        site.shifts.sort((a, b) => parseShiftDateTime(a) - parseShiftDateTime(b));
+    });
 
-                // Compute newest created_at per site and per client, then sort clients by newest created_at (desc)
-                function parseCreatedAt(shift) {
-                    const s = shift.created_at || shift.createdAt || shift.createdAtDate || null;
-                    if (!s) return -Infinity;
-                    const parsed = Date.parse(String(s));
-                    return isNaN(parsed) ? -Infinity : parsed;
-                }
+    // Group sites by client - but only sites that have shifts in the range
+    const clients = {};
+    Object.values(sites).forEach(site => {
+        // Skip sites with no shifts (shouldn't happen due to earlier filter, but just in case)
+        if (site.shifts.length === 0) return;
+        
+        // Determine a client key - prefer client_id from a shift (allow numeric 0), else fallback to client_name
+        const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0]
+                .client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId
+                ) : undefined;
+        const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ?
+            String(clientIdField) : (site.client_name || 'unknown_client');
+        if (!clients[clientKey]) clients[clientKey] = {
+            id: clientKey,
+            name: site.client_name || clientKey,
+            sites: []
+        };
+        // attach a reference to client_name for safety
+        site.client_name = site.client_name || clients[clientKey].name;
+        clients[clientKey].sites.push(site);
+    });
 
-                Object.values(clients).forEach(client => {
-                    client.sites.forEach(site => {
-                        // compute site._latest as the maximum created_at across its shifts
-                        let latest = -Infinity;
-                        site.shifts.forEach(sh => {
-                            const t = parseCreatedAt(sh);
-                            if (t > latest) latest = t;
-                        });
-                        site._latest = latest;
-                    });
-                    // sort sites by newest created_at first
-                    client.sites.sort((a, b) => b._latest - a._latest);
-                    // client._latest is the newest time among its sites
-                    client._latest = client.sites.length ? client.sites[0]._latest : -Infinity;
-                });
+    // Compute newest created_at per site and per client, then sort clients by newest created_at (desc)
+    function parseCreatedAt(shift) {
+        const s = shift.created_at || shift.createdAt || shift.createdAtDate || null;
+        if (!s) return -Infinity;
+        const parsed = Date.parse(String(s));
+        return isNaN(parsed) ? -Infinity : parsed;
+    }
 
-                // Order clients by their newest created_at (newest first)
-                const orderedClients = Object.values(clients).sort((c1, c2) => c2._latest - c1._latest);
+    Object.values(clients).forEach(client => {
+        client.sites.forEach(site => {
+            // compute site._latest as the maximum created_at across its shifts
+            let latest = -Infinity;
+            site.shifts.forEach(sh => {
+                const t = parseCreatedAt(sh);
+                if (t > latest) latest = t;
+            });
+            site._latest = latest;
+        });
+        // sort sites by newest created_at first
+        client.sites.sort((a, b) => b._latest - a._latest);
+        // client._latest is the newest time among its sites
+        client._latest = client.sites.length ? client.sites[0]._latest : -Infinity;
+    });
 
-                // Flatten ordered sites in client order
-                const orderedSites = [];
-                orderedClients.forEach(client => client.sites.forEach(site => orderedSites.push(site)));
+    // Order clients by their newest created_at (newest first)
+    const orderedClients = Object.values(clients).sort((c1, c2) => c2._latest - c1._latest);
 
-                // Header
-                let headerHtml = `<div class="gantt-header">
-            <div class="gantt-sidebar-header">Client Name</div>
-            <div class="gantt-sidebar-header">Site Name</div>
-            <div class="gantt-timeline-header">`;
-                const currentDate = new Date(startDate);
-                while (currentDate <= endDate) {
-                    const dateStr = formatDate(currentDate);
-                    const dayName = currentDate.toLocaleDateString('en-US', {
-                        weekday: 'short'
-                    });
-                    const dayNum = currentDate.getDate();
-                    const monthName = currentDate.toLocaleDateString('en-US', {
-                        month: 'short'
-                    });
-                    headerHtml +=
-                        `<div class="day-header" data-date="${dateStr}">${dayName}<br>${monthName} ${dayNum}</div>`;
-                    currentDate.setDate(currentDate.getDate() + 1);
-                }
-                headerHtml += `</div></div>`;
+    // Flatten ordered sites in client order
+    const orderedSites = [];
+    orderedClients.forEach(client => client.sites.forEach(site => orderedSites.push(site)));
 
-                // Body
-                let bodyHtml = `<div class="gantt-body">`;
-                orderedSites.forEach(site => {
-                    bodyHtml += `<div class="gantt-row" data-site-id="${site.id}">
-                <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
-                <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
-                <div class="gantt-row-content">`;
-                    const dayDate = new Date(startDate);
-                    while (dayDate <= endDate) {
-                        const dateStr = formatDate(dayDate);
-                        bodyHtml += `<div class="day-column" data-date="${dateStr}">
-                    <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
-                 </div>`;
-                        dayDate.setDate(dayDate.getDate() + 1);
-                    }
-                    bodyHtml += `</div></div>`;
-                });
-                bodyHtml += `</div>`;
+    // Header
+    let headerHtml = `<div class="gantt-header">
+        <div class="gantt-sidebar-header">Client Name</div>
+        <div class="gantt-sidebar-header">Site Name</div>
+        <div class="gantt-timeline-header">`;
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        const dateStr = formatDate(currentDate);
+        const dayName = currentDate.toLocaleDateString('en-US', {
+            weekday: 'short'
+        });
+        const dayNum = currentDate.getDate();
+        const monthName = currentDate.toLocaleDateString('en-US', {
+            month: 'short'
+        });
+        headerHtml +=
+            `<div class="day-header" data-date="${dateStr}">${dayName}<br>${monthName} ${dayNum}</div>`;
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    headerHtml += `</div></div>`;
 
-                $('#ganttChart').html(headerHtml + bodyHtml);
+    // Body
+    let bodyHtml = `<div class="gantt-body">`;
+    orderedSites.forEach(site => {
+        bodyHtml += `<div class="gantt-row" data-site-id="${site.id}">
+            <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
+            <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
+            <div class="gantt-row-content">`;
+        const dayDate = new Date(startDate);
+        while (dayDate <= endDate) {
+            const dateStr = formatDate(dayDate);
+            bodyHtml += `<div class="day-column" data-date="${dateStr}">
+                <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
+             </div>`;
+            dayDate.setDate(dayDate.getDate() + 1);
+        }
+        bodyHtml += `</div></div>`;
+    });
+    bodyHtml += `</div>`;
 
-                $('.gantt-container').toggleClass('selection-mode', selectionMode);
+    $('#ganttChart').html(headerHtml + bodyHtml);
 
-                $('#toggle-subcontractors-all').off('click').on('click', function() {
-                    const subs = $('.subcontractor-name');
-                    subs.toggle();
-                    $(this).text(subs.is(':visible') ? 'Hide Subcontractors' : 'Show Subcontractors');
-                });
+    $('.gantt-container').toggleClass('selection-mode', selectionMode);
 
-                // Place shifts
-                orderedSites.forEach(site => {
-                    const shiftsByDate = {};
-                    site.shifts.forEach(shift => {
-                        const dateStr = formatDate(new Date(shift.start_date));
-                        if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
-                        shiftsByDate[dateStr].push(shift);
-                    });
+    $('#toggle-subcontractors-all').off('click').on('click', function() {
+        const subs = $('.subcontractor-name');
+        subs.toggle();
+        $(this).text(subs.is(':visible') ? 'Hide Subcontractors' : 'Show Subcontractors');
+    });
 
-                    Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
-                        const cell = $(`#cell-${site.id}-${dateStr}`);
-                        if (!cell.length) return;
+    // Place shifts
+    orderedSites.forEach(site => {
+        const shiftsByDate = {};
+        site.shifts.forEach(shift => {
+            const dateStr = formatDate(new Date(shift.start_date));
+            if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
+            shiftsByDate[dateStr].push(shift);
+        });
 
-                        shifts.forEach((shift) => {
-                            const subcontractorMatch = shift.staff_name ? shift.staff_name
-                                .match(/\(([^)]+)\)/) : null;
-                            const subcontractor = subcontractorMatch ? subcontractorMatch[
-                                0] : '';
-                            const staffNameWithoutSub = subcontractorMatch ? shift
-                                .staff_name.replace(subcontractor, '').trim() : (shift
-                                    .staff_name || '');
+        Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
+            const cell = $(`#cell-${site.id}-${dateStr}`);
+            if (!cell.length) return;
 
-                            // bar HTML: stacked rows (service, time, duration, staff)
-                            const bar = $(`
+            shifts.forEach((shift) => {
+                const subcontractorMatch = shift.staff_name ? shift.staff_name
+                    .match(/\(([^)]+)\)/) : null;
+                const subcontractor = subcontractorMatch ? subcontractorMatch[
+                    0] : '';
+                const staffNameWithoutSub = subcontractorMatch ? shift
+                    .staff_name.replace(subcontractor, '').trim() : (shift
+                        .staff_name || '');
+
+                // bar HTML: stacked rows (service, time, duration, staff)
+                const bar = $(`
 <div class="gantt-bar shift-${shift.color_class}" data-shift-id="${shift.id}"
      title="${escapeHtml(shift.title || '')} (${escapeHtml(shift.formatted_time || '')}) - ${escapeHtml(shift.staff_name || '')}">
     <input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" aria-label="Select shift ${shift.id}">
@@ -1574,196 +1592,236 @@ ${shift.note
     ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
     : `<i class="fa-solid note-icon  " data-shift-id="${shift.id}" style="color:#ffffff">📝</i>`
 }
-                    `);
+                `);
 
-                            const idStr = String(shift.id);
-                            if (selectedShiftIds.has(idStr)) bar.addClass('selected');
+                const idStr = String(shift.id);
+                if (selectedShiftIds.has(idStr)) bar.addClass('selected');
 
-                            cell.append(bar);
+                cell.append(bar);
 
-                            // Ensure bar fills the grid cell and can shrink if needed
-                            bar.css({
-                                'min-width': 0,
-                                'width': '100%',
-                                'max-width': '100%',
-                                'box-sizing': 'border-box',
-                                // Override default left padding to remove excessive empty space.
-                                // JS keeps this in sync with selectionMode.
-                                'padding-left': getBarLeftPadding()
-                            });
-
-                            // checkbox initial state
-                            const cb = bar.find('.multi-shift-checkbox');
-                            cb.prop('checked', selectedShiftIds.has(idStr));
-
-                            // stop propagation so clicking checkbox doesn't trigger bar navigation
-                            cb.on('click', function(e) {
-                                e.stopPropagation();
-                            });
-
-                            // checkbox change: update selected set and visual
-                            cb.on('change', function() {
-                                const checked = !!$(this).prop('checked');
-                                const idLocal = String($(this).data('id'));
-                                const theBar = $(this).closest('.gantt-bar');
-                                if (checked) {
-                                    selectedShiftIds.add(idLocal);
-                                    theBar.addClass('selected');
-                                } else {
-                                    selectedShiftIds.delete(idLocal);
-                                    theBar.removeClass('selected');
-                                }
-                            });
-
-                            // bar click behavior
-                            bar.on('click', function(e) {
-                                const shiftIdLocal = $(this).data('shift-id');
-                                if (selectionMode) {
-                                    const cbLocal = $(this).find(
-                                        '.multi-shift-checkbox');
-                                    const newState = !cbLocal.prop('checked');
-                                    cbLocal.prop('checked', newState).trigger(
-                                        'change');
-                                    e.stopPropagation();
-                                    return;
-                                }
-                                const target = e.target;
-                                if (target && ($(target).closest(
-                                            '.multi-shift-checkbox').length || $(
-                                            target).closest('.note-icon').length ||
-                                        $(target).closest('.view-note-icon').length
-                                    )) return;
-                                if (shiftIdLocal) window.open(
-                                    `${baseUrl}/shift-dates/${shiftIdLocal}/view`,
-                                    '_blank');
-                            });
-
-                            // notes: open modals, stop propagation so no navigation
-                            bar.find('.note-icon').on('click', function(e) {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                const shiftIdLocal = $(this).data('shift-id');
-                                $('#shiftId').val(shiftIdLocal);
-                                $('#noteForm')[0].reset();
-                                $('#noteType').val('guard');
-                                $('#noteText').val('');
-                                $('#noteModal').modal('show');
-                            });
-
-                            bar.find('.view-note-icon').on('click', function(e) {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                const shiftIdLocal = $(this).data('shift-id');
-                                $('#shiftId').val(shiftIdLocal);
-                                $.get(`/shift-dates/${shiftIdLocal}/note`, function(
-                                    data) {
-                                    if (data && data.note) {
-                                        $('#viewNoteText').text(data.note);
-                                        $('#viewNoteType').text(data
-                                            .note_type);
-                                        // Store both shift-date id and note id to be safe
-                                        $('#deleteNoteBtn').data('shift-id',
-                                            shiftIdLocal);
-                                        if (data.id) $('#deleteNoteBtn')
-                                            .data('note-id', data.id);
-                                        $('#viewNoteModal').modal('show');
-                                    }
-                                });
-                            });
-                        });
-                    });
+                // Ensure bar fills the grid cell and can shrink if needed
+                bar.css({
+                    'min-width': 0,
+                    'width': '100%',
+                    'max-width': '100%',
+                    'box-sizing': 'border-box',
+                    // Override default left padding to remove excessive empty space.
+                    // JS keeps this in sync with selectionMode.
+                    'padding-left': getBarLeftPadding()
                 });
 
-                // After placing bars: sizing assurance and synchronise padding with selection mode
-                $('#ganttChart .day-cell > .gantt-bar').each(function() {
-                    $(this).css({
-                        'min-width': 0,
-                        'width': '100%',
-                        'max-width': '100%',
-                        'box-sizing': 'border-box',
-                        'padding-left': getBarLeftPadding()
-                    });
+                // checkbox initial state
+                const cb = bar.find('.multi-shift-checkbox');
+                cb.prop('checked', selectedShiftIds.has(idStr));
+
+                // stop propagation so clicking checkbox doesn't trigger bar navigation
+                cb.on('click', function(e) {
+                    e.stopPropagation();
                 });
 
-                // Responsive sizing: bigger baseline so content remains visible
-                (function adjustGanttSizing() {
-                    const ganttChartEl = document.getElementById('ganttChart');
-                    if (!ganttChartEl) return;
-
-                    const dayHeaders = ganttChartEl.querySelectorAll('.day-header');
-                    const totalDays = dayHeaders.length || 1;
-
-                    const sidebarHeaders = ganttChartEl.querySelectorAll('.gantt-sidebar-header');
-                    let sidebarTotalWidth = 0;
-                    if (sidebarHeaders && sidebarHeaders.length > 0) {
-                        sidebarHeaders.forEach(h => {
-                            sidebarTotalWidth += h.getBoundingClientRect().width;
-                        });
+                // checkbox change: update selected set and visual
+                cb.on('change', function() {
+                    const checked = !!$(this).prop('checked');
+                    const idLocal = String($(this).data('id'));
+                    const theBar = $(this).closest('.gantt-bar');
+                    if (checked) {
+                        selectedShiftIds.add(idLocal);
+                        theBar.addClass('selected');
                     } else {
-                        sidebarTotalWidth = 300;
+                        selectedShiftIds.delete(idLocal);
+                        theBar.removeClass('selected');
                     }
-
-                    const container = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
-                    const containerWidth = Math.max(container.clientWidth, window.innerWidth - 40);
-
-                    let timelineAvailableWidth = containerWidth - sidebarTotalWidth;
-                    if (timelineAvailableWidth < 400) timelineAvailableWidth = Math.max(containerWidth * 0.6,
-                        400);
-
-                    const minDayWidth = 180;
-                    const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
-                    let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
-                    if (dayWidth < minDayWidth) dayWidth = minDayWidth;
-
-                    const dayColumns = ganttChartEl.querySelectorAll('.day-column');
-                    dayHeaders.forEach(h => {
-                        h.style.minWidth = dayWidth + 'px';
-                        h.style.flex = '0 0 ' + dayWidth + 'px';
-                    });
-                    dayColumns.forEach(c => {
-                        c.style.minWidth = dayWidth + 'px';
-                        c.style.flex = '0 0 ' + dayWidth + 'px';
-                    });
-
-                    const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
-                    const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
-                    const timelineTotalWidth = dayWidth * totalDays;
-                    if (timelineHeader) timelineHeader.style.minWidth = timelineTotalWidth + 'px';
-                    rowContents.forEach(rc => rc.style.minWidth = timelineTotalWidth + 'px');
-
-                    const rowSidebars = ganttChartEl.querySelectorAll('.gantt-row-sidebar');
-                    rowSidebars.forEach(sb => {
-                        sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect()
-                            .width + 'px' : '160px');
-                        sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0]
-                            .getBoundingClientRect().width + 'px' : '160px');
-                        sb.style.boxSizing = 'border-box';
-                    });
-
-                    if (initialLoad) {
-                        const wrapper = document.querySelector('.gantt-container') || ganttChartEl
-                            .parentElement;
-                        try {
-                            wrapper.scrollLeft = 0;
-                        } catch (err) {}
-                        initialLoad = false;
-                    }
-                })();
-            }
-
-            function filterGanttChart(searchTerm) {
-                if (!searchTerm) {
-                    $('.gantt-row').show();
-                    return;
-                }
-                const term = searchTerm.toLowerCase();
-                $('.gantt-row').each(function() {
-                    const siteText = $(this).find('.gantt-row-sidebar').text().toLowerCase();
-                    const shiftText = $(this).find('.gantt-bar').text().toLowerCase();
-                    if (siteText.includes(term) || shiftText.includes(term)) $(this).show();
-                    else $(this).hide();
                 });
+
+                // bar click behavior
+                bar.on('click', function(e) {
+                    const shiftIdLocal = $(this).data('shift-id');
+                    if (selectionMode) {
+                        const cbLocal = $(this).find(
+                            '.multi-shift-checkbox');
+                        const newState = !cbLocal.prop('checked');
+                        cbLocal.prop('checked', newState).trigger(
+                            'change');
+                        e.stopPropagation();
+                        return;
+                    }
+                    const target = e.target;
+                    if (target && ($(target).closest(
+                                '.multi-shift-checkbox').length || $(
+                                target).closest('.note-icon').length ||
+                            $(target).closest('.view-note-icon').length
+                        )) return;
+                    if (shiftIdLocal) window.open(
+                        `${baseUrl}/shift-dates/${shiftIdLocal}/view`,
+                        '_blank');
+                });
+
+                // notes: open modals, stop propagation so no navigation
+                bar.find('.note-icon').on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const shiftIdLocal = $(this).data('shift-id');
+                    $('#shiftId').val(shiftIdLocal);
+                    $('#noteForm')[0].reset();
+                    $('#noteType').val('guard');
+                    $('#noteText').val('');
+                    $('#noteModal').modal('show');
+                });
+
+                bar.find('.view-note-icon').on('click', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const shiftIdLocal = $(this).data('shift-id');
+                    $('#shiftId').val(shiftIdLocal);
+                    $.get(`/shift-dates/${shiftIdLocal}/note`, function(
+                        data) {
+                        if (data && data.note) {
+                            $('#viewNoteText').text(data.note);
+                            $('#viewNoteType').text(data
+                                .note_type);
+                            // Store both shift-date id and note id to be safe
+                            $('#deleteNoteBtn').data('shift-id',
+                                shiftIdLocal);
+                            if (data.id) $('#deleteNoteBtn')
+                                .data('note-id', data.id);
+                            $('#viewNoteModal').modal('show');
+                        }
+                    });
+                });
+            });
+        });
+    });
+
+    // After placing bars: sizing assurance and synchronise padding with selection mode
+    $('#ganttChart .day-cell > .gantt-bar').each(function() {
+        $(this).css({
+            'min-width': 0,
+            'width': '100%',
+            'max-width': '100%',
+            'box-sizing': 'border-box',
+            'padding-left': getBarLeftPadding()
+        });
+    });
+
+    // Responsive sizing: bigger baseline so content remains visible
+    (function adjustGanttSizing() {
+        const ganttChartEl = document.getElementById('ganttChart');
+        if (!ganttChartEl) return;
+
+        const dayHeaders = ganttChartEl.querySelectorAll('.day-header');
+        const totalDays = dayHeaders.length || 1;
+
+        const sidebarHeaders = ganttChartEl.querySelectorAll('.gantt-sidebar-header');
+        let sidebarTotalWidth = 0;
+        if (sidebarHeaders && sidebarHeaders.length > 0) {
+            sidebarHeaders.forEach(h => {
+                sidebarTotalWidth += h.getBoundingClientRect().width;
+            });
+        } else {
+            sidebarTotalWidth = 300;
+        }
+
+        const container = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
+        const containerWidth = Math.max(container.clientWidth, window.innerWidth - 40);
+
+        let timelineAvailableWidth = containerWidth - sidebarTotalWidth;
+        if (timelineAvailableWidth < 400) timelineAvailableWidth = Math.max(containerWidth * 0.6,
+            400);
+
+        const minDayWidth = 180;
+        const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
+        let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
+        if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+
+        const dayColumns = ganttChartEl.querySelectorAll('.day-column');
+        dayHeaders.forEach(h => {
+            h.style.minWidth = dayWidth + 'px';
+            h.style.flex = '0 0 ' + dayWidth + 'px';
+        });
+        dayColumns.forEach(c => {
+            c.style.minWidth = dayWidth + 'px';
+            c.style.flex = '0 0 ' + dayWidth + 'px';
+        });
+
+        const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
+        const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
+        const timelineTotalWidth = dayWidth * totalDays;
+        if (timelineHeader) timelineHeader.style.minWidth = timelineTotalWidth + 'px';
+        rowContents.forEach(rc => rc.style.minWidth = timelineTotalWidth + 'px');
+
+        const rowSidebars = ganttChartEl.querySelectorAll('.gantt-row-sidebar');
+        rowSidebars.forEach(sb => {
+            sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect()
+                .width + 'px' : '160px');
+            sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0]
+                .getBoundingClientRect().width + 'px' : '160px');
+            sb.style.boxSizing = 'border-box';
+        });
+
+        if (initialLoad) {
+            const wrapper = document.querySelector('.gantt-container') || ganttChartEl
+                .parentElement;
+            try {
+                wrapper.scrollLeft = 0;
+            } catch (err) {}
+            initialLoad = false;
+        }
+    })();
+}
+
+          function filterGanttChart(searchTerm) {
+    if (!searchTerm) {
+        // Show all shift bars and rows
+        $('.gantt-bar').show();
+        $('.gantt-row').show();
+        // Update shift counts in sidebar
+        $('.gantt-row').each(function() {
+            const siteId = $(this).data('site-id');
+            const visibleShifts = $(this).find('.gantt-bar:visible').length;
+            $(this).find('.text-muted').text(`${visibleShifts} shift(s)`);
+        });
+        return;
+    }
+    
+    const term = searchTerm.toLowerCase();
+    $('.gantt-row').each(function() {
+        const row = $(this);
+        const siteText = row.find('.gantt-row-sidebar').text().toLowerCase();
+        const shiftBars = row.find('.gantt-bar');
+        let anyVisible = false;
+        
+        // Check if site/client name matches
+        const siteMatches = siteText.includes(term);
+        
+        // Show/hide individual shift bars based on search
+        shiftBars.each(function() {
+            const bar = $(this);
+            const barText = bar.text().toLowerCase();
+            const barTitle = bar.attr('title') || '';
+            const staffMatch = barText.includes(term) || barTitle.toLowerCase().includes(term);
+            
+            if (siteMatches || staffMatch) {
+                bar.show();
+                anyVisible = true;
+            } else {
+                bar.hide();
             }
+        });
+        
+        // Show/hide entire row based on whether any shift is visible
+        if (anyVisible) {
+            row.show();
+            // Update shift count in sidebar
+            const visibleShifts = row.find('.gantt-bar:visible').length;
+            row.find('.text-muted').text(`${visibleShifts} shift(s)`);
+        } else {
+            row.hide();
+        }
+    });
+    
+    // Also check if we need to show empty rows (sites with no matching shifts but matching site/client name)
+    // This is already handled in the loop above
+}
 
             function formatDate(date) {
                 return date.toISOString().split('T')[0];

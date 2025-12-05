@@ -263,6 +263,41 @@
     if (typeof createMap === 'undefined') var createMap = null;
     if (typeof createSiteMarker === 'undefined') var createSiteMarker = null;
     if (typeof createCheckpointMarkers === 'undefined') var createCheckpointMarkers = []; // store markers + indexes
+    
+    // Geocoding function
+    function geocodeAddress(address, callback) {
+        if (!address || address.trim() === '') {
+            return;
+        }
+        
+        // Using Nominatim (OpenStreetMap's geocoding service)
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+        
+        $.ajax({
+            url: url,
+            method: 'GET',
+            dataType: 'json',
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'YourApp/1.0' // Required by Nominatim
+            },
+            success: function(data) {
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    callback(lat, lng, data[0]);
+                } else {
+                    console.warn('Address not found:', address);
+                    // Optionally show error to user
+                    // toast_warning('Address not found. Please check the address or set location manually on map.');
+                }
+            },
+            error: function(xhr, status, error) {
+                console.error('Geocoding error:', error);
+                // toast_danger('Error geocoding address. Please set location manually on map.');
+            }
+        });
+    }
 
      function initCreateMap(lat = 51.505, lng = -0.09, checkpoints = []) {
          if (!createMap) {
@@ -312,6 +347,26 @@
          });
 
          setTimeout(() => createMap.invalidateSize(), 300); // fix resizing bug
+     }
+     
+     // Function to update map location
+     function updateMapFromAddress(address) {
+         if (!createMap || !createSiteMarker) return;
+         
+         geocodeAddress(address, function(lat, lng, result) {
+             // Update map view
+             createMap.setView([lat, lng], 13);
+             
+             // Update marker position
+             createSiteMarker.setLatLng([lat, lng]);
+             
+             // Update hidden input fields
+             $('#latitude').val(lat);
+             $('#longitude').val(lng);
+             
+             // Optional: Show popup with address
+             createSiteMarker.bindPopup(`<b>Location:</b><br>${result.display_name || address}`).openPopup();
+         });
      }
 
      function addCheckpointCreate(name, lat, lng, id = null) {
@@ -380,6 +435,26 @@
 
                 // Initialize map for create modal
                 initCreateMap();
+                
+                // Address field change event
+                $('textarea[name="address"]').on('change', function() {
+                    const address = $(this).val().trim();
+                    if (address) {
+                        updateMapFromAddress(address);
+                    }
+                });
+                
+                // Optional: Add debouncing to prevent too many API calls
+                let addressTimeout;
+                $('textarea[name="address"]').on('input', function() {
+                    clearTimeout(addressTimeout);
+                    addressTimeout = setTimeout(() => {
+                        const address = $(this).val().trim();
+                        if (address.length > 5) { // Only search if address is reasonably long
+                            updateMapFromAddress(address);
+                        }
+                    }, 1500); // Wait 1.5 seconds after typing stops
+                });
 
                 $('#add_site-form').on('submit', function(e) {
                     e.preventDefault();
@@ -430,6 +505,12 @@
                 // Optional: re-render map on modal show
                 $('#add_site').on('shown.bs.modal', function() {
                     setTimeout(() => createMap.invalidateSize(), 300);
+                    
+                    // If address field already has value, geocode it
+                    const existingAddress = $('textarea[name="address"]').val().trim();
+                    if (existingAddress) {
+                        updateMapFromAddress(existingAddress);
+                    }
                 });
             });
  </script>

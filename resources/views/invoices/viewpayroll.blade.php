@@ -93,9 +93,9 @@
                         <div class="col-md-4">
                             <h4 class="mb-1">Supreme Protection</h4>
                             <p class="mb-1">Wembley HA9, UK</p>
-                            <p>Email: <span class="text-dark">edison@example.com</span></p>
-                            <p>Phone: <span class="text-dark">+1 234567890</span></p>
-                        </div>
+                            <p>Email: <span class="text-dark">admin@splconnect.co.uk</span></p>
+<!--                            <p>Phone: <span class="text-dark">+1 234567890</span></p>
+-->                        </div>
                         <div class="col-md-4 text-center">
                             <div class="mb-2" style="width:80px; margin: 0 auto;">
                                 <img src="{{ asset('assets/sp_logo.png') }}" class="img-fluid" alt="logo">
@@ -103,61 +103,162 @@
                             <p class="mb-1"><b>Payroll #{{ $invoice->invoice_number }}</b></p>
                         </div>
                         <div class="col-md-4 text-end">
-                            <p class="mb-1">Payroll Period: <span class="text-dark">{{ $invoice->date_from }} to
-                                    {{ $invoice->date_to }}</span></p>
+                            <p class="mb-1">Payroll Period: <span class="text-dark">{{ format_date($invoice->date_from) }} to
+                                    {{ format_date($invoice->date_to) }}</span></p>
                             <p class="mb-1">
                                 Created Date:
                                 <span class="text-dark">
-                                    {{ $invoice->created_at ? $invoice->created_at->format('M d, Y') : 'N/A' }}
+                                    {{ $invoice->created_at ? $invoice->created_at->format('d/m/Y') : 'N/A' }}
                                 </span>
                             </p>
                         </div>
                     </div>
 
                     <div class="row border-bottom mb-3">
-                        <div class="col-md-4">
+                        <div class="col-md-6">
                             <p class="text-dark mb-2 fw-semibold">Staff Details</p>
                             <p>Name: <span
                                     class="text-dark">{{ $staff?->first_name ?? 'N/A' }}{{ $staff?->last_name ?? '' }}</span>
                             </p>
                             <p>Email: <span class="text-dark">{{ $staff?->email }}</span></p>
                             <p>Phone: <span class="text-dark">{{ $staff?->phone }}</span></p>
-                            <p>Reference Number: <span class="text-dark text-bold">{{ $staff?->employee->reference_number }}</span></p>
+                            <p>Reference Number: <span class="text-dark">{{ $staff?->employee->reference_number ?? 'N/A' }}</span></p>
+                            <p>NI Number: <span class="text-dark">{{ $staff?->employee->ni_number ?? 'N/A' }}</span></p>
+                            <p>Tax Code: <span class="text-dark">{{ $staff?->employee->tax_code ?? 'N/A' }}</span></p>
+                            <p>Pay Method: <span class="text-dark">{{ $staff?->employee->pay_method ?? $invoice->pay_method ?? 'Bank Transfer' }}</span></p>
+                            <p>Total Deductions: <span class="text-dark">£{{ number_format((($invoice->gross_amount ?? 0) - ($invoice->net_amount ?? 0)), 2) }}</span></p>
                             @if ($invoice->subcontractor)
                                 <p>Subcontractor: <span class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
                             @endif
                         </div>
-                        <div class="col-md-8">
+                        <div class="col-md-6">
                             <p class="text-dark mb-2 fw-semibold">Shift Summary</p>
                             <div class="row">
                                 <div class="col-md-6">
                                     <p>Total Hours Worked: <span class="text-dark">{{ $totalHours }}</span></p>
-                                    <p>Hourly Rate: <span class="text-dark">{{ $invoice->rate_per_hour }}£</span></p>
+                                    <p>Hourly Rate: <span class="text-dark">£{{ $invoice->rate_per_hour }}</span></p>
                                 </div>
-                                <div class="col-md-6">
+                                <!--<div class="col-md-6">
                                     <p>Break Deduction (Hrs): <span class="text-dark">{{ $totalBreaks }}</span></p>
                                     <p>Book On Hours: <span class="text-dark">{{ $totalBookOnHours }}</span></p>
                                     <p>Book Off Hours: <span class="text-dark">{{ $totalBookOffHours }}</span></p>
                                     <p>Total Billable Hours: <span
                                             class="text-dark">{{ $invoice->total_shift_hours }}</span></p>
                                     <p>SSP Hours: <span class="text-dark">{{ $sspDays }}</span></p>
-                                    <p>SSP Amount: <span class="text-dark">{{ number_format($sspAmount, 2) }}£</span></p>
+                                    <p>SSP Amount: <span class="text-dark">£{{ number_format($sspAmount, 2) }}</span></p>
 
                                     <p>Holiday Hours: <span class="text-dark">{{ $holidayHours }}</span></p>
                                     <p>Holiday Amount: <span
-                                            class="text-dark">{{ number_format($holidayAmount, 2) }}£</span></p>
+                                            class="text-dark">£{{ number_format($holidayAmount, 2) }}</span></p>
 
                                     <p>Unpaid Leave Hours: <span class="text-dark">{{ $unpaidHours }}</span></p>
                                     <p>Unpaid Leave Deduction: <span
-                                            class="text-dark">{{ number_format($unpaidAmount, 2) }}£</span></p>
-                                </div>
+                                            class="text-dark">£{{ number_format($unpaidAmount, 2) }}</span></p>
+                                </div>-->
                             </div>
 
                         </div>
                     </div>
 
+                    {{-- Year-to-Date Summary: compute from existing invoices if invoice->ytd not present --}}
+                    @php
+                        $ytdPeriodStart = now()->startOfYear()->format('d/m/Y');
+                        $ytdPeriodEnd = now()->endOfYear()->format('d/m/Y');
+                        $ytdInvoices = collect();
+                        $ytdGross = 0;
+                        $ytdNet = 0;
+                        $ytdCount = 0;
+                        $ytdDeductions = 0;
+                        if (! empty($invoice->ytd) || ! empty($invoice->ytd_pay)) {
+                            $ytdValue = $invoice->ytd ?? $invoice->ytd_pay;
+                        } else {
+                            if (! empty($staff?->id)) {
+                                $ytdInvoices = \App\Models\Invoice::where('security_staff_id', $staff->id)
+                                    ->whereYear('date_from', now()->year)
+                                    ->get();
+                                $ytdGross = $ytdInvoices->sum('gross_amount');
+                                $ytdNet = $ytdInvoices->sum('net_amount');
+                                $ytdCount = $ytdInvoices->count();
+                                $ytdDeductions = $ytdGross - $ytdNet;
+                            }
+                            $ytdValue = $ytdGross;
+                        }
+                    @endphp
+
                     <div class="mb-4">
-                        <h5 class="mb-3">Shift Details</h5>
+                        <div class="row border mb-3 p-3">
+                            <div class="col-md-12">
+                                <h6 class="mb-2">Year-to-Date Summary ({{ now()->year }})</h6>
+                            </div>
+                            <div class="col-md-3">
+                                <p class="mb-1">Period</p>
+                                <p class="text-dark">{{ $ytdPeriodStart }} to {{ $ytdPeriodEnd }}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <p class="mb-1">Total Gross Pay</p>
+                                <p class="text-dark">£{{ number_format($ytdValue ?? 0, 2) }}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <p class="mb-1">Total Net Pay</p>
+                                <p class="text-dark">£{{ number_format($ytdNet ?? 0, 2) }}</p>
+                            </div>
+                            <div class="col-md-3">
+                                <p class="mb-1">Payslips This Year</p>
+                                <p class="text-dark">{{ $ytdCount ?? 0 }}</p>
+                            </div>
+                            <div class="col-md-12 mt-2">
+                                <p class="mb-1">Total Deductions</p>
+                                <p class="text-dark">£{{ number_format($ytdDeductions ?? 0, 2) }}</p>
+                            </div>
+                        </div>
+                    </div>
+<!--                        <h5 class="mb-3">Shift Details</h5>
+-->
+                    {{-- Rate Hour / Deductions / Payments sections --}}
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="border p-3 h-100">
+                                <h6 class="mb-2">Rate & Hours</h6>
+                                <p class="mb-1">Hourly Rate</p>
+                                <p class="text-dark">£{{ number_format($invoice->rate_per_hour ?? 0, 2) }}</p>
+                                <p class="mb-1 mt-2">Total Hours</p>
+                                <p class="text-dark">{{ $totalHours ?? 0 }}</p>
+                                <p class="mb-1 mt-2">Total Billable Hours</p>
+                                <p class="text-dark">{{ $invoice->total_shift_hours ?? 0 }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border p-3 h-100">
+                                <h6 class="mb-2">Deductions</h6>
+                                @php
+                                    $deductionsTotal = ($invoice->gross_amount ?? 0) - ($invoice->net_amount ?? 0);
+                                @endphp
+                                <p class="mb-1">Tax</p>
+                                <p class="text-dark">£{{ number_format($invoice->tax_amount ?? $invoice->tax ?? 0, 2) }}</p>
+                                <p class="mb-1 mt-2">NI</p>
+                                <p class="text-dark">£{{ number_format($invoice->ni_amount ?? $staff?->employee->ni_amount ?? 0, 2) }}</p>
+                                <p class="mb-1 mt-2">Other Deductions</p>
+                                <p class="text-dark">£{{ number_format($invoice->other_deductions ?? (($deductionsTotal > 0) ? ($deductionsTotal - (($invoice->tax_amount ?? $invoice->tax ?? 0) + ($invoice->ni_amount ?? $staff?->employee->ni_amount ?? 0))) : 0), 2) }}</p>
+                                <hr>
+                                <p class="mb-1">Total Deductions</p>
+                                <p class="text-dark">£{{ number_format($deductionsTotal, 2) }}</p>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="border p-3 h-100">
+                                <h6 class="mb-2">Payments</h6>
+                                <p class="mb-1">Payment Method</p>
+                                <p class="text-dark">{{ $invoice->pay_method ?? $staff?->employee->pay_method ?? 'Bank Transfer' }}</p>
+                                <p class="mb-1 mt-2">Bank Name</p>
+                                <p class="text-dark">{{ $invoice->bank_name ?? 'HDFC Bank' }}</p>
+                                <p class="mb-1 mt-2">Account Number</p>
+                                <p class="text-dark">{{ $invoice->account_number ?? '45366287987' }}</p>
+                                <p class="mb-1 mt-2">IFSC / Sort Code</p>
+                                <p class="text-dark">{{ $invoice->ifsc ?? 'HDFC0018159' }}</p>
+                            </div>
+                        </div>
+                    </div>
+
                         <div class="table-responsive mb-3">
                             @php
                                 // Group items by site name so shifts show under their specific site section
@@ -167,8 +268,8 @@
                             @endphp
 
                             @foreach ($grouped as $siteName => $items)
-                                <h6 class="mb-2">Site: <strong>{{ $siteName }}</strong></h6>
-                                <table class="table table-bordered mb-4">
+<!--                                <h6 class="mb-2">Site: <strong>{{ $siteName }}</strong></h6>
+-->                                <table class="table table-bordered mb-4">
                                     <thead>
                                         <tr>
                                             <th>Date</th>
@@ -188,8 +289,8 @@
                                                 <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
                                                 <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
                                                 <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
-                                                <td class="text-end">{{ number_format($item->rate, 2) }}£</td>
-                                                <td class="text-end">{{ number_format($item->amount, 2) }}£</td>
+                                                <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
                                             </tr>
                                         @endforeach
                                     </tbody>
@@ -212,19 +313,19 @@
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p>Hourly Rate</p>
-                                <p class="text-dark fw-medium">{{ $invoice->rate_per_hour }}£</p>
+                                <p class="text-dark fw-medium">£{{ $invoice->rate_per_hour }}</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p>Gross Pay (including SSP/Holiday)</p>
-                                <p class="text-dark fw-medium">{{ number_format($invoice->gross_amount, 2) }}£</p>
+                                <p class="text-dark fw-medium">£{{ number_format($invoice->gross_amount, 2) }}</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
                                 <p>Unpaid Leave Deduction</p>
-                                <p class="text-dark fw-medium">- {{ number_format($unpaidAmount, 2) }}$</p>
+                                <p class="text-dark fw-medium">- £{{ number_format($unpaidAmount, 2) }}</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
                                 <h5>Net Pay</h5>
-                                <h5>{{ number_format($invoice->net_amount, 2) }}£</h5>
+                                <h5>£{{ number_format($invoice->net_amount, 2) }}</h5>
                             </div>
                             @php
                                 // Intl NumberFormatter may not be available on all PHP installs.

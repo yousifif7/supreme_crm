@@ -505,21 +505,23 @@ class CheckCallController extends Controller
         }
 
         $outputPath = $videoPath . '.tmp.mp4';
-
+       
+        
+        $location=$timestampData['location']['formatted_address']??''.' '.$timestampData['location']['street']??''.' '.$timestampData['location']['city']??''.' '.$timestampData['location']['country']??''.' '.$timestampData['location']['postal_code']??'';
         // Prepare overlay text
         $text = "Time: " . $timestampData['time'] .
             "\nEmployee: " . $timestampData['employee'] .
             "\nLat: " . $timestampData['latitude'] . "  " .
             "Lng: " . $timestampData['longitude'] .
             "\nSite: " . $timestampData['site'] .
-            "\nLocation: " . $timestampData['location'];
+            "\nLocation: " . $location;
 
         $text = str_replace([':', ','], '-', $text);
 
         // Generate text overlay PNG
         $textImage = $tempDir . '/text_overlay.png';
         $fontPath = base_path('ffmpeg/static/Roboto_Condensed-Black.ttf');
-        $fontSize = 10;
+        $fontSize = 15;
         $im = imagecreatetruecolor(200, 300);
         imagesavealpha($im, true);
         $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
@@ -571,8 +573,8 @@ class CheckCallController extends Controller
             unlink($videoPath);
             rename($outputPath, $videoPath);
             unlink($textImage);
-            echo "width:  $width , height: $height";
-            echo "Video processed successfully!";
+           /* echo "width:  $width , height: $height";
+            echo "Video processed successfully!";*/
         } else {
             echo "Error processing video! width:  $width , height: $height <br><pre>" . implode("\n", $outputLines) . "</pre>";
             echo "<br><b>Probe:</b> $cmdProbe";

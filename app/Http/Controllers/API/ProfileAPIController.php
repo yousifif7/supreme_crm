@@ -2,11 +2,15 @@
 
 namespace App\Http\Controllers\API;
 
+use App\Models\User;
+use App\Models\Employee;
 use App\Models\BankDetails;
 use Illuminate\Support\Str;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\EmergencyContacts;
 use App\Http\Controllers\Controller;
+use App\Models\ProfileChangeRequest;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 
@@ -23,7 +27,7 @@ class ProfileAPIController extends Controller
             if (! $user->profile) {
                 $user->profile()->create([
                     'first_name' => $user->first_name,
-                    'last_name' => $user->first_name,
+                    'last_name' => $user->last_name,
                     'phone' => '',
                     'address' => '',
                     'emergency_contact' => [],
@@ -68,9 +72,56 @@ class ProfileAPIController extends Controller
 
         $profile = $request->user()->profile;
 
+        $user = $request->user();
+
+        // If the request contains an email identical to current, proceed but suppress notifications
+        $suppressNotifications = false;
+        if ($request->filled('email') && $request->input('email') === $user->email) {
+            $suppressNotifications = true;
+        }
+
+        // Handle email change requests specially: do not update directly
+        if ($request->filled('email') && $request->input('email') !== $user->email) {
+            // ensure requested email is not already taken
+            if (User::where('email', $request->input('email'))->where('id', '<>', $user->id)->exists()) {
+                return response()->json(['message' => 'Email already in use'], 422);
+            }
+
+            // create a profile change request
+            $req = ProfileChangeRequest::create([
+                'user_id' => $user->id,
+                'requested_email' => $request->input('email'),
+                'old_email' => $user->email,
+                'status' => 'pending',
+            ]);
+
+            // Notify admins/system about the request (link to the specific request)
+            Notification::create([
+                'user_id' => 1,
+                'employee_id' => $user->id,
+                'type' => 'alert',
+                'title' => 'Profile Change Request',
+                'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' requested profile changes (email).',
+                'action_url' => '/admin/profile-change-requests/' . $req->id
+            ]);
+
+            return response()->json(['message' => 'Email change request submitted for admin approval']);
+        }
+
         // Ensure fillable is set in Profile model
         $profile->fill($request->only(['first_name', 'last_name', 'phone', 'address']));
         $profile->save();
+
+
+        $user1 = User::find(Auth::id());
+        $user1->first_name=$profile->first_name;
+        $user1->last_name=$profile->last_name;
+        $user1->save();
+
+        $employee = Employee::where('user_id', $request->user()->id)->first();
+        $employee->fore_name = $profile->first_name;
+        $employee->sur_name = $profile->last_name;
+        $employee->save();
 
         // Emergency Contact
         $emergency = $profile->emergencyContact ?: new EmergencyContacts();
@@ -85,12 +136,23 @@ class ProfileAPIController extends Controller
         $bank->save();
 
 
-        send_push_notification(
-            Auth::id(),
-            'Profile updated',
-            'You have updated your profile successfully.',
-            ['profile' => $profile],
-        );
+        if (! $suppressNotifications) {
+            send_push_notification(
+                Auth::id(),
+                'Profile updated',
+                'You have updated your profile successfully.',
+                ['profile' => $profile],
+            );
+            
+            $user = Auth::user();
+            Notification::create([
+                'user_id' => null,
+                'employee_id' => Auth::id(),
+                'type' => 'alert',
+                'title' => 'Updated Profile',
+                'message' => 'Guard '.$user->first_name.' '.$user->last_name.' has updated their profile.',
+            ]);
+        }
 
         return response()->json([
             'message' => 'Profile updated successfully',

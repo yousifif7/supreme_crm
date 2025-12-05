@@ -17,9 +17,9 @@ if (!function_exists('format_date')) {
 
         try {
             if ($date instanceof Carbon) {
-                return $date->format('m/d/Y');
+                return $date->format('d/m/Y');
             }
-            return Carbon::parse($date)->format('m/d/Y');
+            return Carbon::parse($date)->format('d/m/Y');
         } catch (\Exception $e) {
             return '';
         }

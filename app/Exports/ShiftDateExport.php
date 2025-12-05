@@ -16,10 +16,12 @@ use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 class ShiftDateExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
 {
     protected $isTemplate;
+    protected $ids;
 
-    public function __construct($isTemplate = false)
+    public function __construct($isTemplate = false, $ids = null)
     {
         $this->isTemplate = $isTemplate;
+        $this->ids = $ids;
     }
 
     public function collection()
@@ -29,9 +31,14 @@ class ShiftDateExport implements FromCollection, WithHeadings, WithMapping, With
             return collect([]);
         }
 
-        return ShiftDate::with(['shift.client', 'shift.site', 'staff'])
-            ->orderBy('shift_date')
-            ->get();
+        $query = ShiftDate::with(['shift.client', 'shift.site', 'staff'])
+            ->orderBy('shift_date');
+
+        if (!empty($this->ids) && is_array($this->ids)) {
+            $query->whereIn('id', $this->ids);
+        }
+
+        return $query->get();
     }
 
     public function headings(): array

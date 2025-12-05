@@ -21,19 +21,23 @@ class NotificationController extends Controller
             'limit' => 'nullable|integer|min:1|max:100',
         ]);
 
-        // Get the currently authenticated user
+        // Require authenticated user (mobile API)
+        if (! Auth::check()) {
+            return response()->json(['message' => 'Unauthenticated'], 401);
+        }
+
         $user = Auth::user();
 
         // Find the linked employee
         $employee = Employee::where('user_id', $user->id)->first();
 
-        if (!$employee) {
+        if (! $employee) {
             return response()->json(['message' => 'Employee not found for this user.'], 404);
         }
 
-        // Start notifications query, filtered by employee_id
+        // Start notifications query, filtered by employee_id or user_id
         $query = Notification::where('employee_id', $employee->id)
-        ->orWhere('employee_id',Auth::id());
+            ->orWhere('user_id', $user->id);
 
         // Optional filters
         if ($request->filled('type')) {

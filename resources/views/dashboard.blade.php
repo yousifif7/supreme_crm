@@ -30,7 +30,7 @@
 @section('contents')
     <!-- Page Wrapper -->
     <div class="page-wrapper">
-        <div class="content">
+        <div class="">
 
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
@@ -787,11 +787,12 @@
 
             // --- Add site markers (geocode postal codes) ---
             siteLocations.forEach(loc => {
-                if (!loc.postalcode) return;
+                if (!loc.address) return;
 
                 geocoder.geocode({
-                    address: loc.postalcode
+                    address: loc.address
                 }, (results, status) => {
+                    console.log(results[0].geometry.location)
                     if (status === 'OK' && results[0]) {
                         const latLng = results[0].geometry.location;
                         addCustomMarker(latLng, siteIconHTML, loc.name, 'Site Location', loc, true);

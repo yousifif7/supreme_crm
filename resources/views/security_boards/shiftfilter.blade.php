@@ -68,14 +68,43 @@
                 </a>
                 <ul class="dropdown-menu  dropdown-menu-start p-3">
                     <li>
-                        <a href="{{ route('shifts.export.pdf') }}" class="dropdown-item rounded-1"><i
+                        <a href="{{ route('shifts.export.pdf') }}" class="dropdown-item rounded-1 export-pdf"><i
                                 class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                     </li>
                     <li>
-                        <a href="{{ route('shifts.export.excel') }}" class="dropdown-item rounded-1"><i
+                        <a href="{{ route('shifts.export.excel') }}" class="dropdown-item rounded-1 export-excel"><i
                                 class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                     </li>
                 </ul>
+                <script>
+                    (function() {
+                        // Intercept export clicks and append visible shift IDs (from scheduling Gantt)
+                        function buildIdsQuery(ids) {
+                            return ids.map(function(id) { return 'ids[]=' + encodeURIComponent(id); }).join('&');
+                        }
+
+                        $(document).on('click', 'a.export-pdf, a.export-excel', function(e) {
+                            try {
+                                var href = $(this).attr('href');
+                                var $visibleBars = $('.gantt-bar:visible');
+                                var ids = $visibleBars.map(function() { return $(this).data('shift-id'); }).get();
+
+                                if (!ids || ids.length === 0) {
+                                    // No gantt bars on page (maybe DataTable view). Fall back to original link.
+                                    return; // allow default
+                                }
+
+                                e.preventDefault();
+                                var qs = buildIdsQuery(ids);
+                                var sep = href.indexOf('?') === -1 ? '?' : '&';
+                                window.location = href + sep + qs;
+                            } catch (err) {
+                                // On any error, just follow the original link
+                                return;
+                            }
+                        });
+                    })();
+                </script>
             </div>
         </div>
     </div>

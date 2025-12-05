@@ -345,16 +345,25 @@ class ExportController extends Controller
     {
         $isTemplate = $request->has('template') && $request->template == 1;
 
+        $ids = $request->input('ids');
+
         if ($isTemplate) {
-            return Excel::download(new ShiftDateExport(true), 'shifts_template.xlsx');
+            return Excel::download(new ShiftDateExport(true, $ids), 'shifts_template.xlsx');
         }
 
-        return Excel::download(new ShiftDateExport(false), 'shifts.xlsx');
+        return Excel::download(new ShiftDateExport(false, $ids), 'shifts.xlsx');
     }
 
     public function exportShiftPdf()
     {
-        $shifts = ShiftDate::with('shift')->get();
+        $ids = request()->input('ids');
+
+        $query = ShiftDate::with('shift')->orderBy('shift_date');
+        if (!empty($ids) && is_array($ids)) {
+            $query->whereIn('id', $ids);
+        }
+
+        $shifts = $query->get();
 
         $pdf = PDF::loadView('exports.shifts_pdf', compact('shifts'));
         return $pdf->download('shifts.pdf');

@@ -169,12 +169,19 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/training/{training_id}/acknowledge', [TrainingController::class, 'acknowledge']);
 });
 
-//Notifications api controller routes
-//Should be authenticated
+// Notifications api controller routes (mobile APIs)
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/notifications', [NotificationController::class, 'index']);
     Route::post('/notifications/{notification_id}/read', [NotificationController::class, 'markAsRead']);
     Route::post('/notifications/register-device', [NotificationController::class, 'registerDevice']);
+});
+
+// Admin profile change requests
+Route::prefix('admin')->group(function () {
+    Route::get('/profile-change-requests', [\App\Http\Controllers\API\ProfileChangeRequestController::class, 'index']);
+    Route::get('/profile-change-requests/{id}', [\App\Http\Controllers\API\ProfileChangeRequestController::class, 'show']);
+    Route::post('/profile-change-requests/{id}/approve', [\App\Http\Controllers\API\ProfileChangeRequestController::class, 'approve']);
+    Route::post('/profile-change-requests/{id}/deny', [\App\Http\Controllers\API\ProfileChangeRequestController::class, 'deny']);
 });
 
 // Route::middleware('auth:sanctum')->post('/notifications/mark-all-read', function () {

@@ -276,7 +276,29 @@ class InvoiceService
 
     protected function processShiftDate($shiftDate, $hourlyRate)
     {
-        $date = Carbon::parse($shiftDate->shift_date);
+        // Normalize shift_date string defensively — handle malformed day/month ordering
+        $rawDate = (string) ($shiftDate->shift_date ?? '');
+        // If format is YYYY-MM-DD but middle part looks like a day (>12), swap day/month
+        if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $rawDate, $m)) {
+            $y = (int) $m[1];
+            $p2 = (int) $m[2];
+            $p3 = (int) $m[3];
+            if ($p2 > 12 && $p3 <= 12) {
+                $rawDate = sprintf('%04d-%02d-%02d', $y, $p3, $p2);
+            }
+        }
+        // If format is DD-MM-YYYY or DD/MM/YYYY convert to YYYY-MM-DD
+        if (preg_match('/^(\d{2})[\-\/](\d{2})[\-\/](\d{4})$/', $rawDate, $m2)) {
+            $d = (int) $m2[1];
+            $mo = (int) $m2[2];
+            $y = (int) $m2[3];
+            // Only convert when month looks valid
+            if ($mo >= 1 && $mo <= 12) {
+                $rawDate = sprintf('%04d-%02d-%02d', $y, $mo, $d);
+            }
+        }
+
+        $date = Carbon::parse($rawDate);
         $start = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->start_time);
         $end = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->end_time);
 
@@ -285,14 +307,37 @@ class InvoiceService
         }
 
         $breakHours = ($shiftDate->break_time ?? 0) / 60;
-        $bookOnHours = $shiftDate->absentee_start_time ?
-            Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time)
-            ->diffInMinutes($end) / 60 : 0;
-        $bookOffHours = $shiftDate->absentee_end_time ?
-            $start->diffInMinutes(Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time)) / 60 : 0;
 
+        // Compute shift duration first so we can clamp absentee deductions
         $totalHours = $start->diffInMinutes($end) / 60;
-        $payableHours = $totalHours - $breakHours - $bookOnHours - $bookOffHours;
+
+        // Defensive defaults
+        $bookOnHours = 0;
+        $bookOffHours = 0;
+
+        // Compute absentee (book on) hours if within the shift
+        if (! empty($shiftDate->absentee_start_time)) {
+            $absStart = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
+            if ($absStart->between($start, $end)) {
+                $bookOnHours = $start->diffInMinutes($absStart) / 60;
+            }
+        }
+
+        // Compute absentee (book off) hours if within the shift
+        if (! empty($shiftDate->absentee_end_time)) {
+            $absEnd = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
+            if ($absEnd->between($start, $end)) {
+                $bookOffHours = $absEnd->diffInMinutes($end) / 60;
+            }
+        }
+
+        // Clamp absentee deductions to non-negative and not greater than available shift time
+        $maxDeductable = max(0, $totalHours - $breakHours);
+        $bookOnHours = max(0, min($bookOnHours, $maxDeductable));
+        $bookOffHours = max(0, min($bookOffHours, $maxDeductable - $bookOnHours));
+
+        // Payable hours must be non-negative
+        $payableHours = max(0, $totalHours - $breakHours - $bookOnHours - $bookOffHours);
         $amount = $payableHours * $hourlyRate;
 
         return [
@@ -331,7 +376,26 @@ class InvoiceService
         $totalHours = $totalBreaks = $totalBookOnHours = $totalBookOffHours = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            $date = Carbon::parse($shiftDate->shift_date);
+            // Normalize again inside alternate code path
+            $rawDate = (string) ($shiftDate->shift_date ?? '');
+            if (preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $rawDate, $m)) {
+                $y = (int) $m[1];
+                $p2 = (int) $m[2];
+                $p3 = (int) $m[3];
+                if ($p2 > 12 && $p3 <= 12) {
+                    $rawDate = sprintf('%04d-%02d-%02d', $y, $p3, $p2);
+                }
+            }
+            if (preg_match('/^(\d{2})[\-\/](\d{2})[\-\/](\d{4})$/', $rawDate, $m2)) {
+                $d = (int) $m2[1];
+                $mo = (int) $m2[2];
+                $y = (int) $m2[3];
+                if ($mo >= 1 && $mo <= 12) {
+                    $rawDate = sprintf('%04d-%02d-%02d', $y, $mo, $d);
+                }
+            }
+
+            $date = Carbon::parse($rawDate);
 
             $startDT = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->start_time);
             $endDT   = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->end_time);

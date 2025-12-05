@@ -208,7 +208,7 @@ class SiteController extends Controller
 
     public function edit($id)
     {
-        $site = Site::with('employeeTypes')->find($id);
+        $site = Site::with('employeeTypes','checkpoints')->find($id);
 
         return response()->json([
             'site' => $site,

@@ -42,16 +42,16 @@ class PayrollsDataTable extends DataTable
                 $row->site ? $row->site->site_name : ''
             )
             ->addColumn('ssp_days', fn($row) => $row->ssp_days ?? 0)
-            ->addColumn('ssp_amount', fn($row) => '£'.number_format($row->ssp_amount ?? 0, 2))
+            ->addColumn('ssp_amount', fn($row) => number_format($row->ssp_amount ?? 0, 2))
             ->addColumn('holiday_hours', fn($row) => $row->holiday_hours ?? 0)
-            ->addColumn('holiday_amount', fn($row) => '£'.number_format($row->holiday_amount ?? 0, 2))
+            ->addColumn('holiday_amount', fn($row) => number_format($row->holiday_amount ?? 0, 2))
             ->addColumn('unpaid_leave_hours', fn($row) => $row->unpaid_leave_hours ?? 0)
-            ->addColumn('unpaid_leave_amount', fn($row) => '£'.number_format($row->unpaid_leave_amount ?? 0, 2))
+            ->addColumn('unpaid_leave_amount', fn($row) => number_format($row->unpaid_leave_amount ?? 0, 2))
             // Format issue_date and due_date as MM/DD/YYYY
             ->addColumn('issue_date', function($row) {
                 if (empty($row->issue_date)) return '';
                 try {
-                    return Carbon::parse($row->issue_date)->format('m/d/Y');
+                    return Carbon::parse($row->issue_date)->format('d/m/Y');
                 } catch (\Exception $e) {
                     return $row->issue_date;
                 }
@@ -72,14 +72,6 @@ class PayrollsDataTable extends DataTable
 
                 // You can include more action buttons here if needed
                 return $deleteBtn;
-            })
-            ->editColumn('net_amount', function ($row) {
-                $amount = $row->net_amount ?? 0;
-                return '£' . number_format((float)$amount, 2);
-            })
-            ->editColumn('total_amount', function ($row) {
-                $amount = $row->total_amount ?? 0;
-                return '£' . number_format((float)$amount, 2);
             })
             ->filterColumn('employee_name', function ($query, $keyword) {
                 $query->whereHas('securityStaff', function ($q) use ($keyword) {

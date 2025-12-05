@@ -51,14 +51,14 @@ class InvoicesDataTable extends DataTable
             })
             ->addColumn('invoice_date', function ($row) {
                 if ($row->created_at) {
-                    try { return Carbon::parse($row->created_at)->format('m/d/Y'); }
+                    try { return Carbon::parse($row->created_at)->format('d/m/Y'); }
                     catch (\Exception $e) { return $row->created_at; }
                 }
                 return '';
             })
             ->addColumn('issue_date', function ($row) {
                 if (empty($row->issue_date)) return '';
-                try { return Carbon::parse($row->issue_date)->format('m/d/Y'); }
+                try { return Carbon::parse($row->issue_date)->format('d/m/Y'); }
                 catch (\Exception $e) { return $row->issue_date; }
             })
             ->addColumn('client_name', function ($row) {
@@ -66,14 +66,6 @@ class InvoicesDataTable extends DataTable
             })
             ->addColumn('site_name', function ($row) {
                 return $row->site ? $row->site->site_name : '';
-            })
-            ->editColumn('net_amount', function ($row) {
-                $amount = $row->net_amount ?? 0;
-                return '£' . number_format((float)$amount, 2);
-            })
-            ->editColumn('total_amount', function ($row) {
-                $amount = $row->total_amount ?? 0;
-                return '£' . number_format((float)$amount, 2);
             })
             ->addColumn('action', function ($row) {
                 return view('invoices.action', compact('row'))->render();

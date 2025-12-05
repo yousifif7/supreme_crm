@@ -1873,7 +1873,13 @@ class ShiftController extends Controller
             $shiftDate->end_time            = $newEnd;
             $shiftDate->absentee_start_time = $bookOn;
             $shiftDate->absentee_end_time   = $bookOff;
-            $shiftDate->shift_date          = $newDate;           // ✅ add this
+            // Normalize incoming date to Y-m-d to avoid storing different formats
+            try {
+                $normalized = \Carbon\Carbon::parse($newDate)->format('Y-m-d');
+            } catch (\Exception $e) {
+                $normalized = $newDate; // fallback to raw value
+            }
+            $shiftDate->shift_date          = $normalized;           // ✅ add this
 
             // Normalize time format for hours calculation
             $startCalc = strlen($newStart) === 5 ? $newStart . ':00' : $newStart;
@@ -2090,7 +2096,12 @@ class ShiftController extends Controller
             $shiftDate->end_time            = $newEnd;
             $shiftDate->absentee_start_time = $bookOn;
             $shiftDate->absentee_end_time   = $bookOff;
-            $shiftDate->shift_date          = $newDate;
+            try {
+                $normalized = \Carbon\Carbon::parse($newDate)->format('Y-m-d');
+            } catch (\Exception $e) {
+                $normalized = $newDate;
+            }
+            $shiftDate->shift_date          = $normalized;
 
             // Recalculate total hours
             $startCalc = strlen($newStart) === 5 ? $newStart . ':00' : $newStart;

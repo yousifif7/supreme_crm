@@ -55,11 +55,11 @@
                         </a>
                         <ul class="dropdown-menu  dropdown-menu-start p-3">
                             <li>
-                                <a href="{{ route('shifts.export.pdf') }}" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('shifts.export.pdf') }}" class="dropdown-item rounded-1 export-pdf"><i
                                         class="ti ti-file-type-pdf me-1"></i>Export as PDF</a>
                             </li>
                             <li>
-                                <a href="{{ route('shifts.export.excel') }}" class="dropdown-item rounded-1"><i
+                                <a href="{{ route('shifts.export.excel') }}" class="dropdown-item rounded-1 export-excel"><i
                                         class="ti ti-file-type-xls me-1"></i>Export as Excel </a>
                             </li>
                         </ul>

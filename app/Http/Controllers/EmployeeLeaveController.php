@@ -332,6 +332,9 @@ class EmployeeLeaveController extends Controller
                 ->addColumn('checkbox', function ($leave) {
                     return '<input type="checkbox" class="dT-row-checkbox" value="' . $leave->id . '">';
                 })
+                ->editColumn('hours', function ($leave) {
+                    return abs($leave->hours);
+                })
                 ->addColumn('reason', function ($leave) {
                     return $leave->reason;
                 })

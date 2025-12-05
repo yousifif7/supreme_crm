@@ -39,6 +39,8 @@ class UserController extends Controller
         if(auth()->user()->hasRole('client')){
             return redirect()->route('client.dashboard');
         }
+        // Prune old notifications (guarded to run once per day via cache)
+        $this->pruneOldNotifications();
         
         $shifts = ShiftDate::where('shift_date', Carbon::today()->toDateString())->with('shift.staff')->get();
         $invoices = Invoice::with(['client', 'site'])
@@ -123,78 +125,8 @@ class UserController extends Controller
         }
         $reviewrowthPercentage = round($reviewgrowthPercentage, 2);
 
-        // Checking for missed shifts 
-        $now = now();
-
-        // Checking for missed shifts 
-        $now = now();
-
-        // --- Missed Book On Notifications ---
-        $missedBookOns = Shift::whereNotNull('staff_id')
-            ->whereNull('book_in_time')
-            ->whereDate('from_shift', '<=', $now->toDateString())
-            ->whereTime('start_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
-            ->where('missed_book_on_notified', false) // prevent repeats
-            ->get();
-
-        foreach ($missedBookOns as $shift) {
-            $employee = Employee::find($shift->staff_id);
-            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
-
-            Notify::toDashboard(
-                $employee->id,
-                'alarm',
-                'Missed Book On',
-                "Guard {$guardName} did not book on for their shift starting at {$shift->start_shift} on {$shift->from_shift}.",
-                "employees?$employee->id"
-            );
-
-            // ✅ Mark as notified
-            $shift->update(['missed_book_on_notified' => true]);
-        }
-
-        // --- Missed Book Off Notifications ---
-        $missedBookOffs = Shift::whereNotNull('staff_id')
-            ->whereNull('book_off_time')
-            ->whereDate('to_shift', '<=', $now->toDateString())
-            ->whereTime('end_shift', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
-            ->where('missed_book_off_notified', false)
-            ->get();
-
-        foreach ($missedBookOffs as $shift) {
-            $employee = Employee::find($shift->staff_id);
-            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
-
-            Notify::toDashboard(
-                $employee->id,
-                'alarm',
-                'Missed Book Off',
-                "Guard {$guardName} did not book off for their shift ending at {$shift->end_shift} on {$shift->to_shift}.",
-                "/scheduling"
-            );
-
-            $shift->update(['missed_book_off_notified' => true]);
-        }
-
-        // --- Unassigned Shift Starting Soon ---
-        $unassignedShifts = Shift::whereNull('staff_id')
-            ->whereDate('from_shift', '=', $now->toDateString())
-            ->whereTime('start_shift', '>=', $now->format('H:i:s'))
-            ->whereTime('start_shift', '<=', $now->copy()->addHour()->format('H:i:s'))
-            ->where('unassigned_shift_notified', false)
-            ->get();
-
-        foreach ($unassignedShifts as $shift) {
-            Notify::toDashboard(
-                null,
-                'alarm',
-                'Unassigned Shift',
-                "A shift at {$shift->start_shift} on {$shift->from_shift} is starting soon and no guard has been assigned.",
-                "/scheduling?shift_date_id=$shift->id"
-            );
-
-            $shift->update(['unassigned_shift_notified' => true]);
-        }
+        // Run missed/unassigned shift notifications (cached to run at most once per hour)
+        $this->missedShiftNotifications();
         // --- Users (latest locations) ---
         $userLocations = Location::with([
             'user:id,first_name,last_name',
@@ -228,13 +160,14 @@ class UserController extends Controller
             $query->whereHas('shiftDates', function ($query) {
                 $query->whereNotNull('staff_id');
             });
-        })->select('id', 'site_name', 'post_code')->get();
+        })->select('id', 'site_name', 'post_code','address')->get();
 
         $siteLocations = $sites->map(function ($site) {
             return [
                 'id' => 'site-' . $site->id,
                 'name' => $site->site_name,
                 'postalcode' => $site->post_code,
+                'address' => $site->address,
                 'type' => 'site',
             ];
         });
@@ -498,5 +431,144 @@ class UserController extends Controller
 
         // ✅ Store flag in cache until the end of Thursday (23:59:59)
         Cache::put($cacheKey, true, $today->copy()->endOfDay());
+    }
+
+    /**
+     * Prune notifications older than 15 days. Runs at most once per day (cache-guarded).
+     */
+    private function pruneOldNotifications()
+    {
+        // Use a file-based lock in storage to avoid dependency on Cache driver availability
+        $lockFile = storage_path('app/pruned_notifications_' . now()->format('Ymd') . '.lock');
+        if (file_exists($lockFile)) {
+            return; // already pruned today
+        }
+
+        try {
+            $old = \App\Models\Notification::where('created_at', '<', now()->subDays(15))->get();
+            $count = $old->count();
+            if ($count > 0) {
+                foreach ($old as $n) {
+                    try {
+                        $n->forceDelete();
+                    } catch (\Exception $ex) {
+                        \Log::warning('Failed to forceDelete notification id ' . $n->id . ': ' . $ex->getMessage());
+                    }
+                }
+                \Log::info("Pruned {$count} notifications older than 15 days.");
+            }
+        } catch (\Exception $e) {
+            // swallow — pruning is best-effort; log for visibility
+            \Log::error('Notification pruning failed: ' . $e->getMessage());
+        }
+
+        // create the lock file to mark pruning done for today (best-effort)
+        try {
+            $dir = dirname($lockFile);
+            if (!file_exists($dir)) {
+                \Illuminate\Support\Facades\File::makeDirectory($dir, 0755, true);
+            }
+            @file_put_contents($lockFile, now()->toDateTimeString());
+        } catch (\Exception $e) {
+            \Log::warning('Failed to create prune lock file: ' . $e->getMessage());
+        }
+    }
+
+    /**
+     * Missed / Unassigned shift notifications.
+     * - Uses `ShiftDate` model (per-shift entry) instead of `Shift`.
+     * - Uses a per-hour global cache to avoid running the whole check more than once an hour.
+     * - Uses per-shift cache keys so each shift is notified at most once per hour.
+     */
+    private function missedShiftNotifications()
+    {
+        $hourKey = 'missed_shifts_checked_' . now()->format('Y-d-mH');
+        if (Cache::has($hourKey)) {
+            return; // Already ran in this hour
+        }
+
+        $now = now();
+
+        // --- Missed Book On Notifications ---
+        $missedBookOns = ShiftDate::whereNotNull('staff_id')
+            ->whereNull('absentee_start_time')
+            ->whereDate('shift_date', '<=', $now->toDateString())
+            ->whereTime('start_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->get();
+
+        foreach ($missedBookOns as $sd) {
+            $perShiftKey = 'missed_shift_on_' . $sd->id;
+            if (Cache::has($perShiftKey)) {
+                continue;
+            }
+
+            $employee = User::find($sd->staff_id);
+            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+
+            Notify::toDashboard(
+                $employee?->id,
+                'alarm',
+                'Missed Book On',
+                "Guard {$guardName} did not book on for their shift starting at {$sd->start_time} on {$sd->shift_date}.",
+                "/shifts/{$sd->id}"
+            );
+
+            // Mark this shift as notified for 1 hour to prevent repeats
+            Cache::put($perShiftKey, true, now()->addHour());
+        }
+
+        // --- Missed Book Off Notifications ---
+        $missedBookOffs = ShiftDate::whereNotNull('staff_id')
+            ->whereNull('absentee_end_time')
+            ->whereDate('shift_date', '<=', $now->toDateString())
+            ->whereTime('end_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->get();
+
+        foreach ($missedBookOffs as $sd) {
+            $perShiftKey = 'missed_shift_off_' . $sd->id;
+            if (Cache::has($perShiftKey)) {
+                continue;
+            }
+
+            $employee = User::find($sd->staff_id);
+            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+
+            Notify::toDashboard(
+                $employee?->id,
+                'alarm',
+                'Missed Book Off',
+                "Guard {$guardName} did not book off for their shift ending at {$sd->end_time} on {$sd->shift_date}.",
+                "/shifts/{$sd->id}"
+            );
+
+            Cache::put($perShiftKey, true, now()->addHour());
+        }
+
+        // --- Unassigned Shift Starting Soon ---
+        $unassignedShiftDates = ShiftDate::whereNull('staff_id')
+            ->whereDate('shift_date', '=', $now->toDateString())
+            ->whereTime('start_time', '>=', $now->format('H:i:s'))
+            ->whereTime('start_time', '<=', $now->copy()->addHour()->format('H:i:s'))
+            ->get();
+
+        foreach ($unassignedShiftDates as $sd) {
+            $perShiftKey = 'unassigned_shift_' . $sd->id;
+            if (Cache::has($perShiftKey)) {
+                continue;
+            }
+
+            Notify::toDashboard(
+                null,
+                'alarm',
+                'Unassigned Shift',
+                "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and no guard has been assigned.",
+                "/shifts/{$sd->id}"
+            );
+
+            Cache::put($perShiftKey, true, now()->addHour());
+        }
+
+        // Mark the overall check as done for this hour
+        Cache::put($hourKey, true, now()->addHour());
     }
 }
