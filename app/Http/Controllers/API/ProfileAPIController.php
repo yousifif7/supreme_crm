@@ -57,6 +57,7 @@ class ProfileAPIController extends Controller
     public function updateProfile(Request $request)
     {
         $request->validate([
+            'email' => 'nullable|email',
             'first_name' => 'nullable|string',
             'last_name' => 'nullable|string',
             'phone' => 'nullable|string',
@@ -86,6 +87,10 @@ class ProfileAPIController extends Controller
             if (User::where('email', $request->input('email'))->where('id', '<>', $user->id)->exists()) {
                 return response()->json(['message' => 'Email already in use'], 422);
             }
+
+            // Ensure fillable is set in Profile model
+            $profile->fill($request->only(['first_name', 'last_name', 'phone', 'address']));
+            $profile->save();
 
             // create a profile change request
             $req = ProfileChangeRequest::create([

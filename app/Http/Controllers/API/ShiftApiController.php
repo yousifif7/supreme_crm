@@ -22,6 +22,10 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Models\PatrolMedia;
+use Illuminate\Support\Facades\Log;
+use App\Services\GeoService;
+use App\Models\Location;
 
 class ShiftApiController extends Controller
 {
@@ -695,7 +699,6 @@ class ShiftApiController extends Controller
             $siteId = $site->site_id ?? null;
         }
 
-        // Fallback: if Patrol has site_id or direct relation (adjust if your model differs)
         if (!$siteId && isset($patrol->site_id)) {
             $siteId = $patrol->site_id;
         }
@@ -772,7 +775,9 @@ class ShiftApiController extends Controller
         if ($request->has('media_files')) {
             foreach ($request->media_files as $base64) {
                 $filename = 'scan_' . uniqid() . '.jpg';
-                Storage::disk('public')->put("patrols/media/{$filename}", base64_decode($base64));
+                $dir = public_path('patrols/media');
+                if (!file_exists($dir)) mkdir($dir, 0755, true);
+                file_put_contents($dir . '/' . $filename, base64_decode($base64));
                 $scan->media()->create(['file_path' => "patrols/media/{$filename}"]);
             }
         }
@@ -784,7 +789,7 @@ class ShiftApiController extends Controller
     {
         $patrol = Patrol::findOrFail($patrol_id);
 
-        $now = Carbon::now(); // current server time
+        $now = Carbon::now();
         $patrolStart = Carbon::parse($patrol->start_time);
 
         // Guard cannot start before scheduled time
@@ -794,13 +799,67 @@ class ShiftApiController extends Controller
             ], 403);
         }
 
-        // Optional: prevent restarting an already started or completed patrol
-        if (in_array($patrol->status, ['in_progress', 'completed'])) {
+        // If this specific patrol is already completed, block
+        if ($patrol->status === 'completed') {
             return response()->json([
-                'message' => 'Patrol has already started or completed.'
+                'message' => 'Patrol has already been completed.'
             ], 403);
         }
 
+        // If this specific patrol is already in progress, block (can't start same patrol twice)
+        if ($patrol->status === 'in_progress') {
+            return response()->json([
+                'message' => 'Patrol is already in progress.'
+            ], 403);
+        }
+
+        // If the guard currently has a different patrol in progress, mark that one completed
+        $staffShiftIds = ShiftDate::where('staff_id', Auth::id())->pluck('id')->toArray();
+        $other = Patrol::where('status', 'in_progress')
+            ->where('id', '!=', $patrol->id)
+            ->whereIn('shift_id', $staffShiftIds)
+            ->first();
+
+        if ($other) {
+            $other->update([
+                'status' => 'completed',
+                'completed_at' => $now,
+            ]);
+
+            // notify admin and the guard about the forced completion
+            $otherShiftDate = ShiftDate::find($other->shift_id);
+            $otherUser = $otherShiftDate ? User::find($otherShiftDate->staff_id) : null;
+
+            Notification::create([
+                'user_id' => 1,
+                'employee_id' => null,
+                'type' => 'alert',
+                'title' => 'Patrol auto-completed',
+                'message' => 'Guard ' . ($otherUser?->first_name ?? 'Guard') . ' ' . ($otherUser?->last_name ?? '') . ' patrol was auto-completed at ' . $now,
+                'read' => false,
+                'action_url' => "/shift-dates/{$other->shift_id}/view"
+            ]);
+
+            if ($otherShiftDate && $otherUser) {
+                Notification::create([
+                    'user_id' => $otherUser->id,
+                    'employee_id' => $otherShiftDate->staff_id,
+                    'type' => 'alert',
+                    'title' => 'Patrol auto-completed',
+                    'message' => 'Your previous patrol was marked completed to allow starting a new patrol at ' . $now,
+                    'read' => false,
+                ]);
+
+                send_push_notification(
+                    $otherUser->id,
+                    'Patrol auto-completed',
+                    'Your previous patrol was marked completed at ' . $now,
+                    ['shift_date_id' => $other->shift_id]
+                );
+            }
+        }
+
+        // Start requested patrol
         $patrol->update([
             'status' => 'in_progress',
             'started_at' => $now
@@ -847,10 +906,10 @@ class ShiftApiController extends Controller
 
         // Guard can complete patrol only up to 50 mins after start
         if ($now->gt($patrolStart->copy()->addMinutes(50))) {
-            $patrol->status = 'missed';
+            $patrol->status = 'completed';
             $patrol->save();
             return response()->json([
-                'message' => 'Patrol completion time exceeded. You cannot complete after 50 minutes.'
+                'message' => 'Patrol completion time exceeded. However it is considered as completed.'
             ], 403);
         }
 
@@ -899,6 +958,586 @@ class ShiftApiController extends Controller
         );
 
         return response()->json(['message' => 'Patrol marked as completed']);
+    }
+
+    // Upload media files for a patrol (accepts UploadedFile instances or base64 data URIs)
+    public function uploadPatrolMedia(Request $request, $patrol_id)
+    {
+        $request->validate([
+            'media_files' => 'nullable|array',
+            'location.latitude' => 'nullable|numeric',
+            'location.longitude' => 'nullable|numeric',
+            'notes' => 'nullable|string',
+        ]);
+
+        $patrol = Patrol::findOrFail($patrol_id);
+
+        // Ensure the authenticated user is the assigned staff for this patrol's shift
+        $shiftDate = ShiftDate::find($patrol->shift_id);
+        if (!$shiftDate || $shiftDate->staff_id !== Auth::id()) {
+            return response()->json(['message' => 'You are not assigned to this patrol.'], 403);
+        }
+
+        if($patrol->status !='in_progress'){
+            return response()->json(['message' => 'The patrol is not in progress at the moment, you cannot submit media!']);
+        }
+
+        $user = Auth::user();
+        $employee = Employee::where('user_id', $user->id)->first();
+
+        // Prepare timestamp data
+        // Accept location sent as nested array (`location[latitude]`), dotted keys (`location.latitude`) or plain `latitude`/`longitude`
+        $lat = $request->input('location.latitude');
+        $lng = $request->input('location.longitude');
+
+        // Fallbacks for different form-data naming conventions
+        if (is_null($lat) || is_null($lng)) {
+            $all = $request->all();
+            if (isset($all['location']) && is_array($all['location'])) {
+                $lat = $lat ?? ($all['location']['latitude'] ?? $all['location']['lat'] ?? null);
+                $lng = $lng ?? ($all['location']['longitude'] ?? $all['location']['lng'] ?? null);
+            } else {
+                $lat = $lat ?? ($all['location.latitude'] ?? $all['latitude'] ?? $all['lat'] ?? null);
+                $lng = $lng ?? ($all['location.longitude'] ?? $all['longitude'] ?? $all['lng'] ?? null);
+            }
+        }
+
+        $geoService = new GeoService();
+        $resolvedAddress = null;
+        try {
+            if ($lat && $lng) {
+                $resolvedAddress = $geoService->getAddressFromCoordinates($lat, $lng);
+            }
+        } catch (\Exception $e) {
+            Log::warning('GeoService failed: ' . $e->getMessage());
+        }
+
+        // Ensure location is an array with a `formatted_address` key so watermark code can read it
+        $locationForStamp = is_array($resolvedAddress) ? $resolvedAddress : ['formatted_address' => ($resolvedAddress ?? ($shiftDate->shift->site->address ?? 'N/A'))];
+
+        $timestampData = [
+            'time' => Carbon::now()->format('Y-m-d H:i:s'),
+            'employee' => $employee ? ($employee->fore_name . ' ' . $employee->sur_name) : ($user->first_name . ' ' . $user->last_name),
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'site' => $shiftDate->shift->site->site_name ?? 'N/A',
+            'location' => $locationForStamp,
+        ];
+
+        // Build list of inputs: uploaded files (media_files[], file_path, file, etc.) and base64 strings
+        $items = [];
+
+        // Collected uploaded files under media_files[]
+        $uploaded = $request->file('media_files');
+        if ($uploaded) {
+            if (is_array($uploaded)) {
+                foreach ($uploaded as $up) $items[] = $up;
+            } else {
+                $items[] = $uploaded;
+            }
+        }
+
+        // Single file field common name used in Postman
+        if ($request->hasFile('file_path')) {
+            $items[] = $request->file('file_path');
+        }
+
+        // Generic catch-all for any other file fields
+        $allFiles = $request->allFiles();
+        foreach ($allFiles as $key => $f) {
+            // skip those we've already added via media_files
+            if ($key === 'media_files' || $key === 'file_path') continue;
+            if (is_array($f)) {
+                foreach ($f as $sub) $items[] = $sub;
+            } else {
+                $items[] = $f;
+            }
+        }
+
+        // Also accept base64 strings supplied in JSON body as media_files array
+        $bodyMedia = $request->input('media_files');
+        if (is_array($bodyMedia)) {
+            foreach ($bodyMedia as $bm) {
+                // If it's an uploaded file already, skip
+                if ($bm instanceof \Illuminate\Http\UploadedFile) continue;
+                $items[] = $bm; // base64 string or data URI
+            }
+        }
+
+        if (empty($items)) {
+            Log::warning('No media items found in request for patrol ' . $patrol->id, ['request_keys' => array_keys($request->all())]);
+        }
+
+        $created = [];
+
+        // Process each collected item
+        foreach ($items as $file) {
+            $filePath = null;
+            $originalName = null;
+
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+                $originalName = $file->getClientOriginalName();
+                $extension = $file->getClientOriginalExtension() ?: 'bin';
+                $filename = time() . '_' . uniqid() . '.' . $extension;
+                $dir = public_path('patrols/media');
+                if (!file_exists($dir)) mkdir($dir, 0755, true);
+                $file->move($dir, $filename);
+                $filePath = 'patrols/media/' . $filename;
+            } elseif (is_string($file) && preg_match('/^data:/', $file)) {
+                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
+                $extension = 'png';
+                if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
+                    $mime = $matches[1];
+                    $extMap = [
+                        'image/jpeg' => 'jpg',
+                        'image/png' => 'png',
+                        'image/gif' => 'gif',
+                        'video/mp4' => 'mp4',
+                        'video/quicktime' => 'mov',
+                        'application/pdf' => 'pdf',
+                    ];
+                    $extension = $extMap[$mime] ?? 'bin';
+                }
+                $dir = public_path('patrols/media');
+                if (!file_exists($dir)) mkdir($dir, 0755, true);
+                $filename = time() . '_' . uniqid() . '.' . $extension;
+                file_put_contents($dir . '/' . $filename, base64_decode($fileData));
+                $filePath = 'patrols/media/' . $filename;
+            } else {
+                // unsupported type, skip
+                Log::warning('Skipping unsupported media item type for patrol ' . $patrol->id);
+                continue;
+            }
+
+            if (!$filePath) continue;
+
+            $fullPath = public_path($filePath);
+            $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+
+            // Compress file if needed
+            $compressedPath = $this->compressFile($fullPath, $fileType);
+            if ($compressedPath && $compressedPath != $fullPath) {
+                if (file_exists($fullPath)) @unlink($fullPath);
+                rename($compressedPath, $fullPath);
+            }
+
+            // Save DB record
+            try {
+                $pm = PatrolMedia::create([
+                    'patrol_id' => $patrol->id,
+                    'file_path' => $filePath,
+                ]);
+                $created[] = [
+                    'id' => $pm->id,
+                    'file_path' => $filePath,
+                    'url' => asset($filePath),
+                ];
+            } catch (\Exception $e) {
+                Log::error('Failed to record patrol media: ' . $e->getMessage());
+            }
+        }
+
+        // Notify admin and the guard
+        try {
+            Notification::create([
+                'user_id' => 1,
+                'employee_id' => null,
+                'type' => 'alert',
+                'title' => 'Patrol media uploaded',
+                'message' => 'Media uploaded for patrol ID ' . $patrol->id,
+                'read' => false,
+                'action_url' => "/shift-dates/{$patrol->shift_id}/view"
+            ]);
+
+            Notification::create([
+                'user_id' => Auth::id(),
+                'employee_id' => Auth::id(),
+                'type' => 'alert',
+                'title' => 'Patrol media uploaded',
+                'message' => 'Your media has been uploaded for patrol ID ' . $patrol->id,
+                'read' => false,
+            ]);
+
+            send_push_notification(
+                Auth::id(),
+                'Patrol media uploaded',
+                'Your media has been uploaded successfully',
+                ['patrol_id' => $patrol->id]
+            );
+        } catch (\Exception $e) {
+            Log::error('Patrol media notification failed: ' . $e->getMessage());
+        }
+
+        return response()->json([
+            'message' => 'Patrol media uploaded successfully',
+            'media' => $created,
+        ]);
+    }
+
+    // Compression and timestamp/watermark helpers (copied/adapted from CheckCallController)
+    private function compressFile($filePath, $fileType)
+    {
+        if (!file_exists($filePath)) return $filePath;
+        $originalSize = filesize($filePath);
+        $maxSize = 5 * 1024 * 1024; // 5MB limit
+
+        if ($originalSize <= $maxSize) {
+            return $filePath; // No compression needed
+        }
+
+        switch ($fileType) {
+            case 'jpg':
+            case 'jpeg':
+                return $this->compressImage($filePath, 60, 1920); // 60% quality, max width 1920px
+            case 'png':
+                return $this->compressImage($filePath, 8, 1920); // PNG compression level 8, max width 1920px
+            case 'mp4':
+            case 'mov':
+            case 'avi':
+                return $this->compressVideo($filePath);
+            case 'pdf':
+                return $this->compressPdf($filePath);
+            default:
+                return $filePath; // No compression for other types
+        }
+    }
+
+    private function compressImage($filePath, $quality, $maxWidth = 1920)
+    {
+        $img = null;
+        $ext = strtolower(pathinfo($filePath, PATHINFO_EXTENSION));
+
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            $img = @imagecreatefromjpeg($filePath);
+        } elseif ($ext === 'png') {
+            $img = @imagecreatefrompng($filePath);
+        } else {
+            return $filePath;
+        }
+
+        if (!$img) return $filePath;
+
+        // Get original dimensions
+        $originalWidth = imagesx($img);
+        $originalHeight = imagesy($img);
+
+        // Calculate new dimensions if needed
+        if ($originalWidth > $maxWidth) {
+            $newWidth = $maxWidth;
+            $newHeight = intval($originalHeight * $maxWidth / $originalWidth);
+        } else {
+            $newWidth = $originalWidth;
+            $newHeight = $originalHeight;
+        }
+
+        // Create new image with new dimensions
+        $newImg = imagecreatetruecolor($newWidth, $newHeight);
+
+        // Preserve transparency for PNG
+        if ($ext === 'png') {
+            imagealphablending($newImg, false);
+            imagesavealpha($newImg, true);
+            $transparent = imagecolorallocatealpha($newImg, 255, 255, 255, 127);
+            imagefilledrectangle($newImg, 0, 0, $newWidth, $newHeight, $transparent);
+        }
+
+        // Resize image
+        imagecopyresampled($newImg, $img, 0, 0, 0, 0, $newWidth, $newHeight, $originalWidth, $originalHeight);
+
+        // Create compressed file path
+        $compressedPath = $filePath . '.compressed.' . $ext;
+
+        // Save compressed image
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            imagejpeg($newImg, $compressedPath, $quality);
+        } elseif ($ext === 'png') {
+            imagepng($newImg, $compressedPath, $quality); // PNG quality is 0-9
+        }
+
+        // Free memory
+        imagedestroy($img);
+        imagedestroy($newImg);
+
+        // Check if compression was successful and reduced size
+        if (file_exists($compressedPath) && filesize($compressedPath) < filesize($filePath)) {
+            return $compressedPath;
+        } else {
+            // If compression failed or didn't reduce size, use original
+            if (file_exists($compressedPath)) {
+                unlink($compressedPath);
+            }
+            return $filePath;
+        }
+    }
+
+    private function compressVideo($filePath)
+    {
+        // Check if FFmpeg is available
+        if (!function_exists('shell_exec') || !shell_exec('which ffmpeg')) {
+            return $filePath;
+        }
+
+        $originalSize = filesize($filePath);
+        $maxSize = 10 * 1024 * 1024; // 10MB target for videos
+        $targetBitrate = '1000k'; // Adjust based on original size
+
+        // Calculate target bitrate based on original file size
+        if ($originalSize > 50 * 1024 * 1024) { // > 50MB
+            $targetBitrate = '500k';
+        } elseif ($originalSize > 20 * 1024 * 1024) { // > 20MB
+            $targetBitrate = '800k';
+        }
+
+        $compressedPath = $filePath . '.compressed.mp4';
+        $escapedInput = escapeshellarg($filePath);
+        $escapedOutput = escapeshellarg($compressedPath);
+
+        // FFmpeg command for compression
+        $command = "ffmpeg -i {$escapedInput} " .
+            "-c:v libx264 -crf 28 -preset medium -b:v {$targetBitrate} " .
+            "-c:a aac -b:a 64k " .
+            "-movflags +faststart " .
+            "{$escapedOutput} 2>/dev/null";
+
+        shell_exec($command);
+
+        if (file_exists($compressedPath) && filesize($compressedPath) < $originalSize) {
+            return $compressedPath;
+        } else {
+            if (file_exists($compressedPath)) {
+                unlink($compressedPath);
+            }
+            return $filePath;
+        }
+    }
+
+    private function compressPdf($filePath)
+    {
+        // Check if Ghostscript is available for PDF compression
+        if (!function_exists('shell_exec') || !shell_exec('which gs')) {
+            return $filePath;
+        }
+
+        $compressedPath = $filePath . '.compressed.pdf';
+        $escapedInput = escapeshellarg($filePath);
+        $escapedOutput = escapeshellarg($compressedPath);
+
+        // Ghostscript command for PDF compression
+        $command = "gs -sDEVICE=pdfwrite -dCompatibilityLevel=1.4 " .
+            "-dPDFSETTINGS=/screen -dNOPAUSE -dQUIET -dBATCH " .
+            "-sOutputFile={$escapedOutput} {$escapedInput} 2>/dev/null";
+
+        shell_exec($command);
+
+        if (file_exists($compressedPath) && filesize($compressedPath) < filesize($filePath)) {
+            return $compressedPath;
+        } else {
+            if (file_exists($compressedPath)) {
+                unlink($compressedPath);
+            }
+            return $filePath;
+        }
+    }
+
+    // Existing timestamp/watermark methods (adapted)
+    private function addWatermarkToImage($imagePath, $timestampData)
+    {
+        $img = null;
+        $ext = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
+
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            $img = @imagecreatefromjpeg($imagePath);
+        } elseif ($ext === 'png') {
+            $img = @imagecreatefrompng($imagePath);
+        }
+
+        if (!$img) return;
+
+        $white = imagecolorallocate($img, 255, 255, 255);
+        $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80);
+
+        $text = "Time: " . $timestampData['time'] .
+            "\nEmployee: " . $timestampData['employee'] .
+            "\nLat: " . $timestampData['latitude'] . "  " .
+            "Lng: " . $timestampData['longitude'] .
+            "\nSite: " . $timestampData['site'] .
+            "\nLocation: " . ($timestampData['location']['formatted_address'] ?? 'Unknown');
+
+        $lines = explode("\n", $text);
+        $fontPath = public_path('fonts/Arial.ttf');
+
+        if (!file_exists($fontPath)) {
+            // Fallback to GD font if TTF not available
+            $this->addWatermarkWithGDFont($img, $text, $imagePath, $ext);
+            return;
+        }
+
+        $imgWidth = imagesx($img);
+        $fontSize = max(30, intval($imgWidth * 0.025));
+        $lineHeight = $fontSize + 30;
+        $padding = 15;
+
+        $rectWidth = 0;
+        foreach ($lines as $line) {
+            $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
+            $lineWidth = abs($bbox[4] - $bbox[0]);
+            if ($lineWidth > $rectWidth) {
+                $rectWidth = $lineWidth;
+            }
+        }
+        $rectHeight = count($lines) * $lineHeight + 2 * $padding;
+
+        imagefilledrectangle($img, 0, 0, $rectWidth + 2 * $padding, $rectHeight, $blackTrans);
+
+        $x = $padding;
+        $y = $padding + $fontSize;
+        foreach ($lines as $line) {
+            imagettftext($img, $fontSize, 0, $x, $y, $white, $fontPath, $line);
+            $y += $lineHeight;
+        }
+
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            imagejpeg($img, $imagePath, 90);
+        } else {
+            imagepng($img, $imagePath);
+        }
+
+        imagedestroy($img);
+    }
+
+    private function addWatermarkWithGDFont($img, $text, $imagePath, $ext)
+    {
+        // Simple fallback: draw text block at top-left using built-in font
+        $lines = explode("\n", $text);
+        $x = 5;
+        $y = 5;
+        $font = 3; // built-in font size
+        $white = imagecolorallocate($img, 255, 255, 255);
+        $black = imagecolorallocate($img, 0, 0, 0);
+        // Draw semi-transparent rectangle background
+        $rectHeight = count($lines) * 12 + 10;
+        imagefilledrectangle($img, 0, 0, imagesx($img), $rectHeight, $black);
+        $y += 10;
+        foreach ($lines as $line) {
+            imagestring($img, $font, $x, $y, $line, $white);
+            $y += 12;
+        }
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            imagejpeg($img, $imagePath, 90);
+        } else {
+            imagepng($img, $imagePath);
+        }
+    }
+
+    private function addTimestampToVideo($videoPath, $timestampData)
+    {
+        $ffmpegPath = base_path('ffmpeg-7.0.2-amd64-static/ffmpeg');
+        $ffprobePath = base_path('ffmpeg-7.0.2-amd64-static/ffprobe');
+
+        // Normalize input path
+        $videoPath = str_replace(['\\', '/'], '/', $videoPath);
+
+        // Temporary directory
+        $tempDir = base_path('public/temp_videos');
+        if (!file_exists($tempDir)) {
+            mkdir($tempDir, 0777, true);
+        }
+
+        $outputPath = $videoPath . '.tmp.mp4';
+
+        $location = $timestampData['location']['formatted_address'] ?? '' . ' ' . ($timestampData['location']['street'] ?? '') . ' ' . ($timestampData['location']['city'] ?? '') . ' ' . ($timestampData['location']['country'] ?? '') . ' ' . ($timestampData['location']['postal_code'] ?? '');
+        // Prepare overlay text
+        $text = "Time: " . $timestampData['time'] .
+            "\nEmployee: " . $timestampData['employee'] .
+            "\nLat: " . $timestampData['latitude'] . "  " .
+            "Lng: " . $timestampData['longitude'] .
+            "\nSite: " . $timestampData['site'] .
+            "\nLocation: " . $location;
+
+        $text = str_replace([':', ','], '-', $text);
+
+        // Generate text overlay PNG
+        $textImage = $tempDir . '/text_overlay.png';
+        $fontPath = base_path('ffmpeg/static/Roboto_Condensed-Black.ttf');
+        $fontSize = 15;
+        $im = imagecreatetruecolor(200, 300);
+        imagesavealpha($im, true);
+        $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
+        imagefill($im, 0, 0, $transparent);
+        $white = imagecolorallocate($im, 255, 255, 255);
+        imagettftext($im, $fontSize, 0, 10, 35, $white, $fontPath, $text);
+        imagepng($im, $textImage);
+        imagedestroy($im);
+
+        // ✅ FIXED ffprobe command — NO spaces after `v:0`
+        $cmdProbe = "\"$ffprobePath\" -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"$videoPath\" 2>&1";
+        $dimensions = trim(shell_exec($cmdProbe));
+
+        $rotateNeeded = false;
+        $width = 0;
+        $height = 0;
+
+        // Parse dimensions safely
+        if (!empty($dimensions)) {
+            $parts = explode(',', $dimensions);
+            if (count($parts) >= 2) {
+                $width = (int)$parts[0];
+                $height = (int)$parts[1];
+            }
+        }
+
+        // Determine if rotation is required
+        if ($width === 0 || $height === 0) {
+            // ffprobe failed to detect — rotate by default
+            $rotateNeeded = true;
+        } elseif ($height < $width) {
+            // Portrait mode → rotate
+            $rotateNeeded = true;
+        }
+
+        // FFmpeg command
+        if ($rotateNeeded) {
+            // Rotate 90° clockwise + overlay
+            $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"transpose=1,overlay=10:10\" -c:a copy \"$outputPath\" -y";
+        } else {
+            // Normal overlay
+            $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"overlay=10:10\" -c:a copy \"$outputPath\" -y";
+        }
+
+        // Execute FFmpeg
+        exec($cmd . ' 2>&1', $outputLines, $returnVar);
+
+        if ($returnVar === 0 && file_exists($outputPath)) {
+            @unlink($videoPath);
+            rename($outputPath, $videoPath);
+            @unlink($textImage);
+        }
+    }
+
+    private function addTimestampToPdf($pdfPath, $timestampData)
+    {
+        $this->createMetadataFile($pdfPath, $timestampData);
+    }
+
+    private function addTimestampToDocument($docPath, $timestampData)
+    {
+        $this->createMetadataFile($docPath, $timestampData);
+    }
+
+    private function createMetadataFile($filePath, $timestampData)
+    {
+        $metadataPath = $filePath . '.metadata.txt';
+        $content = "PATROL MEDIA METADATA\n";
+        $content .= "==================\n";
+        $content .= "Time: " . $timestampData['time'] . "\n";
+        $content .= "Employee: " . $timestampData['employee'] . "\n";
+        $content .= "Latitude: " . $timestampData['latitude'] . "\n";
+        $content .= "Longitude: " . $timestampData['longitude'] . "\n";
+        $content .= "Site: " . $timestampData['site'] . "\n";
+        $content .= "Location: " . $timestampData['location'] . "\n";
+        $content .= "Original File: " . basename($filePath) . "\n";
+
+        file_put_contents($metadataPath, $content);
     }
 
     // check if guard is on duty

@@ -204,11 +204,11 @@ class EmployeeController extends Controller
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/' . $document), $fileName);
+                $file->move(public_path('documents'), $fileName);
                 $data[$document] = $fileName;
 
                 try {
-                    (new FileCompressor())->compress(public_path('uploads/' . $document . '/' . $fileName));
+                    (new FileCompressor())->compress(public_path('documents/'. $fileName));
                 } catch (\Throwable $e) {
                     Log::error('EmployeeController: document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
                 }
@@ -391,6 +391,7 @@ class EmployeeController extends Controller
             'terms.*.entitlement' => 'nullable',
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
             'password' => [
+                'nullable',
                 'string',
                 'min:8', // minimum 8 characters
                 'regex:/[A-Z]/', // at least one uppercase
@@ -520,20 +521,15 @@ class EmployeeController extends Controller
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
-                $file->move(public_path('uploads/' . $document), $fileName);
+                $sfile=$file->move(public_path('documents'), $fileName);
                 $data[$document] = $fileName;
                 try {
-                    (new FileCompressor())->compress(public_path('uploads/' . $document . '/' . $fileName));
+                    (new FileCompressor())->compress(public_path('documents/' . $fileName));
                 } catch (\Throwable $e) {
                     Log::error('EmployeeController (update): document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
                 }
             }
         }
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $data = $validator->validated();
 
         // Process multiple additional files upload
         if ($request->hasFile('additional_file')) {

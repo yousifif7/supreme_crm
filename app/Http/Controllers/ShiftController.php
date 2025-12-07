@@ -490,6 +490,7 @@ class ShiftController extends Controller
                             $request->start_shift[$i],
                             $request->end_shift[$i]
                         ),
+                        'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                     ]);
 
                     if ($shift->staff_id) {
@@ -539,9 +540,6 @@ class ShiftController extends Controller
                     $numberOfCheckCalls = ceil($durationMinutes / 60);
                     // dd($durationMinutes, $numberOfCheckCalls);
 
-                    // Use the persisted ShiftDate values to build per-day start times
-                    // This ensures checkcalls/patrols are scheduled for the specific
-                    // date that was saved for this ShiftDate (fixes multi-day shifts)
                     $start = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
 
                     $site = Site::with('checkpoints')->find($shift->site_id);
@@ -552,13 +550,16 @@ class ShiftController extends Controller
                         $checkTime  = $start->copy()->addHours($n);
                         $patrolTime = $start->copy()->addHours($n);
 
-                        if (request()->has('auto_checkcall_enabled') && request('auto_checkcall_enabled')) {
+                        // Per-shift auto checkcall flag (submitted as array in the form)
+                        $autoEnabledForGroup = !empty($request->auto_checkcall_enabled[$i]) ? true : false;
+                        if ($autoEnabledForGroup) {
                             CheckCall::create([
                                 'shift_id'       => $shiftDate->id,
                                 'employee_id'    => $shiftDate->staff_id ?? null,
                                 'name'           => 'Auto CheckCall ' . ($n + 1),
                                 'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
                                 'status'         => 'pending',
+                                'require_media'  => $shiftDate->require_media ?? 0,
                             ]);
                         }
 
@@ -584,6 +585,7 @@ class ShiftController extends Controller
                                     'name'           => $checkcall['name'],
                                     'scheduled_time' => $date->format('Y-m-d') . ' ' . $checkcall['scheduled_time'],
                                     'status'         => 'pending',
+                                    'require_media'  => $shiftDate->require_media ?? 0,
                                 ]);
                             }
                         }
@@ -2306,13 +2308,26 @@ class ShiftController extends Controller
                     $checkTime  = $start->copy()->addHours($n);
                     $patrolTime = $start->copy()->addHours($n);
 
-                    if ($request->has('auto_checkcall_enabled') && $request->auto_checkcall_enabled) {
+                    // Support both scalar and per-shift array submission for auto_checkcall_enabled
+                    $autoEnabledForGroup = false;
+                    if ($request->has('auto_checkcall_enabled')) {
+                        // array case
+                        if (is_array($request->auto_checkcall_enabled) && isset($request->auto_checkcall_enabled[$i])) {
+                            $autoEnabledForGroup = !empty($request->auto_checkcall_enabled[$i]);
+                        } else {
+                            // scalar case
+                            $autoEnabledForGroup = (bool) $request->auto_checkcall_enabled;
+                        }
+                    }
+
+                    if ($autoEnabledForGroup) {
                         CheckCall::create([
                             'shift_id' => $shiftDate->id,
                             'employee_id' => $shiftDate->staff_id ?? null,
                             'name' => 'Auto CheckCall ' . ($n + 1),
                             'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
                             'status' => 'pending',
+                            'require_media' => $shiftDate->require_media ?? 0,
                         ]);
                     }
 
@@ -2328,8 +2343,15 @@ class ShiftController extends Controller
                         'completed_at' => null,
                     ]);
                 }
+                send_push_notification(
+                    $shift->staff_id,
+                    'New shift',
+                    'A new shift has been assigned to you, check out your schedule.',
+                    ['shiftDate' => $shiftDate]
+                );
             }
         }
+
 
         return response()->json([
             'message' => 'Shifts overridden successfully!',

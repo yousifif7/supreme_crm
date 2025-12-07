@@ -655,7 +655,7 @@ document.addEventListener('click', () => {
 
         // Poll notifications API every 1 minute and update bell + dropdown without reloading
         (function setupNotificationPoller() {
-            const POLL_INTERVAL_MS = 60 * 1000; // 1 minute
+            const POLL_INTERVAL_MS = 1000; // 1 minute
 
             async function fetchNotifications() {
                 try {

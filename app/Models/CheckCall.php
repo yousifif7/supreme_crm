@@ -9,7 +9,7 @@ class CheckCall extends Model
     //
     
     protected $fillable = [
-        'shift_id', 'scheduled_time', 'status', 'method','employee_id','name'
+        'shift_id', 'scheduled_time', 'status', 'method','employee_id','name', 'require_media'
     ];
 
     public function shiftDate()
@@ -23,7 +23,7 @@ class CheckCall extends Model
     }
 
     public function logs()
-{
-    return $this->morphMany(Log::class, 'loggable');
-}
+    {
+        return $this->morphMany(Log::class, 'loggable');
+    }
 }

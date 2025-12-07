@@ -319,10 +319,19 @@
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
-                                                        <input class="form-check-input" type="checkbox"
-                                                            id="autoCheckcallToggle" checked>
+                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox"
+                                                            name="auto_checkcall_enabled[]" checked>
                                                         <label class="form-check-label form-label"
-                                                            for="autoCheckcallToggle">Enable Auto Checkcalls</label>
+                                                            >Enable Auto Checkcalls</label>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3 d-flex gap-2 align-items-center requireMediaToggleWrapper">
+                                                    <div class="form-check form-switch mb-3">
+                                                            <input class="form-check-input requireMediaToggle" type="checkbox"
+                                                                name="require_media_upload[]" checked>
+                                                            <label class="form-check-label form-label"
+                                                                >Require Media Upload for checkcalls</label>
                                                     </div>
                                                 </div>
 
@@ -407,6 +416,61 @@
             width: '100%',
             dropdownParent: $('#add_shift'), // make sure this matches your modal ID
             minimumResultsForSearch: 0 // force search bar for single select
+        });
+    });
+    
+    // Toggle visibility of the "Require Media Upload" option per shift-group
+    $(document).ready(function() {
+        function updateForGroup($group) {
+            try {
+                var $auto = $group.find('.autoCheckcallToggle').first();
+                var $wrapper = $group.find('.requireMediaToggleWrapper').first();
+                var $require = $group.find('.requireMediaToggle').first();
+                var $from = $group.find('input[name="from_shift[]"]').first();
+                var $to = $group.find('input[name="to_shift[]"]').first();
+                if ($auto.length && $wrapper.length) {
+                    if ($auto.is(':checked')) {
+                        $wrapper.show();
+                    } else {
+                        $wrapper.hide();
+                    }
+                }
+
+                // If a shift date (from/to) is present, ensure auto-checkcalls is enabled and require-media checked
+                try {
+                    var hasDate = ($from.length && $from.val()) || ($to.length && $to.val());
+                    if (hasDate) {
+                        if ($auto.length && !$auto.is(':checked')) {
+                            $auto.prop('checked', true);
+                            if ($wrapper.length) $wrapper.show();
+                        }
+                        if ($require.length && !$require.is(':checked')) {
+                            $require.prop('checked', true);
+                        }
+                    }
+                } catch (e) {
+                    console && console.error && console.error('Error checking shift date for group', e);
+                }
+            } catch (e) {
+                console && console.error && console.error('Error updating RequireMedia visibility for group', e);
+            }
+        }
+
+        // initialize for each existing shift-group
+        $('.shift-group').each(function() {
+            updateForGroup($(this));
+        });
+
+        // when an auto toggle changes, update only its group
+        $(document).on('change', '.autoCheckcallToggle', function() {
+            var $group = $(this).closest('.shift-group');
+            updateForGroup($group);
+        });
+
+        // If shift groups are dynamically cloned, ensure newly added groups are initialized by listening for a custom event
+        // Developers can trigger: $(newGroup).trigger('initShiftGroup') after cloning
+        $(document).on('initShiftGroup', '.shift-group', function() {
+            updateForGroup($(this));
         });
     });
     

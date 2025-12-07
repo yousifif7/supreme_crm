@@ -135,72 +135,6 @@
             }
         }
 
-        .btn-assign {
-            background: linear-gradient(135deg, #28a745, #20c997);
-            color: #fff;
-            font-weight: 600;
-            border: none;
-            border-radius: 8px;
-            padding: 10px 18px;
-            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.4);
-            transition: all 0.2s ease-in-out;
-        }
-
-        .btn-assign:hover {
-            background: linear-gradient(135deg, #20c997, #28a745);
-            box-shadow: 0 6px 14px rgba(40, 167, 69, 0.6);
-            transform: translateY(-2px);
-        }
-
-        #custom-toast-container {
-            position: fixed;
-            top: 10%;
-            left: 52%;
-            transform: translate(-50%, -50%);
-            z-index: 9999;
-            width: 90%;
-            /* Responsive width */
-            max-width: 400px;
-            /* Maximum width on larger screens */
-        }
-
-        .custom-toast {
-            background: #fff3cd;
-            color: #856404;
-            border: 1px solid #ffeeba;
-            padding: 16px 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-            opacity: 0;
-            transform: translateY(-20px);
-            transition: opacity 0.3s ease, transform 0.3s ease;
-        }
-
-        .custom-toast.show {
-            opacity: 1;
-            transform: translateY(0);
-        }
-
-        .toast-icon {
-            font-size: 24px;
-            margin-bottom: 10px;
-            text-align: center;
-        }
-
-        .toast-content p {
-            margin: 0 0 10px 0;
-            text-align: center;
-            word-wrap: break-word;
-        }
-
-        .toast-actions {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            flex-wrap: wrap;
-            /* Wrap buttons on small screens */
-        }
-
         .toast-actions button {
             padding: 6px 12px;
             border: none;
@@ -750,7 +684,7 @@
                             $patrols = App\Models\Patrol::where('shift_id', $shiftDate->id)->get();
                             $site = \App\Models\Site::with('checkpoints')->find($shiftDate->shift->site_id);
                             $checkpoints = \App\Models\PatrolCheckPoint::where('site_id', $site->id) // adjust if necessary
-                                ->get(['id', 'name', 'latitude', 'longitude']);
+                                ->get(['id', 'name', 'latitude', 'longitude']);                               
                         @endphp
 
                         @if ($patrols->isNotEmpty())
@@ -769,12 +703,16 @@
                                         <th>Started at</th>
                                         <th>completed at</th>
                                         <th>Status</th>
+                                        <th>Media</th>
                                         <th>Action</th>
                                         <th>Map</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     @foreach ($patrols as $patrol)
+                                    @php
+                                            $patrolMedia =\App\Models\PatrolMedia::where('patrol_id',$patrol->id)->get() ?? collect(); 
+                                    @endphp
                                         <tr>
                                             <td>{{ $patrol->name }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('Y-d-m H:i') }}</td>
@@ -803,6 +741,16 @@
                                                 @elseif($patrol->status == 'missed')
                                                     <p class="bg-danger text-center">Missed</p>
                                                 @endif
+                                            </td>
+                                            <td>
+                                                @forelse ($patrolMedia as $media)
+                                                    <a href="{{ asset($media->file_path) }}" target="_blank"
+                                                        class="btn btn-sm btn-primary">
+                                                        View File
+                                                    </a><br>
+                                                @empty
+                                                    No media
+                                                @endforelse
                                             </td>
                                             <td>
                                                 <button class="btn btn-sm btn-primary edit-patrol-btn"
@@ -1214,28 +1162,27 @@
 
             const map = new google.maps.Map(mapDiv, {
                 zoom: 12,
-                center: {
-                    lat: 0,
-                    lng: 0
-                },
+                center: { lat: 0, lng: 0 },
                 mapTypeId: "roadmap",
             });
 
-            const bounds = new google.maps.LatLngBounds();
-            let hasPoints = false;
-            let heatmap = null; // 🔸 We'll initialize later
+            // State containers for dynamic layers
+            const checkpointMarkers = [];
+            const guardMarkers = [];
+            let routePolyline = null;
+            let heatmap = null;
+            let lastBounds = null;
+            const MAX_ZOOM = 18;
+            const MIN_ZOOM = 8;
 
-            // 🔹 Draw checkpoints
+            // Pre-compute checkpoint markers & bounds
+            const checkpointBounds = new google.maps.LatLngBounds();
             checkpoints.forEach(cp => {
                 const lat = parseFloat(cp.latitude);
                 const lng = parseFloat(cp.longitude);
                 if (!isNaN(lat) && !isNaN(lng)) {
-                    hasPoints = true;
-                    const pos = {
-                        lat,
-                        lng
-                    };
-                    new google.maps.Marker({
+                    const pos = new google.maps.LatLng(lat, lng);
+                    const m = new google.maps.Marker({
                         position: pos,
                         map,
                         title: cp.name,
@@ -1244,142 +1191,148 @@
                             scaledSize: new google.maps.Size(40, 40)
                         }
                     });
-                    bounds.extend(pos);
+                    checkpointMarkers.push(m);
+                    checkpointBounds.extend(pos);
                 }
             });
 
-            // 🔹 Fetch guard locations
-            fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`)
-                .then(res => res.json())
-                .then(data => {
-                    const locations = data.locations || [];
-                    if (locations.length === 0) {
-                        if (!hasPoints) {
-                            map.setCenter({
-                                lat: 51.5074,
-                                lng: -0.1278
-                            });
-                            map.setZoom(12);
-                        } else {
-                            map.fitBounds(bounds);
-                            google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
-                                if (map.getZoom() > 12) {
-                                    map.setZoom(12);
-                                }
-                            });
-                        }
-                        return;
-                    } else {
-                         map.setCenter({
-                                lat: locations[0].latitude,
-                                lng: locations[0].longitude
-                            });
-                    }
+            function clearGuardLayers() {
+                guardMarkers.forEach(m => m.setMap(null));
+                guardMarkers.length = 0;
+                if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
+                if (heatmap) { heatmap.setMap(null); heatmap = null; }
+            }
 
-                    // Filter valid locations
-                    const validLocations = locations.filter(loc => {
+            function clampAndFit(bounds, zoomBoost = 1) {
+                if (!bounds) return;
+                lastBounds = bounds;
+                map.fitBounds(bounds);
+                google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+                    let currentZoom = map.getZoom();
+                    if (currentZoom > MAX_ZOOM) currentZoom = MAX_ZOOM;
+                    if (currentZoom < MIN_ZOOM) currentZoom = MIN_ZOOM;
+                    // apply a small boost so the fit is a bit tighter
+                    const boosted = Math.min(currentZoom + Math.max(0, zoomBoost), MAX_ZOOM);
+                    // delay to ensure fitBounds finished
+                    setTimeout(() => map.setZoom(boosted), 100);
+                });
+            }
+
+            async function updateLocations() {
+                try {
+                    const res = await fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`);
+                    const data = await res.json();
+                    const locations = data.locations || [];
+
+                    const valid = locations.filter(loc => {
                         const lat = parseFloat(loc.latitude);
                         const lng = parseFloat(loc.longitude);
                         return !isNaN(lat) && !isNaN(lng);
                     });
 
-                    if (validLocations.length === 0) return;
+                    clearGuardLayers();
 
-                    hasPoints = true;
+                    // If we have guard locations, draw polyline + markers + heatmap
+                    if (valid.length > 0) {
+                        const coords = valid.map(loc => new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude)));
 
-                    // Create polyline for route
-                    const pathCoordinates = validLocations.map(loc => ({
-                        lat: parseFloat(loc.latitude),
-                        lng: parseFloat(loc.longitude)
-                    }));
+                        routePolyline = new google.maps.Polyline({
+                            path: coords,
+                            geodesic: true,
+                            strokeColor: "#FF0000",
+                            strokeOpacity: 0.6,
+                            strokeWeight: 2,
+                            map: map
+                        });
 
-                    const routePolyline = new google.maps.Polyline({
-                        path: pathCoordinates,
-                        geodesic: true,
-                        strokeColor: "#FF0000",
-                        strokeOpacity: 0.2,
-                        strokeWeight: 1,
-                        map: map
-                    });
+                        // start / end markers
+                        const first = coords[0];
+                        const last = coords[coords.length - 1];
+                        guardMarkers.push(new google.maps.Marker({ position: first, map, label: { text: 'START', color: '#FFF' }, icon: { url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', scaledSize: new google.maps.Size(45,45) } }));
+                        if (coords.length > 1) {
+                            guardMarkers.push(new google.maps.Marker({ position: last, map, label: { text: 'END', color: '#FFF' }, icon: { url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png', scaledSize: new google.maps.Size(45,45) } }));
+                        }
 
-                    // Start marker
-                    if (validLocations[0]) {
-                        new google.maps.Marker({
-                            position: {
-                                lat: parseFloat(validLocations[0].latitude),
-                                lng: parseFloat(validLocations[0].longitude)
-                            },
-                            map,
-                            label: {
-                                text: "START",
-                                color: "#FFFFFF",
-                                fontWeight: "bold",
-                                fontSize: "14px"
-                            },
-                            icon: {
-                                url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                                scaledSize: new google.maps.Size(45, 45)
-                            }
+                        // optional heatmap
+                        if (typeof google.maps.visualization !== 'undefined') {
+                            heatmap = new google.maps.visualization.HeatmapLayer({
+                                data: coords,
+                                radius: 20,
+                                opacity: 0.7,
+                                dissipating: true,
+                                maxIntensity: 5,
+                                map: map
+                            });
+                        }
+
+                        coords.forEach(c => {
+                            // small circle markers along route (optional): commented out to reduce clutter
+                            // guardMarkers.push(new google.maps.Marker({ position: c, map }));
                         });
                     }
 
-                    // End marker
-                    if (validLocations.length > 1) {
-                        new google.maps.Marker({
-                            position: {
-                                lat: parseFloat(validLocations[validLocations.length - 1].latitude),
-                                lng: parseFloat(validLocations[validLocations.length - 1].longitude)
-                            },
-                            map,
-                            label: {
-                                text: "END",
-                                color: "#FFFFFF",
-                                fontWeight: "bold",
-                                fontSize: "14px"
-                            },
-                            icon: {
-                                url: "http://maps.google.com/mapfiles/ms/icons/red-dot.png",
-                                scaledSize: new google.maps.Size(45, 45)
-                            }
+                    // Determine combined bounds (checkpoints + guard locations)
+                    const combinedBounds = new google.maps.LatLngBounds();
+                    let points = 0;
+                    // include checkpoint markers in combined bounds
+                    if (checkpointMarkers.length > 0) {
+                        checkpointMarkers.forEach(m => {
+                            combinedBounds.extend(m.getPosition());
                         });
+                        points += checkpointMarkers.length;
+                    }
+                    if (valid.length > 0) {
+                        valid.forEach(loc => {
+                            combinedBounds.extend(new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude)));
+                        });
+                        points += valid.length;
                     }
 
-                    // 🔹 Heatmap setup
-                    heatmap = new google.maps.visualization.HeatmapLayer({
-                        data: validLocations.map(loc =>
-                            new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude))
-                        ),
-                        radius: 20,
-                        opacity: 0.7,
-                        dissipating: true,
-                        maxIntensity: 5,
-                        gradient: [
-                            'rgba(0, 255, 0, 0)',
-                            'rgba(0, 255, 0, 0.6)',
-                            'rgba(255, 255, 0, 0.7)',
-                            'rgba(255, 165, 0, 0.8)',
-                            'rgba(255, 0, 0, 0.9)'
-                        ],
-                        map: map
-                    });
+                    if (points === 0) {
+                        // nothing to show
+                        map.setCenter({ lat: 51.5074, lng: -0.1278 });
+                        map.setZoom(12);
+                    } else if (points === 1) {
+                        // Single point: center & zoom in tightly
+                        const ne = combinedBounds.getNorthEast();
+                        map.setCenter({ lat: ne.lat(), lng: ne.lng() });
+                        // pick a tight zoom but clamp to MAX_ZOOM
+                        map.setZoom(Math.min(MAX_ZOOM, 17));
+                    } else {
+                        // For multiple points, fit and apply a small boost to zoom tighter
+                        clampAndFit(combinedBounds, 1);
+                    }
+                } catch (err) {
+                    console.error('Error fetching patrol locations:', err);
+                    // fallback: if checkpoints exist, fit them
+                    if (checkpointMarkers.length > 0) {
+                        clampAndFit(checkpointBounds);
+                    } else {
+                        map.setCenter({ lat: 51.5074, lng: -0.1278 });
+                        map.setZoom(12);
+                    }
+                }
+            }
 
-                    // Extend map bounds
-                    validLocations.forEach(loc => {
-                        bounds.extend({
-                            lat: parseFloat(loc.latitude),
-                            lng: parseFloat(loc.longitude)
-                        });
-                    });
-                    map.fitBounds(bounds);
+            // initial render
+            if (checkpointMarkers.length > 0) {
+                // if there are only checkpoints, use them as baseline until guard data arrives
+                clampAndFit(checkpointBounds);
+            }
+            updateLocations();
 
-                    setTimeout(() => {
-                        if (map.getZoom() < 12) map.setZoom(12);
-                    }, 200);
+            // Auto-refresh every 15s
+            const refreshInterval = 15000;
+            const intervalId = setInterval(updateLocations, refreshInterval);
 
-                    // 🔸 Add Heatmap Controls
-                    addHeatmapControls(map, heatmap);
-                })
-                .catch(err => console.error("Error fetching patrol locations:", err));
+            // If the patrols tab is shown later, trigger resize & re-fit
+            const patrolsTabBtn = document.getElementById('patrols-tab2');
+            if (patrolsTabBtn) {
+                patrolsTabBtn.addEventListener('shown.bs.tab', () => {
+                    google.maps.event.trigger(map, 'resize');
+                    if (lastBounds) clampAndFit(lastBounds);
+                });
+            }
         }
 
         // 🔸 Adds toggle, radius, opacity, gradient controls

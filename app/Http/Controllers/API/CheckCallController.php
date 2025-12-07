@@ -48,6 +48,11 @@ class CheckCallController extends Controller
         if (!$employee) {
             return response()->json(['message' => 'No employee linked to this user.'], 404);
         }
+
+        if($checkCall->require_media =='1' && (empty($data['media_files']) || count($data['media_files']) == 0)){
+            return response()->json(['message' => 'This check call requires media evidence. Please attach media files before completing.'], 422);
+        }
+
         $now = Carbon::now(); // incoming timestamp assumed UTC
         $scheduledUtc = Carbon::parse($checkCall->scheduled_time, 'UTC'); // stored in DB as UTC
 
