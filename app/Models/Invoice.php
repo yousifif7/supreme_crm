@@ -39,6 +39,11 @@ class Invoice extends Model
     {
         return $this->belongsTo(User::class, 'client_id');
     }
+
+    public function clientClass()
+    {
+        return $this->belongsTo(Client::class, 'client_id');
+    }
     
     public function employee()
     {

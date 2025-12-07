@@ -159,6 +159,11 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
     Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
 
+    // Documents AJAX endpoints (used by employee modal)
+    Route::get('/documents/user/{userId}/ajax', [DocumentController::class, 'byUser'])->name('documents.byUser');
+    Route::post('/employees/{id}/documents/approve', [DocumentController::class, 'approveByEmployee'])->name('employees.documents.approve');
+    Route::post('/employees/{id}/documents/reject', [DocumentController::class, 'rejectByEmployee'])->name('employees.documents.reject');
+
     Route::get('/employees/export/excel', [ExportController::class, 'exportEmployeeExcel'])->name('employees.export.excel');
     Route::get('/employees/export/pdf', [ExportController::class, 'exportEmployeePdf'])->name('employees.export.pdf');
     Route::post('/employees/import', [ExportController::class, 'importEmployeeExcel'])->name('employees.import');

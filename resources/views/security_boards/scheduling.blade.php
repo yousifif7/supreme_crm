@@ -1224,8 +1224,10 @@
             $('#todayBtn').on('click', function() {
                 const today = new Date();
                 if (ganttView === 'day') {
-                    currentWeekStart = new Date(today);
-                    currentWeekEnd = new Date(today);
+                    // use start/end of day so midnight-normalised shift dates fall inside range
+                    currentWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+                    currentWeekEnd = new Date(currentWeekStart);
+                    currentWeekEnd.setHours(23, 59, 59, 999);
                 } else if (ganttView === 'week') {
                     currentWeekStart = getMonday(today);
                     currentWeekEnd = new Date(currentWeekStart);
@@ -1239,8 +1241,11 @@
 
             $('#prevWeekBtn').on('click', function() {
                 if (ganttView === 'day') {
+                    // move one calendar day and normalise to start/end of that day
                     currentWeekStart.setDate(currentWeekStart.getDate() - 1);
+                    currentWeekStart = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate());
                     currentWeekEnd = new Date(currentWeekStart);
+                    currentWeekEnd.setHours(23, 59, 59, 999);
                 } else if (ganttView === 'week') {
                     currentWeekStart.setDate(currentWeekStart.getDate() - 7);
                     currentWeekEnd.setDate(currentWeekEnd.getDate() - 7);
@@ -1254,8 +1259,11 @@
 
             $('#nextWeekBtn').on('click', function() {
                 if (ganttView === 'day') {
+                    // move one calendar day and normalise to start/end of that day
                     currentWeekStart.setDate(currentWeekStart.getDate() + 1);
+                    currentWeekStart = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate());
                     currentWeekEnd = new Date(currentWeekStart);
+                    currentWeekEnd.setHours(23, 59, 59, 999);
                 } else if (ganttView === 'week') {
                     currentWeekStart.setDate(currentWeekStart.getDate() + 7);
                     currentWeekEnd.setDate(currentWeekEnd.getDate() + 7);
@@ -1269,8 +1277,10 @@
 
             $('#viewDayBtn').on('click', function() {
                 ganttView = 'day';
-                currentWeekStart = new Date();
+                const today = new Date();
+                currentWeekStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
                 currentWeekEnd = new Date(currentWeekStart);
+                currentWeekEnd.setHours(23, 59, 59, 999);
                 renderCurrentView();
                 try {
                     setActiveGanttView('#viewDayBtn');
@@ -1373,8 +1383,11 @@
                         .map(s => new Date(s.start_date))));
                 } else {
                     if (ganttView === 'day') {
+                        // ensure full-day range so shifts with 00:00 timestamps are included
                         startDate = new Date(currentWeekStart);
+                        startDate.setHours(0,0,0,0);
                         endDate = new Date(currentWeekStart);
+                        endDate.setHours(23,59,59,999);
                     } else if (ganttView === 'week') {
                         startDate = new Date(currentWeekStart);
                         endDate = new Date(currentWeekStart);
@@ -1395,22 +1408,25 @@
         function renderGanttChart(data, startDate, endDate) {
     const sites = {};
     
-    // Filter shifts that fall within the date range
-    data.forEach(shift => {
-        const shiftDateStr = formatDate(new Date(shift.start_date));
-        const shiftDate = new Date(shiftDateStr);
-        
-        // Only process shifts within the date range
-        if (shiftDate >= startDate && shiftDate <= endDate) {
-            if (!sites[shift.site_id]) sites[shift.site_id] = {
-                id: shift.site_id,
-                name: shift.site_name,
-                client_name: shift.client_name,
-                shifts: []
-            };
-            sites[shift.site_id].shifts.push(shift);
-        }
-    });
+            // Use ISO date strings (YYYY-MM-DD) for comparisons to avoid timezone pitfalls
+            const startISO = formatDate(new Date(startDate));
+            const endISO = formatDate(new Date(endDate));
+
+            // Filter shifts that fall within the date range
+            data.forEach(shift => {
+                const shiftDateStr = formatDate(new Date(shift.start_date));
+
+                // Only process shifts within the date range (string compare of ISO dates is safe)
+                if (shiftDateStr >= startISO && shiftDateStr <= endISO) {
+                    if (!sites[shift.site_id]) sites[shift.site_id] = {
+                        id: shift.site_id,
+                        name: shift.site_name,
+                        client_name: shift.client_name,
+                        shifts: []
+                    };
+                    sites[shift.site_id].shifts.push(shift);
+                }
+            });
 
     // If no sites have shifts in the date range, show empty chart
     if (Object.keys(sites).length === 0) {
@@ -1505,6 +1521,19 @@
     const orderedSites = [];
     orderedClients.forEach(client => client.sites.forEach(site => orderedSites.push(site)));
 
+    // Remove any sites that ended up with no shifts in the current date range
+    const filteredOrderedSites = orderedSites.filter(site => {
+        return site.shifts && site.shifts.length && site.shifts.some(sh => {
+            const d = formatDate(new Date(sh.start_date));
+            return d >= startISO && d <= endISO;
+        });
+    });
+
+    // Debug: log what sites will be rendered (id, name, shift count)
+    try {
+        console.debug('renderGanttChart: filteredOrderedSites', filteredOrderedSites.map(s => ({ id: s.id, name: s.name, shifts: s.shifts.length })));
+    } catch (e) { /* ignore */ }
+
     // Header
     let headerHtml = `<div class="gantt-header">
         <div class="gantt-sidebar-header">Client Name</div>
@@ -1528,7 +1557,8 @@
 
     // Body
     let bodyHtml = `<div class="gantt-body">`;
-    orderedSites.forEach(site => {
+    // Use filteredOrderedSites so rows with no shifts are not rendered
+    filteredOrderedSites.forEach(site => {
         bodyHtml += `<div class="gantt-row" data-site-id="${site.id}">
             <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
             <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
@@ -1555,8 +1585,8 @@
         $(this).text(subs.is(':visible') ? 'Hide Subcontractors' : 'Show Subcontractors');
     });
 
-    // Place shifts
-    orderedSites.forEach(site => {
+    // Place shifts only for sites that were rendered (those with shifts in range)
+    filteredOrderedSites.forEach(site => {
         const shiftsByDate = {};
         site.shifts.forEach(shift => {
             const dateStr = formatDate(new Date(shift.start_date));
@@ -1566,7 +1596,11 @@
 
         Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
             const cell = $(`#cell-${site.id}-${dateStr}`);
-            if (!cell.length) return;
+            if (!cell.length) {
+                // Debug: cell missing (row might not have been rendered for this site/date)
+                try { console.debug('renderGanttChart: missing cell for', site.id, dateStr); } catch (e) {}
+                return;
+            }
 
             shifts.forEach((shift) => {
                 const subcontractorMatch = shift.staff_name ? shift.staff_name

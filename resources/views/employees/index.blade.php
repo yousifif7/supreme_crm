@@ -1224,14 +1224,50 @@
                     }
                     if (Array.isArray(additionalDocs) && additionalDocs.length > 0) {
                         hasAdditionalDocs = true;
-                        additionalDocs.forEach(filePath => {
+                        additionalDocs.forEach(item => {
+                            // Support either simple string paths or objects { path: '', status: '' }
+                            let filePath = '';
+                            let status = '';
+                            if (typeof item === 'string') {
+                                filePath = item;
+                            } else if (typeof item === 'object' && item !== null) {
+                                filePath = item.path || item.file || item.file_path || '';
+                                status = item.status || item.state || '';
+                            }
+
+                            if (!filePath) return;
+
                             // Extract the file name from the path
                             const fileName = filePath.split('/').pop();
 
-                            additionalHtml += `<div class="mb-1">
+                            additionalHtml += `<div class="mb-1 d-flex align-items-center" data-filepath="${filePath}">
                                 <span class="ms-2">${fileName}</span>
-            <a href="${baseUrl}/${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">View</a>
-        </div>`;
+                                <a href="${baseUrl}/${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">View</a>`;
+
+                            // If the document appears to be pending, show Approve / Reject buttons
+                            const pendingStatuses = ['pending', 'awaiting', 'for_review', 'pending_admin'];
+                            const isPending = status && pendingStatuses.includes(status.toString().toLowerCase());
+
+                            // If caller provided a separate statuses map, prefer that
+                            if (!isPending && data.employee && data.employee.additional_files_status) {
+                                const map = data.employee.additional_files_status;
+                                try {
+                                    const s = map[filePath] || map[fileName] || '';
+                                    if (s && pendingStatuses.includes(s.toString().toLowerCase())) {
+                                        isPending = true;
+                                    }
+                                } catch (e) {
+                                    // ignore
+                                }
+                            }
+
+                            if (isPending) {
+                                additionalHtml += `
+                                    <button type="button" class="btn btn-sm btn-success ms-2 approve-doc-btn" data-file="${filePath}" data-employee="${id}">Approve</button>
+                                    <button type="button" class="btn btn-sm btn-danger ms-1 reject-doc-btn" data-file="${filePath}" data-employee="${id}">Reject</button>`;
+                            }
+
+                            additionalHtml += `</div>`;
                         });
                     }
                 }
@@ -1240,14 +1276,130 @@
                     additionalHtml = '<span class="text-muted">No additional documents uploaded.</span>';
                 }
 
-                // Set the combined documents HTML inside modal element
-                $('#document_list_detail').html(`
-            <h6>Main Documents</h6>
-            ${documentHtml}
-            <hr>
-            <h6>Additional Documents</h6>
-            ${additionalHtml}
+                // Fetch documents from Documents table for this employee's user_id and render combined view
+                const renderCombinedDocs = (dbDocsHtml) => {
+                    $('#document_list_detail').html(`
+            <h6>Documents (DB)</h6>
+            ${dbDocsHtml}
         `);
+                };
+
+                if (data.user_id) {
+                    $.get(`${baseUrl}/documents/user/${data.user_id}/ajax`, function(resp) {
+                        // Separate approved and pending documents
+                        const docs = resp.documents || [];
+                        const approved = docs.filter(d => (d.status || '').toLowerCase() === 'approved');
+                        const pending = docs.filter(d => (d.status || '').toLowerCase() !== 'approved');
+
+                        // Build Main Documents HTML: prefer approved docs for known fields
+                        let mainHtml = '';
+                        let anyMain = false;
+                        Object.entries(documentTypes).forEach(([field, label]) => {
+                            // find approved doc by document_type matching the field
+                            const approvedDoc = approved.find(d => d.document_type === field);
+                            if (approvedDoc) {
+                                anyMain = true;
+                                const fileName = (approvedDoc.file_path || '').split('/').pop();
+                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${baseUrl}/${approvedDoc.file_path}" target="_blank" class="btn btn-sm btn-outline-primary ms-1">${fileName}</a></div>`;
+                            } else if (data[field]) {
+                                // fallback to employee field (unverified)
+                                anyMain = true;
+                                const url = `${baseUrl}/documents/${data[field]}`;
+                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">View (unverified)</a></div>`;
+                            }
+                        });
+
+                        // Include any other approved documents (not mapped) under 'Other approved documents'
+                        const mappedTypes = Object.keys(documentTypes);
+                        const otherApproved = approved.filter(d => !mappedTypes.includes(d.document_type));
+                        if (otherApproved.length > 0) {
+                            anyMain = true;
+                            mainHtml += `<div class="mt-2"><strong>Other approved documents:</strong><ul class="list-unstyled mb-0">`;
+                            otherApproved.forEach(d => {
+                                const fileName = (d.file_path || '').split('/').pop();
+                                mainHtml += `<li><a href="${baseUrl}/${d.file_path}" target="_blank">${fileName}</a></li>`;
+                            });
+                            mainHtml += `</ul></div>`;
+                        }
+
+                        if (!anyMain) mainHtml = '<span class="text-muted">Employee didn\'t upload any approved main document.</span>';
+
+                        // Build Pending Documents HTML
+                        let pendingHtml = '';
+                        if (pending.length > 0) {
+                            pendingHtml = '<ul class="list-unstyled mb-0">';
+                            pending.forEach(d => {
+                                const fileName = (d.file_path || '').split('/').pop();
+                                const comment = d.admin_comments ? `<div class="small text-muted">${d.admin_comments}</div>` : '';
+                                // Determine a human-friendly type label using documentTypes mapping
+                                const typeLabel = (d.document_type && documentTypes[d.document_type]) ? documentTypes[d.document_type] : (d.document_type || 'Other');
+                                const isRejected = (d.status || '').toString().toLowerCase() === 'rejected';
+
+                                if (isRejected) {
+                                    // Show rejected status and admin comment; hide action buttons
+                                    pendingHtml += `<li class="mb-2 d-flex align-items-center">
+                                        <span class="badge bg-secondary me-2 text-truncate" style="max-width:120px;">${typeLabel}</span>
+                                        <a href="${baseUrl}/${d.file_path}" target="_blank" class="me-2">${fileName}</a>
+                                        <span class="badge bg-danger ms-1">Rejected</span>
+                                        ${comment}
+                                    </li>`;
+                                } else {
+                                    pendingHtml += `<li class="mb-2 d-flex align-items-center">
+                                        <span class="badge bg-secondary me-2 text-truncate" style="max-width:120px;">${typeLabel}</span>
+                                        <a href="${baseUrl}/${d.file_path}" target="_blank" class="me-2">${fileName}</a>
+                                        <span class="badge bg-warning text-dark ms-1">${d.status || 'pending'}</span>
+                                        <div class="ms-auto">
+                                            <button class="btn btn-sm btn-success ms-2 approve-doc-btn" data-file="${d.file_path}" data-employee="${id}">Approve</button>
+                                            <button class="btn btn-sm btn-danger ms-1 reject-doc-btn" data-file="${d.file_path}" data-employee="${id}">Reject</button>
+                                        </div>
+                                        ${comment}
+                                    </li>`;
+                                }
+                            });
+                            pendingHtml += '</ul>';
+                        } else {
+                            pendingHtml = '<span class="text-muted">No pending documents.</span>';
+                        }
+
+                        // Keep existing additional_files rendering as-is (but mark those that are already approved)
+                        let additionalHtmlRendered = additionalHtml;
+
+                        // Render combined sections: Main Documents (approved), Pending Documents, Additional Documents (employee fields)
+                        renderCombinedDocs(`
+                            <div id="main_docs_section">${mainHtml}</div>
+                            <hr>
+                            <h6>Pending Documents</h6>
+                            <div id="pending_docs_section">${pendingHtml}</div>
+                            <hr>
+                            <h6>Additional Documents</h6>
+                            ${additionalHtmlRendered}
+                        `);
+                    }).fail(function() {
+                        // If documents endpoint fails, still render the rest
+                        renderCombinedDocs('<span class="text-muted">Unable to load documents.</span>');
+                    });
+                } else {
+                    // No user_id available; render without DB docs
+                    renderCombinedDocs('<span class="text-muted">No user id available to load documents.</span>');
+                }
+
+                // Attach handlers for approve/reject buttons that were just injected
+                $(document).off('click', '.approve-doc-btn').on('click', '.approve-doc-btn', function() {
+                    const file = $(this).data('file');
+                    const emp = $(this).data('employee');
+                    $('#doc_action_employee_id').val(emp);
+                    $('#doc_action_file').val(file);
+                    $('#approveConfirmModal').modal('show');
+                });
+
+                $(document).off('click', '.reject-doc-btn').on('click', '.reject-doc-btn', function() {
+                    const file = $(this).data('file');
+                    const emp = $(this).data('employee');
+                    $('#doc_action_employee_id').val(emp);
+                    $('#doc_action_file').val(file);
+                    $('#rejectModal textarea[name="admin_comment"]').val('');
+                    $('#rejectModal').modal('show');
+                });
 
                 // Days of week mapping
                 const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -1274,6 +1426,119 @@
                 toast_danger('Failed to fetch employee detail.');
             });
         }
+    </script>
+    <!-- Approve Confirmation Modal -->
+    <div class="modal fade" id="approveConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Approve Document</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to approve this document?</p>
+                    <input type="hidden" id="doc_action_employee_id" value="">
+                    <input type="hidden" id="doc_action_file" value="">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" id="confirmApproveBtn" class="btn btn-success">Approve</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Reject Modal (submit admin comment) -->
+    <div class="modal fade" id="rejectModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reject Document</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="rejectDocForm">
+                        <div class="mb-3">
+                            <label for="admin_comment" class="form-label">Admin Comment (required)</label>
+                            <textarea name="admin_comment" class="form-control" rows="4" required></textarea>
+                        </div>
+                        <input type="hidden" id="doc_action_employee_id" value="">
+                        <input type="hidden" id="doc_action_file" value="">
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" form="rejectDocForm" id="submitRejectBtn" class="btn btn-danger">Reject</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Approve document AJAX
+        $('#confirmApproveBtn').on('click', function() {
+            const employeeId = $('#doc_action_employee_id').val();
+            const filePath = $('#doc_action_file').val();
+            if (!filePath || !employeeId) {
+                toast_danger('Missing information');
+                return;
+            }
+
+            $(this).prop('disabled', true).text('Approving...');
+
+            $.ajax({
+                url: `${baseUrl}/employees/${employeeId}/documents/approve`,
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                data: { file_path: filePath },
+                success: function(res) {
+                    $('#approveConfirmModal').modal('hide');
+                    toast_success(res.message || 'Document approved');
+                    // Refresh the employee detail to update statuses
+                    viewEmployeeDetail(employeeId);
+                },
+                error: function(xhr) {
+                    const resp = xhr.responseJSON;
+                    toast_danger((resp && resp.error) ? resp.error : 'Failed to approve document');
+                },
+                complete: function() {
+                    $('#confirmApproveBtn').prop('disabled', false).text('Approve');
+                }
+            });
+        });
+
+        // Reject document AJAX
+        $('#rejectDocForm').on('submit', function(e) {
+            e.preventDefault();
+            const employeeId = $('#doc_action_employee_id').val();
+            const filePath = $('#doc_action_file').val();
+            const comment = $(this).find('textarea[name="admin_comment"]').val();
+            if (!comment || comment.trim().length === 0) {
+                toast_danger('Please provide a comment for rejection');
+                return;
+            }
+
+            $('#submitRejectBtn').prop('disabled', true).text('Rejecting...');
+
+            $.ajax({
+                url: `${baseUrl}/employees/${employeeId}/documents/reject`,
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}' },
+                data: { file_path: filePath, admin_comment: comment },
+                success: function(res) {
+                    $('#rejectModal').modal('hide');
+                    toast_success(res.message || 'Document rejected');
+                    viewEmployeeDetail(employeeId);
+                },
+                error: function(xhr) {
+                    const resp = xhr.responseJSON;
+                    toast_danger((resp && resp.error) ? resp.error : 'Failed to reject document');
+                },
+                complete: function() {
+                    $('#submitRejectBtn').prop('disabled', false).text('Reject');
+                }
+            });
+        });
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {

@@ -147,7 +147,7 @@
                             </div>
                         </div>
                         <div class="" style="padding-bottom:0px;">
-                            <div id="map" style="height: 1000px; width: 100%;"></div>
+                            <div id="map" style="height: 800px; width: 100%;"></div>
                         </div>
                     </div>
                 </div>
@@ -758,10 +758,10 @@
         function initMap() {
             // --- Init map centered on England ---
             map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 10,
+                zoom: 9,
                 center: {
-                    lat: 51.50632911888075,
-                    lng: -0.08967956053966389
+                    lat: 51.87432911888075,
+                    lng: -0.44027956053966389
                 },
                 gestureHandling: "auto", // user can drag/zoom
                 mapTypeControl: true,

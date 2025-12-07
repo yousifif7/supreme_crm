@@ -69,9 +69,10 @@
 
 @section('contents')
 
-    {{-- @php
-        $staff = App\Models\User::find($invoice->secuirty_staff_id);
-    @endphp --}}
+                    @php
+                        $staff= App\Models\Employee::where('user_id',$invoice->security_staff_id)->first();
+                    @endphp
+                    
     <div id="payroll-page" class="page-wrapper">
         <div class="content">
             <div class="alert-box-container"></div>
@@ -250,11 +251,11 @@
                                 <p class="mb-1">Payment Method</p>
                                 <p class="text-dark">{{ $invoice->pay_method ?? $staff?->employee->pay_method ?? 'Bank Transfer' }}</p>
                                 <p class="mb-1 mt-2">Bank Name</p>
-                                <p class="text-dark">{{ $invoice->bank_name ?? 'HDFC Bank' }}</p>
+                                <p class="text-dark">{{ $invoice->bank_name ?? $staff->bank_name ?? 'ــ' }}</p>
                                 <p class="mb-1 mt-2">Account Number</p>
-                                <p class="text-dark">{{ $invoice->account_number ?? '45366287987' }}</p>
+                                <p class="text-dark">{{ $invoice->account_number ?? $staff->account_number ?? 'ــ' }}</p>
                                 <p class="mb-1 mt-2">IFSC / Sort Code</p>
-                                <p class="text-dark">{{ $invoice->ifsc ?? 'HDFC0018159' }}</p>
+                                <p class="text-dark">{{ $invoice->ifsc ?? $staff->sort_code ?? 'ــ' }}</p>
                             </div>
                         </div>
                     </div>
@@ -274,9 +275,6 @@
                                         <tr>
                                             <th>Date</th>
                                             <th class="text-end">Hours</th>
-                                            <th class="text-end">Breaks</th>
-                                            <th class="text-end">Book On</th>
-                                            <th class="text-end">Book Off</th>
                                             <th class="text-end">Rate</th>
                                             <th class="text-end">Amount</th>
                                         </tr>
@@ -286,9 +284,6 @@
                                             <tr>
                                                 <td>{{ $item->date }}</td>
                                                 <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                                <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
-                                                <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
-                                                <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
                                                 <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
                                                 <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
                                             </tr>
@@ -351,12 +346,13 @@
                         </div>
                     </div>
 
+
                     <div class="text-center">
                         <p class="text-dark mb-1">Payment Made Via bank transfer</p>
                         <div class="d-flex justify-content-center align-items-center">
-                            <p class="fs-12 mb-0 me-3">Bank Name: <span class="text-dark">HDFC Bank</span></p>
-                            <p class="fs-12 mb-0 me-3">Account Number: <span class="text-dark">45366287987</span></p>
-                            <p class="fs-12">IFSC: <span class="text-dark">HDFC0018159</span></p>
+                            <p class="fs-12 mb-0 me-3">Bank Name: <span class="text-dark">{{$staff->bank_name ??'ــ'}}</span></p>
+                            <p class="fs-12 mb-0 me-3">Account Number: <span class="text-dark">{{$staff->account_number?? 'ــ'}}</span></p>
+                            <p class="fs-12">Sort Code: <span class="text-dark">{{$staff->sort_code ?? 'ــ'}}</span></p>
                         </div>
                     </div>
 

@@ -691,6 +691,8 @@ class EmployeeController extends Controller
             ->get(['day_of_week', 'start_time as start', 'end_time as end']);
 
         return response()->json([
+            'id' => $employee?->id,
+            'user_id' => $employee?->user_id,
             'fore_name'       => $employee?->fore_name,
             'sur_name'        => $employee?->sur_name,
             'email'           => $employee?->email,

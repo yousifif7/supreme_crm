@@ -126,6 +126,103 @@ class DocumentController extends Controller
     ]);
 }
 
+    // Return documents for a given user id (AJAX)
+    public function byUser($userId)
+    {
+        $docs = Document::where('user_id', $userId)->orderBy('created_at', 'desc')->get();
+        return response()->json(['documents' => $docs]);
+    }
+
+    // Approve a document for an employee (find by employee->user_id and file_path)
+    public function approveByEmployee(Request $request, $employeeId)
+    {
+        $employee = Employee::find($employeeId);
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        $filePath = $request->input('file_path');
+        if (!$filePath) {
+            return response()->json(['error' => 'file_path is required'], 422);
+        }
+
+        $doc = Document::where('user_id', $employee->user_id)
+            ->where('file_path', $filePath)
+            ->first();
+
+        if (!$doc) {
+            // fallback: match by basename
+            $basename = basename($filePath);
+            $doc = Document::where('user_id', $employee->user_id)
+                ->where('file_path', 'like', "%{$basename}%")
+                ->first();
+        }
+
+        if (!$doc) {
+            return response()->json(['error' => 'Document not found'], 404);
+        }
+
+        $doc->status = 'approved';
+        $doc->admin_comments = null;
+        $doc->save();
+
+        send_push_notification(
+            $employee->user_id,
+            'Document Approved',
+            'Your '.$doc->document_type.' document has been Approved.',
+            ['document_id' => $doc->id]
+        );
+
+        return response()->json(['message' => 'Document approved', 'document' => $doc]);
+    }
+
+    // Reject a document for an employee (requires admin_comment)
+    public function rejectByEmployee(Request $request, $employeeId)
+    {
+        $employee = Employee::find($employeeId);
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        $filePath = $request->input('file_path');
+        $comment = $request->input('admin_comment');
+
+        if (!$filePath) {
+            return response()->json(['error' => 'file_path is required'], 422);
+        }
+        if (!$comment) {
+            return response()->json(['error' => 'admin_comment is required'], 422);
+        }
+
+        $doc = Document::where('user_id', $employee->user_id)
+            ->where('file_path', $filePath)
+            ->first();
+
+        if (!$doc) {
+            $basename = basename($filePath);
+            $doc = Document::where('user_id', $employee->user_id)
+                ->where('file_path', 'like', "%{$basename}%")
+                ->first();
+        }
+
+        if (!$doc) {
+            return response()->json(['error' => 'Document not found'], 404);
+        }
+
+        $doc->status = 'rejected';
+        $doc->admin_comments = $comment;
+        $doc->save();
+
+        send_push_notification(
+            $employee->user_id,
+            'Document rejected',
+            'Your '.$doc->document_type.' document has been rejected, check you application to view the reason.',
+            ['document_id' => $doc->id]
+        );
+
+        return response()->json(['message' => 'Document rejected', 'document' => $doc]);
+    }
+
     // Check if a document field has a corresponding expiry field
     protected function hasExpiryField($field)
     {

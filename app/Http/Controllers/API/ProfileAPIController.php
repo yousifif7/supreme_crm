@@ -128,6 +128,51 @@ class ProfileAPIController extends Controller
         $employee->sur_name = $profile->last_name;
         $employee->save();
 
+        // Sync additional profile/bank/emergency fields to the employee record where applicable.
+        // Only update fields that exist in the Employee model's fillable array.
+        try {
+            if ($employee) {
+                $fillable = $employee->getFillable();
+                $employeeUpdates = [];
+
+                // Phone -> contact
+                if (in_array('contact', $fillable) && $request->filled('phone')) {
+                    $employeeUpdates['contact'] = $request->input('phone');
+                }
+
+                // Address -> address_group
+                if (in_array('address_group', $fillable) && $request->filled('address')) {
+                    $employeeUpdates['address_group'] = $request->input('address');
+                }
+
+                // Emergency contact: store as JSON if field exists
+                $emergencyInput = $request->input('emergency_contact', []);
+                if (!empty($emergencyInput) && in_array('emergency_contact', $fillable)) {
+                    // Keep existing format (array -> json)
+                    $employeeUpdates['emergency_contact'] = is_array($emergencyInput) ? json_encode($emergencyInput) : $emergencyInput;
+                }
+
+                // Bank details: map known keys
+                $bankInput = $request->input('bank_details', []);
+                if (!empty($bankInput)) {
+                    if (in_array('account_name', $fillable) && isset($bankInput['account_name'])) $employeeUpdates['account_name'] = $bankInput['account_name'];
+                    if (in_array('account_number', $fillable) && isset($bankInput['account_number'])) $employeeUpdates['account_number'] = $bankInput['account_number'];
+                    if (in_array('sort_code', $fillable) && isset($bankInput['sort_code'])) $employeeUpdates['sort_code'] = $bankInput['sort_code'];
+                    if (in_array('bank_name', $fillable) && isset($bankInput['bank_name'])) $employeeUpdates['bank_name'] = $bankInput['bank_name'];
+                }
+
+                // If profile contains face_data and employee has profile_picture, don't overwrite unless explicitly provided
+                // (face_data currently stored as profile JSON of face images; mapping to employee.profile_picture is out of scope)
+
+                if (!empty($employeeUpdates)) {
+                    $employee->update($employeeUpdates);
+                }
+            }
+        } catch (\Exception $e) {
+            // Fail silently here but log if desired. Don't interrupt profile update flow.
+            \Log::warning('Employee sync failed: ' . $e->getMessage());
+        }
+
         // Emergency Contact
         $emergency = $profile->emergencyContact ?: new EmergencyContacts();
         $emergency->fill($request->input('emergency_contact', []));
@@ -151,7 +196,7 @@ class ProfileAPIController extends Controller
             
             $user = Auth::user();
             Notification::create([
-                'user_id' => null,
+                'user_id' => 1,
                 'employee_id' => Auth::id(),
                 'type' => 'alert',
                 'title' => 'Updated Profile',

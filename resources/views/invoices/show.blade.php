@@ -81,13 +81,15 @@
                 </div>
             </div>
             <!-- /Breadcrumb -->
-
+@php
+    $client = App\Models\Client::where('user_id',$invoice->client_id)->first();
+@endphp
             <div class="card">
                 <div class="card-body">
                     <div class="row justify-content-between align-items-center border-bottom mb-3">
                         <div class="col-md-4">
                             <h4 class="mb-1">Supreme Protection</h4>
-                            <p class="mb-1">Wembley HA9,UK</p>
+                            <p class="mb-1">{{$client->address??'No address'}}</p>
                             <p class="mb-1">Email : <span class="text-dark">admin@splconnect.co.uk</span></p>
 <!--                            <p>Phone : <span class="text-dark">+1 234567890</span></p>
 -->                        </div>
@@ -195,12 +197,8 @@
                                 <thead class="thead-default">
                                     <tr>
                                         <th>Date</th>
-                                        <th>Staff</th>
                                         <th>Site</th>
                                         <th class="text-end">Hours</th>
-                                        <th class="text-end">Breaks</th>
-                                        <th class="text-end">Book On</th>
-                                        <th class="text-end">Book Off</th>
                                         <th class="text-end">Rate</th>
                                         <th class="text-end">Amount</th>
                                     </tr>
@@ -209,12 +207,8 @@
                                     @foreach ($invoice->items as $item)
                                         <tr>
                                             <td>{{ $item->date }}</td>
-                                            <td>{{ $item->securityStaff->name ?? 'N/A' }}</td>
                                             <td>{{ $item->site->site_name ?? 'N/A' }}</td>
                                             <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->break_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->book_on_hours, 2) }}</td>
-                                            <td class="text-end">{{ number_format($item->book_off_hours, 2) }}</td>
                                             <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
                                             <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
                                         </tr>
@@ -280,7 +274,7 @@
                                 </div>
                             @endif
                             <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
-                                <h5>Total Amount</h5>
+                                <h5>Total GBP</h5>
                                 <h5>£{{ number_format($invoice->net_amount, 2) }}</h5>
                             </div>
                             @php
