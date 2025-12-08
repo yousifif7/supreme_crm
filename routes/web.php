@@ -249,6 +249,9 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     /** Begin: Payroll Controller  */
     Route::get('/payrolls', [PayrollController::class, 'index'])->name('payrolls.index');
 
+    // JSON endpoint for subcontractor payrolls (used by client-side DataTable)
+    Route::get('/payrolls/subcontractor/data', [PayrollController::class, 'subcontractorData'])->name('payrolls.subcontractor.data');
+
 
     Route::get('/generatepayroll/{id}', [PayrollController::class, 'edit'])->name('payroll.edit');
     Route::post('/generatepayroll', [PayrollController::class, 'store'])->name('payroll.store');

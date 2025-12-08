@@ -22,6 +22,7 @@ class Subcontractor extends Model
         'department',
         'vat_registered',
         'vat_number',
+        'commission',
         'pay_rate',
         'pmva_trained_officer',
         'is_active',

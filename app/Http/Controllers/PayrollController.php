@@ -19,14 +19,44 @@ use App\Services\InvoiceService;
 use App\Services\PayrollCalculator;
 use Illuminate\Support\Facades\Auth;
 use App\DataTables\PayrollsDataTable;
+use App\DataTables\SubcontractorPayrollsDataTable;
 use Illuminate\Support\Facades\Validator;
 
 class PayrollController extends Controller
 {
     public function index(PayrollsDataTable $dataTable)
     {
-        return $dataTable->render('invoices.payrolls');
+        return $dataTable->render('invoices.payrolls', [
+        ]);
     }
+
+        /**
+         * Return subcontractor payrolls as JSON for client-side DataTable.
+         */
+        public function subcontractorData()
+        {
+            $invoices = Invoice::with(['subcontractor', 'site'])
+                ->where('type', 'subcontractor')
+                ->orderBy('id', 'desc')
+                ->get();
+
+            $rows = $invoices->map(function ($inv) {
+                return [
+                    'id' => $inv->id,
+                    'invoice_number' => $inv->invoice_number,
+                    'subcontractor_name' => $inv->subcontractor ? ($inv->subcontractor->first_name . ' ' . ($inv->subcontractor->last_name ?? '')) : '',
+                    'site_name' => $inv->site?->site_name ?? '',
+                    'issue_date' => $inv->issue_date ? Carbon::parse($inv->issue_date)->format('d/m/Y') : '',
+                    'due_date' => $inv->due_date ? Carbon::parse($inv->due_date)->format('d/m/Y') : '',
+                    'total_shift_hours' => $inv->total_shift_hours ?? 0,
+                    'net_amount' => number_format($inv->net_amount ?? 0, 2),
+                    'total_amount' => number_format($inv->total_amount ?? 0, 2),
+                    'status' => ($inv->paid_amount ?? 0) >= ($inv->net_amount ?? 0) ? 'Paid' : 'Unpaid',
+                ];
+            });
+
+            return response()->json(['data' => $rows]);
+        }
 
     public function store(Request $request, InvoiceService $calc)
     {
@@ -255,7 +285,13 @@ class PayrollController extends Controller
     public function delete($id)
     {
         $payroll = Invoice::findOrFail($id);
-        Logger::log(Auth::user(), 'Create', 'Payroll NO. ' . $payroll->ivoice_number . ' Generated for Staff ' . $payroll->securityStaff->first_name . ' ' . $payroll->securityStaff->last_name);
+        // Defensive logging: either security staff or subcontractor
+        try {
+            $payeeName = $payroll->securityStaff ? ($payroll->securityStaff->first_name . ' ' . ($payroll->securityStaff->last_name ?? '')) : ($payroll->subcontractor?->name ?? 'Unknown');
+        } catch (\Throwable $e) {
+            $payeeName = 'Unknown';
+        }
+        Logger::log(Auth::user(), 'Delete', 'Payroll NO. ' . ($payroll->invoice_number ?? $payroll->id) . ' deleted for ' . $payeeName);
         $payroll->delete();
 
         return response()->json(['success' => true]);
@@ -270,7 +306,12 @@ class PayrollController extends Controller
 
         $invoices = Invoice::whereIn('id', $request->ids)->get();
         foreach ($invoices as $invoice) {
-            Logger::log(Auth::user(), 'Create', 'Payroll NO. ' . $invoice->ivoice_number . ' Generated for Staff ' . $invoice->securityStaff->first_name . ' ' . $invoice->securityStaff->last_name);
+            try {
+                $payeeName = $invoice->securityStaff ? ($invoice->securityStaff->first_name . ' ' . ($invoice->securityStaff->last_name ?? '')) : ($invoice->subcontractor?->name ?? 'Unknown');
+            } catch (\Throwable $e) {
+                $payeeName = 'Unknown';
+            }
+            Logger::log(Auth::user(), 'Delete', 'Payroll NO. ' . ($invoice->invoice_number ?? $invoice->id) . ' deleted for ' . $payeeName);
             $invoice->delete();
         }
 

@@ -74,6 +74,7 @@ class SubContractorController extends Controller
             'vat_registered'     => 'nullable',
             'vat_number'         => 'nullable|string|max:255',
             'pay_rate'           => 'nullable|numeric',
+            'commission'         => 'nullable|numeric|min:0|max:100',
             'pmva_trained_officer' => 'nullable',
         ], [
             'contact_number.regex' => 'The contact number format is invalid. It should be a valid phone number.',
@@ -129,6 +130,7 @@ class SubContractorController extends Controller
             'vat_registered'     => 'nullable',
             'vat_number'         => 'nullable|string|max:255',
             'pay_rate'           => 'nullable|numeric',
+            'commission'         => 'nullable|numeric|min:0|max:100',
             'pmva_trained_officer' => 'nullable',
         ]);
 
@@ -229,6 +231,7 @@ class SubContractorController extends Controller
             'pmva_trained_officer' => $subcontractor->pmva_trained_officer,
             'vat_registered'     => $subcontractor->vat_registered ? 'Yes' : 'No',
             'vat_number'         => $subcontractor->vat_number,
+            'commission'         => $subcontractor->commission,
         ]);
     }
 }

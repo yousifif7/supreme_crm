@@ -24,6 +24,7 @@
                         <tr><th>Payment Terms</th><td id="payment_terms_detail"></td></tr>
                         <tr><th>Department</th><td id="department_detail"></td></tr>
                         <tr><th>Pay Rate</th><td id="pay_rate_detail"></td></tr>
+                        <tr><th>Commission</th><td id="commission_detail"></td></tr>
                         <tr><th>PMVA Trained Officer</th><td id="pmva_detail"></td></tr>
                         <tr><th>VAT Registered?</th><td id="vat_registered_detail"></td></tr>
                         <tr><th>VAT Number</th><td id="vat_number_detail"></td></tr>

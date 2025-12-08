@@ -14,24 +14,22 @@
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap">
                 <div class="me-2">
                     <div class="dropdown">
-                        <button onclick="bulkDelete('payrolls')" id="bulkDeletePayrollsBtn" class="btn btn-primary">Delete
-                            Selected</button>
+                        <button id="bulkDeletePayrollsBtn" class="btn btn-primary">Delete Selected</button>
                         <a href="javascript:void(0);"
+                            id="exportDropdownToggle"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
                             <i class="ti ti-file-export me-1"></i>Export
                         </a>
                         <ul class="dropdown-menu dropdown-menu-start p-3">
-                            <li><a href="{{ route('invoices.export.pdf') }}" class="dropdown-item rounded-1"><i
-                                        class="ti ti-file-type-pdf me-1"></i>Export as PDF</a></li>
-                            <li><a href="{{ route('invoices.export.excel') }}" class="dropdown-item rounded-1"><i
-                                        class="ti ti-file-type-xls me-1"></i>Export as Excel </a></li>
+                            <li><a id="exportPdfBtn" href="{{ route('invoices.export.pdf') }}" class="dropdown-item rounded-1"><i class="ti ti-file-type-pdf me-1"></i>Export as PDF</a></li>
+                            <li><a id="exportExcelBtn" href="{{ route('invoices.export.excel') }}" class="dropdown-item rounded-1"><i class="ti ti-file-type-xls me-1"></i>Export as Excel </a></li>
                         </ul>
                     </div>
                 </div>
 
-                <div class="me-2 mb-2 filter_area">
-                    <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                    <div class="me-2 mb-2 filter_area">
+                    <button type="button" id="generatePayrollBtn" class="btn btn-primary" data-bs-toggle="modal"
                         data-bs-target="#generate_payroll">Generate</button>
                     <!-- Search -->
                     <div class="input-group input-group-flat d-inline-flex me-1">
@@ -45,7 +43,42 @@
             <div class="card">
                 <div class="card-body p-0">
                     <div class="custom-datatable-filter table-responsive">
-                        {!! $dataTable->table(['class' => 'table datatable']) !!}
+                        <ul class="nav nav-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="staff-tab" data-bs-toggle="tab" data-bs-target="#staff-tab-pane" type="button" role="tab" aria-controls="staff-tab-pane" aria-selected="true">Employee Payrolls</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="subcontractor-tab" data-bs-toggle="tab" data-bs-target="#subcontractor-tab-pane" type="button" role="tab" aria-controls="subcontractor-tab-pane" aria-selected="false">Subcontractor Payrolls</button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content mt-3">
+                            <div class="tab-pane fade show active" id="staff-tab-pane" role="tabpanel" aria-labelledby="staff-tab">
+                                {!! $dataTable->table(['class' => 'table datatable']) !!}
+                            </div>
+                            <div class="tab-pane fade" id="subcontractor-tab-pane" role="tabpanel" aria-labelledby="subcontractor-tab">
+                                <div class="p-3">
+                                    <table id="subcontractor-payrolls-dt" class="table datatable table-bordered" style="width:100%">
+                                        <thead>
+                                            <tr>
+                                                <th><input type="checkbox" id="subcontractor-select-all"></th>
+                                                <th>#</th>
+                                                <th>Payroll No</th>
+                                                <th>Subcontractor</th>
+                                                <th>Site</th>
+                                                <th>Issue Date</th>
+                                                <th>Due Date</th>
+                                                <th>Total Hours</th>
+                                                <th>Net Amount</th>
+                                                <th>Total Amount</th>
+                                                <th>Status</th>
+                                                <th>Action</th>
+                                            </tr>
+                                        </thead>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -289,10 +322,19 @@
 
         $('#confirmDeleteBtn').on('click', function() {
             if (selectedId !== null && selectedTable !== null) {
-                let url =
-                    `${baseUrl}/delete${selectedTable}/${selectedId}`; // e.g., /deleteinvoice/1 or /deletepayroll/2
+                let deleteUrl = '';
+                if (selectedTable === 'payrolls') {
+                    deleteUrl = `${baseUrl}/deletepayroll/${selectedId}`;
+                } else if (selectedTable === 'invoices' || selectedTable === 'subcontractor') {
+                    // subcontractor invoices use the invoice delete endpoint
+                    deleteUrl = `${baseUrl}/deleteinvoice/${selectedId}`;
+                } else {
+                    // fallback to invoice delete
+                    deleteUrl = `${baseUrl}/deleteinvoice/${selectedId}`;
+                }
+
                 $.ajax({
-                    url: `${baseUrl}/deleteinvoice/${selectedId}`,
+                    url: deleteUrl,
                     type: 'DELETE',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}'
@@ -300,7 +342,15 @@
                     success: function(response) {
                         closeBsModal('#delete_modal');
                         toast_success('Record Deleted Successfully!');
-                        reloadDatatable(`#${selectedTable}-table`);
+                        // Reload relevant table
+                        if (selectedTable === 'payrolls') {
+                            reloadDatatable('#payrolls-table');
+                        } else if (selectedTable === 'subcontractor') {
+                            if (window.subcontractorTable) window.subcontractorTable.ajax.reload(null, false);
+                        } else {
+                            reloadDatatable(`#${selectedTable}-table`);
+                        }
+
                         selectedId = null;
                         selectedTable = null;
                     },
@@ -313,32 +363,33 @@
         });
 
         // Bulk delete button
-        function bulkDelete(table) {
-            const selected = $(`#${table}-table .dT-row-checkbox:checked`).map(function() {
-                return this.value;
-            }).get();
+        function bulkDeleteActive() {
+            // Determine active tab
+            const activeTab = $('#staff-tab').hasClass('active') ? 'staff' : ($('#subcontractor-tab').hasClass('active') ? 'subcontractor' : 'staff');
+            let selector = '#payrolls-table';
+            if (activeTab === 'subcontractor') selector = '#subcontractor-payrolls-dt';
 
+            const selected = $(`${selector} .dT-row-checkbox:checked`).map(function() { return this.value; }).get();
             if (selected.length === 0) {
                 toast_danger('Please select at least one record to delete.');
                 return;
             }
-
             if (!confirm('Are you sure you want to delete the selected records?')) return;
 
             $.ajax({
-                url: '{{ route('invoices.bulkDelete') }}', // e.g., /invoices/bulkDelete or /payrolls/bulkDelete
+                url: '{{ route('payrolls.bulkDelete') }}',
                 type: 'POST',
-                data: {
-                    ids: selected,
-                    _token: '{{ csrf_token() }}'
-                },
+                data: { ids: selected, _token: '{{ csrf_token() }}' },
                 success: function(response) {
                     toast_success('Selected records deleted successfully!');
-                    reloadDatatable(`#${table}-table`);
+                    // reload appropriate table
+                    if (activeTab === 'subcontractor') {
+                        if (window.subcontractorTable) window.subcontractorTable.ajax.reload(null, false);
+                    } else {
+                        reloadDatatable('#payrolls-table');
+                    }
                 },
-                error: function() {
-                    toast_danger('Something went wrong during bulk delete.');
-                }
+                error: function() { toast_danger('Something went wrong during bulk delete.'); }
             });
         }
 
@@ -408,4 +459,85 @@
     </script>
 
     {!! $dataTable->scripts() !!}
+
+    <script>
+        // Initialize subcontractor DataTable via client-side AJAX to avoid server-side Yajra call
+        $(function() {
+            const subcontractorTable = $('#subcontractor-payrolls-dt').DataTable({
+                processing: true,
+                serverSide: false,
+                ajax: {
+                    url: '{{ route('payrolls.subcontractor.data') }}',
+                    dataSrc: 'data'
+                },
+                columns: [
+                    { data: 'id', orderable: false, render: function(data){ return '<input type="checkbox" class="dT-row-checkbox" value="'+data+'">'; } },
+                    { data: null, render: function(data, type, row, meta) { return meta.row + 1; }, orderable: false },
+                    { data: 'invoice_number', render: function(data, type, row) { return '<a href="/payrolls/' + row.id + '">' + data + '</a>'; } },
+                    { data: 'subcontractor_name' },
+                    { data: 'site_name' },
+                    { data: 'issue_date' },
+                    { data: 'due_date' },
+                    { data: 'total_shift_hours' },
+                    { data: 'net_amount', className: 'text-end' },
+                    { data: 'total_amount', className: 'text-end' },
+                    { data: 'status', render: function(data) { if (data === 'Paid') return '<span class="badge bg-success">Paid</span>'; return '<span class="badge bg-warning text-dark">Unpaid</span>'; } },
+                    { data: 'id', orderable: false, render: function(data) { return '<a href="javascript:void(0)" class="btn btn-sm btn-danger" onclick="deleteRecord(' + data + ', \"subcontractor\")">Delete</a>'; } }
+                ],
+                order: [[1, 'desc']],
+                pageLength: 25,
+                responsive: true
+            });
+
+            // Optionally reload subcontractor table when its tab is shown
+            $('button[data-bs-target="#subcontractor-tab-pane"]').on('shown.bs.tab', function () {
+                subcontractorTable.ajax.reload(null, false);
+            });
+            // handle select-all for subcontractor table
+            $(document).on('change', '#subcontractor-select-all', function() {
+                const checked = $(this).is(':checked');
+                $('#subcontractor-payrolls-dt .dT-row-checkbox').prop('checked', checked);
+            });
+
+            // ensure header checkbox sync when individual checkboxes change
+            $(document).on('change', '#subcontractor-payrolls-dt .dT-row-checkbox', function() {
+                const all = $('#subcontractor-payrolls-dt .dT-row-checkbox').length;
+                const checked = $('#subcontractor-payrolls-dt .dT-row-checkbox:checked').length;
+                $('#subcontractor-select-all').prop('checked', all > 0 && all === checked);
+            });
+            // expose for global reload from other handlers
+            window.subcontractorTable = subcontractorTable;
+
+            // Toolbar tab-change behavior: update export links and delete button handler
+            function setToolbarForTab(tab) {
+                let pdfHref = '{{ route('invoices.export.pdf') }}';
+                let excelHref = '{{ route('invoices.export.excel') }}';
+
+                if (tab === 'subcontractor') {
+                    // append query param so server-side export can filter by type if supported
+                    pdfHref += '?type=subcontractor';
+                    excelHref += '?type=subcontractor';
+                    // hide generate for subcontractor (generated elsewhere)
+                    $('#generatePayrollBtn').hide();
+                    $('#bulkDeletePayrollsBtn').off('click').on('click', bulkDeleteActive);
+                } else {
+                    $('#generatePayrollBtn').show().text('Generate');
+                    $('#bulkDeletePayrollsBtn').off('click').on('click', function() { bulkDeleteActive(); });
+                }
+
+                $('#exportPdfBtn').attr('href', pdfHref);
+                $('#exportExcelBtn').attr('href', excelHref);
+            }
+
+            // initialize toolbar state based on default active tab
+            setToolbarForTab('staff');
+
+            // hook tab change
+            $('button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                const target = $(e.target).data('bs-target');
+                if (target === '#subcontractor-tab-pane') setToolbarForTab('subcontractor');
+                else setToolbarForTab('staff');
+            });
+        });
+    </script>
 @endsection

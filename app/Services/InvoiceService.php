@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Models\Employee;
 use App\Models\ShiftDate;
 use App\Models\InvoiceItem;
+use App\Models\Subcontractor;
 use App\Models\LeaveRequest;
 
 class InvoiceService
@@ -219,6 +220,34 @@ class InvoiceService
             }
         }
 
+        // Determine subcontractor commission percent (snapshot)
+        $subcontractorRecord = Subcontractor::where('user_id', $subcontractorId)->first();
+
+        // Fallback: maybe $subcontractorId is actually the subcontractor.id (not the user id)
+        if (! $subcontractorRecord && is_numeric($subcontractorId)) {
+            $subcontractorRecord = Subcontractor::find($subcontractorId);
+        }
+
+        // Fallback: check if the User model has a subcontractor relation (user->subcontractor)
+        if (! $subcontractorRecord && isset($subcontractor) && method_exists($subcontractor, 'subcontractor')) {
+            try {
+                $rel = $subcontractor->subcontractor; // may be null
+                if ($rel) {
+                    $subcontractorRecord = $rel;
+                }
+            } catch (\Throwable $e) {
+                // ignore
+            }
+        }
+
+        $commissionPercent = 0;
+        if ($subcontractorRecord && isset($subcontractorRecord->commission)) {
+            $commissionPercent = floatval($subcontractorRecord->commission);
+        }
+
+        $commissionAmount = round($totalAmount * ($commissionPercent / 100), 2);
+        $staffAmount = round($totalAmount - $commissionAmount, 2);
+
         $invoice = Invoice::create([
             'type' => 'subcontractor',
             'subcontractor_id' => $subcontractorId,
@@ -227,6 +256,9 @@ class InvoiceService
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
             'total_amount' => $totalAmount,
+            'commission_percent' => $commissionPercent,
+            'commission_amount' => $commissionAmount,
+            'staff_amount' => $staffAmount,
             'status' => 'draft',
             'notes' => $notes,
             'payment_note' => $subcontractor->payment_terms,

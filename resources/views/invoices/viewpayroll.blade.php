@@ -70,7 +70,16 @@
 @section('contents')
 
                     @php
-                        $staff= App\Models\Employee::where('user_id',$invoice->security_staff_id)->first();
+                        // Determine the payee: a security staff user (employee) or a subcontractor user
+                        $staff = null;
+                        $payeeUser = null; // User model for either staff or subcontractor
+
+                        if (!empty($invoice->security_staff_id)) {
+                            $staff = App\Models\Employee::where('user_id', $invoice->security_staff_id)->first();
+                            $payeeUser = $staff?->user ?? App\Models\User::find($invoice->security_staff_id);
+                        } elseif (!empty($invoice->subcontractor_id)) {
+                            $payeeUser = $invoice->subcontractor;
+                        }
                     @endphp
                     
     <div id="payroll-page" class="page-wrapper">
@@ -117,16 +126,14 @@
 
                     <div class="row border-bottom mb-3">
                         <div class="col-md-6">
-                            <p class="text-dark mb-2 fw-semibold">Staff Details</p>
-                            <p>Name: <span
-                                    class="text-dark">{{ $staff?->first_name ?? 'N/A' }}{{ $staff?->last_name ?? '' }}</span>
-                            </p>
-                            <p>Email: <span class="text-dark">{{ $staff?->email }}</span></p>
-                            <p>Phone: <span class="text-dark">{{ $staff?->phone }}</span></p>
+                            <p class="text-dark mb-2 fw-semibold">Payee Details</p>
+                            <p>Name: <span class="text-dark">{{ $payeeUser?->first_name ?? $payeeUser?->name ?? ($staff?->first_name ?? 'N/A') }} {{ $payeeUser?->last_name ?? '' }}</span></p>
+                            <p>Email: <span class="text-dark">{{ $payeeUser?->email ?? ($staff?->email ?? 'N/A') }}</span></p>
+                            <p>Phone: <span class="text-dark">{{ $payeeUser?->phone ?? ($staff?->phone ?? 'N/A') }}</span></p>
                             <p>Reference Number: <span class="text-dark">{{ $staff?->employee->reference_number ?? 'N/A' }}</span></p>
                             <p>NI Number: <span class="text-dark">{{ $staff?->employee->ni_number ?? 'N/A' }}</span></p>
                             <p>Tax Code: <span class="text-dark">{{ $staff?->employee->tax_code ?? 'N/A' }}</span></p>
-                            <p>Pay Method: <span class="text-dark">{{ $staff?->employee->pay_method ?? $invoice->pay_method ?? 'Bank Transfer' }}</span></p>
+                            <p>Pay Method: <span class="text-dark">{{ $invoice->pay_method ?? $staff?->employee->pay_method ?? 'Bank Transfer' }}</span></p>
                             <p>Total Deductions: <span class="text-dark">£{{ number_format((($invoice->gross_amount ?? 0) - ($invoice->net_amount ?? 0)), 2) }}</span></p>
                             @if ($invoice->subcontractor)
                                 <p>Subcontractor: <span class="text-dark">{{ $invoice->subcontractor->name }}</span></p>
@@ -251,11 +258,11 @@
                                 <p class="mb-1">Payment Method</p>
                                 <p class="text-dark">{{ $invoice->pay_method ?? $staff?->employee->pay_method ?? 'Bank Transfer' }}</p>
                                 <p class="mb-1 mt-2">Bank Name</p>
-                                <p class="text-dark">{{ $invoice->bank_name ?? $staff->bank_name ?? 'ــ' }}</p>
+                                <p class="text-dark">{{ $invoice->bank_name ?? $payeeUser?->bank_name ?? $staff->bank_name ?? 'ــ' }}</p>
                                 <p class="mb-1 mt-2">Account Number</p>
-                                <p class="text-dark">{{ $invoice->account_number ?? $staff->account_number ?? 'ــ' }}</p>
+                                <p class="text-dark">{{ $invoice->account_number ?? $payeeUser?->account_number ?? $staff->account_number ?? 'ــ' }}</p>
                                 <p class="mb-1 mt-2">IFSC / Sort Code</p>
-                                <p class="text-dark">{{ $invoice->ifsc ?? $staff->sort_code ?? 'ــ' }}</p>
+                                <p class="text-dark">{{ $invoice->ifsc ?? $payeeUser?->ifsc ?? $staff->sort_code ?? 'ــ' }}</p>
                             </div>
                         </div>
                     </div>
@@ -311,7 +318,7 @@
                                 <p class="text-dark fw-medium">£{{ $invoice->rate_per_hour }}</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
-                                <p>Gross Pay (including SSP/Holiday)</p>
+                                <p>Gross Pay @if($invoice->type=='security_staff')(including SSP/Holiday)@endif</p>
                                 <p class="text-dark fw-medium">£{{ number_format($invoice->gross_amount, 2) }}</p>
                             </div>
                             <div class="d-flex justify-content-between align-items-center border-bottom mb-2 pe-3">
@@ -322,6 +329,16 @@
                                 <h5>Net Pay</h5>
                                 <h5>£{{ number_format($invoice->net_amount, 2) }}</h5>
                             </div>
+                            @if($invoice->type =='subcontractor')
+                                <div class="d-flex justify-content-between align-items-center border-top mt-2 mb-2 pe-3">
+                                    <p>Commission ({{ number_format($invoice->commission_percent ?? 0, 2) }}%)</p>
+                                    <p class="text-dark fw-medium">£{{ number_format($invoice->commission_amount ?? 0, 2) }}</p>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2 pe-3">
+                                    <p>Amount to Staff</p>
+                                    <p class="text-dark fw-medium">£{{ number_format($invoice->staff_amount ?? ($invoice->total_amount - ($invoice->commission_amount ?? 0)), 2) }}</p>
+                                </div>
+                            @endif
                             @php
                                 // Intl NumberFormatter may not be available on all PHP installs.
                                 if (class_exists('\\NumberFormatter')) {

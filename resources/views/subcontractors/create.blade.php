@@ -122,6 +122,13 @@
                                                         <span class="text-danger form-error" id="error_pay_rate"></span>
                                                     </div>
 
+                                                    <div class="mb-3">
+                                                        <label class="form-label">Commission (%)</label>
+                                                        <input type="number" step="0.01" min="0" max="100" name="commission"
+                                                            class="form-control" placeholder="e.g. 10.00">
+                                                        <span class="text-danger form-error" id="error_commission"></span>
+                                                    </div>
+
                                                     <div class="row">
                                                         <div class="col-md-6">
                                                             <div class="form-check mb-3">

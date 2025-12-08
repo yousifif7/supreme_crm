@@ -331,6 +331,7 @@
                     $('#payment_terms').val(data.subcontractor.payment_terms);
                     $('#department').val(data.subcontractor.department);
                     $('#pay_rate').val(data.subcontractor.pay_rate);
+                    $('#commission').val(data.subcontractor.commission);
                     $('#vat_number').val(data.subcontractor.vat_number);
 
                     // Checkbox toggles
@@ -417,6 +418,7 @@
                 $('#payment_terms_detail').text(data.payment_terms);
                 $('#department_detail').text(data.department);
                 $('#pay_rate_detail').text(`$${data.pay_rate}`);
+                $('#commission_detail').text((data.commission !== null && data.commission !== undefined) ? `${data.commission}%` : '-');
                 $('#pmva_detail').text(data.pmva_trained_officer ? 'Yes' : 'No');
                 $('#vat_registered_detail').text(data.vat_registered ? 'Yes' : 'No');
                 $('#vat_number_detail').text(data.vat_number ?? '-');

@@ -274,11 +274,11 @@
                                                 ->first();
                                         @endphp
                                         <tr>
-                                            <td>{{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }}</td>
-                                            <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                            <td>X</td>
-                                            <td>{{ $shift->break_time }}</td>
-                                            <td>{{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}</td>
+                                            <td class="text-center">{{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }}</td>
+                                            <td class="text-center">{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                            <td class="text-center">X</td>
+                                            <td class="text-center">{{ $shift->break_time }}</td>
+                                            <td class="text-center">{{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -325,11 +325,11 @@
                                                     ->first();
                                             @endphp
                                             <tr class="text-center">
-                                                <td>{{ format_date($shift->shift_date) }}</td>
-                                                <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                                <td>{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
-                                                <td>{{ $shift->break_time ?? '-' }}</td>
-                                                <td>{{ Carbon::parse($shift->end_time)->format('H:i') }}</td>
+                                                <td class="text-center">{{ format_date($shift->shift_date) }}</td>
+                                                <td class="text-center">{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                                <td class="text-center">{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
+                                                <td class="text-center">{{ $shift->break_time ?? '-' }}</td>
+                                                <td class="text-center">{{ Carbon::parse($shift->end_time)->format('H:i') }}</td>
                                             </tr>
                                         @empty
                                             <tr>
