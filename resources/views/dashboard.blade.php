@@ -187,7 +187,7 @@
                                         <td>{{ $checkCall->shiftDate->shift->client?->name??''}} | {{ $checkCall->shiftDate->shift->site?->site_name ?? 'N/A' }}</td>
                                         <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                         <td>{{ $checkCall->name }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('Y-m-d H:i') }}
+                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('m-dd-Y H:i') }}
                                         </td>
                                         <td>{{ ucfirst($checkCall->status) }}</td>
                                         <td>{{ ucfirst($checkCall->method) }}</td>
@@ -289,59 +289,57 @@
             </div>
             <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
                 <div class="card flex-fill">
-                    <div class="card-header">
-                        <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                            <h5 class="mb-2"><b>Upcomming Shifts</b></h5>
-                        </div>
-                        <div class="card-body p-0">
-                            <div class="table-responsive">
-                                @php
-                                    use Carbon\Carbon;
-                                    use App\Models\ShiftDate;
+                    <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
+                        <h5 class="mb-2"><b>Upcoming Shifts</b></h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            @php
+                                use Carbon\Carbon;
+                                use App\Models\ShiftDate;
 
-                                    $today = Carbon::today();
-                                    $inThreeDays = Carbon::today()->addDays(3);
+                                $today = Carbon::today();
+                                $inThreeDays = Carbon::today()->addDays(3);
 
-                                    $upcomingShifts = ShiftDate::whereDate('shift_date', '>=', $today)
-                                        ->whereDate('shift_date', '<=', $inThreeDays)
-                                        ->with('staff') // eager load staff if you want to access it
-                                        ->get();
-                                @endphp
-                                <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
-                                    <table class="table table-nowrap mb-0">
-                                        <thead>
+                                $upcomingShifts = ShiftDate::whereDate('shift_date', '>=', $today)
+                                    ->whereDate('shift_date', '<=', $inThreeDays)
+                                    ->with('staff') // eager load staff if you want to access it
+                                    ->get();
+                            @endphp
+                            <div style="max-height: 300px; overflow-y: auto;">
+                                <table class="table table-nowrap mb-0">
+                                    <thead>
+                                        <tr class="text-center">
+                                            <th>DATE</th>
+                                            <th>PERSON</th>
+                                            <th>IN</th>
+                                            <th>BREAK</th>
+                                            <th>OUT</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @forelse ($upcomingShifts as $shift)
+                                            @php
+                                                $employee = App\Models\User::role('security_staff')
+                                                    ->where('id', $shift->staff_id)
+                                                    ->first();
+                                            @endphp
                                             <tr class="text-center">
-                                                <th>DATE</th>
-                                                <th>PERSON</th>
-                                                <th>IN</th>
-                                                <th>BREAK</th>
-                                                <th>OUT</th>
+                                                <td>{{ format_date($shift->shift_date) }}</td>
+                                                <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
+                                                <td>{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
+                                                <td>{{ $shift->break_time ?? '-' }}</td>
+                                                <td>{{ Carbon::parse($shift->end_time)->format('H:i') }}</td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            @forelse ($upcomingShifts as $shift)
-                                                @php
-                                                    $employee = App\Models\User::role('security_staff')
-                                                        ->where('id', $shift->staff_id)
-                                                        ->first();
-                                                @endphp
-                                                <tr class="text-center">
-                                                    <td>{{ format_date($shift->shift_date) }}</td>
-                                                    <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                                    <td>{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
-                                                    <td>{{ $shift->break_time ?? '-' }}</td>
-                                                    <td>{{ Carbon::parse($shift->end_time)->format('H:i') }}</td>
-                                                </tr>
-                                            @empty
-                                                <tr>
-                                                    <td colspan="5" class="text-center">No upcoming shifts in the next
-                                                        3
-                                                        days.</td>
-                                                </tr>
-                                            @endforelse
-                                        </tbody>
-                                    </table>
-                                </div>
+                                        @empty
+                                            <tr>
+                                                <td colspan="5" class="text-center">No upcoming shifts in the next
+                                                    3
+                                                    days.</td>
+                                            </tr>
+                                        @endforelse
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
@@ -368,7 +366,7 @@
                                 @forelse ($siaDocuments as $doc)
                                     <tr>
                                         <td>{{ $doc->fore_name ?? 'N/A' }} {{ $doc->sur_name ?? '' }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('Y-m-d') }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('m-dd-Y') }}</td>
                                         <td><span class="badge bg-danger">Expired</span></td>
                                         <td>
                                             @if ($doc->sia_licence_file)
@@ -458,7 +456,7 @@
                                             {{ $staff->last_name ?? '' }}</td>
                                         <td>{{ $booking->shift->shift->client?->name??''}} | {{ $booking->shift->shift->site?->site_name ?? 'N/A' }}</td>
                                         <td>{{ ucfirst($booking->type) }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('Y-m-d H:i') }}
+                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('m-dd-Y H:i') }}
                                         </td>
                                     </tr>
                                 @empty

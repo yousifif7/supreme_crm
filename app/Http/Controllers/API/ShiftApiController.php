@@ -813,6 +813,10 @@ class ShiftApiController extends Controller
             ], 403);
         }
 
+        if($patrol->status == 'missed'){
+            return response()->json(['message' => 'This Patrol has already been missed, You cannot submit unless an Admin gave permission to.'], 422);
+        }
+
         // If the guard currently has a different patrol in progress, mark that one completed
         $staffShiftIds = ShiftDate::where('staff_id', Auth::id())->pluck('id')->toArray();
         $other = Patrol::where('status', 'in_progress')

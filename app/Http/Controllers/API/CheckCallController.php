@@ -45,6 +45,13 @@ class CheckCallController extends Controller
         $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
 
+        if($checkCall->status == 'completed'){
+            return response()->json(['message' => 'This CheckCall has already been completed.'], 404);
+        }
+        if($checkCall->status == 'missed'){
+            return response()->json(['message' => 'This CheckCall has already been missed, You cannot submit unless an Admin gave permission to.'], 422);
+        }
+        
         if (!$employee) {
             return response()->json(['message' => 'No employee linked to this user.'], 404);
         }

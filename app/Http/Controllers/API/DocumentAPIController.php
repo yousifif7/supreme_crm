@@ -183,6 +183,17 @@ class DocumentAPIController extends Controller
                         // first time: persist a marker for cooldown duration
                         Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                         $alert['_first_shown'] = true;
+                        // Dashboard notification for admins (user id 1)
+                        try {
+                            $emp = $user->employee;
+                            $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                            $adminTitle = "Expiring document for {$empName}";
+                            $adminMessage = "{$empName}'s {$doc->document_type} expires in {$daysRemaining} day(s) on {$expiryDate->toDateString()}.";
+                            $actionUrl = '/employees#' . ($emp ? $emp->id : $user->id);
+                            Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                        } catch (\Exception $e) {
+                            Log::warning('Dashboard notify failed for document_expiry: ' . $e->getMessage());
+                        }
                     } else {
                         // still within cooldown window — show but mark as not new
                         $alert['_first_shown'] = false;
@@ -221,6 +232,17 @@ class DocumentAPIController extends Controller
                     if (!Cache::has($cacheKey)) {
                         Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                         $alert['_first_shown'] = true;
+                        // Dashboard notify for admin
+                        try {
+                            $emp = $user->employee;
+                            $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                            $adminTitle = "Upcoming patrol for {$empName}";
+                            $adminMessage = "{$empName} has an upcoming patrol '{$patrol->name}' scheduled at {$patrol->start_time}.";
+                            $actionUrl = '/patrols/' . $patrol->id;
+                            Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                        } catch (\Exception $e) {
+                            Log::warning('Dashboard notify failed for patrol_warning: ' . $e->getMessage());
+                        }
                     } else {
                         $alert['_first_shown'] = false;
                     }
@@ -273,6 +295,17 @@ class DocumentAPIController extends Controller
                     if (!Cache::has($cacheKey)) {
                         Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                         $alert['_first_shown'] = true;
+                        // Dashboard notify for admin
+                        try {
+                            $emp = $user->employee;
+                            $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                            $adminTitle = ($alertType === 'patrol_missed') ? "Missed patrol by {$empName}" : "Potential missed patrol for {$empName}";
+                            $adminMessage = ($alertType === 'patrol_missed') ? "{$empName} missed patrol '{$patrol->name}'." : "{$empName} appears to have missed patrol '{$patrol->name}' and it will be marked soon unless handled.";
+                            $actionUrl = '/patrols/' . $patrol->id;
+                            Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                        } catch (\Exception $e) {
+                            Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
+                        }
                     } else {
                         $alert['_first_shown'] = false;
                     }
@@ -308,6 +341,17 @@ class DocumentAPIController extends Controller
                     if (!Cache::has($cacheKey)) {
                         Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                         $alert['_first_shown'] = true;
+                            // Dashboard notify for admin
+                            try {
+                                $emp = $user->employee;
+                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                                $adminTitle = "Upcoming check call for {$empName}";
+                                $adminMessage = "{$empName} has an upcoming check call '{$checkCall->name}' scheduled at {$checkCall->scheduled_time}.";
+                                $actionUrl = '/checkcalls/' . $checkCall->id;
+                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                            } catch (\Exception $e) {
+                                Log::warning('Dashboard notify failed for checkcall_warning: ' . $e->getMessage());
+                            }
                     } else {
                         $alert['_first_shown'] = false;
                     }
@@ -357,6 +401,17 @@ class DocumentAPIController extends Controller
                     if (!Cache::has($cacheKey)) {
                         Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                         $alert['_first_shown'] = true;
+                            // Dashboard notify for admin
+                            try {
+                                $emp = $user->employee;
+                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                                $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
+                                $adminMessage = ($alertType === 'checkcall_missed') ? "{$empName} missed check call '{$checkCall->name}'." : "{$empName} appears to have missed check call '{$checkCall->name}' and it will be marked soon unless handled.";
+                                $actionUrl = '/checkcalls/' . $checkCall->id;
+                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                            } catch (\Exception $e) {
+                                Log::warning('Dashboard notify failed for checkcall_missed: ' . $e->getMessage());
+                            }
                     } else {
                         $alert['_first_shown'] = false;
                     }

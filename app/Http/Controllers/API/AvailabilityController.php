@@ -3,7 +3,9 @@
 namespace App\Http\Controllers\API;
 
 use Carbon\Carbon;
+use App\Models\User;
 use App\Models\Availability;
+use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
@@ -75,6 +77,27 @@ class AvailabilityController extends Controller
                 ]
             );
         }
+
+        $staff = User::find(Auth::id());
+        
+            Notification::create([
+                'user_id' => 1,
+                'employee_id' => null,
+                'type' => 'alert',
+                'title' => 'Availability hours updated',
+                'message' => "{$staff->first_name} {$staff->last_name} Updated his Availabilty Hours.",
+                'read' => false,
+                'action_url' => 'employees#'.$staff->employee->id,
+        ]);
+
+            Notification::create([
+                'user_id' => Auth::id(),
+                'employee_id' => Auth::id(),
+                'type' => 'alert',
+                'title' => 'Availability hours updated',
+                'message' => 'You have updated your Availabilty hours succssfully.',
+                'read' => false,
+            ]);
 
         return response()->json(['message' => 'Availability updated successfully']);
     }
