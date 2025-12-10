@@ -40,7 +40,7 @@ class MessageApiController extends Controller
                 'message' => $c->latestMessage->message,
                 'attachment' => $c->latestMessage->attachment, // 👈 add this
                 'timestamp' => $c->latestMessage->created_at->toDateTimeString(),
-                'sender_name' => $c->latestMessage->sender?->name ?? 'Unknown',
+                'sender_name' => $c->latestMessage->sender?->first_name ?? 'Unknown',
             ] : null,
             'unread_count' => $c->participants
                 ->firstWhere('id', $user->id)?->unread_count ?? 0,

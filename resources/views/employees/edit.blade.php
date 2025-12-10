@@ -55,7 +55,7 @@
                            </div>
                            <div class="col-md-4 mb-3">
                                <label class="form-label ">Email <span class="text-danger">*</span></label>
-                               <input type="email" name="email" id="email" class="form-control bg-yellow"
+                               <input type="text" name="email" id="email" class="form-control bg-yellow"
                                    placeholder="Enter Email">
                                <span class="text-danger form-error" id="error_email"></span>
                            </div>
@@ -71,6 +71,14 @@
                                    <div id="passwordHelp" class="text-muted small">
                                        Must be at least 8 characters, include uppercase, lowercase, number, and special
                                        character.
+                                   </div>
+                                   <div class="d-flex gap-2 align-items-center mt-2">
+                                       <button type="button" id="generatePasswordBtn" class="btn btn-sm btn-outline-secondary">Generate Password</button>
+                                       <div class="form-check ms-2 mb-0">
+                                           <input class="form-check-input" type="checkbox" id="showPasswordCheckbox">
+                                           <label class="form-check-label small mb-0" for="showPasswordCheckbox">Show password</label>
+                                       </div>
+                                       <small class="text-muted ms-3">Leave blank to keep the current password (cannot be displayed).</small>
                                    </div>
                                </div>
                            </div>
@@ -635,3 +643,49 @@
            </div>
        </div>
    </div>
+        <script>
+            (function () {
+                // Generate a secure random password and populate both fields
+                function generatePassword(len = 12) {
+                    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=';
+                    let out = '';
+                    const rnd = crypto && crypto.getRandomValues ? crypto.getRandomValues(new Uint32Array(len)) : null;
+                    for (let i = 0; i < len; i++) {
+                        if (rnd) {
+                            out += chars[rnd[i] % chars.length];
+                        } else {
+                            out += chars.charAt(Math.floor(Math.random() * chars.length));
+                        }
+                    }
+                    return out;
+                }
+
+                const genBtn = document.getElementById('generatePasswordBtn');
+                const showChk = document.getElementById('showPasswordCheckbox');
+
+                if (genBtn) {
+                    genBtn.addEventListener('click', function () {
+                        const pwd = generatePassword(12);
+                        const pwdInput = document.querySelector('input[name="password"]');
+                        const pwdConfirm = document.querySelector('input[name="password_confirmation"]');
+                        if (pwdInput) pwdInput.value = pwd;
+                        if (pwdConfirm) pwdConfirm.value = pwd;
+                        // If show is checked, ensure fields are visible
+                        if (showChk && showChk.checked) {
+                            if (pwdInput) pwdInput.type = 'text';
+                            if (pwdConfirm) pwdConfirm.type = 'text';
+                        }
+                    });
+                }
+
+                if (showChk) {
+                    showChk.addEventListener('change', function () {
+                        const t = this.checked ? 'text' : 'password';
+                        const pwdInput = document.querySelector('input[name="password"]');
+                        const pwdConfirm = document.querySelector('input[name="password_confirmation"]');
+                        if (pwdInput) pwdInput.type = t;
+                        if (pwdConfirm) pwdConfirm.type = t;
+                    });
+                }
+            })();
+        </script>

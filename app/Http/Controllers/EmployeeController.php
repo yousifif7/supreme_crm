@@ -415,40 +415,40 @@ class EmployeeController extends Controller
         $data = $validator->validated();
         
         // Check and verify SIA Licence via SiaLicenceChecker if provided
-        if (!empty($data['sia_licence'])) {
-            try {
-                $siaChecker = new \App\Services\SiaLicenceChecker();
-                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
+        // if (!empty($data['sia_licence'])) {
+        //     try {
+        //         $siaChecker = new \App\Services\SiaLicenceChecker();
+        //         $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
 
-                // Just check if the request was successful
-                if (!$siaResult['success']) {
-                    return response()->json([
-                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
-                    ], 400);
-                }
+        //         // Just check if the request was successful
+        //         if (!$siaResult['success']) {
+        //             return response()->json([
+        //                 'error' => 'Could not verify SIA licence: ' . $siaResult['error']
+        //             ], 400);
+        //         }
 
-                // If success = true and valid = true, licence exists in SIA database
-                if ($siaResult['valid']) {
-                    // Licence is valid! Continue with your logic
-                    Log::info('SIA Licence Verified', [
-                        'licence' => $data['sia_licence'],
-                        'found_details' => [
-                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
-                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
-                        ]
-                    ]);
-                } else {
-                    return response()->json([
-                        'error' => 'SIA licence not found in register'
-                    ], 400);
-                }
-            } catch (\Exception $e) {
-                Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
-                return response()->json([
-                    'error' => 'Error checking SIA licence. Please try again.'
-                ], 500);
-            }
-        }
+        //         // If success = true and valid = true, licence exists in SIA database
+        //         if ($siaResult['valid']) {
+        //             // Licence is valid! Continue with your logic
+        //             Log::info('SIA Licence Verified', [
+        //                 'licence' => $data['sia_licence'],
+        //                 'found_details' => [
+        //                     'name' => $siaResult['holder_name'] ?? 'Could not parse',
+        //                     'status' => $siaResult['licence_status'] ?? 'Could not parse',
+        //                 ]
+        //             ]);
+        //         } else {
+        //             return response()->json([
+        //                 'error' => 'SIA licence not found in register'
+        //             ], 400);
+        //         }
+        //     } catch (\Exception $e) {
+        //         Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+        //         return response()->json([
+        //             'error' => 'Error checking SIA licence. Please try again.'
+        //         ], 500);
+        //     }
+        // }
 
         if ($request->email || $request->password || $request->fore_name || $request->sur_name) {
             $employee = Employee::find($id);

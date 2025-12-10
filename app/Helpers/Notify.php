@@ -101,13 +101,32 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                         })
                         ->exists();
 
-                    if ($isShiftInActiveTerm) { // ✅ flipped logic
-                        $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
-                            ->whereBetween('shift_date', [now()->startOfWeek(), now()->endOfWeek()])
-                            ->sum('total_hours') + $newShiftHours;
+                    // If the shift falls inside an active student term, allow it (no 20h weekly cap).
+                    // Otherwise apply the 20-hour weekly restriction for the week that contains the shift date.
+                    if (!$isShiftInActiveTerm) {
+                        try {
+                            $shiftCarbon = \Carbon\Carbon::parse($shiftDate);
+                            $weekStart = $shiftCarbon->copy()->startOfWeek();
+                            $weekEnd = $shiftCarbon->copy()->endOfWeek();
 
-                        if ($weeklyHours > 20) {
-                            $validator->errors()->add($fieldName, $message);
+                            $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
+                                ->whereBetween('shift_date', [$weekStart->toDateString(), $weekEnd->toDateString()])
+                                ->sum('total_hours');
+
+                            $weeklyHours = ($weeklyHours ?: 0) + (is_numeric($newShiftHours) ? (float) $newShiftHours : 0);
+
+                            if ($weeklyHours > 20) {
+                                $validator->errors()->add($fieldName, $message);
+                            }
+                        } catch (\Exception $e) {
+                            // If parsing fails, conservatively apply the restriction using current week
+                            $weeklyHours = \App\Models\ShiftDate::where('staff_id', $entity->user_id)
+                                ->whereBetween('shift_date', [now()->startOfWeek()->toDateString(), now()->endOfWeek()->toDateString()])
+                                ->sum('total_hours') + (is_numeric($newShiftHours) ? (float) $newShiftHours : 0);
+
+                            if ($weeklyHours > 20) {
+                                $validator->errors()->add($fieldName, $message);
+                            }
                         }
                     }
                 }

@@ -342,7 +342,7 @@
     <!-- View Employee Detail Modal -->
     <div class="modal fade" id="viewEmployeeDetailModal" tabindex="-1" aria-labelledby="employeeDetailLabel"
         aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content shadow rounded-3">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="employeeDetailLabel">
@@ -353,128 +353,129 @@
                 </div>
 
                 <div class="modal-body p-4">
-                    <table class="table table-bordered table-striped">
-                        <tbody>
-                            <tr>
-                                <th>Full Name</th>
-                                <td id="full_name_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Email</th>
-                                <td id="email_detail"></td>
-                            </tr>
-                            {{-- <tr>
-                                <th>Employment Start Date</th>
-                                <td id="employment_start_date"></td>
-                            </tr>
-                            <tr>
-                                <th>Employment Start Date</th>
-                                <td id="employment_end_date"></td>
-                            </tr> --}}
-                            <tr>
-                                <th>Gender</th>
-                                <td id="gender_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>NI Number</th>
-                                <td id="ni_number_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>SIA Licence</th>
-                                <td id="sia_licence_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>SIA Expiry</th>
-                                <td id="sia_expiry_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Licence Type</th>
-                                <td id="licence_type_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Entry Date</th>
-                                <td id="entry_date_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Date of Birth</th>
-                                <td id="dob_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Service Type</th>
-                                <td id="service_type_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Visa Type</th>
-                                <td id="visa_type_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Visa Expiry</th>
-                                <td id="visa_expiry_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Place of Work</th>
-                                <td id="place_work_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Contact Number</th>
-                                <td id="contact_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Emergency Contact</th>
-                                <td id="emergency_contact_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Job Title</th>
-                                <td id="job_title_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Nationality</th>
-                                <td id="nationality_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Passport No</th>
-                                <td id="passport_no_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Passport Expiry</th>
-                                <td id="passport_expiry_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Driving Licence</th>
-                                <td id="driving_licence_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Driving Licence Expiry</th>
-                                <td id="driving_licence_expiry_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Address Group</th>
-                                <td id="address_group_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Manager</th>
-                                <td id="manager_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Guard Rate</th>
-                                <td id="guard_rate_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Bank Info</th>
-                                <td id="bank_info_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Other Info</th>
-                                <td id="other_info_detail"></td>
-                            </tr>
-                            <tr>
-                                <th>Documents</th>
-                                <td id="document_list_detail">
+                    <div class="container-fluid">
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <div class="text-muted small">Full Name</div>
+                                <div id="full_name_detail" class="fw-bold"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Email</div>
+                                <div id="email_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Gender</div>
+                                <div id="gender_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">NI Number</div>
+                                <div id="ni_number_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">SIA Licence</div>
+                                <div id="sia_licence_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">SIA Expiry</div>
+                                <div id="sia_expiry_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Licence Type</div>
+                                <div id="licence_type_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Entry Date</div>
+                                <div id="entry_date_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Date of Birth</div>
+                                <div id="dob_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Service Type</div>
+                                <div id="service_type_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Visa Type</div>
+                                <div id="visa_type_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Visa Expiry</div>
+                                <div id="visa_expiry_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Place of Work</div>
+                                <div id="place_work_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Contact Number</div>
+                                <div id="contact_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Emergency Contact</div>
+                                <div id="emergency_contact_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Job Title</div>
+                                <div id="job_title_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Nationality</div>
+                                <div id="nationality_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Passport No</div>
+                                <div id="passport_no_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Passport Expiry</div>
+                                <div id="passport_expiry_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Driving Licence</div>
+                                <div id="driving_licence_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Driving Licence Expiry</div>
+                                <div id="driving_licence_expiry_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Address Group</div>
+                                <div id="address_group_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Manager</div>
+                                <div id="manager_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Guard Rate</div>
+                                <div id="guard_rate_detail"></div>
+                            </div>
+
+                            <div class="col-md-4">
+                                <div class="text-muted small">Bank Info</div>
+                                <div id="bank_info_detail"></div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="text-muted small">Other Info</div>
+                                <div id="other_info_detail"></div>
+                            </div>
+
+                            <div class="col-12 mt-2">
+                                <div class="text-muted small">Documents</div>
+                                <div id="document_list_detail">
                                     <span class="text-muted">Loading...</span>
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="container modal-body mt-4">
                     <h6>Weekly Availability</h6>

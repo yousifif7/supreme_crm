@@ -28,12 +28,22 @@ class Availability extends Model
      */
     public function getStartTimeAttribute($value)
     {
-        return \Carbon\Carbon::createFromFormat('H:i:s', $value)->format('H:i');
+        if (empty($value)) return null;
+        try {
+            return \Carbon\Carbon::parse($value)->format('H:i');
+        } catch (\Exception $e) {
+            return $value;
+        }
     }
 
     public function getEndTimeAttribute($value)
     {
-        return \Carbon\Carbon::createFromFormat('H:i:s', $value)->format('H:i');
+        if (empty($value)) return null;
+        try {
+            return \Carbon\Carbon::parse($value)->format('H:i');
+        } catch (\Exception $e) {
+            return $value;
+        }
     }
 
     public function logs()

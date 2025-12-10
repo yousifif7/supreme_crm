@@ -72,10 +72,35 @@ class NotificationsDataTable extends DataTable
      */
     public function query(Notification $model): QueryBuilder
     {
-        return $model->newQuery()
-            ->with(['user', 'employee'])
-            ->select('notifications.*')
-            ->orderBy('created_at', 'desc');
+        $q = $model->newQuery()->with(['user', 'employee'])->select('notifications.*');
+
+        // Apply date range filter if provided (expecting YYYY-MM-DD values)
+        $start = request()->input('start_date');
+        $end = request()->input('end_date');
+        if ($start && $end) {
+            $q->whereDate('created_at', '>=', $start)->whereDate('created_at', '<=', $end);
+        } elseif ($start) {
+            $q->whereDate('created_at', '>=', $start);
+        } elseif ($end) {
+            $q->whereDate('created_at', '<=', $end);
+        }
+
+        // Free-text search across title, message, user name, and employee fore_name
+        $text = request()->input('search_text');
+        if ($text) {
+            $q->where(function ($sub) use ($text) {
+                $sub->where('title', 'like', "%{$text}%")
+                    ->orWhere('message', 'like', "%{$text}%")
+                    ->orWhereHas('user', function ($u) use ($text) {
+                        $u->where('name', 'like', "%{$text}%");
+                    })
+                    ->orWhereHas('employee', function ($e) use ($text) {
+                        $e->where('fore_name', 'like', "%{$text}%");
+                    });
+            });
+        }
+
+        return $q->orderBy('created_at', 'desc');
     }
 
     /**

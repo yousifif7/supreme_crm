@@ -622,6 +622,129 @@ class CheckCallController extends Controller
 
         file_put_contents($metadataPath, $content);
     }
+
+    /**
+     * Fallback watermark renderer that prefers any available system TTF font
+     * to produce a larger, readable watermark. If no TTF is available it
+     * falls back to GD built-in fonts (largest size) with increased padding.
+     *
+     * @param resource $img
+     * @param string $text
+     * @param string $imagePath
+     * @param string $ext
+     * @return void
+     */
+    private function addWatermarkWithGDFont($img, $text, $imagePath, $ext)
+    {
+        $lines = explode("\n", $text);
+
+        // Prefer bundled font first (project), then common system fonts
+        $fontCandidates = [
+            public_path('fonts/Arial.ttf'),
+            '/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', // Linux
+            '/Library/Fonts/Arial.ttf', // macOS
+            'C:\Windows\Fonts\arial.ttf', // Windows
+        ];
+
+        $availableFont = null;
+        foreach ($fontCandidates as $path) {
+            if ($path && file_exists($path)) {
+                $availableFont = $path;
+                break;
+            }
+        }
+
+        $imgWidth = imagesx($img);
+        $imgHeight = imagesy($img);
+
+        $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80);
+        $white = imagecolorallocate($img, 255, 255, 255);
+
+        // Aim for watermark that uses a noticeable portion (~15%) of image height
+        $targetPercent = 0.15; // 15% of image height
+        if ($availableFont) {
+            // Set font size based on image height so watermark height ~15% of image
+            $fontSize = max(40, intval($imgHeight * $targetPercent));
+            $lineHeight = intval($fontSize * 1.05);
+            $padding = intval($fontSize * 0.35);
+
+            // Word-wrap lines to fit inside ~90% of image width
+            $maxRectWidth = intval($imgWidth * 0.9);
+            $wrapped = [];
+            foreach ($lines as $line) {
+                $words = preg_split('/\s+/', trim($line));
+                $current = '';
+                foreach ($words as $w) {
+                    $test = trim(($current === '' ? '' : $current . ' ') . $w);
+                    $bbox = imagettfbbox($fontSize, 0, $availableFont, $test);
+                    $wWidth = abs($bbox[4] - $bbox[0]);
+                    if ($wWidth > ($maxRectWidth - 2 * $padding)) {
+                        if ($current === '') {
+                            $wrapped[] = $test; // single long word
+                            $current = '';
+                        } else {
+                            $wrapped[] = $current;
+                            $current = $w;
+                        }
+                    } else {
+                        $current = $test;
+                    }
+                }
+                if (strlen($current)) $wrapped[] = $current;
+            }
+
+            // Measure actual rect width based on wrapped content
+            $rectWidth = 0;
+            foreach ($wrapped as $rl) {
+                $bb = imagettfbbox($fontSize, 0, $availableFont, $rl);
+                $w = abs($bb[4] - $bb[0]);
+                if ($w > $rectWidth) $rectWidth = $w;
+            }
+            $rectWidth = min(max($rectWidth, intval($imgWidth * 0.4)), $maxRectWidth - 2 * $padding);
+
+            $rectHeight = count($wrapped) * $lineHeight + 2 * $padding;
+
+            // Draw a large semi-transparent rectangle occupying the top-left area
+            imagefilledrectangle($img, 0, 0, $rectWidth + 2 * $padding, $rectHeight, $blackTrans);
+
+            $x = $padding;
+            $y = $padding + $fontSize;
+            foreach ($wrapped as $rl) {
+                // Single draw for thinner appearance (no bold/shadow)
+                imagettftext($img, $fontSize, 0, $x, $y, $white, $availableFont, $rl);
+                $y += $lineHeight;
+            }
+        } else {
+            // No TTF found — fall back to GD built-in fonts (5 is largest)
+            $font = 5;
+            $fontWidth = imagefontwidth($font);
+            $fontHeight = imagefontheight($font);
+
+            // Use a large rectangle width to occupy more space even with small font
+            $padding = 22;
+            $rectWidth = min(intval($imgWidth * 0.9) - 2 * $padding, 1200);
+            $rectHeight = count($lines) * ($fontHeight + 8) + 2 * $padding;
+
+            imagefilledrectangle($img, 0, 0, $rectWidth + 2 * $padding, $rectHeight, $blackTrans);
+
+            // Draw each line with a single draw (thinner look) and slight transparency
+            $thinWhite = imagecolorallocatealpha($img, 255, 255, 255, 10); // slightly transparent
+            $y = $padding;
+            foreach ($lines as $line) {
+                imagestring($img, $font, $padding, $y, $line, $thinWhite);
+                $y += $fontHeight + 8;
+            }
+        }
+
+        // Save image according to extension
+        if ($ext === 'jpg' || $ext === 'jpeg') {
+            imagejpeg($img, $imagePath, 90);
+        } else {
+            imagepng($img, $imagePath);
+        }
+
+        imagedestroy($img);
+    }
     // 19. Complete Check Call (Phone-based)
     public function phoneComplete(Request $request)
     {

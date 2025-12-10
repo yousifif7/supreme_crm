@@ -495,26 +495,28 @@ class UserController extends Controller
             ->whereDate('shift_date', '<=', $now->toDateString())
             ->whereTime('start_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
             ->get();
-
+            
         foreach ($missedBookOns as $sd) {
-            $perShiftKey = 'missed_shift_on_' . $sd->id;
-            if (Cache::has($perShiftKey)) {
-                continue;
+            if($sd->is_assign==2){
+                $perShiftKey = 'missed_shift_on_' . $sd->id;
+                if (Cache::has($perShiftKey)) {
+                    continue;
+                }
+    
+                $employee = User::find($sd->staff_id);
+                $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
+    
+                Notify::toDashboard(
+                    $employee?->id,
+                    'alarm',
+                    'Missed Book On',
+                    "Guard {$guardName} did not book on for their shift starting at {$sd->start_time} on {$sd->shift_date}.",
+                    "/shiftdate/{$sd->id}/view"
+                );
+    
+                // Mark this shift as notified for 1 hour to prevent repeats
+                Cache::put($perShiftKey, true, now()->addHour());
             }
-
-            $employee = User::find($sd->staff_id);
-            $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
-
-            Notify::toDashboard(
-                $employee?->id,
-                'alarm',
-                'Missed Book On',
-                "Guard {$guardName} did not book on for their shift starting at {$sd->start_time} on {$sd->shift_date}.",
-                "/shifts/{$sd->id}"
-            );
-
-            // Mark this shift as notified for 1 hour to prevent repeats
-            Cache::put($perShiftKey, true, now()->addHour());
         }
 
         // --- Missed Book Off Notifications ---
@@ -538,7 +540,7 @@ class UserController extends Controller
                 'alarm',
                 'Missed Book Off',
                 "Guard {$guardName} did not book off for their shift ending at {$sd->end_time} on {$sd->shift_date}.",
-                "/shifts/{$sd->id}"
+                "/shiftdate/{$sd->id}/view"
             );
 
             Cache::put($perShiftKey, true, now()->addHour());
@@ -562,10 +564,36 @@ class UserController extends Controller
                 'alarm',
                 'Unassigned Shift',
                 "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and no guard has been assigned.",
-                "/shifts/{$sd->id}"
+                "/shiftdate/{$sd->id}/view"
             );
 
             Cache::put($perShiftKey, true, now()->addHour());
+        }
+
+        // --- Assigned Shifts Starting Soon and not accepted ---
+        $unassignedShiftDates = ShiftDate::whereNotNull('staff_id')
+            ->whereDate('shift_date', '=', $now->toDateString())
+            ->whereTime('start_time', '>=', $now->format('H:i:s'))
+            ->whereTime('start_time', '<=', $now->copy()->addHour()->format('H:i:s'))
+            ->get();
+
+        foreach ($unassignedShiftDates as $sd) {
+            if($sd->is_assign !== 2){
+                $perShiftKey = 'unaccepted_shift_' . $sd->id;
+                if (Cache::has($perShiftKey)) {
+                    continue;
+                }
+    
+                Notify::toDashboard(
+                    null,
+                    'alarm',
+                    'Unaccepted Shift',
+                    "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and The guard did not accept.",
+                    "/shiftdate/{$sd->id}/view"
+                );
+    
+                Cache::put($perShiftKey, true, now()->addHour());
+            }
         }
 
         // Mark the overall check as done for this hour

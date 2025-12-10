@@ -483,7 +483,9 @@
                                 const profilePictureUrl = user.profile_pic 
                                     ? `${baseUrl}${user.profile_pic}` 
                                     : "https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png";
-                                const userName = user.name || 'Unknown User';
+                                const firstName = user.first_name || '';
+                                const lastName = user.last_name || '';
+                                const userName = firstName+' '+lastName || 'Unknown User';
 
                                 contentWrapper.innerHTML = `
                                     <img class="chat-logo" src="${profilePictureUrl}" alt="${userName} Picture" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1053/1053244.png'">
@@ -571,7 +573,7 @@ console.log(messages)
                         const senderInfo = showSenderInfo ? `
                             <div class="d-flex align-items-center mb-1">
                                 <img src="${profilePictureUrl}" class="user-icon me-2 rounded-circle" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1053/1053244.png'">
-                                <small class="text-muted">${message.sender.name}</small>
+                                <small class="text-muted">${message.sender.first_name}</small>
                             </div>
                         ` : '';
                         
@@ -734,7 +736,7 @@ console.log(messages)
         const senderInfo = showSenderInfo ? `
             <div class="d-flex align-items-center mb-1">
                 <img src="${profilePictureUrl}" class="user-icon me-2 rounded-circle" onerror="this.src='https://cdn-icons-png.flaticon.com/512/1053/1053244.png'">
-                <small class="text-muted">${message.sender.name}</small>
+                <small class="text-muted">${message.sender.first_name}</small>
             </div>
         ` : '';
         
@@ -953,7 +955,7 @@ console.log(messages)
                         <div class="d-flex align-items-center">
                             <img src="${member.profile_pic ? baseUrl + member.profile_pic : 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png'}" 
                                  class="chat-logo me-2" onerror="this.src='https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png'">
-                            <span>${member.name}</span>
+                            <span>${member.first_name}</span>
                         </div>
                         <button class="btn btn-sm bg-primary" onclick="startOneToOneChat(${member.id})">
                             <i class="bi bi-chat"></i>

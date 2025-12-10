@@ -22,6 +22,7 @@ use App\Exports\Reports\StaffReportExport;
 use App\Exports\Reports\ClientReportExport;
 use App\Exports\Reports\SalaryReportExport;
 use App\Exports\Reports\BookingReportExport;
+use App\Exports\Reports\AvailabilityReport;
 use App\Exports\Reports\PerformanceReportExport;
 
 class ReportController extends Controller
@@ -787,6 +788,96 @@ class ReportController extends Controller
             'toDate' => $to,
             'sites' => $sites,
             'filters' => $payload['filters'],
+        ]);
+    }
+
+    public function availabilityReport(Request $request)
+    {
+        $clientId = $request->input('client_id');
+        $employeeId = $request->input('employee_id');
+        $startDate = $request->input('start_date');
+        $startTime = $request->input('start_time');
+        $endDate = $request->input('end_date');
+        $endTime = $request->input('end_time');
+        $days = $request->input('days', []);
+        $export = $request->input('export'); // 'pdf' or 'excel'
+
+        $availabilities = collect();
+
+        // Prefer explicit weekday selection (`days[]`) if provided
+        if (!empty($days)) {
+            // sanitize to integers 0..6
+            $days = array_values(array_filter(array_map('intval', (array)$days), function ($v) {
+                return $v >= 0 && $v <= 6;
+            }));
+
+            $query = \App\Models\Availability::with('user')
+                ->when($employeeId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('id', $employeeId)))
+                ->when($clientId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('client_id', $clientId)))
+                ->whereIn('day_of_week', $days);
+
+            // If time range provided, filter by overlapping times
+            if ($startTime && $endTime) {
+                $reqStart = Carbon::parse($startTime)->format('H:i:s');
+                $reqEnd = Carbon::parse($endTime)->format('H:i:s');
+                $query->whereTime('start_time', '<=', $reqEnd)->whereTime('end_time', '>=', $reqStart);
+            }
+
+            $availabilities = $query->get();
+
+        } elseif ($startDate && $endDate) {
+            // Compute weekdays covered by the date range and filter availabilities.
+            try {
+                $period = new \DatePeriod(new \DateTime($startDate), new \DateInterval('P1D'), (new \DateTime($endDate))->modify('+1 day'));
+                $daysInRange = [];
+                foreach ($period as $d) {
+                    $daysInRange[] = (int) $d->format('w');
+                }
+                $daysInRange = array_values(array_unique($daysInRange));
+
+                $query = \App\Models\Availability::with('user')
+                    ->when($employeeId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('id', $employeeId)))
+                    ->when($clientId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('client_id', $clientId)))
+                    ->whereIn('day_of_week', $daysInRange);
+
+                // If time range provided, filter by overlapping times
+                if ($startTime && $endTime) {
+                    $reqStart = Carbon::parse($startTime)->format('H:i:s');
+                    $reqEnd = Carbon::parse($endTime)->format('H:i:s');
+                    $query->whereTime('start_time', '<=', $reqEnd)->whereTime('end_time', '>=', $reqStart);
+                }
+
+                $availabilities = $query->get();
+            } catch (\Exception $e) {
+                $availabilities = collect();
+            }
+        }
+
+        // Exports (Availability export class exists and expects collection)
+        if ($export === 'pdf') {
+            $pdf = Pdf::loadView('reports.pdf.availability-pdf', compact('availabilities'))
+                ->setPaper('a4', 'landscape');
+            return $pdf->download('availability_report.pdf');
+        }
+
+        if ($export === 'excel') {
+            return Excel::download(new AvailabilityReport($availabilities), 'availability_report.xlsx');
+        }
+
+        $clients = User::role('client')->pluck('first_name', 'id');
+        $employees = User::role('security_staff')->selectRaw("id, CONCAT(first_name, ' ', last_name) as full_name")
+            ->pluck('full_name', 'id');
+
+        return view('reports.availability', [
+            'bookings' => $availabilities,
+            'clients' => $clients,
+            'employees' => $employees,
+            'selectedClient' => $clientId,
+            'selectedEmployee' => $employeeId,
+            'startDate' => $startDate,
+            'startTime' => $startTime,
+            'endDate' => $endDate,
+            'endTime' => $endTime,
         ]);
     }
 }

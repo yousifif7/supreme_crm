@@ -94,12 +94,13 @@
             display: flex;
         }
 
-        /* Day column: much wider baseline so bars have room across all views.
-           JS will still dynamically set width, this just raises the baseline immediately. */
+        /* Day column: allow JS to set fixed widths per day so a full week
+           can be forced to fit the available container width. Keep
+           box-model and overflow handling here but remove a large CSS
+           min-width that caused overly wide columns on large screens. */
         .day-column {
             flex: 1;
-            min-width: 260px;
-            /* big baseline */
+            min-width: 0; /* JS will set the concrete width per day */
             border-right: 1px solid #dee2e6;
             position: relative;
             box-sizing: border-box;
@@ -196,7 +197,12 @@
             position: absolute;
             left: 16px;
             top: 16px;
-            z-index: 8;
+              padding: 10px 12px 10px 60px;
+              overflow: hidden; /* ensure max-height/width cropping */
+
+              /* Constrain bars so they don't become extremely wide/tall on some devices */
+              max-width: 160px;
+              max-height: 75px;
             width: 18px;
             height: 18px;
             cursor: pointer;
@@ -541,6 +547,10 @@
             .gantt-bar {
                 padding-left: 52px;
                 font-size: 14px;
+                /* On small screens allow bars to expand horizontally and remove height cap */
+                max-width: calc(100% - 32px);
+                max-height: none;
+                overflow: visible;
             }
 
             .gantt-bar .multi-shift-checkbox {
@@ -1758,14 +1768,30 @@ ${shift.note
         const container = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
         const containerWidth = Math.max(container.clientWidth, window.innerWidth - 40);
 
-        let timelineAvailableWidth = containerWidth - sidebarTotalWidth;
-        if (timelineAvailableWidth < 400) timelineAvailableWidth = Math.max(containerWidth * 0.6,
-            400);
+        // Compute available width for timeline and divide evenly by number of days.
+        // This forces a fixed width per day so a full week fits the container without
+        // horizontal scroll on sufficiently wide screens.
+        let timelineAvailableWidth = Math.max(0, containerWidth - sidebarTotalWidth);
 
-        const minDayWidth = 180;
-        const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
-        let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
-        if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+        // If the timelineAvailableWidth becomes too small (narrow screens), we'll allow
+        // horizontal scrolling instead of shrinking columns to unusable sizes.
+        let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, totalDays));
+
+        // Define sensible minimum width; if computed dayWidth is below this threshold
+        // we'll allow horizontal scroll (mobile / tiny view) so bars remain usable.
+        const MIN_DAY_WIDTH_FOR_NOSCROLL = 120;
+
+        if (dayWidth < MIN_DAY_WIDTH_FOR_NOSCROLL) {
+            // Not enough room to force-fit all days; enable scrolling so day columns
+            // keep readable sizes.
+            container.style.overflowX = 'auto';
+            // Set a fallback width so columns are usable (this will result in total
+            // timeline width > container width and a scrollbar will appear).
+            dayWidth = MIN_DAY_WIDTH_FOR_NOSCROLL;
+        } else {
+            // Enough room to fit the full timeline without horizontal scrolling.
+            container.style.overflowX = 'hidden';
+        }
 
         const dayColumns = ganttChartEl.querySelectorAll('.day-column');
         dayHeaders.forEach(h => {

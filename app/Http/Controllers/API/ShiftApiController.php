@@ -1577,7 +1577,8 @@ class ShiftApiController extends Controller
             'status'        => $status,
             'shift_date_id' => $shiftDate?->id,
             'shift_id'      => $shift?->id,
-            'patrol_id' => $patrol?->id ?? null,
+            'patrol_id'     => $patrol?->id ?? null,
+            'current_shift' => $shiftDate ?? null,
             'message'       => 'Latest booking retrieved successfully.'
         ]);
     }
@@ -1613,7 +1614,10 @@ class ShiftApiController extends Controller
             $totalWorked += max($worked, 0); // avoid negatives
         }
 
-        $weeklyLimit = 40;
+        $employee = Employee::where('user_id', $user->id)->firstOrFail();
+
+        $weeklyLimit = $employee->visa_type ===  'Student' ? 20 : 40;
+
         $remaining = max($weeklyLimit - $totalWorked, 0);
 
         return response()->json([
