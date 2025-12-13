@@ -103,8 +103,8 @@ class Invoice extends Model
     {
         $prefix = match($type) {
             'client' => 'CLI-INV',
-            'subcontractor' => 'SUB-INV',
-            'security_staff' => 'STAFF-INV',
+            'subcontractor' => 'SUB-PAY',
+            'security_staff' => 'STAFF-PAY',
             default => 'INV'
         };
 

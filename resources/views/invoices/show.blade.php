@@ -89,7 +89,7 @@
                     <div class="row justify-content-between align-items-center border-bottom mb-3">
                         <div class="col-md-4">
                             <h4 class="mb-1">Supreme Protection</h4>
-                            <p class="mb-1">{{$client->address??'No address'}}</p>
+                            <p class="mb-1">150 Chingford Road, Walthamstow London, E17 4PL</p>
                             <p class="mb-1">Email : <span class="text-dark">admin@splconnect.co.uk</span></p>
 <!--                            <p>Phone : <span class="text-dark">+1 234567890</span></p>
 -->                        </div>
@@ -191,12 +191,10 @@
                     </div>
 
                     <div class="mb-4">
-                        <h5 class="mb-3">Shift Details</h5>
                         <div class="table-responsive mb-3">
                             <table class="table table-bordered">
                                 <thead class="thead-default">
                                     <tr>
-                                        <th>Date</th>
                                         <th>Site</th>
                                         <th class="text-end">Hours</th>
                                         <th class="text-end">Rate</th>
@@ -204,15 +202,54 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($invoice->items as $item)
-                                        <tr>
-                                            <td>{{ $item->date }}</td>
-                                            <td>{{ $item->site->site_name ?? 'N/A' }}</td>
-                                            <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                            <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
-                                            <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
-                                        </tr>
-                                    @endforeach
+                                    @php
+                                        // Group invoice items by site and sum hours/amounts.
+                                        $siteGroups = [];
+                                        foreach ($invoice->items as $item) {
+                                            $site = $item->site ?? null;
+                                            $siteId = $site->id ?? 'unknown_'.$loop->index ?? null;
+
+                                            // If invoice has a specific site selected, only include that site
+                                            if ($invoice->site && isset($invoice->site->id) && $site && $site->id != $invoice->site->id) {
+                                                continue;
+                                            }
+
+                                            if (!isset($siteGroups[$siteId])) {
+                                                $siteGroups[$siteId] = [
+                                                    'name' => $site->site_name ?? ($item->site_name ?? 'N/A'),
+                                                    'hours' => 0,
+                                                    'amount' => 0,
+                                                    'rate' => $item->rate ?? $invoice->rate_per_hour ?? 0,
+                                                    'shifts' => 0,
+                                                ];
+                                            }
+
+                                            $siteGroups[$siteId]['hours'] += floatval($item->hours ?? 0);
+                                            $siteGroups[$siteId]['amount'] += floatval($item->amount ?? 0);
+                                            $siteGroups[$siteId]['shifts'] += 1;
+                                        }
+                                    @endphp
+
+                                    @if(count($siteGroups) > 0)
+                                        @foreach($siteGroups as $siteId => $group)
+                                            <tr>
+                                                <td>{{ $group['name'] }}</td>
+                                                <td class="text-end">{{ number_format($group['hours'], 2) }}</td>
+                                                <td class="text-end">£{{ number_format($group['rate'], 2) }}</td>
+                                                <td class="text-end">£{{ number_format($group['amount'], 2) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    @else
+                                        {{-- Fallback: show raw items if grouping produced nothing --}}
+                                        @foreach ($invoice->items as $item)
+                                            <tr>
+                                                <td>{{ $item->site->site_name ?? 'N/A' }}</td>
+                                                <td class="text-end">{{ number_format($item->hours, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    @endif
                                 </tbody>
                             </table>
                         </div>

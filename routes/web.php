@@ -1,14 +1,15 @@
 <?php
 
 use App\Models\ShiftDate;
-use Illuminate\Http\Request;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
+use Illuminate\Http\Request;
 use App\Models\TrainingMaterial;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\DobController;
 use App\Http\Controllers\LogController;
+use Illuminate\Support\Facades\Artisan;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\RoleController;
 use App\Http\Controllers\SiteController;
@@ -29,6 +30,7 @@ use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\EmployeeLeaveController;
+use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\IncidentReportController;
 use App\Http\Controllers\API\LocationAPIController;
@@ -37,7 +39,7 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\ShiftNotificationController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -546,3 +548,8 @@ Route::get('/reports/clients/export/excel', [ReportController::class, 'exportCli
 require __DIR__ . '/auth.php';
 
 require __DIR__ . '/docs.php';
+
+// Web-trigger for shift notifications (controller-based). Authenticated users only.
+Route::post('/process-shift-notifications', [ShiftNotificationController::class, 'process'])
+    ->middleware('auth')
+    ->name('process.shift.notifications');

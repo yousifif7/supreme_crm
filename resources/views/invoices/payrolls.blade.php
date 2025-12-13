@@ -1,5 +1,52 @@
 @extends('layouts.app')
 @section('title', 'CRM - Payrolls')
+@section('styles')
+    <style>
+        /* Payroll tabs styling */
+        .nav-tabs .nav-link {
+            background: #f6f9fb;
+            color: #374151;
+            border: 1px solid #e6eef6;
+            margin-right: 6px;
+            border-radius: 8px;
+            padding: .45rem .9rem;
+            transition: all .12s ease;
+        }
+        .nav-tabs .nav-link:hover {
+            background: #eef4ff;
+            color: #0f172a;
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(90deg,#4e73df,#6c8cff);
+            color: #fff !important;
+            border-color: #4e73df;
+            box-shadow: 0 6px 18px rgba(78,115,223,0.12);
+        }
+        /* Subcontractor tab uses a green accent when active */
+        .nav-tabs .nav-link[data-bs-target="#subcontractor-tab-pane"].active {
+            background: linear-gradient(90deg,#20c997,#38e39a);
+            border-color: #20c997;
+            box-shadow: 0 6px 18px rgba(32,201,151,0.12);
+        }
+        /* Tab pane background and padding */
+        .tab-content .tab-pane {
+            background: #ffffff;
+            padding: 14px;
+            border-radius: 8px;
+            border: 1px solid #eef2f7;
+        }
+        /* Subtle table background to separate from card */
+        .custom-datatable-filter {
+            background: transparent;
+        }
+        /* Make generate button stand out */
+        #generatePayrollBtn {
+            background: linear-gradient(90deg,#1cc88a,#20c997);
+            color: #fff;
+            border: none;
+        }
+    </style>
+@endsection
 @section('contents')
     <div id="all-workers" class="page-wrapper">
         <div class="content">
@@ -262,54 +309,74 @@
             });
         });
 
-        function generatePayroll(record_id) {
+        window.generatePayroll = function(record_id) {
             // Fetch sites for this staff and pre-select the staff in the modal
-            $.get(`${baseUrl}/generatepayroll/` + record_id, function(data) {
-                if (data.employee) {
-                    // set staff select and trigger change so sites load consistently
-                    $('#security_staff_id').val(record_id).trigger('change');
+            console.log('generatePayroll: fetching sites for staff', record_id);
+            $.get(`${baseUrl}/generatepayroll/` + record_id)
+                .done(function(data) {
+                    if (data.employee) {
+                        // set staff select without triggering change (we already populate sites below)
+                        $('#security_staff_id').val(record_id);
 
-                    // populate sites from response; if none, show a disabled 'No assigned sites' entry
-                    $('#payroll_site_id').empty().append('<option value="">-- Choose Site --</option>');
-                    if (data.sites && data.sites.length) {
-                        $.each(data.sites, function(index, item) {
-                            $('#payroll_site_id').append(
-                                $('<option>', {
-                                    value: item.site.id,
-                                    text: item.site.site_name
-                                })
-                            );
-                        });
-                    } else {
-                        $('#payroll_site_id').append('<option value="" disabled>No assigned sites</option>');
+                        // populate sites from response as a deduplicated list (replace HTML in one go)
+                        const $siteSel = $('#payroll_site_id');
+                        let html = '<option value="">-- Choose Site --</option>';
+                        if (data.sites && data.sites.length) {
+                            const uniq = {};
+                            data.sites.forEach(function(item) {
+                                if (item && item.site && item.site.id) {
+                                    uniq[item.site.id] = item.site.site_name;
+                                }
+                            });
+                            Object.keys(uniq).forEach(function(id) {
+                                html += '<option value="' + id + '">' + (uniq[id] || '') + '</option>';
+                            });
+                        } else {
+                            html += '<option value="" disabled>No assigned sites</option>';
+                        }
+                        $siteSel.html(html);
+
+                        $('#generate_payroll').modal('show');
                     }
-
-                    $('#generate_payroll').modal('show');
-                }
-            });
+                })
+                .fail(function(jqxhr, textStatus, error) {
+                    console.error('generatePayroll: failed to fetch sites', textStatus, error, jqxhr);
+                    toast_danger('Failed to load staff sites.');
+                });
         }
 
         // When a staff is selected in the modal, fetch the sites they have worked on
-        $(document).on('change', '#security_staff_id', function() {
-            const staffId = $(this).val();
+        function fetchSitesForStaff(staffId) {
+            console.log('fetchSitesForStaff', staffId);
             $('#payroll_site_id').empty().append('<option value="">-- Choose Site --</option>');
             if (!staffId) return;
 
-            $.get(`${baseUrl}/generatepayroll/` + staffId, function(data) {
-                if (data.sites && data.sites.length) {
-                    $.each(data.sites, function(index, item) {
-                        $('#payroll_site_id').append(
-                            $('<option>', {
-                                value: item.site.id,
-                                text: item.site.site_name
-                            })
-                        );
-                    });
-                } else {
-                    $('#payroll_site_id').append('<option value="" disabled>No assigned sites</option>');
-                }
-            });
-        });
+            $.get(`${baseUrl}/generatepayroll/` + staffId)
+                .done(function(data) {
+                    const $siteSel = $('#payroll_site_id');
+                    let html = '<option value="">-- Choose Site --</option>';
+                    if (data.sites && data.sites.length) {
+                        const uniq = {};
+                        data.sites.forEach(function(item) {
+                            if (item && item.site && item.site.id) {
+                                uniq[item.site.id] = item.site.site_name;
+                            }
+                        });
+                        Object.keys(uniq).forEach(function(id) {
+                            html += '<option value="' + id + '">' + (uniq[id] || '') + '</option>';
+                        });
+                    } else {
+                        html += '<option value="" disabled>No assigned sites</option>';
+                    }
+                    $siteSel.html(html);
+                })
+                .fail(function(jqxhr, textStatus, error) {
+                    console.error('fetchSitesForStaff: failed to fetch sites', textStatus, error, jqxhr);
+                    $('#payroll_site_id').append('<option value="" disabled>Error loading sites</option>');
+                });
+        }
+
+        
 
         let selectedId = null;
         let selectedTable = null;
@@ -439,6 +506,30 @@
                 matcher: customMatcher,
                 width: '100%'
             });
+
+            // Single, namespaced handlers to avoid duplicate triggers
+            const $sel = $('#security_staff_id');
+            // remove any previous handlers in the 'payroll' namespace
+            $sel.off('.payroll');
+
+            // select2 selection event
+            $sel.on('select2:select.payroll', function(e) {
+                const staffId = $(this).val();
+                console.log('security_staff_id select2:select.payroll', staffId);
+                fetchSitesForStaff(staffId);
+            });
+
+            // native change (in case select2 isn't used)
+            $sel.on('change.payroll', function() {
+                const staffId = $(this).val();
+                console.log('security_staff_id change.payroll', staffId);
+                fetchSitesForStaff(staffId);
+            });
+
+            // Expose for debugging
+            window.fetchSitesForStaff = fetchSitesForStaff;
+
+            console.log('payrolls script: select2 initialized and payroll handlers attached');
         });
 
         $(function() {

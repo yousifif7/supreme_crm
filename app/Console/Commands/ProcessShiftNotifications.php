@@ -37,7 +37,10 @@ class ProcessShiftNotifications extends Command
     public function handle()
     {
 
+        Log::info('Notification command started');
+
         $users = User::role('security_staff')->get();
+        Log::info('ProcessShiftNotifications: found users count', ['count' => $users->count()]);
         $alerts = [];
         $cooldownMinutes = 15; // show alerts for 15 minutes after first shown
         $patrolMarkDelay = 10; // minutes after detection before marking patrol as missed
@@ -53,6 +56,7 @@ class ProcessShiftNotifications extends Command
             ->get();
 
         foreach ($patrols as $patrol) {
+            // debug: log each patrol found for this user
             $shift = ShiftDate::find($patrol->shift_id);
 
             if ($shift->is_assign == 2) {
@@ -279,7 +283,7 @@ class ProcessShiftNotifications extends Command
         foreach ($alerts as $alert) {
             // compute a stable uid for this alert
             $idPart = $alert['type'] . ':' . (
-                $alert['document_id'] ?? $alert['patrol_id'] ?? $alert['checkcall_id'] ?? ($alert['scheduled_time'] ?? uniqid())
+                $alert['patrol_id'] ?? $alert['checkcall_id'] ?? ($alert['scheduled_time'] ?? uniqid())
             );
             $uid = md5($idPart);
             $alert['_uid'] = $uid;
@@ -299,12 +303,14 @@ class ProcessShiftNotifications extends Command
 
                 // send push for new items only
                 try {
+                    Log::info('ProcessShiftNotifications: sending push', ['user_id' => $user->id, 'title' => $alert['title'], 'type' => $alert['type']]);
                     send_push_notification(
                         $user->id,
                         $alert['title'],
                         $alert['message'],
                         $alert
                     );
+                    Log::debug('ProcessShiftNotifications: push sent', ['user_id' => $user->id, 'type' => $alert['type']]);
                 } catch (\Exception $e) {
                     Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $alert, 'error' => $e->getMessage()]);
                 }
@@ -327,6 +333,10 @@ class ProcessShiftNotifications extends Command
             $result[] = $r;
         }
     }
+
+
+        Log::info('Notification command Ended');
+
 
         $this->info('✅ Shift notifications processed successfully.');
     }

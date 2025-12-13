@@ -21,6 +21,7 @@ use App\DataTables\EmployeesDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
 use App\Services\FileCompressor;
+use App\Models\Subcontractor;
 
 class EmployeeController extends Controller
 {
@@ -55,10 +56,11 @@ class EmployeeController extends Controller
             'status' => 'required|string',
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'required|email:dns|max:255|unique:users,email',
+            'email' => 'nullable|email:dns|max:255|unique:users,email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string|unique:employees,ni_number',
-            'sia_licence' => ['nullable', 'string','unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
+            // 'sia_licence' => ['nullable', 'string','unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
+            'sia_licence' => ['nullable', 'string','unique:employees,sia_licence'],
             'driving_licence_number' => 'nullable|string|unique:employees,driving_licence_number',
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
@@ -148,6 +150,16 @@ class EmployeeController extends Controller
             'employment_start_date' => 'nullable|date',
             'employment_end_date' => 'nullable|date|after:employment_start_date'
         ]);
+        
+        
+$validator->after(function ($validator) use ($request) {
+
+    // If subcontractor is empty -> email must be provided
+    if (empty($request->subcontractor) && empty($request->email)) {
+        $validator->errors()->add('email', 'The email field is required when subcontractor is empty.');
+    }
+
+});
 
         if ($validator->fails()) {
             if ($request->ajax()) {
@@ -156,20 +168,48 @@ class EmployeeController extends Controller
                 return redirect()->back()->withErrors($validator)->withInput();
             }
         }
+        // Conditional email validation
+
 
         $data = $validator->validated();
+        
+        // Auto-generate email if subcontractor is selected but no email provided
+if (!empty($data['subcontractor']) && empty($data['email'])) {
+
+    $sub = Subcontractor::where('user_id',$data['subcontractor'])->first();
+
+    if ($sub && $sub->email) {
+        // Split main email
+        $emailParts = explode('@', $sub->email);
+        $name = $emailParts[0];  // before @
+        $domain = $emailParts[1]; // after @
+
+        // Start generating email
+        $counter = 1;
+        $generatedEmail = "{$name}+{$counter}@{$domain}";
+
+        // Ensure uniqueness
+        while (User::where('email', $generatedEmail)->exists()) {
+            $counter++;
+            $generatedEmail = "{$name}+{$counter}@{$domain}";
+        }
+
+        $data['email'] = $generatedEmail;
+    }
+}
+
 
         // Check and verify SIA Licence via SiaLicenceChecker if provided
-                if ($request->filled('license_number')) {
-            $siaResult = $this->siaChecker->checkByLicenceNumber($request->input('license_number'), false);
-            if (! $siaResult['success']) {
-                return back()->withInput()->withErrors(['license_number' => $siaResult['error']]);
-            }
-            if (! $siaResult['valid']) {
-                return back()->withInput()->withErrors(['license_number' => 'SIA licence not active: ' . ($siaResult['error'] ?? 'unknown')]);
-            }
+        //         if ($request->filled('license_number')) {
+        //     $siaResult = $this->siaChecker->checkByLicenceNumber($request->input('license_number'), false);
+        //     if (! $siaResult['success']) {
+        //         return back()->withInput()->withErrors(['license_number' => $siaResult['error']]);
+        //     }
+        //     if (! $siaResult['valid']) {
+        //         return back()->withInput()->withErrors(['license_number' => 'SIA licence not active: ' . ($siaResult['error'] ?? 'unknown')]);
+        //     }
             
-        }
+        // }
 
         // ✅ Handle the checkbox manually
         // Handle files...
@@ -312,7 +352,7 @@ class EmployeeController extends Controller
             'email' => 'email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
-            'sia_licence' => ['nullable', 'string', 'unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
+            'sia_licence' => ['nullable', 'string'],
             'sia_expiry' => 'nullable',
             'licence_type' => 'nullable|string',
             'driving_licence_number' => 'nullable|string',
@@ -415,40 +455,40 @@ class EmployeeController extends Controller
         $data = $validator->validated();
         
         // Check and verify SIA Licence via SiaLicenceChecker if provided
-        // if (!empty($data['sia_licence'])) {
-        //     try {
-        //         $siaChecker = new \App\Services\SiaLicenceChecker();
-        //         $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
+       /** if (!empty($data['sia_licence'])) {
+            try {
+                $siaChecker = new \App\Services\SiaLicenceChecker();
+                $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
 
-        //         // Just check if the request was successful
-        //         if (!$siaResult['success']) {
-        //             return response()->json([
-        //                 'error' => 'Could not verify SIA licence: ' . $siaResult['error']
-        //             ], 400);
-        //         }
+                // Just check if the request was successful
+                if (!$siaResult['success']) {
+                    return response()->json([
+                        'error' => 'Could not verify SIA licence: ' . $siaResult['error']
+                    ], 400);
+                }
 
-        //         // If success = true and valid = true, licence exists in SIA database
-        //         if ($siaResult['valid']) {
-        //             // Licence is valid! Continue with your logic
-        //             Log::info('SIA Licence Verified', [
-        //                 'licence' => $data['sia_licence'],
-        //                 'found_details' => [
-        //                     'name' => $siaResult['holder_name'] ?? 'Could not parse',
-        //                     'status' => $siaResult['licence_status'] ?? 'Could not parse',
-        //                 ]
-        //             ]);
-        //         } else {
-        //             return response()->json([
-        //                 'error' => 'SIA licence not found in register'
-        //             ], 400);
-        //         }
-        //     } catch (\Exception $e) {
-        //         Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
-        //         return response()->json([
-        //             'error' => 'Error checking SIA licence. Please try again.'
-        //         ], 500);
-        //     }
-        // }
+                // If success = true and valid = true, licence exists in SIA database
+                if ($siaResult['valid']) {
+                    // Licence is valid! Continue with your logic
+                    Log::info('SIA Licence Verified', [
+                        'licence' => $data['sia_licence'],
+                        'found_details' => [
+                            'name' => $siaResult['holder_name'] ?? 'Could not parse',
+                            'status' => $siaResult['licence_status'] ?? 'Could not parse',
+                        ]
+                    ]);
+                } else {
+                    return response()->json([
+                        'error' => 'SIA licence not found in register'
+                    ], 400);
+                }
+            } catch (\Exception $e) {
+                Log::error('SIA Check Failed', ['error' => $e->getMessage()]);
+                return response()->json([
+                    'error' => 'Error checking SIA licence. Please try again.'
+                ], 500);
+            }
+        }*/
 
         if ($request->email || $request->password || $request->fore_name || $request->sur_name) {
             $employee = Employee::find($id);

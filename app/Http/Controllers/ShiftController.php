@@ -477,119 +477,125 @@ class ShiftController extends Controller
                         }
                     }
 
-                    // Create ShiftDate
-                    $shiftDate = ShiftDate::create([
-                        'shift_id'    => $shift->id,
-                        'staff_id'    => $shift->staff_id ?? null,
-                        'shift_date'  => $date->format('Y-m-d'),
-                        'start_time'  => $request->start_shift[$i],
-                        'end_time'    => $request->end_shift[$i],
-                        'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
-                        'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
-                        'total_hours' => $this->calculateTotalHours(
-                            $request->start_shift[$i],
-                            $request->end_shift[$i]
-                        ),
-                        'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
-                    ]);
+                    // Quantity: how many identical shift instances to create for this date
+                    $quantity = isset($request->number_shift[$i]) ? max(1, (int)$request->number_shift[$i]) : 1;
 
-                    if ($shift->staff_id) {
-                        $weekStart = now()->startOfWeek();
-                        $weekEnd   = now()->endOfWeek();
-
-                        $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
-                            ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                            ->sum('total_hours');
-
-                        $minWeeklyHours = $entity->hour_per_week ?? 40;
-
-                        $expectedHours = $totalWeekHours + $shiftDate->total_hours;
-
-                        $staff = User::find($shift->staff_id);
-                        if ($expectedHours < $minWeeklyHours) {
-                            // 👇 Instead of blocking, just trigger a notification
-                            Notify::toDashboard(
-                                null,
-                                'alert',
-                                'Worked Hours',
-                                "Guard {$staff->first_name} {$staff->last_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
-                                "#"
-                            );
-                        }
-                    }
-
-                    if (!empty($data['training_id'])) {
-                        $shiftDate->trainings()->sync($data['training_id']);
-                    }
-
-                    $startTime = Carbon::createFromFormat('H:i', $data['start_shift']);
-                    $endTime   = Carbon::createFromFormat('H:i', $data['end_shift']);
-
-                    // Convert to minutes since midnight
-                    $startMinutes = $startTime->hour * 60 + $startTime->minute;
-                    $endMinutes   = $endTime->hour * 60 + $endTime->minute;
-
-                    // Calculate duration in minutes, handle overnight automatically
-                    $durationMinutes = ($endMinutes - $startMinutes + 1440) % 1440;
-
-                    // if shift is exactly 24 hours, make it 1440
-                    if ($durationMinutes == 0) {
-                        $durationMinutes = 1440;
-                    }
-
-                    $numberOfCheckCalls = ceil($durationMinutes / 60);
-                    // dd($durationMinutes, $numberOfCheckCalls);
-
-                    $start = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
-
-                    $site = Site::with('checkpoints')->find($shift->site_id);
-
-                    $totalCheckpoints = $site->checkpoints->count() ?? 0;
-
-                    for ($n = 0; $n < (int) $numberOfCheckCalls; $n++) {
-                        $checkTime  = $start->copy()->addHours($n);
-                        $patrolTime = $start->copy()->addHours($n);
-
-                        // Per-shift auto checkcall flag (submitted as array in the form)
-                        $autoEnabledForGroup = !empty($request->auto_checkcall_enabled[$i]) ? true : false;
-                        if ($autoEnabledForGroup) {
-                            CheckCall::create([
-                                'shift_id'       => $shiftDate->id,
-                                'employee_id'    => $shiftDate->staff_id ?? null,
-                                'name'           => 'Auto CheckCall ' . ($n + 1),
-                                'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
-                                'status'         => 'pending',
-                                'require_media'  => $shiftDate->require_media ?? 0,
-                            ]);
-                        }
-
-                        Patrol::create([
-                            'shift_id'              => $shiftDate->id,
-                            'name'                  => 'Auto Patrol ' . ($n + 1),
-                            'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
-                            'start_time'            => $patrolTime->format('Y-m-d H:i:s'),
-                            'status'                => 'pending',
-                            'total_checkpoints'     => $totalCheckpoints,
-                            'completed_checkpoints' => 0,
-                            'issues_reported'       => 0,
-                            'completed_at'          => null,
+                    $lastCreated = null;
+                    for ($q = 0; $q < $quantity; $q++) {
+                        $shiftDate = ShiftDate::create([
+                            'shift_id'    => $shift->id,
+                            'staff_id'    => $shift->staff_id ?? null,
+                            'shift_date'  => $date->format('Y-m-d'),
+                            'start_time'  => $request->start_shift[$i],
+                            'end_time'    => $request->end_shift[$i],
+                            'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
+                            'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
+                            'total_hours' => $this->calculateTotalHours(
+                                $request->start_shift[$i],
+                                $request->end_shift[$i]
+                            ),
+                            'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                         ]);
-                    }
 
-                    // Manully added checkcalls
-                    if ($request->has('checkcalls') && is_array($request->checkcalls)) {
-                        foreach ($request->checkcalls as $checkcall) {
-                            if (!empty($checkcall['name']) && !empty($checkcall['scheduled_time'])) {
+                        $lastCreated = $shiftDate;
+
+                        if ($shift->staff_id) {
+                            $weekStart = now()->startOfWeek();
+                            $weekEnd   = now()->endOfWeek();
+
+                            $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
+                                ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                                ->sum('total_hours');
+
+                            $minWeeklyHours = $entity->hour_per_week ?? 40;
+
+                            $expectedHours = $totalWeekHours + $shiftDate->total_hours;
+
+                            $staff = User::find($shift->staff_id);
+                            if ($expectedHours < $minWeeklyHours) {
+                                Notify::toDashboard(
+                                    null,
+                                    'alert',
+                                    'Worked Hours',
+                                    "Guard {$staff->first_name} {$staff->last_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                                    "#"
+                                );
+                            }
+                        }
+
+                        if (!empty($data['training_id'])) {
+                            $shiftDate->trainings()->sync($data['training_id']);
+                        }
+
+                        $startTime = Carbon::createFromFormat('H:i', $data['start_shift']);
+                        $endTime   = Carbon::createFromFormat('H:i', $data['end_shift']);
+
+                        // Convert to minutes since midnight
+                        $startMinutes = $startTime->hour * 60 + $startTime->minute;
+                        $endMinutes   = $endTime->hour * 60 + $endTime->minute;
+
+                        // Calculate duration in minutes, handle overnight automatically
+                        $durationMinutes = ($endMinutes - $startMinutes + 1440) % 1440;
+
+                        // if shift is exactly 24 hours, make it 1440
+                        if ($durationMinutes == 0) {
+                            $durationMinutes = 1440;
+                        }
+
+                        $numberOfCheckCalls = ceil($durationMinutes / 60);
+
+                        $start = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
+
+                        $site = Site::with('checkpoints')->find($shift->site_id);
+                        $totalCheckpoints = $site->checkpoints->count() ?? 0;
+
+                        for ($n = 0; $n < (int) $numberOfCheckCalls; $n++) {
+                            $checkTime  = $start->copy()->addHours($n);
+                            $patrolTime = $start->copy()->addHours($n);
+
+                            $autoEnabledForGroup = !empty($request->auto_checkcall_enabled[$i]) ? true : false;
+                            if ($autoEnabledForGroup) {
                                 CheckCall::create([
                                     'shift_id'       => $shiftDate->id,
-                                    'name'           => $checkcall['name'],
-                                    'scheduled_time' => $date->format('Y-m-d') . ' ' . $checkcall['scheduled_time'],
+                                    'employee_id'    => $shiftDate->staff_id ?? null,
+                                    'name'           => 'Auto CheckCall ' . ($n + 1),
+                                    'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
                                     'status'         => 'pending',
                                     'require_media'  => $shiftDate->require_media ?? 0,
                                 ]);
                             }
+
+                            Patrol::create([
+                                'shift_id'              => $shiftDate->id,
+                                'name'                  => 'Auto Patrol ' . ($n + 1),
+                                'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
+                                'start_time'            => $patrolTime->format('Y-m-d H:i:s'),
+                                'status'                => 'pending',
+                                'total_checkpoints'     => $totalCheckpoints,
+                                'completed_checkpoints' => 0,
+                                'issues_reported'       => 0,
+                                'completed_at'          => null,
+                            ]);
                         }
-                    }
+
+                        // Manually added checkcalls (form-level) — create per ShiftDate
+                        if ($request->has('checkcalls') && is_array($request->checkcalls)) {
+                            foreach ($request->checkcalls as $checkcall) {
+                                if (!empty($checkcall['name']) && !empty($checkcall['scheduled_time'])) {
+                                    CheckCall::create([
+                                        'shift_id'       => $shiftDate->id,
+                                        'name'           => $checkcall['name'],
+                                        'scheduled_time' => $date->format('Y-m-d') . ' ' . $checkcall['scheduled_time'],
+                                        'status'         => 'pending',
+                                        'require_media'  => $shiftDate->require_media ?? 0,
+                                    ]);
+                                }
+                            }
+                        }
+                    } // end quantity loop
+
+                    // ensure $shiftDate references last created instance for downstream usage
+                    $shiftDate = $lastCreated;
                 }
                 // Logger::log(Auth::user(), 'Create', 'A Shift for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->date);
             }
@@ -775,7 +781,17 @@ class ShiftController extends Controller
         $shiftDate = ShiftDate::findOrFail($id);
         $shiftDate->delete();
 
-        return response()->json(['success' => true, 'message' => 'Shift deleted successfully']);
+        // If the request expects JSON (AJAX), return JSON response.
+        if (request()->ajax() || request()->wantsJson()) {
+            return response()->json([
+                'success' => true,
+                'message' => 'Shift deleted successfully',
+                'redirect' => url('/scheduling'),
+            ]);
+        }
+
+        // Non-AJAX: redirect back to scheduling page
+        return redirect('/scheduling');
     }
 
     public function bulkDelete(Request $request)

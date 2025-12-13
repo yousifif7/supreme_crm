@@ -1014,6 +1014,71 @@ document.addEventListener('click', () => {
             });
         });
     </script>
+    <script>
+        (function setupShiftNotificationsTrigger() {
+            const ENDPOINT = `${baseUrl}/process-shift-notifications`;
+            const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+            const INTERVAL_MS = 15 * 60 * 1000; // 15 minutes
+            const LOCK_TTL_MS = 14 * 60 * 1000; // avoid re-running within 14 minutes from another tab
+
+            async function triggerOnce(reason = 'manual') {
+                try {
+                    const now = Date.now();
+                    const lock = localStorage.getItem('processShiftNotifications:lock');
+                    if (lock && (now - parseInt(lock, 10) < LOCK_TTL_MS)) {
+                        console.debug('shift-notifications: skipped due to recent lock');
+                        return;
+                    }
+
+                    // Acquire lock
+                    try { localStorage.setItem('processShiftNotifications:lock', now.toString()); } catch (e) { /* ignore */ }
+
+                    console.debug('shift-notifications: triggering (reason=' + reason + ')');
+
+                    const res = await fetch(ENDPOINT, {
+                        method: 'POST',
+                        headers: {
+                            'Accept': 'application/json',
+                            'Content-Type': 'application/json',
+                            'X-CSRF-TOKEN': CSRF,
+                            'X-Requested-With': 'XMLHttpRequest'
+                        },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ triggered_by: reason })
+                    });
+
+                    if (!res.ok) {
+                        const txt = await res.text().catch(() => null);
+                        console.error('shift-notifications: server error', res.status, txt);
+                        return;
+                    }
+
+                    const json = await res.json().catch(() => ({}));
+                    console.debug('shift-notifications: response', json);
+
+                    try { localStorage.setItem('processShiftNotifications:lastRun', Date.now().toString()); } catch (e) { /* ignore */ }
+                } catch (err) {
+                    console.error('shift-notifications: trigger failed', err);
+                }
+            }
+
+            // Initial trigger shortly after load (give page a moment)
+            setTimeout(() => triggerOnce('initial'), 3000);
+
+            // Periodic trigger every INTERVAL_MS
+            setInterval(() => triggerOnce('interval'), INTERVAL_MS);
+
+            // Also allow manual triggering via window for debugging
+            window.triggerShiftNotifications = () => triggerOnce('manual');
+
+            // If another tab triggers, we can optionally react (not strictly necessary here)
+            window.addEventListener('storage', (e) => {
+                if (e.key === 'processShiftNotifications:lastRun') {
+                    console.debug('shift-notifications: detected lastRun from other tab');
+                }
+            });
+        })();
+    </script>
       @yield('scripts')
 
     @stack('scripts')

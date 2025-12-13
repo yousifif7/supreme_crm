@@ -511,7 +511,7 @@ class UserController extends Controller
                     'alarm',
                     'Missed Book On',
                     "Guard {$guardName} did not book on for their shift starting at {$sd->start_time} on {$sd->shift_date}.",
-                    "/shiftdate/{$sd->id}/view"
+                    "/shift-dates/{$sd->id}/view"
                 );
     
                 // Mark this shift as notified for 1 hour to prevent repeats
@@ -540,7 +540,7 @@ class UserController extends Controller
                 'alarm',
                 'Missed Book Off',
                 "Guard {$guardName} did not book off for their shift ending at {$sd->end_time} on {$sd->shift_date}.",
-                "/shiftdate/{$sd->id}/view"
+                "/shift-dates/{$sd->id}/view"
             );
 
             Cache::put($perShiftKey, true, now()->addHour());
@@ -564,7 +564,7 @@ class UserController extends Controller
                 'alarm',
                 'Unassigned Shift',
                 "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and no guard has been assigned.",
-                "/shiftdate/{$sd->id}/view"
+                "/shift-dates/{$sd->id}/view"
             );
 
             Cache::put($perShiftKey, true, now()->addHour());
@@ -589,7 +589,7 @@ class UserController extends Controller
                     'alarm',
                     'Unaccepted Shift',
                     "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and The guard did not accept.",
-                    "/shiftdate/{$sd->id}/view"
+                    "/shift-dates/{$sd->id}/view"
                 );
     
                 Cache::put($perShiftKey, true, now()->addHour());

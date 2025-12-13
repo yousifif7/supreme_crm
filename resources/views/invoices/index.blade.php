@@ -114,7 +114,7 @@
                                                     <label class="form-label">Client Name <span
                                                             class="text-danger">*</span></label>
                                                     <select type="text" name="client_id" id="invoice_client_name"
-                                                        class="form-select" placeholder="Enter Client Name">
+                                                        class="form-select client-select2" placeholder="Enter Client Name">
                                                         <option>--- Select Client --- </option>
                                                         @foreach ($clients as $client)
                                                             <option value="{{ $client->id }}">{{ $client->first_name }}
@@ -128,7 +128,7 @@
                                                 <div class="mb-3">
                                                     <label class="form-label">Client Site <span
                                                             class="text-danger"></span></label>
-                                                    <select name="site_id" class="form-select" id="invoice_site_id">
+                                                    <select name="site_id" class="form-select site-select2" id="invoice_site_id">
                                                         <option value="">--choose--</option>
                                                     </select>
                                                     <span class="text-danger form-error" id="invoiceerror_site_id"></span>
@@ -394,6 +394,23 @@
                 }
             });
         });
+
+            $(document).ready(function() {
+                $('.client-select2').select2({
+                    placeholder: "--choose--",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#generate_invoice'), 
+                    minimumResultsForSearch: 0
+                })
+                $('.site-select2').select2({
+                    placeholder: "--choose--",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#generate_invoice'), 
+                    minimumResultsForSearch: 0
+                })
+            });
     </script>
     {!! $dataTable->scripts() !!}
 @endsection

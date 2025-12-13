@@ -12,8 +12,13 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <label for="search" class="form-label">Search</label>
-                                <input type="text" name="search" id="search" class="form-control"
-                                    placeholder="Client name, contact..." value="{{ $search }}">
+                                                <select name="search" class="form-select select2_client" id="clientSelect">
+                                                    <option value="">--choose--</option>
+                                                    @foreach ($clients as $client)
+                                                        <option value="{{ $client->client_name }}">
+                                                            {{ $client->client_name }}</option>
+                                                    @endforeach
+                                                </select>
                             </div>
 
                             <div class="col-md-3">
@@ -166,6 +171,12 @@
                     search: "_INPUT_",
                     searchPlaceholder: "Search client..."
                 }
+            });
+
+            $('.select2_client').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
             });
         });
     </script>

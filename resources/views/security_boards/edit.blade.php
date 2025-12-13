@@ -52,6 +52,7 @@
                                                         <span class="text-danger form-error" id="error_site_id"></span>
                                                     </div>
                                                 </div> --}}
+                                        @hasAnyRole('superadmin')       
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Shift Date <span
@@ -80,6 +81,7 @@
                                                 <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
+                                        @endhasAnyRole
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book on <span

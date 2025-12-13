@@ -216,9 +216,8 @@ class PayrollController extends Controller
         // Get the user (staff)
         $employee = User::findOrFail($userId);
 
-        // Collect sites from ShiftDate records where this staff is assigned.
-        // For each ShiftDate -> load shift and its site, then dedupe by site id.
         $shiftDates = ShiftDate::where('staff_id', $employee->id)
+            ->where('status', ShiftDate::STATUS_ENDED)
             ->with(['shift.site'])
             ->get();
 
@@ -235,6 +234,7 @@ class PayrollController extends Controller
             'sites' => $sites,
         ]);
     }
+    
     public function show($id)
     {
         $invoice = Invoice::find($id);

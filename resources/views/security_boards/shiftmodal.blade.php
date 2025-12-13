@@ -38,7 +38,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Site <span
                                                         class="text-danger">*</span></label>
-                                                <select name="site_id[]" class="form-select" id="siteSelect">
+                                                <select name="site_id[]" class="form-select select2_site" id="siteSelect">
                                                     <option value="">--choose--</option>
                                                     {{-- @foreach ($sites as $site)
                                                         <option value="{{ $site->id }}">
@@ -91,9 +91,9 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Staff</label>
-                                                <input type="text" name="number_shift[]" placeholder="number"
-                                                    class="form-control">
+                                                <label class="form-label">Quantity <small class="text-muted">(number of identical shifts to create)</small></label>
+                                                <input type="number" name="number_shift[]" min="1" value="1"
+                                                    class="form-control" title="Enter how many identical shifts to create (default 1)">
                                                 <span class="text-danger form-error error_number_shift"></span>
                                             </div>
                                         </div>

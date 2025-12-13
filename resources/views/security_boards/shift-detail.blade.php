@@ -171,6 +171,16 @@
                 padding: 8px;
             }
         }
+
+        /* Inline actions: close + delete aligned */
+        .inline-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .inline-actions form {
+            margin: 0;
+        }
     </style>
 @endsection
 @section('contents')
@@ -192,8 +202,13 @@
                 <div class="my-auto mb-2">
                     <h2 class="mb-1">Shift details</h2>
                 </div>
-                <div class="my-auto mb-2">
-                    <button class="btn btn-danger" onclick="closeTab()">× Close</button>
+                <div class="my-auto mb-2 inline-actions">
+                    <form action="/deleteshift/{{$shiftDate->id}}" method="post" class="delete-shift-form">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-danger" type="submit">Delete</button>
+                    </form>
+                    <button class="btn btn-primary" onclick="closeTab()">× Close</button>
                 </div>
             </div>
 
@@ -1611,5 +1626,258 @@
     <!-- Google Maps API is loaded dynamically by the included map partial (map.blade.php) -->
 
     <!-- Leaflet JS -->
+    <script>
+        // Confirmation toast for delete actions. If `anchorEl` provided, place toast under it.
+        function positionToastAtAnchor(toast, anchorEl) {
+            if (!anchorEl) return false;
+            const rect = anchorEl.getBoundingClientRect();
+
+            // measure toast after it's in the DOM
+            const padding = 8;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            toast.style.position = 'absolute';
+            toast.style.zIndex = '999999';
+
+            // default place below anchor
+            let left = rect.left + window.scrollX;
+            let top = rect.bottom + window.scrollY + padding;
+
+            // compute size
+            const box = toast.getBoundingClientRect();
+            const toastWidth = box.width || toast.offsetWidth || 200;
+            const toastHeight = box.height || toast.offsetHeight || 40;
+
+            // if toast would overflow right edge, shift left so it fits
+            const maxRight = window.scrollX + viewportWidth - padding;
+            if (left + toastWidth > maxRight) {
+                left = Math.max(padding + window.scrollX, maxRight - toastWidth);
+            }
+
+            // if toast would overflow left edge, clamp
+            if (left < padding + window.scrollX) {
+                left = padding + window.scrollX;
+            }
+
+            // if toast would overflow bottom edge, place above the anchor instead
+            const maxBottom = window.scrollY + viewportHeight - padding;
+            if (top + toastHeight > maxBottom) {
+                // place above anchor
+                top = rect.top + window.scrollY - toastHeight - padding;
+                // if still off-screen at top, clamp to padding
+                if (top < padding + window.scrollY) top = padding + window.scrollY;
+            }
+
+            toast.style.left = left + 'px';
+            toast.style.top = top + 'px';
+            return true;
+        }
+
+        function showConfirmToast(message, onConfirm, anchorEl) {
+            const container = document.createElement('div');
+            container.className = 'confirm-toast-wrapper';
+
+            const toast = document.createElement('div');
+            toast.className = 'confirm-toast';
+            toast.style.background = '#fff';
+            toast.style.border = '1px solid rgba(0,0,0,0.08)';
+            toast.style.padding = '12px';
+            toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
+            toast.style.borderRadius = '8px';
+            toast.style.minWidth = '220px';
+            toast.style.display = 'flex';
+            toast.style.alignItems = 'center';
+            toast.style.gap = '12px';
+
+            toast.innerHTML = `
+                <div style="flex:1">${message}</div>
+                <div style="display:flex;gap:8px"> 
+                    <button class="btn btn-sm btn-danger confirm-yes">Yes</button>
+                    <button class="btn btn-sm btn-secondary confirm-no">No</button>
+                </div>
+            `;
+
+            container.appendChild(toast);
+            document.body.appendChild(container);
+
+            // position under anchor if provided, otherwise bottom-right
+            const placed = positionToastAtAnchor(container, anchorEl);
+            if (!placed) {
+                container.style.position = 'fixed';
+                container.style.bottom = '20px';
+                container.style.right = '20px';
+                container.style.zIndex = '99999';
+            }
+
+            function cleanup() {
+                if (container.parentNode) container.parentNode.removeChild(container);
+            }
+
+            toast.querySelector('.confirm-yes').addEventListener('click', function() {
+                try { onConfirm(); } catch (e) { console.error(e); }
+                cleanup();
+            });
+
+            toast.querySelector('.confirm-no').addEventListener('click', function() {
+                cleanup();
+            });
+        }
+
+        // show a short success toast under the same anchor then run callback (optional)
+        function showSuccessToast(message, anchorEl, cb) {
+            const container = document.createElement('div');
+            container.className = 'success-toast-wrapper';
+
+            const toast = document.createElement('div');
+            toast.className = 'success-toast';
+            toast.style.background = '#28a745';
+            toast.style.color = '#fff';
+            toast.style.padding = '10px 14px';
+            toast.style.borderRadius = '6px';
+            toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
+            toast.style.minWidth = '160px';
+            toast.style.textAlign = 'center';
+            toast.textContent = message;
+
+            container.appendChild(toast);
+            document.body.appendChild(container);
+
+            const placed = positionToastAtAnchor(container, anchorEl);
+            if (!placed) {
+                container.style.position = 'fixed';
+                container.style.bottom = '20px';
+                container.style.right = '20px';
+                container.style.zIndex = '99999';
+            }
+
+            setTimeout(() => {
+                if (container.parentNode) container.parentNode.removeChild(container);
+                if (typeof cb === 'function') cb();
+            }, 1100);
+        }
+
+        // Intercept delete shift form and show confirmation toast.
+        // If the form is not marked for AJAX (data-ajax="1"), perform the DELETE via fetch,
+        // then close the tab and redirect to scheduling (or a form-provided data-redirect).
+        $(document).on('submit', '.delete-shift-form', function(e) {
+            e.preventDefault();
+            const form = this;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            showConfirmToast('Are you sure you want to delete this shift?', function() {
+                // If another script intends to handle via AJAX, honor it when explicit
+                if (form.dataset.ajax === '1') {
+                    form.submit();
+                    return;
+                }
+
+                const url = form.action;
+                // build FormData (includes _token and _method hidden inputs)
+                const fd = new FormData(form);
+
+                // ensure method override for DELETE is present
+                if (!fd.has('_method')) fd.append('_method', 'DELETE');
+
+                const csrfInput = form.querySelector('input[name="_token"]');
+                const csrf = csrfInput ? csrfInput.value : null;
+
+                fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: csrf ? { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf } : { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: fd,
+                }).then(async res => {
+                    // If server performs a redirect, follow it
+                    if (res.redirected) {
+                        // show success toast then redirect/close
+                        showSuccessToast('Shift deleted', submitBtn, function() {
+                            try { closeTab(); } catch (e) { /* ignore */ }
+
+                            // Signal other tabs to refresh scheduling
+                            try {
+                                localStorage.setItem('scheduling:refresh', Date.now());
+                            } catch (e) { /* ignore */ }
+
+                            // Try to refresh opener/parent if present
+                            try {
+                                const redirect = res.url + (res.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                                if (window.opener && !window.opener.closed) {
+                                    try { window.opener.location.href = redirect; } catch (e) { /* ignore cross-origin */ }
+                                } else if (window.parent && window.parent !== window) {
+                                    try { window.parent.location.href = redirect; } catch (e) { /* ignore cross-origin */ }
+                                }
+                            } catch (e) { /* ignore */ }
+
+                            // Finally navigate this window to the scheduling page
+                            window.location = res.url + (res.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                        });
+                        return;
+                    }
+
+                    if (res.ok) {
+                        // try JSON response for redirect
+                        try {
+                            const data = await res.json();
+                            const redirect = data?.redirect || form.dataset.redirect || '/scheduling';
+                            showSuccessToast('Shift deleted', submitBtn, function() {
+                                try { closeTab(); } catch (e) { /* ignore */ }
+
+                                // Signal other tabs to refresh scheduling
+                                try {
+                                    localStorage.setItem('scheduling:refresh', Date.now());
+                                } catch (e) { /* ignore */ }
+
+                                // Try to refresh opener/parent if present
+                                try {
+                                    const dest = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                                    if (window.opener && !window.opener.closed) {
+                                        try { window.opener.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    } else if (window.parent && window.parent !== window) {
+                                        try { window.parent.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    }
+                                } catch (e) { /* ignore */ }
+
+                                // Finally navigate this window to the scheduling page
+                                window.location = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                            });
+                            return;
+                        } catch (e) {
+                            // not JSON, fallback to dataset redirect
+                            const redirect = form.dataset.redirect || '/scheduling';
+                            showSuccessToast('Shift deleted', submitBtn, function() {
+                                try { closeTab(); } catch (e) { /* ignore */ }
+
+                                // Signal other tabs to refresh scheduling
+                                try {
+                                    localStorage.setItem('scheduling:refresh', Date.now());
+                                } catch (e) { /* ignore */ }
+
+                                // Try to refresh opener/parent if present
+                                try {
+                                    const dest = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                                    if (window.opener && !window.opener.closed) {
+                                        try { window.opener.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    } else if (window.parent && window.parent !== window) {
+                                        try { window.parent.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    }
+                                } catch (e) { /* ignore */ }
+
+                                // Finally navigate this window to the scheduling page
+                                window.location = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                            });
+                            return;
+                        }
+                    }
+
+                    // Non-ok response: fallback to normal submit to allow server to render errors
+                    form.submit();
+                }).catch(err => {
+                    console.error('Delete request failed, falling back to normal submit', err);
+                    form.submit();
+                });
+            }, submitBtn);
+        });
+    </script>
+
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 @endsection
