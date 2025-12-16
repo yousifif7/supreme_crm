@@ -158,6 +158,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/updateemployee/{id}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::post('/employees/bulk-delete', [EmployeeController::class, 'bulkDelete'])->name('employee.bulkDelete');
     Route::get('/employees/{id}/logs/ajax', [EmployeeController::class, 'getLogs'])->name('employees.logs.ajax');
+    Route::get('/employees/logs/{email}', [EmployeeController::class, 'getLogsByEmail'])->name('employees.logs.email')->where('email', '.*');
     Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
     Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
 
@@ -274,6 +275,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/sites/bulk-delete', [SiteController::class, 'bulkDelete'])->name('sites.bulkDelete');
     Route::get('/sites/{id}/logs/ajax', [SiteController::class, 'getLogs'])->name('sites.logs.ajax');
     Route::get('/sites/{id}/view', [SiteController::class, 'view'])->name('sites.view');
+    Route::post('/sites/{id}/generate-qr', [SiteController::class, 'generateQr'])->name('sites.generateQr');
 
     Route::get('/sites/export/excel', [ExportController::class, 'exportSiteExcel'])->name('sites.export.excel');
     Route::get('/sites/export/pdf', [ExportController::class, 'exportSitePdf'])->name('sites.export.pdf');

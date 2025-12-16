@@ -11,6 +11,9 @@ use Illuminate\Http\Request;
 use App\DataTables\SitesDataTable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Log;
 
 class SiteController extends Controller
 {
@@ -99,6 +102,15 @@ class SiteController extends Controller
 
         Logger::log(Auth::user(), 'Create', 'Site '.$site->site_name.' Created');
 
+        // Generate QR image if requested
+        if (!empty($data['has_qr'])) {
+            try {
+                $this->generateQrForSite($site);
+            } catch (\Exception $e) {
+                Log::warning('Failed to generate QR for site ' . $site->id . ': ' . $e->getMessage());
+            }
+        }
+
         return response()->json(['message' => 'Site created successfully']);
     }
 
@@ -155,6 +167,21 @@ class SiteController extends Controller
         $site->update($data);
         Logger::log(Auth::user(), 'Update', 'Site '.$site->site_name.' Updated');
 
+        // Handle QR generation or removal on update
+        try {
+            if (!empty($data['has_qr'])) {
+                $this->generateQrForSite($site);
+            } else {
+                // remove existing QR image if any (public copy)
+                $filename = public_path('qrForSites/site_' . $site->id . '.png');
+                if (File::exists($filename)) {
+                    File::delete($filename);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to update QR for site ' . $site->id . ': ' . $e->getMessage());
+        }
+
         // ✅ Sync employee types
         if ($request->has('employee_types')) {
             $pivotData = [];
@@ -169,7 +196,7 @@ class SiteController extends Controller
             $site->employeeTypes()->detach();
         }
 
-        // ✅ Sync checkpoints
+        // ✅ Sync checkpoints (generate NFC tag if missing)
         if ($request->has('checkpoints')) {
             $existingIds = $site->checkpoints()->pluck('id')->toArray();
             $submittedIds = collect($request->checkpoints)->pluck('id')->filter()->toArray();
@@ -182,12 +209,18 @@ class SiteController extends Controller
 
             // Add/update checkpoints
             foreach ($request->checkpoints as $cp) {
+                $nfc = $cp['nfc_tag'] ?? null;
+                if (empty($nfc)) {
+                    $nfc = 'NFC-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
+                }
+
                 if (!empty($cp['id'])) {
                     // Update existing
                     $site->checkpoints()->where('id', $cp['id'])->update([
                         'name'      => $cp['name'],
                         'latitude'  => $cp['latitude'],
                         'longitude' => $cp['longitude'],
+                        'nfc_tag'   => $nfc,
                     ]);
                 } else {
                     // Create new
@@ -195,6 +228,7 @@ class SiteController extends Controller
                         'name'      => $cp['name'],
                         'latitude'  => $cp['latitude'],
                         'longitude' => $cp['longitude'],
+                        'nfc_tag'   => $nfc,
                     ]);
                 }
             }
@@ -287,6 +321,9 @@ class SiteController extends Controller
             'manager_2_name'   => $site->manager_2_id ?? '',
             'has_qr' => (bool) $site->has_qr,
 
+            // QR image URL if generated (served from public/qrForSites)
+            'qr_image' => file_exists(public_path('qrForSites/site_' . $site->id . '.png')) ? asset('qrForSites/site_' . $site->id . '.png') : null,
+
             // ✅ Add checkpoints array
             'checkpoints' => $site->checkpoints->map(function ($cp) {
                 return [
@@ -300,5 +337,95 @@ class SiteController extends Controller
                 ];
             })->toArray(),
         ]);
+    }
+
+    /**
+     * Generate a QR image for a site and save it to public/sites/qrcodes
+     */
+    public function generateQr($id)
+    {
+        $site = Site::findOrFail($id);
+        try {
+            $this->generateQrForSite($site);
+            return response()->json(['message' => 'QR generated', 'qr_image' => asset('qrForSites/site_' . $site->id . '.png')]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'QR generation failed: ' . $e->getMessage()], 500);
+        }
+    }
+
+    /**
+     * Helper: generate and save QR PNG for a Site
+     */
+    private function generateQrForSite(Site $site)
+    {
+        // Save temporarily under storage/app/qrForSites, then copy to public/qrForSites
+        $tempDir = storage_path('app/qrForSites');
+        if (!File::exists($tempDir)) {
+            File::makeDirectory($tempDir, 0755, true);
+        }
+
+        // Content to encode in QR (use site id URL or a token)
+        $content = config('app.url') . '/sites/' . $site->id;
+
+        $size = 400;
+        $chl = urlencode($content);
+        $qrUrl = "https://chart.googleapis.com/chart?cht=qr&chs={$size}x{$size}&chl={$chl}&chld=L|1";
+
+        try {
+            $resp = Http::timeout(10)->get($qrUrl);
+        } catch (\Exception $e) {
+            Log::warning('QR generation primary request failed for site ' . $site->id . ': ' . $e->getMessage());
+            $resp = null;
+        }
+
+        // If primary service failed or returned non-success, try fallback QR provider
+        if (empty($resp) || !$resp->successful()) {
+            $primaryStatus = $resp ? $resp->status() : 'no-response';
+            $primaryBody = $resp ? substr($resp->body(), 0, 500) : '';
+            Log::warning("Primary QR service failed (status={$primaryStatus}) for site {$site->id}; attempting fallback. body=" . $primaryBody);
+
+            $fallbackUrl = "https://api.qrserver.com/v1/create-qr-code/?size={$size}x{$size}&data={$chl}";
+            try {
+                $resp = Http::timeout(10)->get($fallbackUrl);
+            } catch (\Exception $e) {
+                Log::warning('QR generation fallback request failed for site ' . $site->id . ': ' . $e->getMessage());
+                $resp = null;
+            }
+        }
+
+        if (empty($resp) || !$resp->successful()) {
+            $status = $resp ? $resp->status() : 'no-response';
+            $bodySnippet = $resp ? substr($resp->body(), 0, 500) : '';
+            throw new \Exception('Failed to fetch QR image from external service (status=' . $status . '). body=' . $bodySnippet);
+        }
+
+        $filename = 'site_' . $site->id . '.png';
+        $tempPath = $tempDir . DIRECTORY_SEPARATOR . $filename;
+        file_put_contents($tempPath, $resp->body());
+
+        // Ensure public target exists, then copy file there for web serving
+        $publicDir = public_path('qrForSites');
+        if (!File::exists($publicDir)) {
+            File::makeDirectory($publicDir, 0755, true);
+        }
+        $publicPath = $publicDir . DIRECTORY_SEPARATOR . $filename;
+        File::copy($tempPath, $publicPath);
+
+        // If the site has checkpoints, ensure each checkpoint has an NFC tag
+        // that points to the same URL encoded in the QR (with a checkpoint query).
+        // This makes the NFC payload effectively the same destination as the QR.
+        try {
+            $checkpoints = $site->checkpoints()->get();
+            foreach ($checkpoints as $cp) {
+                $expected = $content . '?checkpoint=' . $cp->id;
+                if (empty($cp->nfc_tag)) {
+                    $cp->update(['nfc_tag' => $expected]);
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('Failed to set NFC tags for site ' . $site->id . ': ' . $e->getMessage());
+        }
+
+        return $publicPath;
     }
 }

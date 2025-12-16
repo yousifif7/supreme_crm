@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Models\Patrol;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
+use App\Models\ShiftBooking;
 use Notify;
 
 class ShiftNotificationController extends BaseController
@@ -26,8 +27,12 @@ class ShiftNotificationController extends BaseController
         } else {
             // --- Missed Book On Notifications ---
             $now = now();
+            // only consider shifts from yesterday and after
+            $cutoff = $now->copy()->subDay()->toDateString();
+
             $missedBookOns = ShiftDate::whereNotNull('staff_id')
                 ->whereNull('absentee_start_time')
+                ->whereDate('shift_date', '>=', $cutoff)
                 ->whereDate('shift_date', '<=', $now->toDateString())
                 ->whereTime('start_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
                 ->get();
@@ -57,8 +62,10 @@ class ShiftNotificationController extends BaseController
             }
 
             // --- Missed Book Off Notifications ---
+            // only consider shifts from yesterday and after
             $missedBookOffs = ShiftDate::whereNotNull('staff_id')
                 ->whereNull('absentee_end_time')
+                ->whereDate('shift_date', '>=', $cutoff)
                 ->whereDate('shift_date', '<=', $now->toDateString())
                 ->whereTime('end_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
                 ->get();
@@ -66,6 +73,17 @@ class ShiftNotificationController extends BaseController
             foreach ($missedBookOffs as $sd) {
                 $perShiftKey = 'missed_shift_off_' . $sd->id;
                 if (Cache::has($perShiftKey)) {
+                    continue;
+                }
+
+                // Only consider missed book-off if the guard actually booked on for this shift
+                $bookedOnExists = ShiftBooking::where('shift_id', $sd->id)
+                    ->where('type', 'book_on')
+                    ->where('user_id', $sd->staff_id)
+                    ->exists();
+
+                if (! $bookedOnExists) {
+                    // nothing to do for this shift
                     continue;
                 }
 

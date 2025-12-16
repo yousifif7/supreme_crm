@@ -299,6 +299,14 @@
                                 <th>QR code status</th>
                                 <td id="has_qr"></td>
                             </tr>
+                            <tr>
+                                <th>NFC Tags</th>
+                                <td id="nfc_tags_detail"></td>
+                            </tr>
+                            <tr>
+                                <th>QR Code</th>
+                                <td id="qr_image_detail"></td>
+                            </tr>
                         </tbody>
                     </table>
                 </div>
@@ -312,6 +320,7 @@
             </div>
         </div>
     </div>
+                
 
 @endsection
 @section('scripts')
@@ -609,6 +618,45 @@
             } else {
                 checkpointsHtml = `<p class="text-muted">No checkpoints defined</p>`;
             }
+                                                            // QR image
+                                                            if (data.qr_image) {
+                                                                const url = data.qr_image;
+                                                                const imgHtml = `
+                                                                    <a href="${url}" target="_blank" title="Open QR in new tab">
+                                                                        <img src="${url}" alt="Site QR" style="max-width:200px;cursor:pointer;border:1px solid #ddd;padding:4px;background:#fff">
+                                                                    </a>
+                                                                    <div class="mt-2">
+                                                                        <a href="${url}" class="btn btn-sm btn-primary" target="_blank">Open</a>
+                                                                        <a href="${url}" class="btn btn-sm btn-secondary" download>Download</a>
+                                                                        <button type="button" id="qrModalOpenPrint" class="btn btn-sm btn-info">Open & Print</button>
+                                                                    </div>
+                                                                `;
+                                                                $('#qr_image_detail').html(imgHtml);
+                                                                $('#qrModalOpenPrint').on('click', function(){ openAndPrint(url); });
+                                                            } else {
+                                                                $('#qr_image_detail').html('<span class="text-muted">No QR generated</span>');
+                                                            }
+
+                                                            // NFC tags list
+                                                            if (data.checkpoints && data.checkpoints.length > 0) {
+                                                                const nfcItems = data.checkpoints.filter(cp => cp.nfc_tag).map(cp => ({name: cp.name, tag: cp.nfc_tag}));
+                                                                if (nfcItems.length > 0) {
+                                                                    let nhtml = '<div class="d-flex gap-2 flex-column">';
+                                                                    nfcItems.forEach(item => {
+                                                                        nhtml += `<div><strong>${item.name}:</strong> <code class="me-2">${item.tag}</code> <button class="btn btn-sm btn-outline-secondary copy-nfc" data-tag="${item.tag}">Copy</button></div>`;
+                                                                    });
+                                                                    nhtml += '</div>';
+                                                                    $('#nfc_tags_detail').html(nhtml);
+                                                                    $('.copy-nfc').on('click', function(){
+                                                                        const tag = $(this).data('tag');
+                                                                        navigator.clipboard?.writeText(tag).then(() => { toast_success('NFC tag copied'); }).catch(() => { alert('Copy failed'); });
+                                                                    });
+                                                                } else {
+                                                                    $('#nfc_tags_detail').html('<span class="text-muted">No NFC tags</span>');
+                                                                }
+                                                            } else {
+                                                                $('#nfc_tags_detail').html('<span class="text-muted">No NFC tags</span>');
+                                                            }
 
             $('#checkpoints_detail').html(checkpointsHtml);
 
@@ -814,6 +862,27 @@
                     console.error('Error fetching logs:', error);
                     modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
                 });
+        }
+    </script>
+    <script>
+        function openAndPrint(url) {
+            var win = window.open(url, '_blank');
+            if (win) {
+                var timer = setInterval(function() {
+                    try {
+                        if (win.document.readyState === 'complete') {
+                            clearInterval(timer);
+                            win.focus();
+                            win.print();
+                        }
+                    } catch (err) {
+                        clearInterval(timer);
+                        alert('Unable to auto-print. Use Open or Download options.');
+                    }
+                }, 200);
+            } else {
+                alert('Popup blocked. Use Open or Download options.');
+            }
         }
     </script>
     <script>

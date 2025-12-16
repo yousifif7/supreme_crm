@@ -7,7 +7,6 @@ use Carbon\Carbon;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Shift;
-use App\Models\Patrol;
 use App\Helpers\Logger;
 use App\Models\Employee;
 use App\Models\ShiftDate;
@@ -18,6 +17,8 @@ use App\Models\Notification;
 use App\Models\ShiftBooking;
 use Illuminate\Http\Request;
 use App\Models\PatrolCheckPoint;
+use App\Models\CheckpointScan;
+use App\Models\Patrol;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
@@ -647,6 +648,12 @@ class ShiftApiController extends Controller
         // Remove the "book_on" record
         $existingBooking->delete();
 
+        try {
+            Logger::log($shiftDate, 'Booked Off', 'Booked off via API');
+        } catch (\Exception $e) {
+            Log::error('Logger failed for bookOff: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Shift booked off successfully.'
         ]);
@@ -655,8 +662,9 @@ class ShiftApiController extends Controller
     public function getPatrolRoutes($shift_id)
     {
         $shift = ShiftDate::with('patrols')->findOrFail($shift_id);
-        $patrols = $shift->patrols->map(function ($patrol) use ($shift) {
-            $checkpoints = PatrolCheckPoint::where('site_id', $shift->shift->site_id)->get();
+        $site = $shift->shift->site ?? null;
+        $patrols = $shift->patrols->map(function ($patrol) use ($shift, $site) {
+            $checkpoints = PatrolCheckPoint::where('site_id', $site?->id ?? $shift->shift->site_id)->get();
             return [
                 'id' => $patrol->id,
                 'name' => $patrol->name,
@@ -664,12 +672,11 @@ class ShiftApiController extends Controller
                 'started_at' => $patrol->started_at,
                 'completed_at' => $patrol->completed_at,
                 'status' => $patrol->status,
+                'qr_image' => ($site && file_exists(public_path('qrForSites/site_' . $site->id . '.png'))) ? asset('qrForSites/site_' . $site->id . '.png') : null,
                 'checkpoints' => $checkpoints->map(function ($checkpoint) {
                     return [
                         'id' => $checkpoint->id,
                         'name' => $checkpoint->name,
-                        'qr_code' => $checkpoint->qr_code,
-                        'nfc_tag' => $checkpoint->nfc_tag,
                         'location' => [
                             'latitude' => $checkpoint->latitude,
                             'longitude' => $checkpoint->longitude,
@@ -743,7 +750,7 @@ class ShiftApiController extends Controller
         ]);
     }
 
-    public function scanCheckpoint(Request $request, $checkpoint_id)
+    public function scanCode(Request $request, $patrol_id)
     {
         $request->validate([
             'scan_data' => 'required|string',
@@ -755,15 +762,27 @@ class ShiftApiController extends Controller
             'issues_found' => 'nullable|string',
         ]);
 
-        $checkpoint = PatrolCheckpoint::find($checkpoint_id);
-        if (!$checkpoint) {
-            return response()->json(['message' => 'Checkpoint not found.'], 404);
+        // Find patrol
+        $patrol = Patrol::find($patrol_id);
+        if (!$patrol) {
+            return response()->json(['message' => 'Patrol not found.'], 404);
         }
 
-        $scan = $checkpoint->scans()->create([
+        // Ensure authenticated user is the assigned guard for this patrol
+        $shiftDate = ShiftDate::find($patrol->shift_id);
+        if (!$shiftDate || $shiftDate->staff_id !== Auth::id()) {
+            return response()->json(['message' => 'You are not assigned to this patrol.'], 403);
+        }
+
+        $scanData = trim($request->scan_data);
+        $method = $request->scan_method;
+
+        // Create scan tied to the patrol (no checkpoint matching required)
+        $scan = CheckpointScan::create([
+            'patrol_id' => $patrol->id,
             'user_id' => Auth::id(),
-            'scan_data' => $request->scan_data,
-            'scan_method' => $request->scan_method,
+            'scan_data' => $scanData,
+            'scan_method' => $method,
             'latitude' => $request->location['latitude'],
             'longitude' => $request->location['longitude'],
             'notes' => $request->notes,
@@ -782,7 +801,7 @@ class ShiftApiController extends Controller
             }
         }
 
-        return response()->json(['message' => 'Checkpoint scanned']);
+        return response()->json(['message' => 'Scan recorded for patrol', 'patrol_id' => $patrol->id]);
     }
 
     public function startPatrol($patrol_id)

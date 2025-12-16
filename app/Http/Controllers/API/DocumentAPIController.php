@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Storage;
 use App\Services\FileCompressor;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\Logger;
 
 class DocumentAPIController extends Controller
 {
@@ -60,6 +61,12 @@ class DocumentAPIController extends Controller
                 'description' => $request->description,
                 'status' => 'pending',
             ]);
+
+            try {
+                Logger::log($document, 'Created', 'Document uploaded via API');
+            } catch (\Exception $e) {
+                Log::error('Logger failed for Document upload: ' . $e->getMessage());
+            }
 
             $documents[] = $document;
 

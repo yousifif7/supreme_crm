@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Services\FileCompressor;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\Logger;
 
 class IncidentReportController extends Controller
 {
@@ -143,6 +144,12 @@ class IncidentReportController extends Controller
             'You have submitted an incident report successfully.',
             ['employee' => $employee->id],
         );
+
+        try {
+            Logger::log($report, 'Created', 'Incident report created via API');
+        } catch (\Exception $e) {
+            Log::error('Logger failed for IncidentReport store: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Incident report created successfully',
@@ -315,6 +322,12 @@ class IncidentReportController extends Controller
             'You have submitted an incident report successfully.',
             ['data' => $data],
         );
+
+        try {
+            Logger::log($report, 'Updated', 'Incident report updated via API');
+        } catch (\Exception $e) {
+            Log::error('Logger failed for IncidentReport update: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message' => 'Incident report updated successfully',

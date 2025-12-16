@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Hash;
 use App\DataTables\EmployeesDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use App\Models\Log as ActivityLog;
 use App\Services\FileCompressor;
 use App\Models\Subcontractor;
 
@@ -717,6 +718,34 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
                     'success' => 'success',
                 ];
             })
+        ]);
+    }
+
+    public function getLogsByEmail($email)
+    {
+        $email = urldecode($email);
+
+        $employee = Employee::where('email', $email)->first();
+
+        $query = ActivityLog::where('user_name', $email);
+
+        if ($employee) {
+            $query = $query->orWhere(function ($q) use ($employee) {
+                $q->where('loggable_type', Employee::class)->where('loggable_id', $employee->id);
+            });
+        }
+
+        $logs = $query->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'logs' => $logs->map(function ($log) {
+                return [
+                    'user_name' => $log->user_name,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'time' => $log->created_at->diffForHumans(),
+                ];
+            }),
         ]);
     }
 

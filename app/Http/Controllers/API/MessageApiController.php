@@ -13,6 +13,8 @@ use App\Http\Controllers\Controller;
 use Spatie\Permission\Models\Role;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use App\Helpers\Logger;
+use Illuminate\Support\Facades\Log;
 // assume models: Conversation, Message, ConversationUser
 
 class MessageApiController extends Controller
@@ -95,6 +97,13 @@ class MessageApiController extends Controller
 
         // Broadcast (optional, if using websockets)
         broadcast(new MessageSent($msg))->toOthers();
+
+        try {
+            Logger::log($msg, 'Created', 'Message sent via API');
+        } catch (\Exception $e) {
+            // don't break API if logger fails
+            Log::error('Logger failed for Message send: ' . $e->getMessage());
+        }
 
         return response()->json([
             'message_id' => $msg->id,

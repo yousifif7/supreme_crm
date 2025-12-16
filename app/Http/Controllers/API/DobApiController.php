@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Services\FileCompressor;
 use Illuminate\Support\Facades\Log;
+use App\Helpers\Logger;
 
 class DobApiController extends Controller
 {
@@ -125,7 +126,11 @@ class DobApiController extends Controller
             ['entry' => $entry],
         );
 
-
+        try {
+            Logger::log($entry, 'Created', 'DOB entry created via API');
+        } catch (\Exception $e) {
+            Log::error('Logger failed for DOB store: ' . $e->getMessage());
+        }
         return response()->json([
             'entry_id' => $entry->id,
             'message' => 'DOB entry created successfully',
@@ -260,6 +265,11 @@ class DobApiController extends Controller
             Log::error('Dashboard notification failed: ' . $e->getMessage());
         }
 
+        try {
+            Logger::log($entry, 'Updated', 'DOB entry updated via API');
+        } catch (\Exception $e) {
+            Log::error('Logger failed for DOB update: ' . $e->getMessage());
+        }
         try {
             send_push_notification(
                 $user->id,

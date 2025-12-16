@@ -339,6 +339,24 @@
             </div>
         </div>
     </div>
+    {{-- Employee logs partial (modal) --}}
+    @include('employees.logs')
+    <style>
+        /* Ensure log modal tables wrap and scroll instead of overflowing */
+        #logModal .table-responsive, #logModal .table-responsive table {
+            max-height: 60vh;
+            overflow: auto;
+            width: 100%;
+            table-layout: fixed !important;
+        }
+        #logModal .table-responsive td,
+        #logModal .table-responsive th,
+        #logModal table td, #logModal table th {
+            white-space: normal !important;
+            word-break: break-word !important;
+            overflow-wrap: anywhere !important;
+        }
+    </style>
     <!-- View Employee Detail Modal -->
     <div class="modal fade" id="viewEmployeeDetailModal" tabindex="-1" aria-labelledby="employeeDetailLabel"
         aria-hidden="true">
@@ -1114,34 +1132,40 @@
 
         function viewLogs(employeeId) {
             // Clear existing content
-            const modalBody = document.querySelector('#logModal .modal-body');
+            var modalBody = document.querySelector('#logModal .modal-body');
             modalBody.innerHTML = '<p class="text-muted">Loading logs...</p>';
 
-            fetch(`${baseUrl}/employees/${employeeId}/logs/ajax`)
-                .then(response => response.json())
-                .then(data => {
-                    if (data.logs.length === 0) {
+            function esc(s){ if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
+
+            fetch(baseUrl + '/employees/' + employeeId + '/logs/ajax')
+                .then(function(response){ return response.json(); })
+                .then(function(data){
+                    if (!data.logs || data.logs.length === 0) {
                         modalBody.innerHTML = '<p class="text-muted">No logs found for this client.</p>';
                     } else {
-                        let html = '<table class="table table-bordered table-striped">';
-                        html +=
-                            '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
-                        data.logs.forEach(log => {
-                            html += `<tr>
-                                    <td>${log.user_name}</td>
-                                    <td>${log.action}</td>
-                                    <td>${log.description}</td>
-                                    <td>${log.time}</td>
-                                </tr>`;
+                        var html = '<div class="table-responsive" style="max-height:60vh;overflow:auto;">';
+                        html += '<table class="table table-bordered table-striped mb-0" style="min-width:100%;table-layout:fixed;">';
+                        html += '<colgroup><col style="width:15%"><col style="width:15%"><col style="width:55%"><col style="width:15%"></colgroup>';
+                        html += '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
+                        data.logs.forEach(function(log){
+                            var desc = esc(log.description || '');
+                            // Split long comma-separated lists into separate lines
+                            desc = desc.replace(/,\s*/g, '<br>');
+                            html += '<tr>' +
+                                '<td>' + esc(log.user_name) + '</td>' +
+                                '<td>' + esc(log.action) + '</td>' +
+                                '<td>' + desc + '</td>' +
+                                '<td>' + esc(log.time) + '</td>' +
+                                '</tr>';
                         });
-                        html += '</tbody></table>';
+                        html += '</tbody></table></div>';
                         modalBody.innerHTML = html;
                     }
 
-                    // Show the modal
-                    $('#logModal').modal('show');
+                    // Show the modal (logModal exists in the page)
+                    try { $('#logModal').modal('show'); } catch(e){}
                 })
-                .catch(error => {
+                .catch(function(error){
                     console.error('Error fetching logs:', error);
                     modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
                 });
