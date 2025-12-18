@@ -211,6 +211,47 @@ class PayrollController extends Controller
 
     public function update(Request $request, $id) {}
 
+    /**
+     * Generate a subcontractor payroll (invoice) for a given subcontractor user id.
+     * Expects POST /generatepayroll_subcontractor/{id}
+     */
+    public function payrollSubcontractor(Request $request, $id, InvoiceService $calc)
+    {
+        $data = $request->validate([
+            'date_from' => 'required|date',
+            'date_to' => 'required|date|after_or_equal:date_from',
+            'notes' => 'nullable|string|max:1000',
+        ]);
+
+        // Ensure the provided id corresponds to a user that is a subcontractor
+        $user = User::find($id);
+        if (! $user || ! $user->hasRole('subcontractor')) {
+            return response()->json(['error' => 'Selected user is not a subcontractor.'], 422);
+        }
+
+        // Generate invoice using the service (due date 15 days ahead by default)
+        try {
+            $invoice = $calc->generateSubcontractorInvoice(
+                $id,
+                $data['date_from'],
+                $data['date_to'],
+                now()->addDays(15),
+                $data['notes'] ?? null
+            );
+        } catch (\Throwable $e) {
+            \Log::error('payrollSubcontractor failed: ' . $e->getMessage(), ['exception' => $e]);
+            return response()->json(['error' => 'Failed to generate subcontractor payroll.'], 500);
+        }
+
+        Logger::log(
+            Auth::user(),
+            'Create',
+            'Subcontractor Payroll NO. ' . ($invoice->invoice_number ?? $invoice->id) . ' generated for subcontractor id ' . $id
+        );
+
+        return response()->json(['message' => 'Subcontractor payroll generated', 'invoice' => $invoice]);
+    }
+
     public function edit($userId)
     {
         // Get the user (staff)

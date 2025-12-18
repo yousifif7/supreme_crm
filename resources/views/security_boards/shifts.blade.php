@@ -69,7 +69,7 @@
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_shift"
-                        class=" add_btn btn btn-white d-inline-flex align-items-center"">
+                        class="add_btn btn btn-white d-inline-flex align-items-center">
                         <i class="ti ti-plus me-2"></i>Shift
                     </a>
 
@@ -328,6 +328,113 @@
                 dropdownParent: $("#edit_shift")
             });
 
+                window.editShift = function(record_id) {
+            console.debug('editShift called', record_id);
+            $.get(`${baseUrl}/editshift/` + record_id)
+                .done(function(data) {
+                    console.debug('editShift response', data);
+                    if (data && data.shift) {
+                        $('#shift_id').val(record_id);
+                        $('#staff_id').val(data.shift.staff_id).trigger('change');
+                        $('#shift_date').val(data.shift.shift_date);
+
+                        $('#start_shift').val(data.shift.start_time);
+                        $('#end_shift').val(data.shift.end_time);
+                        if (typeof data.shift.guard_rate !== 'undefined') {
+                            $('#guard_rate').val(data.shift.guard_rate);
+                        }
+
+                        if (typeof data.shift.absentee_start_time != 'undefined')
+                            $('#book_on').val(data.shift.absentee_start_time);
+                        if (typeof data.shift.absentee_end_time != 'undefined')
+                            $('#book_off').val(data.shift.absentee_end_time);
+                        $('#status_id').val(data.shift.is_assign);
+
+                        // Show modal using Bootstrap's JS API as a robust fallback
+                        try {
+                            const modalEl = document.getElementById('edit_shift');
+                            if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                                const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                                modalInstance.show();
+                            } else if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+                                $('#edit_shift').modal('show');
+                            } else {
+                                console.warn('No modal API available to show #edit_shift');
+                            }
+                        } catch (err) {
+                            console.error('Error showing edit modal', err);
+                        }
+                    } else {
+                        console.warn('editShift: no shift returned for', record_id, data);
+                    }
+                })
+                .fail(function(xhr) {
+                    console.error('editShift GET failed', xhr);
+                });
+        }
+    $('#edit_shift-form').on('submit', function(e) {
+        e.preventDefault();
+
+        let form = $(this)[0];
+        let formData = new FormData(form);
+        let submitButton = $('#editshift');
+        let shiftId = $(this).find('#shift_id').val();
+
+        submitButton.prop('disabled', true).html('Updating...');
+
+        $.ajax({
+            url: `${baseUrl}/updateshift/${shiftId}`,
+            method: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            headers: {
+                'X-CSRF-TOKEN': $('input[name="_token"]').val()
+            },
+            success: function(response) {
+                closeBsModal('#edit_shift');
+                showToast('Shift updated successfully!', 'success', 5000);
+                reloadDatatable('#shifts-table');
+                location.reload();
+            },
+            error: function(xhr) {
+                if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                    let messages = Object.values(xhr.responseJSON.errors).flat();
+                    if (messages.length) {
+                        // Show restriction override button only for first error
+                        showRestrictionToast(messages[0], () => {
+                            // On override click
+                            $.ajax({
+                                url: `${baseUrl}/updateshift/${shiftId}/override`,
+                                method: 'POST',
+                                data: formData,
+                                processData: false,
+                                contentType: false,
+                                headers: {
+                                    'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                                },
+                                success: function(res) {
+                                    showToast('Shift updated with override!',
+                                        'success', 5000);
+                                    location.reload();
+                                },
+                                error: function(err) {
+                                    showToast('Override failed. Try again.',
+                                        'error', 5000);
+                                }
+                            });
+                        });
+                    }
+                } else {
+                    showToast('An error occurred. Please try again.', 'error', 5000);
+                }
+            },
+            complete: function() {
+                submitButton.prop('disabled', false).html('Update');
+            }
+        });
+    });
+    
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
 

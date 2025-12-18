@@ -164,9 +164,17 @@ class ReportController extends Controller
             });
         }
 
-        // Filter by date
-        if ($request->filled('shift_date')) {
-            $query->whereDate('shift_date', $request->input('shift_date'));
+        // Filter by date range (shift_date between from_date and to_date)
+        if ($request->filled('from_date') && $request->filled('to_date')) {
+            try {
+                $from = Carbon::parse($request->input('from_date'))->toDateString();
+                $to = Carbon::parse($request->input('to_date'))->toDateString();
+                $query->whereDate('shift_date', '>=', $from)->whereDate('shift_date', '<=', $to);
+            } catch (\Exception $e) {
+                // If parsing fails, fall back to raw inputs (best-effort)
+                $query->whereDate('shift_date', '>=', $request->input('from_date'))
+                      ->whereDate('shift_date', '<=', $request->input('to_date'));
+            }
         }
         if ($request->filled('status')) {
             $query->whereIn('is_assign', (array) $request->status);

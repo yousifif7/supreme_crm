@@ -133,12 +133,12 @@
                                      <div class="row">
                                          <div class="col-md-4 mb-3">
                                              <label class="form-label">Start Time</label>
-                                             <input type="time" class="form-control" name="start_time">
+                                             <input type="text" class="form-control time-input" name="start_time">
                                              <span class="text-danger form-error" id="error_start_time"></span>
                                          </div>
-                                         <div class="col-md-4 mb-3">
+                                        <div class="col-md-4 mb-3">
                                              <label class="form-label">End Time</label>
-                                             <input type="time" name="end_time" class="form-control">
+                                             <input type="text" name="end_time" class="form-control time-input">
                                              <span class="text-danger form-error" id="error_end_time"></span>
                                          </div>
                                          <div class="col-md-4 mb-3">
@@ -513,4 +513,5 @@
                     }
                 });
             });
+
  </script>

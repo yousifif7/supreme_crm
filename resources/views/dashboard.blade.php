@@ -187,7 +187,7 @@
                                         <td>{{ $checkCall->shiftDate->shift->client?->name??''}} | {{ $checkCall->shiftDate->shift->site?->site_name ?? 'N/A' }}</td>
                                         <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                         <td>{{ $checkCall->name }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('m-dd-Y H:i') }}
+                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('d-m-Y H:i') }}
                                         </td>
                                         <td>{{ ucfirst($checkCall->status) }}</td>
                                         <td>{{ ucfirst($checkCall->method) }}</td>
@@ -366,7 +366,7 @@
                                 @forelse ($siaDocuments as $doc)
                                     <tr>
                                         <td>{{ $doc->fore_name ?? 'N/A' }} {{ $doc->sur_name ?? '' }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('m-dd-Y') }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('d-m-Y') }}</td>
                                         <td><span class="badge bg-danger">Expired</span></td>
                                         <td>
                                             @if ($doc->sia_licence_file)
@@ -456,7 +456,7 @@
                                             {{ $staff->last_name ?? '' }}</td>
                                         <td>{{ $booking->shift->shift->client?->name??''}} | {{ $booking->shift->shift->site?->site_name ?? 'N/A' }}</td>
                                         <td>{{ ucfirst($booking->type) }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('m-dd-Y H:i') }}
+                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('d-m-Y H:i') }}
                                         </td>
                                     </tr>
                                 @empty

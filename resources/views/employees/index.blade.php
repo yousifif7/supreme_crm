@@ -1137,35 +1137,49 @@
 
             function esc(s){ if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); }
 
-            fetch(baseUrl + '/employees/' + employeeId + '/logs/ajax')
-                .then(function(response){ return response.json(); })
-                .then(function(data){
-                    if (!data.logs || data.logs.length === 0) {
-                        modalBody.innerHTML = '<p class="text-muted">No logs found for this client.</p>';
-                    } else {
-                        var html = '<div class="table-responsive" style="max-height:60vh;overflow:auto;">';
-                        html += '<table class="table table-bordered table-striped mb-0" style="min-width:100%;table-layout:fixed;">';
-                        html += '<colgroup><col style="width:15%"><col style="width:15%"><col style="width:55%"><col style="width:15%"></colgroup>';
-                        html += '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
-                        data.logs.forEach(function(log){
-                            var desc = esc(log.description || '');
-                            // Split long comma-separated lists into separate lines
-                            desc = desc.replace(/,\s*/g, '<br>');
-                            html += '<tr>' +
-                                '<td>' + esc(log.user_name) + '</td>' +
-                                '<td>' + esc(log.action) + '</td>' +
-                                '<td>' + desc + '</td>' +
-                                '<td>' + esc(log.time) + '</td>' +
-                                '</tr>';
-                        });
-                        html += '</tbody></table></div>';
-                        modalBody.innerHTML = html;
+            // First fetch the employee to obtain their email, then call the getLogsByEmail route
+            fetch(baseUrl + '/employees/' + employeeId + '/view')
+                .then(function(resp){ return resp.json(); })
+                .then(function(emp){
+                    var email = emp && emp.email ? emp.email : null;
+                    if (!email) {
+                        modalBody.innerHTML = '<p class="text-muted">No email found for this client.</p>';
+                        return Promise.reject(new Error('no-email'));
                     }
+
+                    var encodedEmail = encodeURIComponent(email);
+                    return fetch(baseUrl + '/employees/logs/' + encodedEmail);
+                })
+                .then(function(response){ if (!response) return; return response.json(); })
+                .then(function(data){
+                    if (!data || !data.logs || data.logs.length === 0) {
+                        modalBody.innerHTML = '<p class="text-muted">No logs found for this client.</p>';
+                        return;
+                    }
+
+                    var html = '<div class="table-responsive" style="max-height:60vh;overflow:auto;">';
+                    html += '<table class="table table-bordered table-striped mb-0" style="min-width:100%;table-layout:fixed;">';
+                    html += '<colgroup><col style="width:15%"><col style="width:15%"><col style="width:55%"><col style="width:15%"></colgroup>';
+                    html += '<thead><tr><th>User</th><th>Action</th><th>Description</th><th>Time</th></tr></thead><tbody>';
+                    data.logs.forEach(function(log){
+                        var desc = esc(log.description || '');
+                        // Split long comma-separated lists into separate lines
+                        desc = desc.replace(/,\s*/g, '<br>');
+                        html += '<tr>' +
+                            '<td>' + esc(log.user_name) + '</td>' +
+                            '<td>' + esc(log.action) + '</td>' +
+                            '<td>' + desc + '</td>' +
+                            '<td>' + esc(log.time) + '</td>' +
+                            '</tr>';
+                    });
+                    html += '</tbody></table></div>';
+                    modalBody.innerHTML = html;
 
                     // Show the modal (logModal exists in the page)
                     try { $('#logModal').modal('show'); } catch(e){}
                 })
                 .catch(function(error){
+                    if (error && error.message === 'no-email') return; // already handled
                     console.error('Error fetching logs:', error);
                     modalBody.innerHTML = '<p class="text-danger">Error loading logs.</p>';
                 });

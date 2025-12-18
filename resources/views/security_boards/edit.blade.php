@@ -52,7 +52,7 @@
                                                         <span class="text-danger form-error" id="error_site_id"></span>
                                                     </div>
                                                 </div> --}}
-                                        @hasAnyRole('superadmin')       
+                                        @hasanyrole('superadmin')       
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Shift Date <span
@@ -81,7 +81,16 @@
                                                 <span class="text-danger form-error error_end_shift"></span>
                                             </div>
                                         </div>
-                                        @endhasAnyRole
+                                        
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Guard Rate</label>
+                                                <input type="text" name="guard_rate" id="guard_rate" placeholder="£"
+                                                    class="form-control numeric-input">
+                                                <span class="text-danger form-error" id="error_guard_rate"></span>
+                                            </div>
+                                        </div>
+                                        @endhasanyrole
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book on <span
@@ -147,89 +156,7 @@
 </div>
 
 <script>
-    function editShift(record_id) {
-        $.get(`${baseUrl}/editshift/` + record_id, function(data) {
-            if (data.shift) {
-                $('#shift_id').val(record_id);
-                $('#staff_id').val(data.shift.staff_id).trigger('change');
-                $('#shift_date').val(data.shift.shift_date);
 
-                $('#start_shift').val(data.shift.start_time);
-                $('#end_shift').val(data.shift.end_time);
-
-                if (typeof data.shift.absentee_start_time != 'undefined')
-                    $('#book_on').val(data.shift.absentee_start_time);
-                if (typeof data.shift.absentee_end_time != 'undefined')
-                    $('#book_off').val(data.shift.absentee_end_time);
-                $('#status_id').val(data.shift.is_assign);
-
-                // ✅ Show Modal
-                $('#edit_shift').modal('show');
-            }
-        });
-    }
-    $('#edit_shift-form').on('submit', function(e) {
-        e.preventDefault();
-
-        let form = $(this)[0];
-        let formData = new FormData(form);
-        let submitButton = $('#editshift');
-        let shiftId = $(this).find('#shift_id').val();
-
-        submitButton.prop('disabled', true).html('Updating...');
-
-        $.ajax({
-            url: `${baseUrl}/updateshift/${shiftId}`,
-            method: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            headers: {
-                'X-CSRF-TOKEN': $('input[name="_token"]').val()
-            },
-            success: function(response) {
-                closeBsModal('#edit_shift');
-                showToast('Shift updated successfully!', 'success', 5000);
-                reloadDatatable('#shifts-table');
-                location.reload();
-            },
-            error: function(xhr) {
-                if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                    let messages = Object.values(xhr.responseJSON.errors).flat();
-                    if (messages.length) {
-                        // Show restriction override button only for first error
-                        showRestrictionToast(messages[0], () => {
-                            // On override click
-                            $.ajax({
-                                url: `${baseUrl}/updateshift/${shiftId}/override`,
-                                method: 'POST',
-                                data: formData,
-                                processData: false,
-                                contentType: false,
-                                headers: {
-                                    'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                                },
-                                success: function(res) {
-                                    showToast('Shift updated with override!',
-                                        'success', 5000);
-                                    location.reload();
-                                },
-                                error: function(err) {
-                                    showToast('Override failed. Try again.',
-                                        'error', 5000);
-                                }
-                            });
-                        });
-                    }
-                } else {
-                    showToast('An error occurred. Please try again.', 'error', 5000);
-                }
-            },
-            complete: function() {
-                submitButton.prop('disabled', false).html('Update');
-            }
-        });
-    });
 
     document.addEventListener("DOMContentLoaded", function() {
         // Apply Flatpickr to all inputs with class .time-input

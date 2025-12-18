@@ -10,7 +10,7 @@ class ShiftDate extends Model
 {
     use SoftDeletes, LogsChanges;
     protected $table = 'shift_dates';
-    protected  $fillable = ['staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', 'status', 'invoiced', 'invoice_id', 'require_media'];
+    protected  $fillable = ['staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', 'status', 'invoiced', 'invoice_id', 'require_media', 'guard_rate'];
 
 
     const STATUS_PENDING       = 0;

@@ -29,7 +29,7 @@ trait LogsChanges
             unset($dirty['is_assign']);
 
             $fields = '';
-            $labels = 'Updated <br>';
+            $labels = 'Updated ';
 
             foreach ($dirty as $field => $newValue) {
                 $oldValue = $model->getOriginal($field);
@@ -77,11 +77,11 @@ trait LogsChanges
                 }
 
                 $fields .= $field . ', ';
-                $labels .= $label . ',<br> ';
+                $labels .= $label . ', ';
             }
 
             $fields = rtrim($fields, ', ');
-            $labels = rtrim($labels, ',<br> ');
+            $labels = rtrim($labels, ', ');
 
             $model->logs()->create([
                 'user_name' => optional(Auth::user())->first_name ?? 'System' . ' ' . optional(Auth::user())->last_name ?? 'System',

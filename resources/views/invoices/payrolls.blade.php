@@ -78,6 +78,7 @@
                     <div class="me-2 mb-2 filter_area">
                     <button type="button" id="generatePayrollBtn" class="btn btn-primary" data-bs-toggle="modal"
                         data-bs-target="#generate_payroll">Generate</button>
+                    <button type="button" id="generateSubcontractorBtn" class="btn btn-success ms-2" style="display:none">Generate</button>
                     <!-- Search -->
                     <div class="input-group input-group-flat d-inline-flex me-1">
                         <span class="input-icon-addon"><i class="ti ti-search"></i></span>
@@ -130,6 +131,9 @@
                 </div>
             </div>
         </div>
+
+        {{-- include subcontractor modal --}}
+        @includeIf('invoices.generate_payroll_modal')
 
         {{-- Generate payroll --}}
         <div class="modal fade" id="generate_payroll">
@@ -375,9 +379,7 @@
                     $('#payroll_site_id').append('<option value="" disabled>Error loading sites</option>');
                 });
         }
-
         
-
         let selectedId = null;
         let selectedTable = null;
 
@@ -507,6 +509,12 @@
                 width: '100%'
             });
 
+            $('.select2_sub').select2({
+                dropdownParent: $('#generate_payroll_subcontractor_modal'),
+                matcher: customMatcher,
+                width: '100%'
+            });
+
             // Single, namespaced handlers to avoid duplicate triggers
             const $sel = $('#security_staff_id');
             // remove any previous handlers in the 'payroll' namespace
@@ -608,11 +616,13 @@
                     // append query param so server-side export can filter by type if supported
                     pdfHref += '?type=subcontractor';
                     excelHref += '?type=subcontractor';
-                    // hide generate for subcontractor (generated elsewhere)
+                    // show subcontractor generate button and hide staff generate
                     $('#generatePayrollBtn').hide();
+                    $('#generateSubcontractorBtn').show();
                     $('#bulkDeletePayrollsBtn').off('click').on('click', bulkDeleteActive);
                 } else {
                     $('#generatePayrollBtn').show().text('Generate');
+                    $('#generateSubcontractorBtn').hide();
                     $('#bulkDeletePayrollsBtn').off('click').on('click', function() { bulkDeleteActive(); });
                 }
 
@@ -628,6 +638,33 @@
                 const target = $(e.target).data('bs-target');
                 if (target === '#subcontractor-tab-pane') setToolbarForTab('subcontractor');
                 else setToolbarForTab('staff');
+            });
+        });
+    </script>
+    <script>
+        // Safe show for subcontractor modal to avoid bootstrap data-bs errors
+        $(document).ready(function() {
+            $('#generateSubcontractorBtn').on('click', function() {
+                const modalEl = document.getElementById('generate_payroll_subcontractor_modal');
+                if (!modalEl) return console.warn('Subcontractor modal not found');
+
+                try {
+                    if (window.bootstrap && bootstrap.Modal) {
+                        const inst = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                        inst.show();
+                        return;
+                    }
+                } catch (e) {
+                    console.error('bootstrap modal show error', e);
+                }
+
+                // fallback to jQuery plugin if available
+                if (window.$ && $.fn && $.fn.modal) {
+                    $('#generate_payroll_subcontractor_modal').modal('show');
+                } else {
+                    // last resort: toggle display
+                    modalEl.style.display = 'block';
+                }
             });
         });
     </script>

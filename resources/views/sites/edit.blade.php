@@ -128,14 +128,14 @@
                                       <div class="row">
                                           <div class="col-md-4 mb-3">
                                               <label class="form-label">Start Time</label>
-                                              <input type="time" class="form-control" name="start_time"
+                                              <input type="text" class="form-control time-input" name="start_time"
                                                   id="start_time">
                                               <span class="text-danger form-error" id="editerror_start_time"></span>
                                           </div>
                                           <div class="col-md-4 mb-3">
                                               <label class="form-label">End Time</label>
-                                              <input type="time" name="end_time" id="end_time"
-                                                  class="form-control">
+                                              <input type="text" name="end_time" id="end_time"
+                                                  class="form-control time-input">
                                               <span class="text-danger form-error" id="editerror_end_time"></span>
                                           </div>
                                           <div class="col-md-4 mb-3">
@@ -155,6 +155,7 @@
                                               <span class="text-danger form-error" id="editerror_break_time"></span>
                                           </div>
 
+                                          @hasrole('superadmin')
                                           <div class="col-md-6 mb-3">
                                               <label class="form-label">Guard Rate</label>
                                               <input type="text" name="guard_rate" id="guard_rate"
@@ -167,6 +168,7 @@
                                                   class="form-control" placeholder="Office Rate">
                                               <span class="text-danger form-error" id="editerror_office_rate"></span>
                                           </div>
+                                          @endhasrole
                                           <div class="col-md-12 mb-3">
                                               <label class="form-label">
                                                   Name of the Guards
@@ -177,6 +179,7 @@
                                                   placeholder="Enter names and info of guards..."></textarea>
                                               <span class="text-danger form-error" id="editerror_guard_names"></span>
                                           </div>
+                                          @hasrole('superadmin')
                                           <div class="col-md-6 mb-3">
                                               <label class="form-label">Expenses </label>
                                               <input type="text" name="billable_rate" id="billable_rate"
@@ -190,6 +193,7 @@
                                                   class="form-control numeric-input" placeholder="Payable">
                                               <span class="text-danger form-error" id="editerror_payable_rate"></span>
                                           </div>
+                                          @endhasrole
                                           <div class="card bg-light-500 shadow-none">
                                               <div
                                                   class="card-body d-flex align-items-center justify-content-between flex-wrap row-gap-3">

@@ -102,7 +102,7 @@
                     <div class="row justify-content-between align-items-center border-bottom mb-3">
                         <div class="col-md-4">
                             <h4 class="mb-1">Supreme Protection</h4>
-                            <p class="mb-1">Wembley HA9, UK</p>
+                                                        <p class="mb-1">150 Chingford Road, Walthamstow London, E17 4PL</p>
                             <p>Email: <span class="text-dark">admin@splconnect.co.uk</span></p>
 <!--                            <p>Phone: <span class="text-dark">+1 234567890</span></p>
 -->                        </div>

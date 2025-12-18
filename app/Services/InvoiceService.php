@@ -210,7 +210,9 @@ class InvoiceService
 
         foreach ($shifts as $shift) {
             foreach ($shift->shiftDates as $shiftDate) {
-                $hourlyRate = $shiftDate->shift->po_rate ?? 0;
+                // Prefer guard_rate on the shift date if present, otherwise fall back to PO rate
+                // Also, if guard_rate is zero or null, but the staff has a guard_rate, prefer staff's guard_rate for security staff payrolls
+                $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->po_rate ?? 0);
 
                 $item = $this->processShiftDate($shiftDate, $hourlyRate);
                 $invoiceItems[] = $item;
@@ -303,7 +305,8 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            $hourlyRate = $shiftDate->shift->po_rate ?? 0;
+            // Prefer guard_rate on the shift date if present, otherwise fall back to PO rate
+            $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->po_rate ?? 0);
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;

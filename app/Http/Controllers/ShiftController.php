@@ -494,6 +494,7 @@ class ShiftController extends Controller
                                 $request->start_shift[$i],
                                 $request->end_shift[$i]
                             ),
+                            'guard_rate'  => $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0,
                             'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                         ]);
 
@@ -635,6 +636,7 @@ class ShiftController extends Controller
         $validator = Validator::make($request->all(), [
             'status_id'   => 'nullable|integer',
             'staff_id'    => 'nullable|integer',
+            'guard_rate'  => 'nullable|numeric',
             'start_shift' => 'required',
             'end_shift'   => 'required',
             'book_on'     => 'nullable',
@@ -647,6 +649,10 @@ class ShiftController extends Controller
         }
 
         $data = $validator->validated();
+        // preserve guard_rate if provided
+        if ($request->filled('guard_rate')) {
+            $data['guard_rate'] = $request->input('guard_rate');
+        }
         $data['absentee_start_time'] = $data['book_on'] ?? null;
         $data['absentee_end_time']   = $data['book_off'] ?? null;
         $data['start_time']          = $data['start_shift'];
@@ -779,6 +785,9 @@ class ShiftController extends Controller
     public function destroy($id)
     {
         $shiftDate = ShiftDate::findOrFail($id);
+
+        Logger::log($shiftDate, 'Deleted', 'Shift #'.$shiftDate->id.' Deleted');
+
         $shiftDate->delete();
 
         // If the request expects JSON (AJAX), return JSON response.
@@ -2292,6 +2301,7 @@ class ShiftController extends Controller
                         $request->start_shift[$i],
                         $request->end_shift[$i]
                     ),
+                    'guard_rate'  => $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0,
                 ]);
 
                 if (!empty($data['training_id'])) {

@@ -324,7 +324,22 @@
 
 @endsection
 @section('scripts')
+        <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
     <script>
+        
+    document.addEventListener("DOMContentLoaded", function() {
+        // Apply Flatpickr to all inputs with class .time-input
+        flatpickr("input.time-input", {
+            enableTime: true,
+            noCalendar: true,
+            dateFormat: "H:i", // Save as 24h format
+            time_24hr: true,
+            minuteIncrement: 5,
+            allowInput: true
+        });
+    });
+
         // Delegated handlers for site actions (prevents inline onclick reference errors)
         document.addEventListener('click', function(e) {
             const view = e.target.closest('.site-view');

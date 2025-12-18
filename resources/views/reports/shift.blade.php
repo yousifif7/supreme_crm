@@ -56,8 +56,14 @@
 
                             <!-- Shift Date -->
                             <div class="col-md-3">
-                                <label for="shift_date" class="form-label">Shift Date</label>
-                                <input type="date" name="shift_date" id="shift_date" class="form-control"
+                                <label for="shift_date" class="form-label">From Date</label>
+                                <input type="date" name="from_date" id="from_date" class="form-control"
+                                    value="{{ $filterDate }}">
+                            </div>
+
+                            <div class="col-md-3">
+                                <label for="shift_date" class="form-label">To Date</label>
+                                <input type="date" name="to_date" id="to_date" class="form-control"
                                     value="{{ $filterDate }}">
                             </div>
 
@@ -80,7 +86,7 @@
                 </div>
             </div>
 
-            @if(request()->hasAny(['client_id','employee_id','status','shift_date']))
+            @if(request()->hasAny(['client_id','employee_id','status','to_date','from_date']))
             <!-- Results -->
             <div class="card">
                 <div class="card-body p-0">
