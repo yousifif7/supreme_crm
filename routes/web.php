@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\User;
 use App\Models\ShiftDate;
 use App\Models\BookingAlarm;
 use App\Models\Notification;
@@ -7,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\TrainingMaterial;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
+use Illuminate\Support\Facades\DB;
 use App\Http\Controllers\DobController;
 use App\Http\Controllers\LogController;
 use Illuminate\Support\Facades\Artisan;
@@ -35,11 +37,11 @@ use App\Http\Controllers\SubContractorController;
 use App\Http\Controllers\IncidentReportController;
 use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\ShiftNotificationController;
 use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
-use App\Http\Controllers\ShiftNotificationController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -49,7 +51,6 @@ Route::get('/dashboard', function () {
     //return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
-
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
 
 
@@ -102,6 +103,10 @@ Route::prefix('notifications')->group(function () {
 
         return response()->json(['notifications' => $notifications]);
     })->middleware('auth');
+
+    // One-time pruning endpoint: permanently delete users with deleted_at set.
+    // Protect with a token: set PRUNE_DELETED_USERS_TOKEN in .env and call /prune-deleted-users?token=THE_TOKEN
+
 
     // Mark a notification as read via web session
     Route::post('/{id}/read', function($id) {

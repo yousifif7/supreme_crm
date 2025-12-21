@@ -95,7 +95,7 @@ class ClientsImport implements ToModel, WithHeadingRow, WithValidation, WithStar
             ],
             'contact_person' => 'nullable|max:255',
             'contact_email' => 'nullable|email|max:255',
-            'username' => 'nullable|email|max:255|unique:users,email',
+            'username' => 'nullable|email|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'password' => 'nullable|min:6',
             'invoice_terms' => 'nullable|max:255',
             'payment_terms' => 'nullable|max:255',

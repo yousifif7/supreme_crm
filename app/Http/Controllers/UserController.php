@@ -196,7 +196,7 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             // 'username' => 'required|string|unique:users,username',
-            'email' => 'required|email:dns|unique:users,email',
+            'email' => 'required|email:dns|unique:users,email,NULL,id,deleted_at,NULL',
             'password' => 'required|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
@@ -263,7 +263,7 @@ class UserController extends Controller
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             // 'username' => 'required|string|unique:users,username,' . $id,
-            'email' => 'required|email:dns|unique:users,email,' . $id,
+            'email' => 'required|email:dns|unique:users,email,' . $id . ',id,deleted_at,NULL',
             'password' => 'nullable|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
@@ -322,7 +322,7 @@ class UserController extends Controller
         $user = User::findOrFail($userId);
         Logger::log(Auth::user(), 'Delete', 'User ' . $user->first_name . ' ' . $user->last_name . ' Deleted');
 
-        $user->forceDelete();
+        $user->delete();
 
         // $stillExists = User::find($userId);
         // \Log::info('Still exists after delete? ' . ($stillExists ? 'YES' : 'NO'));

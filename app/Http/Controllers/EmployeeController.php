@@ -57,7 +57,7 @@ class EmployeeController extends Controller
             'status' => 'required|string',
             'fore_name' => 'required|string',
             'sur_name' => 'required|string',
-            'email' => 'nullable|email:dns|max:255|unique:users,email',
+            'email' => 'nullable|email:dns|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string|unique:employees,ni_number',
             // 'sia_licence' => ['nullable', 'string','unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
@@ -674,7 +674,7 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
 
         Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
 
-        $empUser->forceDelete();
+        $empUser->delete();
         $employee->forceDelete();
 
         return response()->json(['success' => true]);

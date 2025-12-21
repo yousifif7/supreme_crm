@@ -134,7 +134,7 @@ class InvoiceAPIController extends Controller
                     'revision_reason' => $invoice->adminReview->revision_reason,
                     'requires_confirmation' => $invoice->adminReview->requires_confirmation,
                 ] : null,
-                'submitted_at' => optional($invoice->submitted_at)->toDateTimeString(),
+                'submitted_at' => optional($invoice->issue_date)->toDateTimeString(),
                 'paid_at' => optional($invoice->paid_at)->toDateTimeString(),
             ];
         });

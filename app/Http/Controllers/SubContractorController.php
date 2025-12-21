@@ -61,7 +61,7 @@ class SubContractorController extends Controller
             ],
             'contact_person'     => 'nullable|string|max:255',
             // 'email'              => 'required|email:dns|max:255',
-            'email'           => 'required|email|max:255|unique:users,email',
+            'email'           => 'required|email|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'password'           => [
                 'required',
                 'string',
@@ -162,7 +162,7 @@ class SubContractorController extends Controller
 
         Logger::log(Auth::user(), 'Delete', 'Subcontractor ' . $subcontractor->company_name . ' and related user deleted.');
 
-        $empSubcontractor->forceDelete();
+        $empSubcontractor->delete();
         $subcontractor->forceDelete();
 
         return response()->json(['message' => 'Subcontractor and related user deleted successfully.']);
@@ -182,8 +182,8 @@ class SubContractorController extends Controller
         // Collect related user IDs
         $userIds = $subcontractors->pluck('user_id')->filter()->toArray();
 
-        // Delete related users
-        User::whereIn('id', $userIds)->forceDelete();
+        // Delete related users (users are hard-deleted)
+        User::whereIn('id', $userIds)->delete();
 
         foreach ($subcontractors as $sc) {
             Logger::log(Auth::user(), 'Delete', 'Subcontractor ' . $sc->company_name . ' and related user deleted.');

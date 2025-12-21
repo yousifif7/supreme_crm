@@ -6,17 +6,15 @@ use App\Models\Subcontractor;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Str;
 use Maatwebsite\Excel\Concerns\ToModel;
 use Maatwebsite\Excel\Concerns\WithHeadingRow;
-use Maatwebsite\Excel\Concerns\WithValidation;
 use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Spatie\Permission\Models\Role;
 
-class SubcontractorsImport implements ToModel, WithHeadingRow, WithValidation, WithStartRow, SkipsOnError
+class SubcontractorsImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnError
 {
     use SkipsErrors;
 
@@ -32,87 +30,66 @@ class SubcontractorsImport implements ToModel, WithHeadingRow, WithValidation, W
 
     public function model(array $row)
     {
-        // Skip empty rows or rows where company_name is empty
-        if (empty($row['company_name']) || trim($row['company_name']) === '') {
-            return null;
+        // No validation: import whatever fields exist in the row.
+        // Determine company name from possible keys or first non-empty cell
+        $company = $this->getColumnValue($row, 'company_name');
+        if (empty($company)) {
+            $company = $this->getColumnValue($row, 'company');
+        }
+        if (empty($company)) {
+            $company = $this->getColumnValue($row, 'company name');
+        }
+        if (empty($company)) {
+            // pick best candidate from row: prefer textual values, not pure numbers/emails/phones
+            $company = $this->detectCompanyFromRow($row);
         }
 
-        $userId = null;
+        // Persist subcontractor directly and attach/create user per provided snippet
+        $s = Subcontractor::create([
+            'company_name' => $company ?? null,
+            'company_address' => $this->getColumnValue($row, 'company_address'),
+            'contact_person' => $this->getColumnValue($row, 'contact_person'),
+            'contact_number' => $this->getColumnValue($row, 'contact_number'),
+            'email' => $this->getColumnValue($row, 'email'),
+            'invoice_terms' => $this->getColumnValue($row, 'invoice_terms'),
+            'payment_terms' => $this->getColumnValue($row, 'payment_terms'),
+            'department' => $this->getColumnValue($row, 'department'),
+            'vat_registered' => $this->convertToBoolean($this->getColumnValue($row, 'vat_registered') ?? 'No'),
+            'vat_number' => $this->getColumnValue($row, 'vat_number'),
+            'pay_rate' => is_numeric($this->getColumnValue($row, 'pay_rate')) ? (float)$this->getColumnValue($row, 'pay_rate') : null,
+            'pmva_trained_officer' => $this->convertToBoolean($this->getColumnValue($row, 'pmva_trained_officer') ?? 'No'),
+            'is_active' => $this->convertToBoolean($this->getColumnValue($row, 'is_active') ?? 'Active'),
+        ]);
 
-        // Create user only if username is provided
-        if (!empty($row['username'])) {
-            $password = !empty($row['password']) ? $row['password'] : 'password123';
+        $email = $s->email ?: Str::slug($s->company_name).'_'.$s->id.'@example.com';
+        $username = Str::slug($s->company_name).'_'.$s->id;
 
+        $user = User::where('email', $email)
+                    ->orWhere('username', $username)
+                    ->first();
+
+        if (!$user) {
             $user = User::create([
-                'name' => $row['company_name'],
-                'first_name' => $row['company_name'],
-                'last_name' => '',
-                'username' => $row['username'],
-                'email' => $row['username'],
-                'password' => Hash::make($password),
+                'name'       => $s->company_name,
+                'first_name' => $s->company_name,
+                'last_name'  => '',
+                'username'   => $username,
+                'email'      => $email,
+                'password'   => Hash::make('password'),
             ]);
 
-            // Assign subcontractor role
             $role = Role::firstOrCreate(['name' => 'subcontractor']);
             $user->assignRole($role);
-
-            $userId = $user->id;
         }
 
-        return new Subcontractor([
-            'user_id' => $userId,
-            'company_name' => $row['company_name'],
-            'company_address' => $row['company_address'] ?? null,
-            'contact_person' => $row['contact_person'] ?? null,
-            'contact_number' => $row['contact_number'] ?? null,
-            'email' => $row['email'] ?? null,
-            'invoice_terms' => $row['invoice_terms'] ?? null,
-            'payment_terms' => $row['payment_terms'] ?? null,
-            'department' => $row['department'] ?? null,
-            'vat_registered' => $this->convertToBoolean($row['vat_registered'] ?? 'No'),
-            'vat_number' => $row['vat_number'] ?? null,
-            'pay_rate' => !empty($row['pay_rate']) ? (float)$row['pay_rate'] : null,
-            'pmva_trained_officer' => $this->convertToBoolean($row['pmva_trained_officer'] ?? 'No'),
-            'is_active' => $this->convertToBoolean($row['is_active'] ?? 'Active'),
-        ]);
-    }
+        $s->user_id = $user->id;
+        $s->email   = $user->email;
+        $s->save();
 
-    public function rules(): array
-    {
-        return [
-            '#' => 'nullable', // Ignore the # column
-            'company_name' => 'required|string|max:255',
-            'company_address' => 'nullable|max:355',
-            'contact_person' => 'nullable|max:255',
-            'contact_number' => [
-                'nullable',
-                'min:9',
-                'max:255',
-                // 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
-            ],
-            'email' => 'nullable|email|max:255',
-            'username' => 'nullable|email|max:255|unique:users,email',
-            'password' => 'nullable|min:6',
-            'invoice_terms' => 'nullable|max:255',
-            'payment_terms' => 'nullable|max:255',
-            'department' => 'nullable|max:255',
-            'vat_registered' => 'nullable',
-            'vat_number' => 'nullable|max:255',
-            'pay_rate' => 'nullable',
-            'pmva_trained_officer' => 'nullable|string',
-            'is_active' => 'nullable|string',
-        ];
+        // Return null because we already persisted the subcontractor
+        return null;
     }
-
-    public function customValidationMessages()
-    {
-        return [
-            'contact_number.regex' => 'The contact number format is invalid. It should be a valid phone number.',
-            'username.unique' => 'This username (email) is already registered.',
-            'username.email' => 'Username must be a valid email address.',
-            'password.min' => 'Password must be at least 6 characters long.',
-        ];
-    }
+    
 
     /**
      * Convert string values to boolean
@@ -138,5 +115,60 @@ class SubcontractorsImport implements ToModel, WithHeadingRow, WithValidation, W
     private function getColumnValue(array $row, string $column, $default = null)
     {
         return array_key_exists($column, $row) ? $row[$column] : $default;
+    }
+
+    /**
+     * Heuristic to pick the most likely company name from a row.
+     */
+    private function detectCompanyFromRow(array $row): ?string
+    {
+        $best = null;
+        $bestScore = -INF;
+
+        foreach ($row as $cell) {
+            $val = trim((string)$cell);
+            if ($val === '') {
+                continue;
+            }
+
+            $score = 0;
+
+            // Prefer values that contain letters
+            if (preg_match('/[a-zA-Z]/', $val)) {
+                $score += 5;
+            }
+
+            // Penalize pure numbers (likely an index column)
+            if (preg_match('/^\d+$/', $val)) {
+                $score -= 10;
+            }
+
+            // Penalize emails
+            if (filter_var($val, FILTER_VALIDATE_EMAIL)) {
+                $score -= 5;
+            }
+
+            // Penalize phone-like values (digits, spaces, +, -, parentheses)
+            if (preg_match('/^[\d\+\-\s\(\)]+$/', $val)) {
+                $score -= 6;
+            }
+
+            // Slight bonus for multi-word values (company names often contain spaces)
+            if (str_word_count($val) > 1) {
+                $score += 2;
+            }
+
+            // Slight bonus for longer strings
+            if (strlen($val) > 8) {
+                $score += 1;
+            }
+
+            if ($score > $bestScore) {
+                $bestScore = $score;
+                $best = $val;
+            }
+        }
+
+        return $best;
     }
 }

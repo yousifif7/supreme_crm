@@ -145,7 +145,7 @@ class ClientDashboardController extends BaseController
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
             'contact_person' => 'nullable|string|max:255',
-            'email' => 'required|email:dns|max:255|unique:users,email,'. $user->id,
+            'email' => 'required|email:dns|max:255|unique:users,email,'. $user->id .',id,deleted_at,NULL',
             'invoice_terms' => 'nullable|string|max:255',
             'payment_terms' => 'nullable|string|max:255',
             'contract_start' => 'nullable|date',

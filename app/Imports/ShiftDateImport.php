@@ -41,7 +41,7 @@ use Maatwebsite\Excel\Validators\Failure;
  * - Client and Site names should match existing records in the database
  * - Officer names are matched against fore_name, sur_name, or full name in employees table
  */
-class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithStartRow, SkipsOnError, SkipsOnFailure
+class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnError, SkipsOnFailure
 {
     use SkipsErrors;
 
@@ -51,58 +51,140 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
 
     public function startRow(): int
     {
-        return 2; // Start from row 2, since row 1 is the header
+        return 3; // Start from row 3, since row 2 is the header
     }
 
     public function headingRow(): int
     {
-        return 1; // Header is in row 1
+        return 2; // Header is in row 2
     }
 
     public function model(array $row)
     {
         $this->currentRow++; // Increment row counter
 
-        // Skip empty rows or rows where required fields are empty
-        if (empty($row['date']) || empty($row['client']) || empty($row['site']) || empty($row['start']) || empty($row['end'])) {
+        // Detect required columns robustly (headers may be malformed)
+        $dateRaw = $this->findColumnValue($row, ['date', 'shift_date', 'shift date']);
+        $clientRaw = $this->findColumnValue($row, ['Client']);
+        $siteRaw = $this->findColumnValue($row, ['site']);
+        $startRaw = $this->findColumnValue($row, ['start', 'start_time', 'start time']);
+        $endRaw = $this->findColumnValue($row, ['end', 'end_time', 'end time']);
+
+        // Normalize common placeholders like N/A, -, none
+        $clientRaw = $this->normalizeCell($clientRaw);
+        $siteRaw = $this->normalizeCell($siteRaw);
+        $startRaw = $this->normalizeCell($startRaw);
+        $endRaw = $this->normalizeCell($endRaw);
+
+        // If date missing, try to detect by parsing any value in the row
+        if (is_null($dateRaw)) {
+            foreach ($row as $cell) {
+                if ($this->parseDate($cell)) {
+                    $dateRaw = $cell;
+                    break;
+                }
+            }
+        }
+
+        if (is_null($startRaw)) {
+            foreach ($row as $cell) {
+                if ($this->parseTime($cell)) {
+                    $startRaw = $cell;
+                    break;
+                }
+            }
+        }
+
+        if (is_null($endRaw)) {
+            foreach ($row as $cell) {
+                if ($this->parseTime($cell)) {
+                    $endRaw = $cell;
+                    break;
+                }
+            }
+        }
+
+        // Basic required-field check
+        if (empty($dateRaw) || empty($clientRaw) || empty($siteRaw) || empty($startRaw) || empty($endRaw)) {
+            $this->failures[] = [
+                'row' => $this->currentRow,
+                'error' => 'Missing required field(s): date/client/site/start/end'
+            ];
             return null;
         }
 
         try {
             // Parse and validate date
-            $shiftDate = $this->parseDate($row['date']);
+            $shiftDate = $this->parseDate($dateRaw);
             if (!$shiftDate) {
                 $this->failures[] = [
                     'row' => $this->currentRow,
-                    'error' => "Invalid date format: {$row['date']}"
+                    'error' => "Invalid date format: {$dateRaw}"
                 ];
                 return null;
             }
 
-            // Find client by name
-            $client = Client::where('client_name', 'like', '%' . trim($row['client']) . '%')->first();
+            // Find client by normalized-name matching in PHP (handles header differences/punctuation)
+            $client = null;
+            if (!empty($clientRaw)) {
+                $search = $this->normalizeForCompare($clientRaw);
+                $clients = Client::all();
+                foreach ($clients as $c) {
+                    if (strpos($this->normalizeForCompare($c->client_name), $search) !== false) {
+                        $client = $c;
+                        break;
+                    }
+                }
+
+                // fuzzy levenshtein fallback on normalized names
+                if (!$client) {
+                    $best = null; $bestDist = PHP_INT_MAX;
+                    foreach ($clients as $c) {
+                        $dist = levenshtein($search, $this->normalizeForCompare($c->client_name));
+                        if ($dist < $bestDist) { $bestDist = $dist; $best = $c; }
+                    }
+                    if ($best && $bestDist <= 5) {
+                        $client = $best;
+                    }
+                }
+            }
+
             if (!$client) {
                 $this->failures[] = [
                     'row' => $this->currentRow,
-                    'error' => "Client '{$row['client']}' not found"
+                    'error' => "Client '{$clientRaw}' not found"
                 ];
                 return null;
             }
 
             // Find site by name (optionally filter by client)
-            $site = Site::where('site_name', 'like', '%' . trim($row['site']) . '%')
+            $site = Site::where('site_name', 'like', '%' . trim($siteRaw) . '%')
                        ->where('client_id', $client->id)
                        ->first();
 
-            // If not found in client's sites, try any site with that name
-            if (!$site) {
-                $site = Site::where('site_name', 'like', '%' . trim($row['site']) . '%')->first();
+            // If not found in client's sites, try normalized PHP match across all sites
+            if (!$site && !empty($siteRaw)) {
+                $searchSite = $this->normalizeForCompare($siteRaw);
+                $sites = Site::all();
+                foreach ($sites as $st) {
+                    if (strpos($this->normalizeForCompare($st->site_name), $searchSite) !== false) {
+                        $site = $st; break;
+                    }
+                }
+                if (!$site) {
+                    $best = null; $bestDist = PHP_INT_MAX;
+                    foreach ($sites as $st) {
+                        $dist = levenshtein($searchSite, $this->normalizeForCompare($st->site_name));
+                        if ($dist < $bestDist) { $bestDist = $dist; $best = $st; }
+                    }
+                    if ($best && $bestDist <= 5) { $site = $best; }
+                }
             }
 
             if (!$site) {
                 $this->failures[] = [
                     'row' => $this->currentRow,
-                    'error' => "Site '{$row['site']}' not found"
+                    'error' => "Site '{$siteRaw}' not found"
                 ];
                 return null;
             }
@@ -110,13 +192,29 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
             // Find officer/staff by name (optional)
             $staff = null;
             $staffId = null;
-            if (!empty($row['officer'])) {
-                $officerName = trim($row['officer']);
+            $officerRaw = $this->findColumnValue($row, ['officer', 'officer name', 'staff', 'staff name']);
+            $officerRaw = $this->normalizeCell($officerRaw);
+            if (!empty($officerRaw)) {
+                $officerName = trim($officerRaw);
                 $staff = Employee::where(function($query) use ($officerName) {
                     $query->where('fore_name', 'like', '%' . $officerName . '%')
                           ->orWhere('sur_name', 'like', '%' . $officerName . '%')
                           ->orWhereRaw("CONCAT(fore_name, ' ', sur_name) LIKE ?", ['%' . $officerName . '%']);
                 })->first();
+
+                // If not found, try fuzzy levenshtein on employee full names
+                if (!$staff) {
+                    $employees = Employee::select('id', 'fore_name', 'sur_name')->get();
+                    $best = null; $bestDist = PHP_INT_MAX;
+                    foreach ($employees as $e) {
+                        $full = trim($e->fore_name . ' ' . $e->sur_name);
+                        $dist = levenshtein(strtolower($officerName), strtolower($full));
+                        if ($dist < $bestDist) { $bestDist = $dist; $best = $e; }
+                    }
+                    if ($best && $bestDist <= 5) {
+                        $staff = $best;
+                    }
+                }
 
                 if ($staff) {
                     $staffId = $staff->id;
@@ -129,13 +227,13 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
             }
 
             // Parse start and end times
-            $startTime = $this->parseTime($row['start']);
-            $endTime = $this->parseTime($row['end']);
+            $startTime = $this->parseTime($startRaw);
+            $endTime = $this->parseTime($endRaw);
 
             if (!$startTime || !$endTime) {
                 $this->failures[] = [
                     'row' => $this->currentRow,
-                    'error' => "Invalid time format - Start: {$row['start']}, End: {$row['end']}"
+                    'error' => "Invalid time format - Start: {$startRaw}, End: {$endRaw}"
                 ];
                 return null;
             }
@@ -252,38 +350,6 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
         return count($this->failures);
     }
 
-    public function rules(): array
-    {
-        return [
-            '#' => 'nullable', // Ignore the # column
-            'date' => 'required',
-            'day' => 'nullable',
-            'officer' => 'nullable|max:255',
-            'client' => 'required|max:255',
-            'site' => 'required|max:255',
-            'phone' => 'nullable|max:255',
-            'start' => 'required',
-            'end' => 'required',
-            'lost_time' => 'nullable',
-            'hours' => 'nullable|numeric|min:0',
-            'comments' => 'nullable|max:1000',
-        ];
-    }
-
-    public function customValidationMessages()
-    {
-        return [
-            'date.required' => 'Date is required.',
-            'client.required' => 'Client name is required.',
-            'site.required' => 'Site name is required.',
-            'start.required' => 'Start time is required.',
-            'end.required' => 'End time is required.',
-            'hours.numeric' => 'Hours must be a valid number.',
-            'hours.min' => 'Hours must be at least 0.',
-            'comments.max' => 'Comments cannot exceed 1000 characters.',
-        ];
-    }
-
     /**
      * Parse date from various formats
      */
@@ -308,8 +374,9 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
 
 
             // handle excel formate like 45871 instead of 02-Aug-2025
-            if (is_numeric($dateValue) && strlen($dateValue) >= 4) {
-                return Carbon::instance(\PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue));
+            if (is_numeric($dateValue) && strlen((string)$dateValue) >= 1) {
+                $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($dateValue);
+                return Carbon::instance($dt)->format('Y-m-d');
             }
 
             // Try Carbon's flexible parsing as last resort
@@ -331,7 +398,18 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
         }
 
         try {
-            $timeValue = trim($timeValue);
+            // If it's a DateTime object
+            if ($timeValue instanceof \DateTimeInterface) {
+                return Carbon::instance($timeValue)->format('H:i:s');
+            }
+
+            // If Excel returns a numeric (serial) value for time/date
+            if (is_numeric($timeValue)) {
+                $dt = \PhpOffice\PhpSpreadsheet\Shared\Date::excelToDateTimeObject($timeValue);
+                return Carbon::instance($dt)->format('H:i:s');
+            }
+
+            $timeValue = trim((string)$timeValue);
 
             // Handle formats like "06:00", "6:00", "06.00", "6"
             if (preg_match('/^(\d{1,2})[:.h]?(\d{2})?$/', $timeValue, $matches)) {
@@ -372,6 +450,73 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithValidation, WithSt
         } catch (\Exception $e) {
             return 0;
         }
+    }
+
+    /**
+     * Find a column value from the given row using possible header names.
+     * Performs normalization on header keys and allows fuzzy matching.
+     */
+    private function findColumnValue(array $row, array $names)
+    {
+        // Normalize target names
+        $targets = array_map(function ($n) {
+            return preg_replace('/[^a-z0-9]/', '', strtolower($n));
+        }, $names);
+
+        // First try exact/normalized header key match
+        foreach ($row as $key => $value) {
+            $normKey = preg_replace('/[^a-z0-9]/', '', strtolower((string)$key));
+            foreach ($targets as $t) {
+                if ($t === $normKey) {
+                    return $value;
+                }
+            }
+        }
+
+        // Then try partial match (substring)
+        foreach ($row as $key => $value) {
+            $normKey = preg_replace('/[^a-z0-9]/', '', strtolower((string)$key));
+            foreach ($targets as $t) {
+                if ($t !== '' && strpos($normKey, $t) !== false) {
+                    return $value;
+                }
+            }
+        }
+
+        // As fallback return null — caller may attempt content-based detection
+        return null;
+    }
+
+    /**
+     * Normalize a string for comparison: lowercase, remove accents, strip non-alphanumerics.
+     */
+    private function normalizeForCompare(?string $value): string
+    {
+        if (is_null($value)) return '';
+        $val = trim((string)$value);
+        if ($val === '') return '';
+        // remove BOM and non-printables
+        $val = preg_replace('/[\x00-\x1F\x7F]/u', '', $val);
+        // transliterate to ASCII
+        $val = iconv('UTF-8', 'ASCII//TRANSLIT//IGNORE', $val) ?: $val;
+        $val = strtolower($val);
+        // keep only a-z0-9
+        $val = preg_replace('/[^a-z0-9]/', '', $val);
+        return $val;
+    }
+
+    /**
+     * Normalize a cell value: trim and treat common placeholders as empty.
+     */
+    private function normalizeCell($value)
+    {
+        if (is_null($value)) return null;
+        $val = trim((string)$value);
+        if ($val === '') return null;
+        $lower = strtolower($val);
+        $placeholders = ['n/a', 'na', '-', 'none', 'n\a', 'tba'];
+        if (in_array($lower, $placeholders, true)) return null;
+        return $val;
     }
 }
 

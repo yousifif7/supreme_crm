@@ -41,7 +41,7 @@ class ClientController extends Controller
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
             'contact_person'             => 'nullable|string|max:255',
-            'email' => 'required|email:dns|max:255|unique:users,email',
+            'email' => 'required|email:dns|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'invoice_terms'   => 'nullable|string|max:255',
             'payment_terms'   => 'nullable|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
@@ -230,7 +230,7 @@ class ClientController extends Controller
         $empClient = User::role('client')->find($client->user_id);
 
         Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
-        $empClient->forceDelete();
+        $empClient->delete();
         $client->forceDelete();
 
         return response()->json(['success' => true]);
@@ -247,7 +247,7 @@ class ClientController extends Controller
             $empClient = User::role('client')->find($client->user_id);
             Logger::log(Auth::user(), 'Delete', 'Client '.$client->client_name.' Deleted');
             
-            $empClient->forceDelete();
+            $empClient->delete();
             $client->forceDelete();
         }
 
