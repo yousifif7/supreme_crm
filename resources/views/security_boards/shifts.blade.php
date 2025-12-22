@@ -109,6 +109,7 @@
         </div>
 
         @include('security_boards.shiftmodal')
+        @include('security_boards.partials.edit-shift-modal')
 
         <!-- Edit Shift -->
 
@@ -333,31 +334,80 @@
             $.get(`${baseUrl}/editshift/` + record_id)
                 .done(function(data) {
                     console.debug('editShift response', data);
-                    if (data && data.shift) {
-                        $('#shift_id').val(record_id);
-                        $('#staff_id').val(data.shift.staff_id).trigger('change');
-                        $('#shift_date').val(data.shift.shift_date);
+                    const shiftObj = data.shift || data.shiftD || null;
+                    if (data && shiftObj) {
+                        const $modal = $('#edit_shift');
+                        $modal.find('#shift_id').val(record_id);
 
-                        $('#start_shift').val(data.shift.start_time);
-                        $('#end_shift').val(data.shift.end_time);
-                        if (typeof data.shift.guard_rate !== 'undefined') {
-                            $('#guard_rate').val(data.shift.guard_rate);
+                        // Populate selects lists if provided
+                        if (data.clients) {
+                            const $client = $modal.find('#clientSelect');
+                            $client.empty().append('<option value="">--choose--</option>');
+                            data.clients.forEach(function(c) {
+                                $client.append(`<option value="${c.id}">${c.first_name} ${c.last_name}</option>`);
+                            });
+                            const clientId = (shiftObj.shift && shiftObj.shift.client_id) || shiftObj.client_id || (shiftObj.client && shiftObj.client.id) || null;
+                            if (clientId) $client.val(clientId).trigger('change');
                         }
 
-                        if (typeof data.shift.absentee_start_time != 'undefined')
-                            $('#book_on').val(data.shift.absentee_start_time);
-                        if (typeof data.shift.absentee_end_time != 'undefined')
-                            $('#book_off').val(data.shift.absentee_end_time);
-                        $('#status_id').val(data.shift.is_assign);
+                        if (data.sites) {
+                            const $site = $modal.find('#siteSelect');
+                            $site.empty().append('<option value="">--choose--</option>');
+                            data.sites.forEach(function(s) {
+                                $site.append(`<option value="${s.id}">${s.site_name}</option>`);
+                            });
+                            const siteId = (shiftObj.shift && shiftObj.shift.site_id) || shiftObj.site_id || (shiftObj.site && shiftObj.site.id) || null;
+                            if (siteId) $site.val(siteId).trigger('change');
+                        }
 
-                        // Show modal using Bootstrap's JS API as a robust fallback
+                        if (data.subcontractors) {
+                            const $sub = $modal.find('#subcontractor_id');
+                            $sub.empty().append('<option value="">--choose--</option>');
+                            data.subcontractors.forEach(function(s) {
+                                $sub.append(`<option value="${s.id}">${s.first_name} ${s.last_name}</option>`);
+                            });
+                            const subId = (shiftObj.shift && shiftObj.shift.subcontractor_id) || shiftObj.subcontractor_id || (shiftObj.subcontractor && shiftObj.subcontractor.id) || null;
+                            if (subId) $sub.val(subId).trigger('change');
+                        }
+
+                        // Staff
+                        const staffVal = shiftObj.staff_id || (shiftObj.staff && shiftObj.staff.id) || null;
+                        if (staffVal) {
+                            $modal.find('#staff_id').val(staffVal).trigger('change');
+                        } else {
+                            $modal.find('#staff_id').val('');
+                        }
+
+                        // Basic fields
+                        $modal.find('#shift_date').val(shiftObj.shift_date || shiftObj.shift_date || '');
+                        $modal.find('#start_shift').val(shiftObj.start_time || shiftObj.start_time || '');
+                        $modal.find('#end_shift').val(shiftObj.end_time || shiftObj.end_time || '');
+                        if (typeof shiftObj.guard_rate !== 'undefined') {
+                            $modal.find('#guard_rate').val(shiftObj.guard_rate);
+                        }
+                        if (typeof shiftObj.absentee_start_time != 'undefined') $modal.find('#book_on').val(shiftObj.absentee_start_time);
+                        if (typeof shiftObj.absentee_end_time != 'undefined') $modal.find('#book_off').val(shiftObj.absentee_end_time);
+                        $modal.find('#status_id').val(shiftObj.is_assign || shiftObj.status || '');
+
+                        // Initialize select2 for selects inside modal (if not already)
+                        try {
+                            $modal.find('.select2_client, .select2_site, .StaffSelect').each(function() {
+                                if (!$(this).hasClass('select2-hidden-accessible')) {
+                                    $(this).select2({ dropdownParent: $modal });
+                                }
+                            });
+                        } catch (e) {
+                            // ignore
+                        }
+
+                        // Show modal
                         try {
                             const modalEl = document.getElementById('edit_shift');
                             if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                                 const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
                                 modalInstance.show();
                             } else if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
-                                $('#edit_shift').modal('show');
+                                $modal.modal('show');
                             } else {
                                 console.warn('No modal API available to show #edit_shift');
                             }
@@ -377,13 +427,30 @@
 
         let form = $(this)[0];
         let formData = new FormData(form);
+
+        // Ensure client_id is present (some Select2 setups or duplicate IDs can cause it to be missing)
+        try {
+            console.debug('editShift submit - initial client_id:', formData.get('client_id'));
+            if (!formData.get('client_id')) {
+                // Prefer the clientSelect inside this form, fall back to any #clientSelect
+                const clientVal = $(form).find('#clientSelect').val() || $('#clientSelect').val();
+                if (clientVal) {
+                    formData.set('client_id', clientVal);
+                    console.debug('editShift submit - set client_id from select to', clientVal);
+                } else {
+                    console.debug('editShift submit - clientSelect value not found in DOM');
+                }
+            }
+        } catch (err) {
+            console.error('Error ensuring client_id in FormData', err);
+        }
         let submitButton = $('#editshift');
         let shiftId = $(this).find('#shift_id').val();
 
         submitButton.prop('disabled', true).html('Updating...');
 
-        $.ajax({
-            url: `${baseUrl}/updateshift/${shiftId}`,
+            $.ajax({
+            url: `${baseUrl}/updateshift/simple/${shiftId}`,
             method: 'POST',
             data: formData,
             processData: false,
@@ -401,29 +468,9 @@
                 if (xhr.status === 422 && xhr.responseJSON?.errors) {
                     let messages = Object.values(xhr.responseJSON.errors).flat();
                     if (messages.length) {
-                        // Show restriction override button only for first error
-                        showRestrictionToast(messages[0], () => {
-                            // On override click
-                            $.ajax({
-                                url: `${baseUrl}/updateshift/${shiftId}/override`,
-                                method: 'POST',
-                                data: formData,
-                                processData: false,
-                                contentType: false,
-                                headers: {
-                                    'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                                },
-                                success: function(res) {
-                                    showToast('Shift updated with override!',
-                                        'success', 5000);
-                                    location.reload();
-                                },
-                                error: function(err) {
-                                    showToast('Override failed. Try again.',
-                                        'error', 5000);
-                                }
-                            });
-                        });
+                        showToast(messages[0], 'error', 7000);
+                    } else {
+                        showToast('Validation failed. Please check the form.', 'error', 5000);
                     }
                 } else {
                     showToast('An error occurred. Please try again.', 'error', 5000);
@@ -542,28 +589,57 @@
                 });
             }
         });
-        $(document).on("change", "#clientSelect", function() {
-            var $this = $(this);
-            const clientId = $(this).val();
-            if (!clientId) return;
+        // Handle client -> site population for both native selects and Select2-enhanced selects
+        $(document).on("change select2:select", "#clientSelect, .select2_client", function(e) {
+            // Prefer the event target when it's the original <select>, otherwise use this
+            var $target = $(e.target && e.target.nodeName === 'SELECT' ? e.target : this);
+            const clientId = $target.val();
 
-            var $siteSelect = $('#siteSelect');
+            // Determine the shift-group context (may be multiple groups on the page)
+            var $shiftGroup = $target.closest('.shift-group');
+            if (!$shiftGroup.length) $shiftGroup = $target.parents('.shift-group').first();
+
+            // Find the site select within the same group, falling back to global
+            var $siteSelect = $shiftGroup.length ? $shiftGroup.find('#siteSelect') : $target.closest('form').find('#siteSelect');
+            if (!$siteSelect || !$siteSelect.length) $siteSelect = $('#siteSelect');
+
+            // Reset options
             $siteSelect.html('<option value="">--choose--</option>');
+
+            if (!clientId) {
+                try {
+                    $shiftGroup.find('.siteRate').val('');
+                } catch (err) {}
+                try {
+                    $siteSelect.trigger('change');
+                } catch (err) {}
+                return;
+            }
 
             $.ajax({
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    $this.parents('.shift-group').find('.siteRate').val(data.client.office_rate || '');
+                    try {
+                        $shiftGroup.find('.siteRate').val(data.client.office_rate || '');
+                    } catch (err) {}
                     if (data.sites && data.sites.length > 0) {
                         $.each(data.sites, function(index, site) {
-                            $siteSelect.append('<option value="' + site.id + '">' + site
-                                .site_name + '</option>');
+                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
                         });
                     } else {
                         $siteSelect.append('<option value="">No sites found</option>');
                     }
+
+                    // Notify enhancers (Select2) to refresh their UI if needed
+                    try {
+                        if ($siteSelect.hasClass('select2')) {
+                            $siteSelect.trigger('change.select2');
+                        } else {
+                            $siteSelect.trigger('change');
+                        }
+                    } catch (err) { /* ignore */ }
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
@@ -571,9 +647,10 @@
             });
         });
 
-        $(document).on("change", "#StaffSelect", function() {
-            var $this = $(this);
-            const staffId = $(this).val();
+        // Update staff guard rate when staff selection changes (handles both native and Select2)
+        $(document).on("change select2:select", "#StaffSelect, .StaffSelect", function(e) {
+            var $target = $(e.target && e.target.nodeName === 'SELECT' ? e.target : this);
+            const staffId = $target.val();
             if (!staffId) return;
 
             $.ajax({
@@ -581,8 +658,9 @@
                 method: 'GET',
                 dataType: 'json',
                 success: function(data) {
-                    $this.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate ||
-                        '');
+                    try {
+                        $target.parents('.shift-group').find('.staffRate').val(data.employee.guard_rate || '');
+                    } catch (err) {}
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);

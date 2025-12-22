@@ -7,6 +7,7 @@ use App\Models\ShiftDate;
 use App\Models\Client;
 use App\Models\Site;
 use App\Models\Employee;
+use App\Models\User;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
@@ -16,6 +17,9 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
+use Maatwebsite\Excel\Concerns\WithBatchInserts;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Maatwebsite\Excel\Validators\Failure;
 
 /**
@@ -41,13 +45,59 @@ use Maatwebsite\Excel\Validators\Failure;
  * - Client and Site names should match existing records in the database
  * - Officer names are matched against fore_name, sur_name, or full name in employees table
  */
-class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnError, SkipsOnFailure
+class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnError, SkipsOnFailure, WithChunkReading, WithBatchInserts, ShouldQueue
 {
     use SkipsErrors;
 
     private $failures = [];
     private $currentRow = 1; // Track current row number
     private $successCount = 0; // Track successful imports
+    // Cached lookup maps to avoid DB queries per row
+    private $userClientMap = [];
+    private $legacyClientMap = [];
+    private $siteMap = [];
+    private $employeeMap = [];
+
+    public function __construct()
+    {
+        // Preload user-clients (role 'client')
+        try {
+            $users = User::role('client')->get();
+            foreach ($users as $u) {
+                $key = $this->normalizeForCompare(trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')));
+                if ($key !== '') $this->userClientMap[$key] = $u;
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        // Preload legacy Clients
+        try {
+            $clients = Client::all();
+            foreach ($clients as $c) {
+                $key = $this->normalizeForCompare($c->client_name ?? '');
+                if ($key !== '') $this->legacyClientMap[$key] = $c;
+            }
+        } catch (\Exception $e) {}
+
+        // Preload sites
+        try {
+            $sites = Site::all();
+            foreach ($sites as $s) {
+                $key = $this->normalizeForCompare($s->site_name ?? '');
+                if ($key !== '') $this->siteMap[$key] = $s;
+            }
+        } catch (\Exception $e) {}
+
+        // Preload employees
+        try {
+            $employees = Employee::select('id', 'fore_name', 'sur_name', 'user_id', 'sia_expiry')->get();
+            foreach ($employees as $e) {
+                $key = $this->normalizeForCompare(trim($e->fore_name . ' ' . $e->sur_name));
+                if ($key !== '') $this->employeeMap[$key] = $e;
+            }
+        } catch (\Exception $e) {}
+    }
 
     public function startRow(): int
     {
@@ -125,26 +175,47 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
             }
 
             // Find client by normalized-name matching in PHP (handles header differences/punctuation)
+            // Prefer matching against User records with role 'client' (most of the app uses users as clients).
             $client = null;
             if (!empty($clientRaw)) {
                 $search = $this->normalizeForCompare($clientRaw);
-                $clients = Client::all();
-                foreach ($clients as $c) {
-                    if (strpos($this->normalizeForCompare($c->client_name), $search) !== false) {
-                        $client = $c;
-                        break;
+
+                // 1) Try to match against preloaded user-clients map
+                if (isset($this->userClientMap[$search])) {
+                    $client = $this->userClientMap[$search];
+                } else {
+                    // substring match first
+                    foreach ($this->userClientMap as $k => $u) {
+                        if ($k !== '' && strpos($k, $search) !== false) {
+                            $client = $u; break;
+                        }
+                    }
+
+                    // fuzzy fallback on user full names
+                    if (!$client && !empty($this->userClientMap)) {
+                        $best = null; $bestDist = PHP_INT_MAX;
+                        foreach ($this->userClientMap as $k => $u) {
+                            $dist = levenshtein($search, $k);
+                            if ($dist < $bestDist) { $bestDist = $dist; $best = $u; }
+                        }
+                        if ($best && $bestDist <= 5) $client = $best;
                     }
                 }
 
-                // fuzzy levenshtein fallback on normalized names
-                if (!$client) {
-                    $best = null; $bestDist = PHP_INT_MAX;
-                    foreach ($clients as $c) {
-                        $dist = levenshtein($search, $this->normalizeForCompare($c->client_name));
-                        if ($dist < $bestDist) { $bestDist = $dist; $best = $c; }
+                // 2) Fallback to legacy client map
+                if (!$client && isset($this->legacyClientMap[$search])) {
+                    $client = $this->legacyClientMap[$search];
+                } elseif (!$client) {
+                    foreach ($this->legacyClientMap as $k => $c) {
+                        if ($k !== '' && strpos($k, $search) !== false) { $client = $c; break; }
                     }
-                    if ($best && $bestDist <= 5) {
-                        $client = $best;
+                    if (!$client && !empty($this->legacyClientMap)) {
+                        $best = null; $bestDist = PHP_INT_MAX;
+                        foreach ($this->legacyClientMap as $k => $c) {
+                            $dist = levenshtein($search, $k);
+                            if ($dist < $bestDist) { $bestDist = $dist; $best = $c; }
+                        }
+                        if ($best && $bestDist <= 5) $client = $best;
                     }
                 }
             }
@@ -157,27 +228,32 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
                 return null;
             }
 
-            // Find site by name (optionally filter by client)
-            $site = Site::where('site_name', 'like', '%' . trim($siteRaw) . '%')
-                       ->where('client_id', $client->id)
-                       ->first();
+            // Find site by name (optionally filter by client).
+            // Prefer DB lookup by LIKE with client_id (fast if indexed).
+            $site = null;
+            try {
+                $site = Site::where('site_name', 'like', '%' . trim($siteRaw) . '%')
+                    ->where('client_id', $client->id)
+                    ->first();
+            } catch (\Exception $e) { /* ignore */ }
 
-            // If not found in client's sites, try normalized PHP match across all sites
+            // If not found, try preloaded normalized map
             if (!$site && !empty($siteRaw)) {
                 $searchSite = $this->normalizeForCompare($siteRaw);
-                $sites = Site::all();
-                foreach ($sites as $st) {
-                    if (strpos($this->normalizeForCompare($st->site_name), $searchSite) !== false) {
-                        $site = $st; break;
+                if (isset($this->siteMap[$searchSite])) {
+                    $site = $this->siteMap[$searchSite];
+                } else {
+                    foreach ($this->siteMap as $k => $st) {
+                        if ($k !== '' && strpos($k, $searchSite) !== false) { $site = $st; break; }
                     }
-                }
-                if (!$site) {
-                    $best = null; $bestDist = PHP_INT_MAX;
-                    foreach ($sites as $st) {
-                        $dist = levenshtein($searchSite, $this->normalizeForCompare($st->site_name));
-                        if ($dist < $bestDist) { $bestDist = $dist; $best = $st; }
+                    if (!$site && !empty($this->siteMap)) {
+                        $best = null; $bestDist = PHP_INT_MAX;
+                        foreach ($this->siteMap as $k => $st) {
+                            $dist = levenshtein($searchSite, $k);
+                            if ($dist < $bestDist) { $bestDist = $dist; $best = $st; }
+                        }
+                        if ($best && $bestDist <= 5) $site = $best;
                     }
-                    if ($best && $bestDist <= 5) { $site = $best; }
                 }
             }
 
@@ -191,37 +267,39 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
 
             // Find officer/staff by name (optional)
             $staff = null;
-            $staffId = null;
-            $officerRaw = $this->findColumnValue($row, ['officer', 'officer name', 'staff', 'staff name']);
+            $staffUserId = null;
+            $officerRaw = $this->findColumnValue($row, ['officer', 'officer name', 'staff', 'staff name', 'officername', 'staffname']);
             $officerRaw = $this->normalizeCell($officerRaw);
             if (!empty($officerRaw)) {
                 $officerName = trim($officerRaw);
-                $staff = Employee::where(function($query) use ($officerName) {
-                    $query->where('fore_name', 'like', '%' . $officerName . '%')
-                          ->orWhere('sur_name', 'like', '%' . $officerName . '%')
-                          ->orWhereRaw("CONCAT(fore_name, ' ', sur_name) LIKE ?", ['%' . $officerName . '%']);
-                })->first();
+                $searchEmp = $this->normalizeForCompare($officerName);
 
-                // If not found, try fuzzy levenshtein on employee full names
-                if (!$staff) {
-                    $employees = Employee::select('id', 'fore_name', 'sur_name')->get();
-                    $best = null; $bestDist = PHP_INT_MAX;
-                    foreach ($employees as $e) {
-                        $full = trim($e->fore_name . ' ' . $e->sur_name);
-                        $dist = levenshtein(strtolower($officerName), strtolower($full));
-                        if ($dist < $bestDist) { $bestDist = $dist; $best = $e; }
+                // Exact/preloaded match
+                if (isset($this->employeeMap[$searchEmp])) {
+                    $staff = $this->employeeMap[$searchEmp];
+                } else {
+                    // substring match
+                    foreach ($this->employeeMap as $k => $e) {
+                        if ($k !== '' && strpos($k, $searchEmp) !== false) { $staff = $e; break; }
                     }
-                    if ($best && $bestDist <= 5) {
-                        $staff = $best;
+                    // fuzzy fallback
+                    if (!$staff && !empty($this->employeeMap)) {
+                        $best = null; $bestDist = PHP_INT_MAX;
+                        foreach ($this->employeeMap as $k => $e) {
+                            $dist = levenshtein($searchEmp, $k);
+                            if ($dist < $bestDist) { $bestDist = $dist; $best = $e; }
+                        }
+                        if ($best && $bestDist <= 5) $staff = $best;
                     }
                 }
 
                 if ($staff) {
-                    $staffId = $staff->id;
+                    // Use the employee's user_id when storing staff_id on shifts
+                    $staffUserId = $staff->user_id ?? $staff->id;
 
                     // Check if staff SIA license is expired
-                    if ($staff->sia_expiry && Carbon::parse($staff->sia_expiry)->lt(now())) {
-                        Log::warning("Staff {$officerName} has expired SIA license for shift on {$shiftDate}");
+                    if (isset($staff->sia_expiry) && $staff->sia_expiry && Carbon::parse($staff->sia_expiry)->lt(now())) {
+                        Log::warning("Staff {$officerName} has expired SIA licence for shift on {$shiftDate}");
                     }
                 }
             }
@@ -262,8 +340,8 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
             $dayAbbr = Carbon::parse($shiftDate)->format('D');
 
             // Check for overlapping shifts if staff is assigned
-            if ($staffId) {
-                $overlappingShiftDate = ShiftDate::where('staff_id', $staffId)
+            if ($staffUserId) {
+                $overlappingShiftDate = ShiftDate::where('staff_id', $staffUserId)
                     ->where('shift_date', $shiftDate)
                     ->where(function($query) use ($startTime, $endTime) {
                         $query->where(function($q) use ($startTime, $endTime) {
@@ -287,14 +365,14 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
                 'from_shift' => $shiftDate,
                 'to_shift' => $shiftDate,
             ], [
-                'staff_id' => $staffId,
+                'staff_id' => $staffUserId,
                 'number_shift' => 1,
                 'site_rate' => $site->guard_rate ?? $client->guard_rate ?? 0,
                 'employee_rate' => $site->payable_rate ?? 0,
                 'comments' => $row['comments'] ?? null,
                 'days' => json_encode([$dayAbbr]),
                 'lost_time' => $row['lost_time'] ?? null,
-                'is_assign' => $staffId ? 1 : 0,
+                'is_assign' => $staffUserId ? 1 : 0,
                 'restrict_start_time' => 0,
                 'enforce_picture_check' => 0,
                 'restrict_location_check' => 0,
@@ -303,12 +381,12 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
             // Create shift date entry
             $shiftDate = new ShiftDate([
                 'shift_id' => $shift->id,
-                'staff_id' => $staffId,
+                        'staff_id' => $staffUserId,
                 'shift_date' => $shiftDate,
                 'start_time' => $startTime,
                 'end_time' => $endTime,
                 'total_hours' => $totalHours,
-                'is_assign' => $staffId ? 1 : 0,
+                'is_assign' => $staffUserId ? 1 : 0,
                 'break_time' => null, // Could be calculated or set from lost time
             ]);
 
@@ -348,6 +426,22 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
     public function getFailureCount()
     {
         return count($this->failures);
+    }
+
+    /**
+     * Chunk size for reading the spreadsheet. Smaller chunks reduce memory usage.
+     */
+    public function chunkSize(): int
+    {
+        return 1000; // adjust if needed (500-2000)
+    }
+
+    /**
+     * Batch size for inserts when using batch inserts.
+     */
+    public function batchSize(): int
+    {
+        return 500;
     }
 
     /**

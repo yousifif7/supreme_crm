@@ -139,18 +139,26 @@ class ShiftController extends Controller
     }
     public function scheduling()
     {
-        // $shifts = Shift::all();
+        // Default window: 2 months before today through 1 month after today
+        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
         $subcontractors = User::role('subcontractor')->get();
-        // $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
     }
     public function worker_calendar()
     {
-        $shifts = Shift::all();
+        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+
+        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
+            $q->whereBetween('shift_date', [$startDefault, $endDefault]);
+        })->with(['client', 'site'])->get();
+
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
@@ -161,7 +169,13 @@ class ShiftController extends Controller
     }
     public function site_calendar()
     {
-        $shifts = Shift::all();
+        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+
+        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
+            $q->whereBetween('shift_date', [$startDefault, $endDefault]);
+        })->with(['client', 'site'])->get();
+
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
@@ -172,7 +186,13 @@ class ShiftController extends Controller
     }
     public function today_rota()
     {
-        $shifts = Shift::all();
+        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+
+        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
+            $q->whereBetween('shift_date', [$startDefault, $endDefault]);
+        })->with(['client', 'site'])->get();
+
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
@@ -623,10 +643,23 @@ class ShiftController extends Controller
 
     public function edit($id)
     {
-        $shift = ShiftDate::find($id);
-        // $shift = Shift::with('client', 'site', 'staff')->find($shiftDate->shift_id);
+        $shift = ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff', 'shift.subcontractor'])->findOrFail($id);
 
-        return response()->json(['shift' => $shift]);
+        // Provide lists used by the edit modal so the frontend can populate selects
+        $clients = User::role('client')->orderBy('first_name', 'asc')->get();
+        $sites = Site::orderBy('site_name', 'asc')->get();
+        $staffs = User::role('security_staff')->orderBy('first_name', 'asc')->get();
+        $subcontractors = User::role('subcontractor')->orderBy('first_name', 'asc')->get();
+        $services = EmployeeType::all();
+
+        return response()->json([
+            'shift' => $shift,
+            'clients' => $clients,
+            'sites' => $sites,
+            'staffs' => $staffs,
+            'subcontractors' => $subcontractors,
+            'services' => $services,
+        ]);
     }
 
     public function update(Request $request, $id)
@@ -981,6 +1014,12 @@ class ShiftController extends Controller
 
         if (!empty($from_shift) && !empty($to_shift)) {
             $query->whereBetween('shift_date', [$from_shift, $to_shift]);
+        } else {
+            // Default window: 2 months before today through 1 month after today
+            // This includes the upcoming month while still limiting historic data
+            $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+            $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+            $query->whereBetween('shift_date', [$startDefault, $endDefault]);
         }
 
         $shiftDates = $query->get();
@@ -1031,8 +1070,8 @@ class ShiftController extends Controller
             // Staff
             $staffName = $sd->staff ? $sd->staff->first_name . " " . $sd->staff->last_name : 'Not Assigned';
 
-            // Client
-            $client = User::find($shift->client_id);
+            // Client (use eager-loaded relation to avoid an extra query)
+            $client = $shift->client ?? null;
 
             $note = ShiftNote::where('shift_date_id', $sd->id)->first(); // or $sd->shiftNote, depending on your relationship
 
@@ -1059,8 +1098,8 @@ class ShiftController extends Controller
                 // Use ISO date format (YYYY-MM-DDTHH:MM:SS) for reliable JS parsing
                 'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
                 'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
-                'note' => $note?->note ?? null,         
-                'note_type' => $note?->note_type ?? null, 
+                'note' => $note?->note ?? null,
+                'note_type' => $note?->note_type ?? null,
                 // include the shift_date created_at so frontend can order by creation time
                 'created_at' => $sd->created_at ? $sd->created_at->format('Y-m-d\TH:i:s') : null,
             ];
@@ -1071,7 +1110,14 @@ class ShiftController extends Controller
 
     public function getShiftsWithStaff()
     {
-        $shifts = Shift::with(['client', 'site'])->get();
+        // Only load shifts that have ShiftDates in the last 3 months to avoid loading huge datasets
+        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+
+        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
+            $q->whereNotNull('staff_id')
+              ->whereBetween('shift_date', [$startDefault, $endDefault]);
+        })->with(['client', 'site'])->get();
         $events = [];
         $highlightDates = [];
 
@@ -1092,6 +1138,7 @@ class ShiftController extends Controller
 
             $sds = ShiftDate::where('shift_id', $shift->id)
                 ->whereNotNull('staff_id')
+                ->whereBetween('shift_date', [$startDefault, $endDefault])
                 ->with('staff')
                 ->get();
 
@@ -1150,10 +1197,19 @@ class ShiftController extends Controller
     {
         // If the current user is a client, only return shifts for that client's sites
         $user = Auth::user();
+        // Only include shifts that have ShiftDates in the last 3 months
+        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
+        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+
         if ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) {
-            $shifts = Shift::with(['site'])->where('client_id', $user->id)->get();
+            $shifts = Shift::where('client_id', $user->id)
+                ->whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
+                    $q->whereBetween('shift_date', [$startDefault, $endDefault]);
+                })->with(['site'])->get();
         } else {
-            $shifts = Shift::with(['site'])->get();
+            $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
+                $q->whereBetween('shift_date', [$startDefault, $endDefault]);
+            })->with(['site'])->get();
         }
         $events = [];
         $highlightDates = [];
@@ -1171,7 +1227,9 @@ class ShiftController extends Controller
         ];
 
         foreach ($shifts as $shift) {
-            $sds = ShiftDate::where('shift_id', $shift->id)->get();
+            $sds = ShiftDate::where('shift_id', $shift->id)
+                ->whereBetween('shift_date', [$startDefault, $endDefault])
+                ->get();
 
             foreach ($sds as $sd) {
                 $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
@@ -2392,5 +2450,57 @@ class ShiftController extends Controller
 
             return response()->json($payload, 500);
         }
+    }
+
+    /**
+     * Lightweight AJAX update used by the edit modal.
+     * Accepts singular form fields and updates the ShiftDate record.
+     */
+    public function updateSimple(Request $request, $id)
+    {
+        $shift = ShiftDate::findOrFail($id);
+
+        $validator = Validator::make($request->all(), [
+            'staff_id' => 'nullable|integer',
+            'guard_rate' => 'nullable|numeric',
+            'start_shift' => 'required',
+            'end_shift' => 'required',
+            'book_on' => 'nullable',
+            'book_off' => 'nullable',
+            'shift_date' => 'nullable|date',
+            'status_id' => 'nullable|integer',
+            'subcontractor_id' => 'nullable|integer',
+            'client_id' => 'nullable|integer',
+            'site_id' => 'nullable|integer',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $data = $validator->validated();
+
+        if (array_key_exists('staff_id', $data)) $shift->staff_id = $data['staff_id'];
+        if (array_key_exists('start_shift', $data)) $shift->start_time = $data['start_shift'];
+        if (array_key_exists('end_shift', $data)) $shift->end_time = $data['end_shift'];
+        if (array_key_exists('book_on', $data)) $shift->absentee_start_time = $data['book_on'];
+        if (array_key_exists('book_off', $data)) $shift->absentee_end_time = $data['book_off'];
+        if (array_key_exists('guard_rate', $data)) $shift->guard_rate = $data['guard_rate'];
+        if (array_key_exists('shift_date', $data)) $shift->shift_date = $data['shift_date'];
+        if (array_key_exists('status_id', $data)) $shift->is_assign = $data['status_id'];
+        // if (array_key_exists('subcontractor_id', $data)) $shift->subcontractor_id = $data['subcontractor_id'];
+        // if (array_key_exists('client_id', $data)) $shift->client_id = $data['client_id'];
+        // if (array_key_exists('site_id', $data)) $shift->site_id = $data['site_id'];
+
+        // Calculate total hours where possible using controller helper
+        try {
+            $shift->total_hours = $this->calculateTotalHours($shift->start_time, $shift->end_time, 'H:i');
+        } catch (\Throwable $e) {
+            // silently ignore calculation errors
+        }
+
+        $shift->save();
+
+        return response()->json(['message' => 'Shift updated', 'shift' => $shift]);
     }
 }

@@ -39,17 +39,35 @@ class UserController extends Controller
         if(auth()->user()->hasRole('client')){
             return redirect()->route('client.dashboard');
         }
-        // Prune old notifications (guarded to run once per day via cache)
-        $this->pruneOldNotifications();
+        // Prune old notifications (guarded): do NOT run maintenance jobs during web requests.
+        // These helpers are heavy and should be run via scheduler/console. Only call when running in console.
+        if (app()->runningInConsole()) {
+            $this->pruneOldNotifications();
+        }
         
-        $shifts = ShiftDate::where('shift_date', Carbon::today()->toDateString())->with('shift.staff')->get();
-        $invoices = Invoice::with(['client', 'site'])
-            ->whereNotNull('client_id')->get();
-        $review = ShiftDate::where('is_assign', '1')->count();
-        $clients = Client::all();
-        $staffs = User::role('security_staff')->get();
+        // Today's shift dates: select only needed columns to reduce payload
+        $shifts = ShiftDate::whereDate('shift_date', Carbon::today()->toDateString())
+            ->select('id', 'shift_id', 'staff_id', 'shift_date', 'start_time', 'end_time')
+            ->with([
+                'shift' => function ($q) {
+                    $q->select('id', 'site_id', 'client_id');
+                },
+                'shift.staff' => function ($q) {
+                    $q->select('id', 'first_name', 'last_name');
+                }
+            ])->get();
 
-        $checkCalls = CheckCall::with('shiftDate')
+        // Use direct count queries (avoid fetching entire collections)
+        $invoices = Invoice::whereNotNull('client_id')->count();
+        $review = ShiftDate::where('is_assign', '1')->count();
+        $clients = Client::count();
+        $staffs = User::role('security_staff')->count();
+
+        // Limit columns and eager-load only necessary shiftDate fields
+        $checkCalls = CheckCall::select('id', 'shift_id', 'name', 'scheduled_time', 'status')
+            ->with(['shiftDate' => function ($q) {
+                $q->select('id', 'shift_date', 'shift_id');
+            }])
             ->whereIn('status', ['pending', 'missed', 'completed'])
             ->whereHas('shiftDate', function ($q) {
                 $q->whereBetween('scheduled_time', [
@@ -63,7 +81,10 @@ class UserController extends Controller
 
         $now = Carbon::now();
 
-        $bookings = ShiftBooking::with('shift')
+        $bookings = ShiftBooking::select('id', 'user_id', 'shift_id', 'type', 'timestamp')
+            ->with(['shift' => function ($q) {
+                $q->select('id', 'site_id', 'client_id');
+            }])
             ->whereHas('shift')
             ->orderBy('timestamp', 'desc')
             ->take(10)
@@ -74,108 +95,80 @@ class UserController extends Controller
         $siaDocuments = Employee::whereNotNull('sia_licence')
             ->whereDate('sia_expiry', '<', Carbon::today()->toDateString())
             ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
+            ->take(50)
             ->paginate(10);
 
-        // Get the full datetime range for this week
-        $startOfThisWeek = Carbon::now()->startOfWeek()->startOfDay(); // Monday 00:00:00
-        $endOfThisWeek = Carbon::now()->endOfWeek()->endOfDay();       // Sunday 23:59:59
-
-        // Get the full datetime range for last week
-        $startOfLastWeek = Carbon::now()->subWeek()->startOfWeek()->startOfDay();
-        $endOfLastWeek = Carbon::now()->subWeek()->endOfWeek()->endOfDay();
-
-        // Query clients
-        $clientsThisWeek = Client::whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
-        $clientsLastWeek = Client::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
-        // Query employees
-        $employeesThisWeek = Employee::whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
-        $employeesLastWeek = Employee::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
-        // Query invoices
-        $invoicesThisWeek = Invoice::whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
-        $invoicesLastWeek = Invoice::whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
-        // Query review
-        $reviewThisWeek = ShiftDate::where('is_assign', '1')->whereBetween('created_at', [$startOfThisWeek, $endOfThisWeek])->count();
-        $reviewLastWeek = ShiftDate::where('is_assign', '1')->whereBetween('created_at', [$startOfLastWeek, $endOfLastWeek])->count();
-        // Calculate growth
-        if ($clientsLastWeek > 0) {
-            $growthPercentage = (($clientsThisWeek - $clientsLastWeek) / $clientsLastWeek) * 100;
-        } else {
-            $growthPercentage = $clientsThisWeek > 0 ? 100 : 0;
-        }
-
-        $clientgrowthPercentage = round($growthPercentage, 2);
-        if ($employeesLastWeek > 0) {
-            $employeegrowthPercentage = (($employeesThisWeek - $employeesLastWeek) / $employeesLastWeek) * 100;
-        } else {
-            $employeegrowthPercentage = $employeesThisWeek > 0 ? 100 : 0;
-        }
-        $employeerowthPercentage = round($employeegrowthPercentage, 2);
-
-        if ($invoicesLastWeek > 0) {
-            $invoicegrowthPercentage = (($invoicesThisWeek - $invoicesLastWeek) / $invoicesLastWeek) * 100;
-        } else {
-            $invoicegrowthPercentage = $invoicesThisWeek > 0 ? 100 : 0;
-        }
-        $invoicerowthPercentage = round($invoicegrowthPercentage, 2);
-
-        if ($reviewLastWeek > 0) {
-            $reviewgrowthPercentage = (($reviewThisWeek - $reviewLastWeek) / $reviewLastWeek) * 100;
-        } else {
-            $reviewgrowthPercentage = $reviewThisWeek > 0 ? 100 : 0;
-        }
-        $reviewrowthPercentage = round($reviewgrowthPercentage, 2);
 
         // Run missed/unassigned shift notifications (cached to run at most once per hour)
-        $this->missedShiftNotifications();
+        // Avoid running during HTTP requests; schedule this in cron instead.
+        if (app()->runningInConsole()) {
+            $this->missedShiftNotifications();
+        }
         // --- Users (latest locations) ---
-        $userLocations = Location::with([
-            'user:id,first_name,last_name',
-            'user.employee:id,user_id,service_type',
-        ])
-            ->whereNotNull('latitude') // ensure only real locations
-            ->whereNotNull('longitude')
-            ->whereIn('id', function ($query) {
-                $query->select(DB::raw('MAX(id)'))
-                    ->from('locations')
-                    ->whereNotNull('user_id')
-                    ->groupBy('user_id');
-            })
-            ->get()
-            ->map(function ($l) {
-                return [
-                    'id' => 'user-' . $l->user_id,
-                    'latitude' => (float) $l->latitude,
-                    'longitude' => (float) $l->longitude,
-                    'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
-                    'type' => 'user',
-                    'service_type_id' => optional(optional($l->user)->employee)->service_type,
-                    'accuracy' => $l->accuracy,
-                    'on_duty' => (bool) $l->on_duty,
-                    'timestamp' => optional($l->created_at)->toDateTimeString(),
-                ];
-            });
+        // Cache this expensive lookup for a short period (60s) to improve dashboard response
+        $cutoff24 = Carbon::now()->subDay();
+        $cacheKeyUsers = 'dashboard_user_locations_' . $cutoff24->toDateString();
+        $userLocations = Cache::remember($cacheKeyUsers, 60, function () use ($cutoff24) {
+            return Location::with([
+                'user:id,first_name,last_name',
+                'user.employee:id,user_id,service_type',
+            ])
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->whereIn('id', function ($query) use ($cutoff24) {
+                    $query->select(DB::raw('MAX(id)'))
+                        ->from('locations')
+                        ->whereNotNull('user_id')
+                        ->where('created_at', '>=', $cutoff24)
+                        ->groupBy('user_id');
+                })
+                ->get()
+                ->map(function ($l) {
+                    return [
+                        'id' => 'user-' . $l->user_id,
+                        'latitude' => (float) $l->latitude,
+                        'longitude' => (float) $l->longitude,
+                        'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
+                        'type' => 'user',
+                        'service_type_id' => optional(optional($l->user)->employee)->service_type,
+                        'accuracy' => $l->accuracy,
+                        'on_duty' => (bool) $l->on_duty,
+                        'timestamp' => optional($l->created_at)->toDateTimeString(),
+                    ];
+                });
+        });
 
         // --- Sites (pass postal codes only, no server-side geocoding) ---
-        $sites = Site::whereHas('shifts', function ($query) {
-            $query->whereHas('shiftDates', function ($query) {
-                $query->whereNotNull('staff_id');
+        // Only include sites which have shifts with assigned staff in the last 7 days
+        $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
+        $sites = Site::whereHas('shifts', function ($query) use ($sevenDaysAgo) {
+            $query->whereHas('shiftDates', function ($query) use ($sevenDaysAgo) {
+                $query->whereNotNull('staff_id')
+                      ->whereDate('shift_date', '>=', $sevenDaysAgo);
             });
         })->select('id', 'site_name', 'post_code','address')->get();
 
-        $siteLocations = $sites->map(function ($site) {
-            return [
-                'id' => 'site-' . $site->id,
-                'name' => $site->site_name,
-                'postalcode' => $site->post_code,
-                'address' => $site->address,
-                'type' => 'site',
-            ];
+        // Cache site locations for a slightly longer period (5 minutes)
+        $cacheKeySites = 'dashboard_site_locations_' . now()->startOfDay()->toDateString();
+        $siteLocations = Cache::remember($cacheKeySites, 300, function () use ($sites) {
+            return $sites->map(function ($site) {
+                return [
+                    'id' => 'site-' . $site->id,
+                    'name' => $site->site_name,
+                    'postalcode' => $site->post_code,
+                    'address' => $site->address,
+                    'type' => 'site',
+                ];
+            });
         });
 
-        $this->weeklyHoursNotification();
+        // Weekly notifications should be scheduled (do not execute during web request)
+        if (app()->runningInConsole()) {
+            $this->weeklyHoursNotification();
+        }
         // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'clientgrowthPercentage', 'employeegrowthPercentage', 'invoicerowthPercentage', 'reviewrowthPercentage', 'userLocations', 'siteLocations'));
+        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations', 'siteLocations'));
     }
 
     public function index(UsersDataTable $dataTable)
@@ -488,24 +481,45 @@ class UserController extends Controller
         }
 
         $now = now();
+        // limit checks to shift_dates within the last 24 hours to avoid scanning historic data
+        $cutoff24 = $now->copy()->subDay()->toDateString();
 
         // --- Missed Book On Notifications ---
         $missedBookOns = ShiftDate::whereNotNull('staff_id')
             ->whereNull('absentee_start_time')
-            ->whereDate('shift_date', '<=', $now->toDateString())
+            ->whereBetween('shift_date', [$cutoff24, $now->toDateString()])
             ->whereTime('start_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->select('id', 'staff_id', 'start_time', 'shift_date', 'is_assign')
             ->get();
-            
+
+        // --- Missed Book Off Notifications ---
+        $missedBookOffs = ShiftDate::whereNotNull('staff_id')
+            ->whereNull('absentee_end_time')
+            ->whereBetween('shift_date', [$cutoff24, $now->toDateString()])
+            ->whereTime('end_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->select('id', 'staff_id', 'end_time', 'shift_date')
+            ->get();
+
+        // collect staff ids to eager-load once
+        $staffIds = collect($missedBookOns)->pluck('staff_id')->merge(collect($missedBookOffs)->pluck('staff_id'))->unique()->filter()->values()->all();
+        $staffMap = [];
+        if (!empty($staffIds)) {
+            $staffMap = User::whereIn('id', $staffIds)
+                ->select('id', 'first_name', 'last_name')
+                ->get()
+                ->keyBy('id');
+        }
+
         foreach ($missedBookOns as $sd) {
-            if($sd->is_assign==2){
+            if ($sd->is_assign == 2) {
                 $perShiftKey = 'missed_shift_on_' . $sd->id;
                 if (Cache::has($perShiftKey)) {
                     continue;
                 }
-    
-                $employee = User::find($sd->staff_id);
+
+                $employee = $staffMap[$sd->staff_id] ?? null;
                 $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
-    
+
                 Notify::toDashboard(
                     $employee?->id,
                     'alarm',
@@ -513,18 +527,10 @@ class UserController extends Controller
                     "Guard {$guardName} did not book on for their shift starting at {$sd->start_time} on {$sd->shift_date}.",
                     "/shift-dates/{$sd->id}/view"
                 );
-    
-                // Mark this shift as notified for 1 hour to prevent repeats
+
                 Cache::put($perShiftKey, true, now()->addHour());
             }
         }
-
-        // --- Missed Book Off Notifications ---
-        $missedBookOffs = ShiftDate::whereNotNull('staff_id')
-            ->whereNull('absentee_end_time')
-            ->whereDate('shift_date', '<=', $now->toDateString())
-            ->whereTime('end_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
-            ->get();
 
         foreach ($missedBookOffs as $sd) {
             $perShiftKey = 'missed_shift_off_' . $sd->id;
@@ -532,7 +538,7 @@ class UserController extends Controller
                 continue;
             }
 
-            $employee = User::find($sd->staff_id);
+            $employee = $staffMap[$sd->staff_id] ?? null;
             $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
 
             Notify::toDashboard(

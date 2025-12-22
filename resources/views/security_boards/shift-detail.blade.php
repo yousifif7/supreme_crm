@@ -718,16 +718,18 @@
                                         <th>Started at</th>
                                         <th>completed at</th>
                                         <th>Status</th>
+                                        <th>Scans</th>
                                         <th>Media</th>
                                         <th>Action</th>
                                         <th>Map</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($patrols as $patrol)
-                                    @php
+                                        @foreach ($patrols as $patrol)
+                                        @php
                                             $patrolMedia =\App\Models\PatrolMedia::where('patrol_id',$patrol->id)->get() ?? collect(); 
-                                    @endphp
+                                            $patrolScans = \App\Models\CheckpointScan::where('patrol_id', $patrol->id)->orderBy('timestamp','desc')->get() ?? collect();
+                                        @endphp
                                         <tr>
                                             <td>{{ $patrol->name }}</td>
                                             <td>{{ \Carbon\Carbon::parse($patrol->start_time)->format('d-m-Y H:i') }}</td>
@@ -755,6 +757,36 @@
                                                     <p class="bg-success text-center">Completed</p>
                                                 @elseif($patrol->status == 'missed')
                                                     <p class="bg-danger text-center">Missed</p>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                @if($patrolScans->isNotEmpty())
+                                                    @foreach($patrolScans as $scan)
+                                                        <div class="mb-1">
+                                                            <small class="text-muted">{{ strtoupper($scan->scan_method) }} — {{ optional(\Carbon\Carbon::parse($scan->timestamp))->format('d-m H:i') }}</small>
+                                                            <div>
+                                                                @php
+                                                                    $scanPayload = [
+                                                                        'id' => $scan->id,
+                                                                        'scan_method' => $scan->scan_method,
+                                                                        'timestamp' => $scan->timestamp,
+                                                                        'notes' => $scan->notes ?? null,
+                                                                        'issues_found' => $scan->issues_found ?? null,
+                                                                        'latitude' => $scan->latitude ?? null,
+                                                                        'longitude' => $scan->longitude ?? null,
+                                                                        'media' => $scan->media()->pluck('file_path')->toArray(),
+                                                                    ];
+                                                                @endphp
+                                                                <a href="#" class="btn btn-sm btn-outline-primary view-scan-btn"
+                                                                    data-scan-id="{{ $scan->id }}"
+                                                                    data-scan='@json($scanPayload)'>
+                                                                    View
+                                                                </a>
+                                                            </div>
+                                                        </div>
+                                                    @endforeach
+                                                @else
+                                                    No scans
                                                 @endif
                                             </td>
                                             <td>
@@ -882,6 +914,26 @@
         </div>
 
     </div>
+    <!-- Scan Detail Modal -->
+    <div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scanModalLabel">Scan details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="scanDetailsContainer">
+                        <!-- populated by JS -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 @endsection
 @section('scripts')
     @php
@@ -889,6 +941,44 @@
     @endphp
 
     <script>
+        const baseUrl = "{{ url('') }}";
+
+        // Handle scan view button clicks
+        $(document).on('click', '.view-scan-btn', function(e) {
+            e.preventDefault();
+            let raw = $(this).attr('data-scan');
+            if (!raw) return;
+            try {
+                const scan = JSON.parse(raw);
+                const container = $('#scanDetailsContainer');
+                let html = `<p><strong>Method:</strong> ${scan.scan_method ? scan.scan_method.toUpperCase() : 'N/A'}</p>`;
+                html += `<p><strong>Time:</strong> ${scan.timestamp ? scan.timestamp : 'N/A'}</p>`;
+                if (scan.notes) html += `<p><strong>Notes:</strong> ${scan.notes}</p>`;
+                if (scan.issues_found) html += `<p><strong>Issues:</strong> ${scan.issues_found}</p>`;
+                if (scan.latitude && scan.longitude) {
+                    html += `<p><strong>Location:</strong> ${scan.latitude}, ${scan.longitude}</p>`;
+                }
+
+                // Media
+                if (Array.isArray(scan.media) && scan.media.length) {
+                    html += `<hr><h6>Media</h6><div class="d-flex flex-column">`;
+                    scan.media.forEach(function(p) {
+                        // Build absolute URL
+                        const url = p.startsWith('http') ? p : (baseUrl.replace(/\/$/, '') + '/' + p.replace(/^\//, ''));
+                        html += `<a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary mb-1">Open file</a>`;
+                    });
+                    html += `</div>`;
+                } else {
+                    html += `<p class="text-muted">No media attached.</p>`;
+                }
+
+                container.html(html);
+                $('#scanModal').modal('show');
+            } catch (err) {
+                console.error('Failed to parse scan payload', err);
+            }
+        });
+
         window.isSuperAdmin = @json(auth()->check() &&
                 auth()->user() &&
                 auth()->user()->getRoleNames() &&

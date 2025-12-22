@@ -301,6 +301,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/today_rota', [ShiftController::class, 'today_rota'])->name('shifts.today_rota');
     Route::post('shifts', [ShiftController::class, 'store'])->name('shifts.store');
     Route::post('/updateshift/{id}', [ShiftController::class, 'update'])->name('shifts.update');
+    Route::post('/updateshift/simple/{id}', [ShiftController::class, 'updateSimple'])->name('shifts.updateSimple');
     Route::get('/editshift/{id}', [ShiftController::class, 'edit'])->name('shifts.edit');
     Route::delete('/deleteshift/{id}', [ShiftController::class, 'destroy'])->name('shifts.destroy');
     Route::post('/shifts/bulk-delete', [ShiftController::class, 'bulkDelete'])->name('shifts.bulkDelete');

@@ -53,7 +53,7 @@
                                 <div class="ms-3">
                                     <a href="/employees">
                                         <p class="fw-medium text-truncate mb-1 fs-16">Total Security Staff</p>
-                                        <h5 class="fs-18">{{ $staffs->count() }}</h5>
+                                        <h5 class="fs-18">{{ $staffs }}</h5>
                                     </a>
                                 </div>
                             </div>
@@ -71,7 +71,7 @@
                                 <div class="ms-3">
                                     <a href="/clients">
                                         <p class="fw-medium text-truncate mb-1 fs-16">Total Clients</p>
-                                        <h5 class="fs-18">{{ $clients->count() }}</h5>
+                                        <h5 class="fs-18">{{ $clients }}</h5>
                                     </a>
                                 </div>
                             </div>
@@ -90,7 +90,7 @@
                                 <div class="ms-3">
                                     <a href="/invoices">
                                         <p class="fw-medium text-truncate mb-1 fs-16">No of Invoice Sent</p>
-                                        <h5 class="fs-18">{{ $invoices->count() }}</h5>
+                                        <h5 class="fs-18">{{ $invoices }}</h5>
                                     </a>
                                 </div>
                             </div>

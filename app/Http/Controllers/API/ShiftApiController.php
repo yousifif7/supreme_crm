@@ -1567,9 +1567,11 @@ class ShiftApiController extends Controller
     public function checkDutyStatus(Request $request)
     {
         $user = Auth::user();
+        $userId = $user->id;
 
-        // Get the latest shift booking
-        $latestBooking = ShiftBooking::where('user_id', $user->id)
+        // Find the latest "book_on" booking for the user (this represents the booked-on shift)
+        $latestBooking = ShiftBooking::where('user_id', $userId)
+            ->where('type', 'book_on')
             ->latest('created_at')
             ->first();
 
@@ -1577,29 +1579,114 @@ class ShiftApiController extends Controller
         if (!$latestBooking) {
             return response()->json([
                 'status' => 'off-duty',
-                'shift_date_id' => null,
-                'shift_id' => null,
-                'message' => 'No shift bookings found.'
+                'shift_date' => null,
+                'patrol_id' => null,
+                'message' => 'No booked-on shifts found.'
             ]);
         }
 
-        // Fetch related shift info safely
-        $shiftDate = ShiftDate::find($latestBooking->shift_id);
-        $shift = $shiftDate ? Shift::find($shiftDate->shift_id) : null;
+        // Eager-load same relations as getShifts so response shape matches
+        $shiftDate = ShiftDate::with([
+            'shift.site',
+            'trainings' => function ($q) use ($userId) {
+                $q->with(['acknowledgedUsers' => function ($q2) use ($userId) {
+                    $q2->where('user_id', $userId);
+                }]);
+            },
+        ])->find($latestBooking->shift_id);
+
+        if (!$shiftDate) {
+            return response()->json([
+                'status' => 'off-duty',
+                'shift_date' => null,
+                'patrol_id' => null,
+                'message' => 'Booked-on shift record not found.'
+            ]);
+        }
 
         // Determine duty status
-        $status = $latestBooking->type === 'book_on' ? 'on-duty' : 'off-duty';
+        $status = 'on-duty';
 
+        // find any in-progress patrol for this ShiftDate
         $patrol = Patrol::where('shift_id', $shiftDate->id)->where('status', 'in_progress')->first();
 
+        $today = now()->toDateString();
+
+        // Transform single shiftDate to the same structure used by getShifts
+        $shift = $shiftDate->shift;
+        $site = $shift?->site;
+
+        if ($shiftDate->shift_date < $today) {
+            $category = 'past';
+        } elseif ($shiftDate->shift_date == $today) {
+            $category = 'current';
+        } else {
+            $category = 'upcoming';
+        }
+
+        $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
+
+        $trainings = $shiftDate->trainings->map(function ($training) {
+            $ack = $training->acknowledgedUsers->first();
+            $acknowledged = false;
+            $acknowledgedAt = null;
+            $completionSeconds = null;
+
+            if ($ack) {
+                $acknowledged = !empty($ack->acknowledged_at);
+                $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
+                $completionSeconds = $ack->completion_time_seconds !== null ? (int) $ack->completion_time_seconds : null;
+            }
+
+            return [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
+                'pdf_url' => $training->pdf_url,
+                'content_url' => $training->content_url ?? null,
+                'required' => (bool) ($training->required ?? false),
+                'acknowledged' => $acknowledged,
+                'acknowledged_at' => $acknowledgedAt,
+                'completion_time_seconds' => $completionSeconds,
+                'implementation_date' => $training->implementation_date,
+                'complete_by_date' => $training->deadline,
+                'acknowledge_by_date' => $training->acknowledge_by_date,
+                'created_at' => $training->created_at,
+                'updated_at' => $training->updated_at,
+            ];
+        });
+
+        $transformed = [
+            'id' => $shiftDate->id,
+            'shift_id' => $shiftDate->shift_id,
+            'site_id' => $site?->id,
+            'site_name' => $site?->site_name,
+            'site_address' => $site?->address,
+            'start_time' => $shiftDate->start_time,
+            'end_time' => $shiftDate->end_time,
+            'shift_date' => $shiftDate->shift_date,
+            'duties' => $shift?->duties,
+            'supervisor_name' => $shift?->supervisor_name,
+            'supervisor_contact' => $shift?->supervisor_contact,
+            'status' => $shiftDate->status,
+            'started_at' => $shiftDate->absentee_start_time,
+            'ended_at' => $shiftDate->absentee_end_time,
+            'briefing_pdf' => $shift?->briefing_pdf_url,
+            'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
+            'category' => $category,
+            'trainings' => $trainings,
+            'note' => ($note?->note_type === 'guard') ? [
+                'id' => $note->id,
+                'note_type' => $note->note_type,
+                'note' => $note->note,
+            ] : null,
+        ];
+
         return response()->json([
-            'status'        => $status,
-            'shift_date_id' => $shiftDate?->id,
-            'shift_id'      => $shift?->id,
-            'patrol_id'     => $patrol?->id ?? null,
-            'current_shift' => $shiftDate ?? null,
-            'site_name' => $shiftDate->shift->site->site_name ?? null,
-            'message'       => 'Latest booking retrieved successfully.'
+            'status' => $status,
+            'patrol_id' => $patrol?->id ?? null,
+            'shift_date' => $transformed,
+            'message' => 'Booked-on shift retrieved successfully.'
         ]);
     }
 
