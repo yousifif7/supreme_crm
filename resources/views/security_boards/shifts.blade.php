@@ -428,28 +428,38 @@
         let form = $(this)[0];
         let formData = new FormData(form);
 
-        // Ensure client_id is present (some Select2 setups or duplicate IDs can cause it to be missing)
+        // Ensure all fields are properly collected
         try {
-            console.debug('editShift submit - initial client_id:', formData.get('client_id'));
-            if (!formData.get('client_id')) {
-                // Prefer the clientSelect inside this form, fall back to any #clientSelect
-                const clientVal = $(form).find('#clientSelect').val() || $('#clientSelect').val();
-                if (clientVal) {
-                    formData.set('client_id', clientVal);
-                    console.debug('editShift submit - set client_id from select to', clientVal);
-                } else {
-                    console.debug('editShift submit - clientSelect value not found in DOM');
-                }
+            // Manually add Select2 values if FormData missed them
+            const clientVal = $('#edit_shift #clientSelect').val();
+            const siteVal = $('#edit_shift #siteSelect').val();
+            const staffVal = $('#edit_shift #staff_id').val();
+            
+            if (clientVal && !formData.get('client_id')) {
+                formData.set('client_id', clientVal);
+            }
+            if (siteVal && !formData.get('site_id')) {
+                formData.set('site_id', siteVal);
+            }
+            if (staffVal && !formData.get('staff_id')) {
+                formData.set('staff_id', staffVal);
+            }
+            
+            // Debug logging
+            console.log('Form data being submitted:');
+            for (let pair of formData.entries()) {
+                console.log(pair[0] + ': ' + pair[1]);
             }
         } catch (err) {
-            console.error('Error ensuring client_id in FormData', err);
+            console.error('Error collecting form data', err);
         }
+        
         let submitButton = $('#editshift');
         let shiftId = $(this).find('#shift_id').val();
 
         submitButton.prop('disabled', true).html('Updating...');
 
-            $.ajax({
+        $.ajax({
             url: `${baseUrl}/updateshift/simple/${shiftId}`,
             method: 'POST',
             data: formData,
@@ -465,8 +475,23 @@
                 location.reload();
             },
             error: function(xhr) {
+                console.error('Update shift error:', xhr);
                 if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                    let messages = Object.values(xhr.responseJSON.errors).flat();
+                    let errors = xhr.responseJSON.errors;
+                    console.error('Validation errors:', errors);
+                    
+                    // Clear previous errors
+                    $('.form-error').text('');
+                    
+                    // Display errors on form
+                    $.each(errors, function(field, messages) {
+                        const errorEl = $('.error_' + field);
+                        if (errorEl.length) {
+                            errorEl.text(messages[0]);
+                        }
+                    });
+                    
+                    let messages = Object.values(errors).flat();
                     if (messages.length) {
                         showToast(messages[0], 'error', 7000);
                     } else {

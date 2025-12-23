@@ -49,8 +49,8 @@ class ShiftsDataTable extends DataTable
                 return format_date($shiftDate->shift_date);
             })
             ->addColumn('shift_time', function ($shiftDate) {
-                $start = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('h:i A');
-                $end = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('h:i A');
+                $start = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i');
+                $end = \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('H:i');
                 return $start . ' - ' . $end;
             })
             ->editColumn('total_hours', function ($shiftDate) {

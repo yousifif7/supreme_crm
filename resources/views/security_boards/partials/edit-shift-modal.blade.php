@@ -58,6 +58,14 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
+                                                <label class="form-label">Shift Date <span class="text-danger">*</span></label>
+                                                <input type="date" name="shift_date" id="shift_date" class="form-control">
+                                                <span class="text-danger form-error error_shift_date"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
                                                 <label class="form-label">Start <span
                                                         class="text-danger">*</span></label>
                                                 <input type="text" name="start_shift" id="start_shift"
@@ -180,7 +188,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Select Staff</label>
                                                 <select class="form-select StaffSelect" name="staff_id"
-                                                    id="StaffSelect">
+                                                    id="staff_id">
                                                     <option value="">--choose--</option>
                                                     @foreach ($staffs as $staff)
                                                         <option value="{{ $staff->id }}">
@@ -194,7 +202,7 @@
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Employee Rate</label>
-                                                <input type="text" name="employee_rate" placeholder="£"
+                                                <input type="text" name="employee_rate" id="guard_rate" placeholder="£"
                                                     class="form-control numeric-input staffRate">
                                                 <span class="text-danger form-error error_employee_rate"></span>
                                             </div>
@@ -216,33 +224,35 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Start</label>
-                                                <input type="time" name="start" class="form-control">
-                                                <span class="text-danger form-error error_start"></span>
+                                                <label class="form-label">Book On</label>
+                                                <input type="time" name="book_on" id="book_on" class="form-control">
+                                                <span class="text-danger form-error error_book_on"></span>
                                             </div>
                                         </div>
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Subcontractor</label>
-                                                <select class="form-select" name="subcontractor_id">
-                                                    <option value="">--choose--</option>
-                                                    @foreach ($subcontractors as $subcontractor)
-                                                        <option value="{{ $subcontractor->id }}">
-                                                            {{ $subcontractor->first_name }}
-                                                            {{ $subcontractor->last_name }}</option>
-                                                    @endforeach
+                                                <label class="form-label">Book Off</label>
+                                                <input type="time" name="book_off" id="book_off" class="form-control">
+                                                <span class="text-danger form-error error_book_off"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Status</label>
+                                                <select class="form-select" name="status_id" id="status_id">
+                                                    <option value="0">Unassigned</option>
+                                                    <option value="1">Pending</option>
+                                                    <option value="2">Accepted</option>
+                                                    <option value="3">Booked On</option>
+                                                    <option value="4">Booked Off</option>
+                                                    <option value="5">Completed</option>
+                                                    <option value="6">Rejected</option>
+                                                    <option value="7">Cancelled</option>
+                                                    <option value="8">No Show</option>
                                                 </select>
-                                                <span class="text-danger form-error"
-                                                    id="error_subcontractor_id"></span>
-                                            </div>
-                                        </div>
-
-                                        <div class="col-md-4">
-                                            <div class="mb-3">
-                                                <label class="form-label">End </label>
-                                                <input type="time" name="end" class="form-control">
-                                                <span class="text-danger form-error error_end"></span>
+                                                <span class="text-danger form-error error_status_id"></span>
                                             </div>
                                         </div>
 
@@ -360,7 +370,7 @@
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" form="add_shift-form" id="saveshift" class="btn btn-primary">Save
+                            <button type="submit" form="edit_shift-form" id="editshift" class="btn btn-primary">Update
                             </button>
                         </div>
                     </div>
@@ -381,7 +391,7 @@
             minuteIncrement: 5,
             allowInput: true
         });
-        });
+    });
     
     function customMatcher(params, data) {
         if ($.trim(params.term) === '') return data;
@@ -393,13 +403,123 @@
     }
 
     $(document).ready(function() {
-        $('#edit_shift .StaffSelect').select2({
-            placeholder: "--choose--",
-            allowClear: true,
-            width: '100%',
-            dropdownParent: $('#edit_shift'), // make sure this matches your modal ID
-            minimumResultsForSearch: 0 // force search bar for single select
+        // Initialize Select2 for edit shift modal
+        $('#edit_shift .select2_client, #edit_shift .select2_site, #edit_shift .StaffSelect').each(function() {
+            if (!$(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2({
+                    placeholder: "--choose--",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#edit_shift'),
+                    minimumResultsForSearch: 0
+                });
+            }
         });
+
+        // Handle client -> site population for edit shift modal
+        $('#edit_shift').on("change select2:select", "#clientSelect, .select2_client", function(e) {
+            var $target = $(e.target && e.target.nodeName === 'SELECT' ? e.target : this);
+            const clientId = $target.val();
+
+            var $shiftGroup = $target.closest('.shift-group');
+            if (!$shiftGroup.length) $shiftGroup = $('#edit_shift .shift-group').first();
+
+            var $siteSelect = $shiftGroup.find('#siteSelect, .select2_site').first();
+            if (!$siteSelect.length) $siteSelect = $('#edit_shift #siteSelect');
+
+            // Reset options
+            $siteSelect.html('<option value="">--choose--</option>');
+
+            if (!clientId) {
+                try {
+                    $shiftGroup.find('.siteRate').val('');
+                } catch (err) {}
+                try {
+                    if ($siteSelect.hasClass('select2-hidden-accessible')) {
+                        $siteSelect.trigger('change.select2');
+                    } else {
+                        $siteSelect.trigger('change');
+                    }
+                } catch (err) {}
+                return;
+            }
+
+            $.ajax({
+                url: `${baseUrl}/api/client/${clientId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    try {
+                        $shiftGroup.find('.siteRate').val(data.client.office_rate || '');
+                    } catch (err) {}
+                    if (data.sites && data.sites.length > 0) {
+                        $.each(data.sites, function(index, site) {
+                            $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                        });
+                    } else {
+                        $siteSelect.append('<option value="">No sites found</option>');
+                    }
+
+                    try {
+                        if ($siteSelect.hasClass('select2-hidden-accessible')) {
+                            $siteSelect.trigger('change.select2');
+                        } else {
+                            $siteSelect.trigger('change');
+                        }
+                    } catch (err) {}
+                },
+                error: function(xhr, status, error) {
+                    console.error('Fetch sites error:', error);
+                }
+            });
+        });
+
+        // Update staff guard rate when staff selection changes
+        $('#edit_shift').on("change select2:select", ".StaffSelect", function(e) {
+            var $target = $(e.target && e.target.nodeName === 'SELECT' ? e.target : this);
+            const staffId = $target.val();
+
+            var $shiftGroup = $target.closest('.shift-group');
+            if (!$shiftGroup.length) $shiftGroup = $('#edit_shift .shift-group').first();
+
+            if (!staffId) {
+                $shiftGroup.find('.staffRate').val('');
+                return;
+            }
+
+            $.ajax({
+                url: `${baseUrl}/api/staff/${staffId}`,
+                method: 'GET',
+                dataType: 'json',
+                success: function(data) {
+                    if (data && data.staff) {
+                        const guardRate = data.staff.guard_rate || data.staff.employee?.guard_rate || '';
+                        $shiftGroup.find('.staffRate').val(guardRate);
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Fetch staff error:', error);
+                }
+            });
+        });
+
+        // Day selector functionality
+        function initDaySelector(shiftGroup) {
+            const dayBoxes = shiftGroup.querySelectorAll('.day-box');
+            const hiddenInput = shiftGroup.querySelector('input[name="days"]');
+
+            dayBoxes.forEach(box => {
+                box.addEventListener('click', () => {
+                    box.classList.toggle('selected');
+                    const selected = Array.from(shiftGroup.querySelectorAll('.day-box.selected'))
+                        .map(el => el.getAttribute('data-day'));
+                    hiddenInput.value = selected.join(',');
+                });
+            });
+        }
+
+        // Initialize day selector for edit modal
+        document.querySelectorAll('#edit_shift .shift-group').forEach(group => initDaySelector(group));
     });
     
     // Toggle visibility of the "Require Media Upload" option per shift-group
@@ -409,8 +529,8 @@
                 var $auto = $group.find('.autoCheckcallToggle').first();
                 var $wrapper = $group.find('.requireMediaToggleWrapper').first();
                 var $require = $group.find('.requireMediaToggle').first();
-                var $from = $group.find('input[name="from_shift[]"]').first();
-                var $to = $group.find('input[name="to_shift[]"]').first();
+                var $from = $group.find('input[name="from_shift"]').first();
+                var $to = $group.find('input[name="to_shift"]').first();
                 if ($auto.length && $wrapper.length) {
                     if ($auto.is(':checked')) {
                         $wrapper.show();
@@ -419,7 +539,6 @@
                     }
                 }
 
-                // If a shift date (from/to) is present, ensure auto-checkcalls is enabled and require-media checked
                 try {
                     var hasDate = ($from.length && $from.val()) || ($to.length && $to.val());
                     if (hasDate) {
@@ -439,20 +558,16 @@
             }
         }
 
-        // initialize for each existing shift-group
-        $('.shift-group').each(function() {
+        $('#edit_shift .shift-group').each(function() {
             updateForGroup($(this));
         });
 
-        // when an auto toggle changes, update only its group
-        $(document).on('change', '.autoCheckcallToggle', function() {
+        $('#edit_shift').on('change', '.autoCheckcallToggle', function() {
             var $group = $(this).closest('.shift-group');
             updateForGroup($group);
         });
 
-        // If shift groups are dynamically cloned, ensure newly added groups are initialized by listening for a custom event
-        // Developers can trigger: $(newGroup).trigger('initShiftGroup') after cloning
-        $(document).on('initShiftGroup', '.shift-group', function() {
+        $('#edit_shift').on('initShiftGroup', '.shift-group', function() {
             updateForGroup($(this));
         });
     });

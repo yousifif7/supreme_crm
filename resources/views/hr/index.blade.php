@@ -547,16 +547,18 @@
 
                 // Bulk delete button
                 $('#bulkDeleteBtn').on('click', function() {
-                    const selected = $('.dT-row-checkbox:checked').map(function() {
-                        return this.value;
-                    }).get();
+                    const selected = $('#materials-table input[type="checkbox"]:checked')
+                        .not('#selectAll')
+                        .map(function() {
+                            return $(this).val();
+                        }).get();
 
                     if (selected.length === 0) {
-                        toast_danger('Please select at least one client to delete.');
+                        toast_danger('Please select at least one material to delete.');
                         return;
                     }
 
-                    if (!confirm('Are you sure you want to delete the selected employee?')) return;
+                    if (!confirm('Are you sure you want to delete the selected materials?')) return;
 
                     $.ajax({
                         url: '{{ route('materials.bulkDelete') }}',
@@ -566,7 +568,7 @@
                             _token: '{{ csrf_token() }}'
                         },
                         success: function(response) {
-                            toast_success('Selected employees deleted successfully!');
+                            toast_success('Selected materials deleted successfully!');
                             reloadDatatable('#materials-table');
                         },
                         error: function() {

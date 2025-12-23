@@ -821,7 +821,34 @@ class ShiftController extends Controller
 
         Logger::log($shiftDate, 'Deleted', 'Shift #'.$shiftDate->id.' Deleted');
 
-        $shiftDate->delete();
+        $bookings = ShiftBooking::where('shift_id', $shiftDate->id)->get();
+        if($bookings){
+            foreach($bookings as $booking){
+                $booking->delete();
+            }
+        }
+
+        if ($shiftDate->checkCalls) {
+            foreach ($shiftDate->checkCalls as $checkCall) {
+                $checkCall->delete();
+            }
+        }
+
+        if ($shiftDate->patrols) {
+            foreach ($shiftDate->patrols as $patrol) {
+                $patrol->delete();
+            }
+        }
+
+        if($shiftDate->staff_id){
+            send_push_notification(
+                $shiftDate->staff_id,
+                'Shift Deleted',
+                'An assigned shift for you has been deleted. (ID: ' . $shiftDate->id . ') at ' . $shiftDate->shift->site->site_name,
+                ['shiftDate' => $shiftDate],
+                );
+        }
+        $shiftDate->forceDelete();
 
         // If the request expects JSON (AJAX), return JSON response.
         if (request()->ajax() || request()->wantsJson()) {
@@ -2510,13 +2537,14 @@ public function getTodayShifts()
      */
     public function updateSimple(Request $request, $id)
     {
-        $shift = ShiftDate::findOrFail($id);
+        $shiftDate = ShiftDate::findOrFail($id);
+        $parentShift = Shift::findOrFail($shiftDate->shift_id);
 
         $validator = Validator::make($request->all(), [
             'staff_id' => 'nullable|integer',
-            'guard_rate' => 'nullable|numeric',
-            'start_shift' => 'required',
-            'end_shift' => 'required',
+            'employee_rate' => 'nullable|numeric',
+            'start_shift' => 'nullable',
+            'end_shift' => 'nullable',
             'book_on' => 'nullable',
             'book_off' => 'nullable',
             'shift_date' => 'nullable|date',
@@ -2524,6 +2552,8 @@ public function getTodayShifts()
             'subcontractor_id' => 'nullable|integer',
             'client_id' => 'nullable|integer',
             'site_id' => 'nullable|integer',
+            'from_shift' => 'nullable|date',
+            'to_shift' => 'nullable|date',
         ]);
 
         if ($validator->fails()) {
@@ -2532,27 +2562,81 @@ public function getTodayShifts()
 
         $data = $validator->validated();
 
-        if (array_key_exists('staff_id', $data)) $shift->staff_id = $data['staff_id'];
-        if (array_key_exists('start_shift', $data)) $shift->start_time = $data['start_shift'];
-        if (array_key_exists('end_shift', $data)) $shift->end_time = $data['end_shift'];
-        if (array_key_exists('book_on', $data)) $shift->absentee_start_time = $data['book_on'];
-        if (array_key_exists('book_off', $data)) $shift->absentee_end_time = $data['book_off'];
-        if (array_key_exists('guard_rate', $data)) $shift->guard_rate = $data['guard_rate'];
-        if (array_key_exists('shift_date', $data)) $shift->shift_date = $data['shift_date'];
-        if (array_key_exists('status_id', $data)) $shift->is_assign = $data['status_id'];
-        // if (array_key_exists('subcontractor_id', $data)) $shift->subcontractor_id = $data['subcontractor_id'];
-        // if (array_key_exists('client_id', $data)) $shift->client_id = $data['client_id'];
-        // if (array_key_exists('site_id', $data)) $shift->site_id = $data['site_id'];
-
-        // Calculate total hours where possible using controller helper
-        try {
-            $shift->total_hours = $this->calculateTotalHours($shift->start_time, $shift->end_time, 'H:i');
-        } catch (\Throwable $e) {
-            // silently ignore calculation errors
+        // Update ShiftDate fields
+        if (array_key_exists('staff_id', $data) && $data['staff_id']) {
+            $shiftDate->staff_id = $data['staff_id'];
+            $shiftDate->is_assign = 1;
+        } elseif (array_key_exists('staff_id', $data) && !$data['staff_id']) {
+            $shiftDate->staff_id = null;
+            $shiftDate->is_assign = 0;
+        }
+        
+        if (array_key_exists('start_shift', $data) && $data['start_shift']) {
+            $shiftDate->start_time = $data['start_shift'];
+        }
+        
+        if (array_key_exists('end_shift', $data) && $data['end_shift']) {
+            $shiftDate->end_time = $data['end_shift'];
+        }
+        
+        if (array_key_exists('book_on', $data)) {
+            $shiftDate->absentee_start_time = $data['book_on'];
+        }
+        
+        if (array_key_exists('book_off', $data)) {
+            $shiftDate->absentee_end_time = $data['book_off'];
+        }
+        
+        if (array_key_exists('employee_rate', $data)) {
+            $shiftDate->guard_rate = $data['employee_rate'];
+        }
+        
+        if (array_key_exists('shift_date', $data)) {
+            $shiftDate->shift_date = $data['shift_date'];
+        }
+        
+        if (array_key_exists('status_id', $data)) {
+            $shiftDate->is_assign = $data['status_id'];
         }
 
-        $shift->save();
+        // Update parent Shift fields (client_id, site_id)
+        if (array_key_exists('client_id', $data) && $data['client_id']) {
+            $parentShift->client_id = $data['client_id'];
+        }
+        
+        if (array_key_exists('site_id', $data) && $data['site_id']) {
+            $parentShift->site_id = $data['site_id'];
+        }
+        
+        if (array_key_exists('from_shift', $data) && $data['from_shift']) {
+            $parentShift->from_shift = $data['from_shift'];
+        }
+        
+        if (array_key_exists('to_shift', $data) && $data['to_shift']) {
+            $parentShift->to_shift = $data['to_shift'];
+        }
 
-        return response()->json(['message' => 'Shift updated', 'shift' => $shift]);
+        // Calculate total hours if both times are present
+        if ($shiftDate->start_time && $shiftDate->end_time) {
+            try {
+                $shiftDate->total_hours = $this->calculateTotalHours(
+                    $shiftDate->start_time, 
+                    $shiftDate->end_time, 
+                    'H:i'
+                );
+            } catch (\Throwable $e) {
+                \Log::warning('Failed to calculate total hours in updateSimple', [
+                    'start' => $shiftDate->start_time,
+                    'end' => $shiftDate->end_time,
+                    'error' => $e->getMessage()
+                ]);
+            }
+        }
+
+        $shiftDate->status = 'pending';
+        $shiftDate->save();
+        $parentShift->save();
+
+        return response()->json(['message' => 'Shift updated successfully', 'shift' => $shiftDate]);
     }
 }
