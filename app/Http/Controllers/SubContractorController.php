@@ -234,4 +234,20 @@ class SubContractorController extends Controller
             'commission'         => $subcontractor->commission,
         ]);
     }
+
+
+    public function employees($id)
+    {
+        $userIds = \App\Models\Employee::where('subcontractor', $id)->pluck('user_id')->filter()->unique()->toArray();
+
+        $users = [];
+        if (!empty($userIds)) {
+            $users = User::whereIn('id', $userIds)
+                ->select('id', 'first_name', 'last_name', 'email')
+                ->orderBy('first_name')
+                ->get();
+        }
+
+        return response()->json(['data' => $users]);
+    }
 }

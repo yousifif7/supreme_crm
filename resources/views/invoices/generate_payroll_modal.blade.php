@@ -29,6 +29,16 @@
                                     </div>
                                 </div>
 
+                                <div class="col-md-12" id="payroll_employee_wrapper" style="display:none;">
+                                    <div class="mb-3">
+                                        <label class="form-label">Select Employee / Staff</label>
+                                        <select id="payroll_employee_select" name="employee_id" class="form-select select2_employee">
+                                            <option value="">-- choose employee (optional) --</option>
+                                        </select>
+                                        <span class="text-danger form-error" id="payroll_error_employee"></span>
+                                    </div>
+                                </div>
+
                                 <div class="col-md-6">
                                     <div class="mb-3">
                                         <label class="form-label">Date From <span class="text-danger">*</span></label>
@@ -66,6 +76,56 @@
 
 <script>
     $(document).ready(function() {
+        // initialize select2 for selects inside modal
+        function initSelect2() {
+            $('.select2_sub, .select2_employee').each(function() {
+                const $el = $(this);
+                if ($el.data('select2')) return;
+                $el.select2({ dropdownParent: $('#generate_payroll_subcontractor_modal'), width: '100%' });
+            });
+        }
+
+        initSelect2();
+
+        // when a subcontractor is selected, load related employees/staff
+        $('#payroll_subcontractor_select').on('change', function() {
+            const subId = $(this).val();
+            $('#payroll_error_subcontractor').text('');
+            $('#payroll_employee_select').empty().append('<option value="">-- choose employee (optional) --</option>');
+
+            if (!subId) {
+                $('#payroll_employee_wrapper').hide();
+                return;
+            }
+
+            $('#payroll_employee_wrapper').show();
+            $('#payroll_employee_select').prop('disabled', true).append('<option>Loading...</option>');
+
+            $.ajax({
+                url: `${baseUrl}/subcontractor/${subId}/employees`,
+                method: 'GET',
+                success: function(res) {
+                    $('#payroll_employee_select').empty().append('<option value="">-- choose employee (optional) --</option>');
+                    const list = Array.isArray(res) ? res : (res.data || []);
+                    if (list.length) {
+                        list.forEach(function(emp) {
+                            const text = emp.first_name ? (emp.first_name + ' ' + (emp.last_name || '') + (emp.email ? ' ('+emp.email+')' : '')) : (emp.name || emp.email || 'Staff');
+                            $('#payroll_employee_select').append(`<option value="${emp.id}">${text}</option>`);
+                        });
+                    } else {
+                        $('#payroll_employee_select').append('<option value="">No staff found</option>');
+                    }
+                },
+                error: function() {
+                    $('#payroll_employee_select').empty().append('<option value="">Failed to load staff</option>');
+                },
+                complete: function() {
+                    $('#payroll_employee_select').prop('disabled', false).trigger('change.select2');
+                    initSelect2();
+                }
+            });
+        });
+
         $('#generate_payroll_subcontractor_form').on('submit', function(e) {
             e.preventDefault();
 
@@ -73,6 +133,7 @@
             const dateFrom = $('#payroll_date_from').val();
             const dateTo = $('#payroll_date_to').val();
             const notes = $('#payroll_notes').val();
+            const employeeId = $('#payroll_employee_select').val();
 
             $('.form-error').text('');
 
@@ -99,10 +160,10 @@
                     _token: $('meta[name="csrf-token"]').attr('content'),
                     date_from: dateFrom,
                     date_to: dateTo,
-                    notes: notes
+                    notes: notes,
+                    employee_id: employeeId
                 },
                 success: function(response) {
-                    // Hide modal using Bootstrap API or fallback to jQuery
                     try {
                         const modalEl = document.getElementById('generate_payroll_subcontractor_modal');
                         if (modalEl && window.bootstrap && bootstrap.Modal) {
@@ -115,7 +176,6 @@
                         console.error('Error hiding subcontractor modal', e);
                     }
                     toast_success(response.message || 'Payroll generated');
-                    // optionally reload or update the payrolls table
                     setTimeout(() => location.reload(), 800);
                 },
                 error: function(xhr) {
@@ -124,6 +184,7 @@
                         if (errors.date_from) $('#payroll_error_date_from').text(errors.date_from[0]);
                         if (errors.date_to) $('#payroll_error_date_to').text(errors.date_to[0]);
                         if (errors.subcontractor_id) $('#payroll_error_subcontractor').text(errors.subcontractor_id[0]);
+                        if (errors.employee_id) $('#payroll_error_employee').text(errors.employee_id[0]);
                     } else if (xhr.responseJSON?.error) {
                         toast_danger(xhr.responseJSON.error);
                     } else {

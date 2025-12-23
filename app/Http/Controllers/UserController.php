@@ -39,22 +39,15 @@ class UserController extends Controller
         if(auth()->user()->hasRole('client')){
             return redirect()->route('client.dashboard');
         }
-        // Prune old notifications (guarded): do NOT run maintenance jobs during web requests.
-        // These helpers are heavy and should be run via scheduler/console. Only call when running in console.
-        if (app()->runningInConsole()) {
-            $this->pruneOldNotifications();
-        }
+
+        $this->pruneOldNotifications();
+
         
         // Today's shift dates: select only needed columns to reduce payload
         $shifts = ShiftDate::whereDate('shift_date', Carbon::today()->toDateString())
             ->select('id', 'shift_id', 'staff_id', 'shift_date', 'start_time', 'end_time')
             ->with([
-                'shift' => function ($q) {
-                    $q->select('id', 'site_id', 'client_id');
-                },
-                'shift.staff' => function ($q) {
-                    $q->select('id', 'first_name', 'last_name');
-                }
+                'shift'
             ])->get();
 
         // Use direct count queries (avoid fetching entire collections)
@@ -82,9 +75,7 @@ class UserController extends Controller
         $now = Carbon::now();
 
         $bookings = ShiftBooking::select('id', 'user_id', 'shift_id', 'type', 'timestamp')
-            ->with(['shift' => function ($q) {
-                $q->select('id', 'site_id', 'client_id');
-            }])
+            ->with(['shift'])
             ->whereHas('shift')
             ->orderBy('timestamp', 'desc')
             ->take(10)
@@ -99,11 +90,9 @@ class UserController extends Controller
             ->paginate(10);
 
 
-        // Run missed/unassigned shift notifications (cached to run at most once per hour)
-        // Avoid running during HTTP requests; schedule this in cron instead.
-        if (app()->runningInConsole()) {
-            $this->missedShiftNotifications();
-        }
+
+        $this->missedShiftNotifications();
+        
         // --- Users (latest locations) ---
         // Cache this expensive lookup for a short period (60s) to improve dashboard response
         $cutoff24 = Carbon::now()->subDay();
@@ -141,12 +130,14 @@ class UserController extends Controller
         // --- Sites (pass postal codes only, no server-side geocoding) ---
         // Only include sites which have shifts with assigned staff in the last 7 days
         $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
-        $sites = Site::whereHas('shifts', function ($query) use ($sevenDaysAgo) {
-            $query->whereHas('shiftDates', function ($query) use ($sevenDaysAgo) {
-                $query->whereNotNull('staff_id')
-                      ->whereDate('shift_date', '>=', $sevenDaysAgo);
-            });
-        })->select('id', 'site_name', 'post_code','address')->get();
+        $sites = Site::query()
+            ->select('sites.id', 'sites.site_name', 'sites.post_code', 'sites.address')
+            ->join('shifts', 'shifts.site_id', '=', 'sites.id')
+            ->join('shift_dates', 'shift_dates.shift_id', '=', 'shifts.id')
+            ->whereNotNull('shift_dates.staff_id')
+            ->where('shift_dates.shift_date', '>=', $sevenDaysAgo)
+            ->distinct()
+            ->get();
 
         // Cache site locations for a slightly longer period (5 minutes)
         $cacheKeySites = 'dashboard_site_locations_' . now()->startOfDay()->toDateString();
@@ -162,10 +153,8 @@ class UserController extends Controller
             });
         });
 
-        // Weekly notifications should be scheduled (do not execute during web request)
-        if (app()->runningInConsole()) {
-            $this->weeklyHoursNotification();
-        }
+        $this->weeklyHoursNotification();
+
         // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
         return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations', 'siteLocations'));

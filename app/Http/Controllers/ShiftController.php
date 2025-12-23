@@ -975,380 +975,432 @@ class ShiftController extends Controller
         ], 422);
     }
 
-    public function getShifts(Request $request)
-    {
-        $query = \App\Models\ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff']);
+public function getShifts(Request $request)
+{
+    $query = \App\Models\ShiftDate::query()
+        ->select([
+            'shift_dates.id',
+            'shift_dates.shift_date',
+            'shift_dates.start_time',
+            'shift_dates.end_time',
+            'shift_dates.is_assign',
+            'shift_dates.staff_id',
+            'shift_dates.created_at',
 
-        $from_shift = $request->from_shift;
-        $to_shift = $request->to_shift;
+            'shifts.id as shift_id',
+            'shifts.site_id',
+            'shifts.service_type_1',
+            'shifts.service_type_2',
 
-        $query->whereHas('shift', function ($q) use ($request) {
-            if ($request->filled('site')) {
-                $q->where('site_id', $request->site);
-            }
+            'clients.id as client_id',
+            'clients.client_name',
 
-            if ($request->filled('staff')) {
-                $q->where('staff_id', $request->staff);
-            }
+            'sites.site_name',
 
-            if ($request->filled('client_id')) {
-                $q->where('client_id', $request->client_id);
-            }
-        });
+            'users.first_name',
+            'users.last_name',
 
-        if ($request->filled('status')) {
-            $query->where('is_assign', $request->status);
-        }
+            'shift_notes.note',
+            'shift_notes.note_type',
+        ])
+        ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
+        ->leftJoin('clients', 'clients.user_id', '=', 'shifts.client_id')
+        ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
+        ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
+        ->leftJoin('shift_notes', 'shift_notes.shift_date_id', '=', 'shift_dates.id');
 
-        if ($request->filled('start_time')) {
-            $query->whereTime('start_time', '>=', $request->start_time);
-        }
+    /* ---------- FILTERS ---------- */
 
-        if ($request->filled('end_time')) {
-            $query->whereTime('end_time', '<=', $request->end_time);
-        }
-
-        if ($request->filled('created_at')) {
-            $query->whereDate('created_at', $request->created_at);
-        }
-
-        if (!empty($from_shift) && !empty($to_shift)) {
-            $query->whereBetween('shift_date', [$from_shift, $to_shift]);
-        } else {
-            // Default window: 2 months before today through 1 month after today
-            // This includes the upcoming month while still limiting historic data
-            $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-            $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
-            $query->whereBetween('shift_date', [$startDefault, $endDefault]);
-        }
-
-        $shiftDates = $query->get();
-
-        // Format data for Gantt chart
-        return $this->formatGanttData($shiftDates);
+    if ($request->filled('site')) {
+        $query->where('shifts.site_id', $request->site);
     }
+
+    if ($request->filled('staff')) {
+        $query->where('shift_dates.staff_id', $request->staff);
+    }
+
+    if ($request->filled('client_id')) {
+        $query->where('shifts.client_id', $request->client_id);
+    }
+
+    if ($request->filled('status')) {
+        $query->where('shift_dates.is_assign', $request->status);
+    }
+
+    // ❌ whereTime kills indexes → FIX
+    if ($request->filled('start_time')) {
+        $query->where('shift_dates.start_time', '>=', $request->start_time);
+    }
+
+    if ($request->filled('end_time')) {
+        $query->where('shift_dates.end_time', '<=', $request->end_time);
+    }
+
+    if ($request->filled('created_at')) {
+        $query->whereDate('shift_dates.created_at', $request->created_at);
+    }
+
+    $query->whereBetween('shift_dates.shift_date', [
+        $request->from_shift ?? now()->subMonths(2),
+        $request->to_shift   ?? now()->addMonths(1),
+    ]);
 
     /**
-     * Format data for Gantt chart view
+     * 🔥 STREAM RESULTS (NO MEMORY BLOAT)
      */
-    private function formatGanttData($shiftDates)
-    {
-        $ganttData = [];
+    return $this->formatGanttData($query->cursor());
+}
 
-        $statusColorMap = [
-            0 => 'bg-dark-blue',
-            1 => 'bg-lighter',
-            2 => 'bg-dark-green',
-            3 => 'bg-light-yellow',
-            4 => 'bg-light-blue',
-            5 => 'bg-purple1',
-            6 => 'bg-red',
-            7 => 'bg-primary11',
-            8 => 'bg-orange',
-        ];
+private function formatGanttData($shiftDates)
+{
+    $statusColorMap = [
+        0 => 'bg-dark-blue',
+        1 => 'bg-lighter',
+        2 => 'bg-dark-green',
+        3 => 'bg-light-yellow',
+        4 => 'bg-light-blue',
+        5 => 'bg-purple1',
+        6 => 'bg-red',
+        7 => 'bg-primary11',
+        8 => 'bg-orange',
+    ];
 
-        foreach ($shiftDates as $sd) {
-            $shift = $sd->shift;
-            if (!$shift) continue;
+    $ganttData = [];
 
-            // Parse start/end times
-            $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
-            $endTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
+    foreach ($shiftDates as $sd) {
 
-            // Handle overnight shifts
-            $startDate = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($startTime);
-            $endDate   = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($endTime);
-            if ($endTime->lessThanOrEqualTo($startTime)) {
-                $endDate->addDay();
-            }
+        $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
+        $endTime   = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
 
-            // Calculate duration
-            $durationHours   = $startDate->diffInHours($endDate);
-            $durationMinutes = $startDate->diffInMinutes($endDate) % 60;
-            $durationFormatted = sprintf('%d hr %02d min', $durationHours, $durationMinutes);
+        $startDate = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($startTime);
+        $endDate   = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($endTime);
 
-            // Staff
-            $staffName = $sd->staff ? $sd->staff->first_name . " " . $sd->staff->last_name : 'Not Assigned';
-
-            // Client (use eager-loaded relation to avoid an extra query)
-            $client = $shift->client ?? null;
-
-            $note = ShiftNote::where('shift_date_id', $sd->id)->first(); // or $sd->shiftNote, depending on your relationship
-
-            $ganttData[] = [
-                'id' => $sd->id,
-                'site_id' => $shift->site_id ?? null,
-                'site_name' => $shift->site->site_name ?? 'Unknown Site',
-                'title' => $shift->title ?? 'Shift',
-                'start_date' => $sd->shift_date,
-                'end_date' => $sd->shift_date,
-                'start_time' => $sd->start_time,
-                'end_time' => $sd->end_time,
-                'service_type' => $sd->shift->service_type_2 ?? $sd->shift->service_type_1,
-                'formatted_time' => "{$startTime->format('H:i')} - {$endTime->format('H:i')}",
-                'duration' => "({$durationFormatted})",
-                'staff_name' => $staffName,
-                'staff_id' => $sd->staff_id ?? null,
-                'client_id' => $client->id ?? null,
-                'client_name' => $client->name ?? 'Unknown Client',
-                'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
-                'status' => $sd->is_assign,
-                'is_assigned' => $sd->is_assign != 0,
-                'duration_hours' => $durationHours + ($durationMinutes / 60),
-                // Use ISO date format (YYYY-MM-DDTHH:MM:SS) for reliable JS parsing
-                'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
-                'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
-                'note' => $note?->note ?? null,
-                'note_type' => $note?->note_type ?? null,
-                // include the shift_date created_at so frontend can order by creation time
-                'created_at' => $sd->created_at ? $sd->created_at->format('Y-m-d\TH:i:s') : null,
-            ];
+        if ($endTime->lessThanOrEqualTo($startTime)) {
+            $endDate->addDay();
         }
 
-        return response()->json(['data' => $ganttData]);
+        $durationHours   = $startDate->diffInHours($endDate);
+        $durationMinutes = $startDate->diffInMinutes($endDate) % 60;
+
+        $ganttData[] = [
+            'id' => $sd->id,
+            'site_id' => $sd->site_id,
+            'site_name' => $sd->site_name ?? 'Unknown Site',
+            'title' => $sd->title ?? 'Shift',
+            'start_date' => $sd->shift_date,
+            'end_date' => $sd->shift_date,
+            'start_time' => $sd->start_time,
+            'end_time' => $sd->end_time,
+            'service_type' => $sd->service_type_2 ?? $sd->service_type_1,
+            'formatted_time' => "{$startTime->format('H:i')} - {$endTime->format('H:i')}",
+            'duration' => "({$durationHours} hr {$durationMinutes} min)",
+            'staff_name' => trim(($sd->first_name ?? '') . ' ' . ($sd->last_name ?? '')) ?: 'Not Assigned',
+            'staff_id' => $sd->staff_id,
+            'client_id' => $sd->client_id,
+            'client_name' => $sd->client_name ?? 'Unknown Client',
+            'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
+            'status' => $sd->is_assign,
+            'is_assigned' => $sd->is_assign != 0,
+            'duration_hours' => $durationHours + ($durationMinutes / 60),
+            'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
+            'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
+            'note' => $sd->note,
+            'note_type' => $sd->note_type,
+            'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
+        ];
     }
 
-    public function getShiftsWithStaff()
-    {
-        // Only load shifts that have ShiftDates in the last 3 months to avoid loading huge datasets
-        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
+    return response()->json(['data' => $ganttData]);
+}
 
-        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
-            $q->whereNotNull('staff_id')
-              ->whereBetween('shift_date', [$startDefault, $endDefault]);
-        })->with(['client', 'site'])->get();
-        $events = [];
-        $highlightDates = [];
 
-        $statusColorMap = [
-            0 => 'bg-dark-blue',
-            1 => 'bg-lighter',
-            2 => 'bg-dark-green',
-            3 => 'bg-light-yellow',
-            4 => 'bg-light-blue',
-            5 => 'bg-purple1',
-            6 => 'bg-red',
-            7 => 'bg-primary11',
-            8 => 'bg-orange',
+
+
+public function getShiftsWithStaff()
+{
+    $startDefault = now()->subMonths(2)->startOfDay();
+    $endDefault   = now()->addMonths(1)->endOfDay();
+
+    $statusColorMap = [
+        0 => 'bg-dark-blue',
+        1 => 'bg-lighter',
+        2 => 'bg-dark-green',
+        3 => 'bg-light-yellow',
+        4 => 'bg-light-blue',
+        5 => 'bg-purple1',
+        6 => 'bg-red',
+        7 => 'bg-primary11',
+        8 => 'bg-orange',
+    ];
+
+    /**
+     * 🔥 SINGLE FAST QUERY
+     */
+    $shiftDates = ShiftDate::query()
+        ->select([
+            'shift_dates.id as sd_id',
+            'shift_dates.shift_date',
+            'shift_dates.start_time',
+            'shift_dates.end_time',
+            'shift_dates.is_assign',
+            'shifts.id as shift_id',
+            'shifts.days',
+            'sites.site_name',
+            'users.first_name',
+            'users.last_name',
+        ])
+        ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
+        ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
+        ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
+        ->whereNotNull('shift_dates.staff_id')
+        ->whereBetween('shift_dates.shift_date', [$startDefault, $endDefault])
+        ->get();
+
+    $events = [];
+    $highlightDates = [];
+
+    foreach ($shiftDates as $sd) {
+
+        $dayList = json_decode($sd->days, true) ?: [];
+        $dayName = Carbon::parse($sd->shift_date)->format('D');
+
+        if (!empty($dayList) && !in_array($dayName, $dayList)) {
+            continue;
+        }
+
+        $startTime = Carbon::createFromFormat('H:i:s', $sd->start_time);
+        $endTime   = Carbon::createFromFormat('H:i:s', $sd->end_time);
+
+        $startDateTime = Carbon::parse($sd->shift_date)->setTimeFrom($startTime);
+        $endDateTime   = Carbon::parse($sd->shift_date)->setTimeFrom($endTime);
+
+        // Handle overnight shift
+        $endForDuration = $endTime->copy();
+        if ($endForDuration->lessThan($startTime)) {
+            $endForDuration->addDay();
+        }
+
+        $durationFormatted = sprintf(
+            '%d hr %02d min',
+            $startTime->diffInHours($endForDuration),
+            $startTime->diffInMinutes($endForDuration) % 60
+        );
+
+        $events[] = [
+            'title' => trim($sd->first_name . ' ' . $sd->last_name) ?: 'Unassigned',
+            'start' => $startDateTime->format('Y-m-d\TH:i:s'),
+            'end'   => $endDateTime->format('Y-m-d\TH:i:s'),
+            'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
+            'extendedProps' => [
+                'shift_id' => $sd->shift_id,
+                'sd_id'    => $sd->sd_id,
+                'location' => $sd->site_name ?? 'Unknown Site',
+                'duration' => $durationFormatted,
+                'start_time_str' => $startTime->format('H:i'),
+                'end_time_str'   => $endTime->format('H:i'),
+            ]
         ];
 
-        foreach ($shifts as $shift) {
-            $dayList = json_decode($shift->days, true) ?: [];
-
-            $sds = ShiftDate::where('shift_id', $shift->id)
-                ->whereNotNull('staff_id')
-                ->whereBetween('shift_date', [$startDefault, $endDefault])
-                ->with('staff')
-                ->get();
-
-            foreach ($sds as $sd) {
-                $dayName = (new \DateTime($sd->shift_date))->format('D');
-                if (!empty($dayList) && !in_array($dayName, $dayList)) {
-                    continue;
-                }
-
-                $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
-                $endTime   = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
-
-                // For FullCalendar display, keep start/end on same day
-                $startDateTime = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($startTime);
-                $endDateTime   = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($endTime);
-
-                // For duration, handle overnight shifts
-                $endForDuration = $endTime->copy();
-                if ($endForDuration->lessThan($startTime)) {
-                    $endForDuration->addDay();
-                }
-
-                $durationHours   = $startTime->diffInHours($endForDuration);
-                $durationMinutes = $startTime->diffInMinutes($endForDuration) % 60;
-                $durationFormatted = sprintf('%d hr %02d min', $durationHours, $durationMinutes);
-
-                $events[] = [
-                    'title' => $sd->staff ? $sd->staff->first_name . ' ' . $sd->staff->last_name : 'Unassigned',
-                    'start' => $startDateTime->format('Y-m-d\TH:i:s'),
-                    'end' => $endDateTime->format('Y-m-d\TH:i:s'),
-                    'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
-                    'extendedProps' => [
-                        'shift_id' => $shift->id,
-                        'location' => $shift->site->site_name ?? 'Unknown Site',
-                        'urgent' => rand(0, 1) === 1,
-                        'sd_id' => $sd->id,
-                        'duration' => $durationFormatted,
-                        'start_time_str' => $startTime->format('H:i'),
-                        'end_time_str' => $endTime->format('H:i'),
-                    ]
-                ];
-
-                $highlightDates[] = $sd->shift_date;
-            }
-        }
-
-        return response()->json([
-            'events' => $events,
-            'highlightDates' => array_values(array_unique($highlightDates))
-        ]);
+        $highlightDates[] = $sd->shift_date;
     }
 
+    return response()->json([
+        'events' => $events,
+        'highlightDates' => array_values(array_unique($highlightDates))
+    ]);
+}
 
 
-    public function getShiftsBySite()
-    {
-        // If the current user is a client, only return shifts for that client's sites
-        $user = Auth::user();
-        // Only include shifts that have ShiftDates in the last 3 months
-        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
 
-        if ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) {
-            $shifts = Shift::where('client_id', $user->id)
-                ->whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
-                    $q->whereBetween('shift_date', [$startDefault, $endDefault]);
-                })->with(['site'])->get();
-        } else {
-            $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
-                $q->whereBetween('shift_date', [$startDefault, $endDefault]);
-            })->with(['site'])->get();
+public function getShiftsBySite()
+{
+    $user = Auth::user();
+
+    $startDefault = now()->subMonths(2)->startOfDay();
+    $endDefault   = now()->addMonths(1)->endOfDay();
+
+    $statusColorMap = [
+        0 => 'bg-dark-blue',
+        1 => 'bg-lighter',
+        2 => 'bg-dark-green',
+        3 => 'bg-light-yellow',
+        4 => 'bg-light-blue',
+        5 => 'bg-purple',
+        6 => 'bg-red',
+        7 => 'bg-primary11',
+        8 => 'bg-orange',
+    ];
+
+    /**
+     * 🔥 SINGLE FAST QUERY
+     */
+    $query = \App\Models\ShiftDate::query()
+        ->select([
+            'shift_dates.id as sd_id',
+            'shift_dates.shift_date',
+            'shift_dates.start_time',
+            'shift_dates.end_time',
+            'shift_dates.is_assign',
+            'shifts.client_id',
+            'sites.site_name',
+        ])
+        ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
+        ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
+        ->whereBetween('shift_dates.shift_date', [$startDefault, $endDefault]);
+
+    // ✅ Client filter at DB level
+    if ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) {
+        $query->where('shifts.client_id', $user->id);
+    }
+
+    $rows = $query->get();
+
+    $events = [];
+    $highlightDates = [];
+
+    foreach ($rows as $sd) {
+
+        $startTime = Carbon::createFromFormat('H:i:s', $sd->start_time);
+        $endTime   = Carbon::createFromFormat('H:i:s', $sd->end_time);
+
+        // Duration (handle overnight)
+        $endForDuration = $endTime->copy();
+        if ($endForDuration->lessThanOrEqualTo($startTime)) {
+            $endForDuration->addDay();
         }
-        $events = [];
-        $highlightDates = [];
 
-        $statusColorMap = [
-            0 => 'bg-dark-blue',
-            1 => 'bg-lighter',
-            2 => 'bg-dark-green',
-            3 => 'bg-light-yellow',
-            4 => 'bg-light-blue',
-            5 => 'bg-purple',
-            6 => 'bg-red',
-            7 => 'bg-primary11',
-            8 => 'bg-orange',
+        $durationFormatted = sprintf(
+            '%d hr %02d min',
+            $startTime->diffInHours($endForDuration),
+            $startTime->diffInMinutes($endForDuration) % 60
+        );
+
+        // Calendar display (same day)
+        $calendarStart = Carbon::parse($sd->shift_date . ' ' . $sd->start_time)->format('Y-m-d\TH:i:s');
+        $calendarEnd   = Carbon::parse($sd->shift_date . ' ' . $sd->end_time)->format('Y-m-d\TH:i:s');
+
+        $events[] = [
+            'title' => $sd->site_name ?? 'Unknown Site',
+            'start' => $calendarStart,
+            'end'   => $calendarEnd,
+            'allDay' => false,
+            'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
+            'color' => '#3a87ad',
+            'extendedProps' => [
+                'duration' => $durationFormatted,
+                'startTime' => $startTime->format('H:i'),
+                'endTime'   => $endTime->format('H:i'),
+                'start_time' => $startTime->format('H:i:s'),
+                'end_time'   => $endTime->format('H:i:s'),
+                'startTimeStr' => $startTime->format('H:i'),
+                'endTimeStr'   => $endTime->format('H:i'),
+                'urgent' => rand(0, 1) === 1,
+                'sd_id' => $sd->sd_id,
+            ]
         ];
 
-        foreach ($shifts as $shift) {
-            $sds = ShiftDate::where('shift_id', $shift->id)
-                ->whereBetween('shift_date', [$startDefault, $endDefault])
-                ->get();
-
-            foreach ($sds as $sd) {
-                $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
-                $endTime   = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
-
-                // Calculate duration
-                if ($endTime->lessThanOrEqualTo($startTime)) {
-                    $endTime->addDay();
-                }
-                $durationHours   = $startTime->diffInHours($endTime);
-                $durationMinutes = $startTime->diffInMinutes($endTime) % 60;
-                $durationFormatted = sprintf('%d hr %02d min', $durationHours, $durationMinutes);
-
-                // Use same day for calendar event, even for overnight shifts
-                $calendarStart = date('Y-m-d\TH:i:s', strtotime("$sd->shift_date $sd->start_time"));
-                $calendarEnd   = date('Y-m-d\TH:i:s', strtotime("$sd->shift_date $sd->end_time")); // same day
-
-                $events[] = [
-                    'title' => $shift->site->site_name ?? 'Unknown Site',
-                    'start' => $calendarStart,
-                    'end' => $calendarEnd,
-                    'allDay' => false,
-                    'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
-                    'color' => '#3a87ad',
-                    'extendedProps' => [
-                        'duration' => $durationFormatted,
-                        'startTime' => $startTime->format('H:i'),
-                        'endTime' => $endTime->format('H:i'), // keep correct display even if overnight
-                        'start_time' => $startTime->format('H:i:s'),
-                        'end_time' => $endTime->format('H:i:s'),
-                        'startTimeStr' => $startTime->format('H:i'),
-                        'endTimeStr' => $endTime->format('H:i'),
-                        'urgent' => rand(0, 1) === 1,
-                        'sd_id' => $sd->id,
-                    ]
-                ];
-
-                // collect highlight dates
-                $highlightDates[] = $sd->shift_date;
-            }
-        }
-
-        return response()->json([
-            'events' => $events,
-            'highlightDates' => array_values(array_unique($highlightDates)),
-        ]);
+        $highlightDates[] = $sd->shift_date;
     }
 
-    public function getTodayShifts()
-    {
-        $today = now()->format('Y-m-d');
-        $shifts = Shift::with(['client', 'site'])->get();
-        $events = [];
+    return response()->json([
+        'events' => $events,
+        'highlightDates' => array_values(array_unique($highlightDates)),
+    ]);
+}
 
-        $statusColorMap = [
-            0 => 'bg-dark-blue',
-            1 => 'bg-lighter',
-            2 => 'bg-dark-green',
-            3 => 'bg-light-yellow',
-            4 => 'bg-light-blue',
-            5 => 'bg-purple',
-            6 => 'bg-red',
-            7 => 'bg-primary11',
-            8 => 'bg-orange',
+
+
+public function getTodayShifts()
+{
+    $today     = now()->toDateString(); // Y-m-d
+    $todayDay  = now()->format('D');    // Mon, Tue...
+
+    $statusColorMap = [
+        0 => 'bg-dark-blue',
+        1 => 'bg-lighter',
+        2 => 'bg-dark-green',
+        3 => 'bg-light-yellow',
+        4 => 'bg-light-blue',
+        5 => 'bg-purple',
+        6 => 'bg-red',
+        7 => 'bg-primary11',
+        8 => 'bg-orange',
+    ];
+
+    /**
+     * 🔥 SINGLE FAST QUERY
+     */
+    $rows = \App\Models\ShiftDate::query()
+        ->select([
+            'shift_dates.id as sd_id',
+            'shift_dates.shift_date',
+            'shift_dates.start_time',
+            'shift_dates.end_time',
+            'shift_dates.is_assign',
+            'shifts.days',
+            'clients.client_name as client_name',
+            'sites.site_name',
+            'users.first_name',
+            'users.last_name',
+        ])
+        ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
+        ->leftJoin('clients', 'clients.id', '=', 'shifts.client_id')
+        ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
+        ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
+        ->whereDate('shift_dates.shift_date', $today)
+        ->get();
+
+    $events = [];
+
+    foreach ($rows as $sd) {
+
+        // Day filter (PHP side, cheap)
+        $dayList = json_decode($sd->days, true) ?: [];
+        if (!empty($dayList) && !in_array($todayDay, $dayList)) {
+            continue;
+        }
+
+        $startTime = Carbon::createFromFormat('H:i:s', $sd->start_time);
+        $endTime   = Carbon::createFromFormat('H:i:s', $sd->end_time);
+
+        // Duration (overnight handling)
+        $endForDuration = $endTime->copy();
+        if ($endForDuration->lessThan($startTime)) {
+            $endForDuration->addDay();
+        }
+
+        $durationFormatted = sprintf(
+            '%d hr %02d min',
+            $startTime->diffInHours($endForDuration),
+            $startTime->diffInMinutes($endForDuration) % 60
+        );
+
+        $startDateTime = Carbon::parse("{$sd->shift_date} {$sd->start_time}");
+        $endDateTime   = Carbon::parse("{$sd->shift_date} {$sd->end_time}");
+
+        $events[] = [
+            'title' => $sd->client_name ?? 'Unknown Client',
+            'start' => $startDateTime->format('Y-m-d\TH:i:s'),
+            'end'   => $endDateTime->format('Y-m-d\TH:i:s'),
+            'allDay' => false,
+            'color'  => '#3a87ad',
+            'className' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
+            'extendedProps' => [
+                'duration' => $durationFormatted,
+                'client'   => $sd->client_name ?? '',
+                'site'     => $sd->site_name ?? '',
+                'staff'    => trim($sd->first_name . ' ' . $sd->last_name),
+                'urgent'   => rand(0, 1) === 1,
+                'sd_id'    => $sd->sd_id,
+                'start_time_str' => $startTime->format('H:i'),
+                'end_time_str'   => $endTime->format('H:i'),
+            ]
         ];
-
-        $todayDay = now()->format('D'); // Mon, Tue, etc.
-
-        foreach ($shifts as $shift) {
-            $dayList = json_decode($shift->days, true) ?: [];
-            if (!empty($dayList) && !in_array($todayDay, $dayList)) continue;
-
-            // Fetch ShiftDates for today
-            $shiftDates = ShiftDate::where('shift_id', $shift->id)
-                ->where('shift_date', $today)
-                ->with('staff')
-                ->get();
-
-            foreach ($shiftDates as $sd) {
-                $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
-                $endTime   = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
-
-                // Duration calculation (handle overnight)
-                $endForDuration = $endTime->copy();
-                if ($endForDuration->lessThan($startTime)) {
-                    $endForDuration->addDay();
-                }
-
-                $durationHours   = $startTime->diffInHours($endForDuration);
-                $durationMinutes = $startTime->diffInMinutes($endForDuration) % 60;
-                $durationFormatted = sprintf('%d hr %02d min', $durationHours, $durationMinutes);
-
-                // Keep start/end on same day for display
-                $startDateTime = $this->combineDateTime($sd->shift_date, $sd->start_time);
-                $endDateTime   = $this->combineDateTime($sd->shift_date, $sd->end_time);
-
-                $events[] = [
-                    'title' => $shift->client->name ?? 'Unknown Client',
-                    'start' => $startDateTime->format('Y-m-d\TH:i:s'),
-                    'end'   => $endDateTime->format('Y-m-d\TH:i:s'),
-                    'allDay' => false,
-                    'color' => '#3a87ad',
-                    'className' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
-                    'extendedProps' => [
-                        'duration' => $durationFormatted,
-                        'client'   => $shift->client->name ?? '',
-                        'site'     => $shift->site->site_name ?? '',
-                        'staff'    => $sd?->staff?->first_name . ' ' . $sd?->staff?->last_name,
-                        'urgent'   => rand(0, 1) === 1,
-                        'sd_id'    => $sd->id ?? null,
-                        'start_time_str' => $startTime->format('H:i'),
-                        'end_time_str'   => $endTime->format('H:i'), // this is correct end display
-                    ]
-                ];
-            }
-        }
-
-        return response()->json($events);
     }
+
+    return response()->json($events);
+}
+
 
     private function calculateTotalHours($start, $end, $format = 'H:i')
     {

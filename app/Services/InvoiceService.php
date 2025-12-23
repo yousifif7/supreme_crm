@@ -180,7 +180,7 @@ class InvoiceService
     }
 
 
-    public function generateSubcontractorInvoice($subcontractorId, $dateFrom, $dateTo, $dueDate, $notes = null)
+    public function generateSubcontractorInvoice($subcontractorId, $dateFrom, $dateTo, $dueDate, $notes = null, $securityStaffId = null)
     {
         $subcontractor = User::findOrFail($subcontractorId);
 
@@ -191,12 +191,17 @@ class InvoiceService
             throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
         }
 
-        // Get all shifts managed by this subcontractor
-        $shifts = Shift::with(['shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId) {
+        // Get all shifts managed by this subcontractor. Optionally filter to a specific staff member.
+        $shifts = Shift::with(['shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId, $securityStaffId) {
             $q->when($subcontractorId, function ($query) use ($subcontractorId) {
                 $query->whereHas('staff.employee', function ($q) use ($subcontractorId) {
                     $q->where('subcontractor', $subcontractorId);
                 });
+            });
+
+            // If a specific security staff is provided, limit shiftDates to that staff
+            $q->when($securityStaffId, function ($query) use ($securityStaffId) {
+                $query->where('staff_id', $securityStaffId);
             });
 
             $q->whereDate('shift_date', '>=', $dateFrom)->whereDate('shift_date', '<=', $dateTo);
@@ -249,8 +254,8 @@ class InvoiceService
 
         $commissionAmount = round($totalAmount * ($commissionPercent / 100), 2);
         $staffAmount = round($totalAmount - $commissionAmount, 2);
-
-        $invoice = Invoice::create([
+        
+        $invoiceData = [
             'type' => 'subcontractor',
             'subcontractor_id' => $subcontractorId,
             'issue_date' => now(),
@@ -266,7 +271,14 @@ class InvoiceService
             'payment_note' => $subcontractor->payment_terms,
             'rate_per_hour' => $totalHours > 0 ? $totalAmount / $totalHours : 0,
             'total_shift_hours' => $totalHours,
-        ]);
+        ];
+
+        // If this invoice targets a security staff member, record it on the invoice
+        if (! empty($securityStaffId)) {
+            $invoiceData['security_staff_id'] = $securityStaffId;
+        }
+
+        $invoice = Invoice::create($invoiceData);
 
         foreach ($invoiceItems as $itemData) {
             $invoice->items()->create($itemData);

@@ -35,17 +35,25 @@ class PayrollController extends Controller
          */
         public function subcontractorData()
         {
-            $invoices = Invoice::with(['subcontractor', 'site'])
+            $invoices = Invoice::with(['subcontractor', 'site', 'securityStaff'])
                 ->where('type', 'subcontractor')
                 ->orderBy('id', 'desc')
                 ->get();
 
             $rows = $invoices->map(function ($inv) {
+                // Show staff name if security_staff_id is set, otherwise show site
+                $staffOrSite = '';
+                if ($inv->security_staff_id && $inv->securityStaff) {
+                    $staffOrSite = ($inv->securityStaff->first_name ?? '') . ' ' . ($inv->securityStaff->last_name ?? '');
+                } else {
+                    $staffOrSite = $inv->site?->site_name ?? '';
+                }
+
                 return [
                     'id' => $inv->id,
                     'invoice_number' => $inv->invoice_number,
                     'subcontractor_name' => $inv->subcontractor ? ($inv->subcontractor->first_name . ' ' . ($inv->subcontractor->last_name ?? '')) : '',
-                    'site_name' => $inv->site?->site_name ?? '',
+                    'site_name' => trim($staffOrSite),
                     'issue_date' => $inv->issue_date ? Carbon::parse($inv->issue_date)->format('d/m/Y') : '',
                     'due_date' => $inv->due_date ? Carbon::parse($inv->due_date)->format('d/m/Y') : '',
                     'total_shift_hours' => $inv->total_shift_hours ?? 0,
@@ -229,18 +237,116 @@ class PayrollController extends Controller
             return response()->json(['error' => 'Selected user is not a subcontractor.'], 422);
         }
 
-        // Generate invoice using the service (due date 15 days ahead by default)
-        try {
-            $invoice = $calc->generateSubcontractorInvoice(
-                $id,
-                $data['date_from'],
-                $data['date_to'],
-                now()->addDays(15),
-                $data['notes'] ?? null
-            );
-        } catch (\Throwable $e) {
-            \Log::error('payrollSubcontractor failed: ' . $e->getMessage(), ['exception' => $e]);
-            return response()->json(['error' => 'Failed to generate subcontractor payroll.'], 500);
+        // If an employee_id is provided, generate payroll only for that employee (staff invoice)
+        if ($request->filled('employee_id')) {
+            $employeeId = $request->input('employee_id');
+            $empUser = User::find($employeeId);
+            if (! $empUser || ! $empUser->hasRole('security_staff')) {
+                return response()->json(['error' => 'Selected employee is not a security staff member.'], 422);
+            }
+
+            try {
+                // Generate a subcontractor invoice but filtered to the selected employee.
+                // This will populate subcontractor_id and we also pass the security staff id so the invoice
+                // records which staff the invoice is for and still computes commission/staff_amount.
+                $invoice = $calc->generateSubcontractorInvoice(
+                    $id,
+                    $data['date_from'],
+                    $data['date_to'],
+                    now()->addDays(15),
+                    $data['notes'] ?? null,
+                    $employeeId
+                );
+            } catch (\Throwable $e) {
+                \Log::error('payrollSubcontractor (employee) failed: ' . $e->getMessage(), ['exception' => $e]);
+                return response()->json(['error' => 'Failed to generate payroll for selected employee.'], 500);
+            }
+
+            // After creating staff invoice, compute SSP / holiday / unpaid adjustments similar to single-staff flow
+            try {
+                $staff = Employee::where('user_id', $employeeId)->first();
+                // Find approved leaves in the period that haven't been processed yet
+                $leaves = LeaveRequest::where('user_id', $employeeId)
+                    ->where('status', 'approved')
+                    ->whereBetween('start_date', [$data['date_from'], $data['date_to']])
+                    ->where('processed_by_payroll', false)
+                    ->get();
+
+                $sspAmount = 0;
+                $sspDays = 0;
+                $holidayAmount = 0;
+                $holidayHours = 0;
+                $unpaidAmount = 0;
+                $unpaidHours = 0;
+
+                foreach ($leaves as $leave) {
+                    if ($leave->ssp_days) {
+                        $sspDays   += $leave->ssp_days;
+                        $sspAmount += $leave->ssp_days * 23.75;
+                    }
+
+                    if ($leave->holiday_days_used) {
+                        $holidayHours  += $leave->holiday_days_used;
+                    }
+
+                    if ($leave->unpaid_days) {
+                        $unpaidHours  += $leave->unpaid_days;
+                    }
+
+                    $leave->processed_by_payroll = true;
+                    $leave->save();
+                }
+
+                $rate = $invoice->rate_per_hour ?? 0;
+                $holidayAmount = max(0, ($holidayHours ?: 0) * $rate);
+                $unpaidAmount = max(0, ($unpaidHours ?: 0) * $rate);
+
+                $invoice->ssp_amount = max(0, $sspAmount);
+                $invoice->ssp_days = max(0, $sspDays);
+                $invoice->holiday_amount = $holidayAmount;
+                $invoice->holiday_hours = max(0, $holidayHours);
+                $invoice->unpaid_leave_amount = $unpaidAmount;
+                $invoice->unpaid_leave_hours = max(0, $unpaidHours);
+
+                $itemsSum = $invoice->items->sum('amount');
+                if ($itemsSum < 0) $itemsSum = 0;
+                $gross = $itemsSum + $holidayAmount + max(0, $invoice->ssp_amount) - $unpaidAmount;
+                if ($gross < 0) $gross = 0;
+
+                $invoice->gross_amount = $gross;
+                $invoice->net_amount = $gross;
+                $invoice->save();
+
+                // notify staff
+                send_push_notification(
+                    $employeeId,
+                    'Payroll generated',
+                    "A new payroll has been generated for you!",
+                    ['invoice' => $invoice]
+                );
+
+                Logger::log(
+                    Auth::user(),
+                    'Create',
+                    'Payroll NO. ' . ($invoice->invoice_number ?? $invoice->id) . ' generated for ' . ($staff?->fore_name ?? $empUser->first_name ?? 'Staff') . ' ' . ($staff?->sur_name ?? $empUser->last_name ?? '')
+                );
+            } catch (\Throwable $e) {
+                \Log::error('post-process payrollSubcontractor (employee) failed: ' . $e->getMessage(), ['exception' => $e]);
+            }
+        } else {
+            // Generate invoice using the service (due date 15 days ahead by default)
+            try {
+                $invoice = $calc->generateSubcontractorInvoice(
+                    $id,
+                    $data['date_from'],
+                    $data['date_to'],
+                    now()->addDays(15),
+                    $data['notes'] ?? null
+                );
+            } catch (\Throwable $e) {
+                \Log::error('payrollSubcontractor failed: ' . $e->getMessage(), ['exception' => $e]);
+                return response()->json(['error' => 'Failed to generate subcontractor payroll.'], 500);
+            }
         }
 
         Logger::log(

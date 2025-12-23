@@ -91,7 +91,7 @@ class PayrollsDataTable extends DataTable
     {
         return $model->newQuery()
             ->with(['employee', 'site'])
-            ->whereNull('client_id') // Only payrolls
+            ->where('type', 'security_staff') // Only security staff payrolls (not subcontractor)
             ->whereNotNull('security_staff_id')
             ->orderBy('id', 'desc');
     }
