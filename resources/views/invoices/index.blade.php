@@ -323,58 +323,23 @@
                     toast_success('Invoice Created Successfully!');
                     reloadDatatable('#invoices-table');
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-                        let messages = [];
-                        $.each(errors, function(key, value) {
-                            messages.push(value[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
-                        toast_danger(messages.join('<br>'));
                     } else {
-                        toast_danger('An error occurred. Please try again.');
+                        toast_danger('Something went wrong.');
                     }
                 },
                 complete: function() {
                     submitButton.prop('disabled', false).html('Generate');
                 }
             });
-        });
-
-        $(document).on("change", "#invoice_client_name", function() {
-            var $this = $(this);
-            const clientId = $(this).val();
-            if (!clientId) return;
-
-            var $siteSelect = $('#invoice_site_id');
-            $siteSelect.html('<option value="">--choose--</option>');
-
-            $.ajax({
-                url: `${baseUrl}/api/client/${clientId}`, // your existing API
-                method: 'GET',
-                dataType: 'json',
-                success: function(data) {
-                    // If you have office_rate in form, you can fill it like before
-                    $this.parents('.shift-group').find('.siteRate').val(data.client?.office_rate || '');
-
-                    if (data.sites && data.sites.length > 0) {
-                        $.each(data.sites, function(index, site) {
-                            $siteSelect.append(
-                                '<option value="' + site.id + '">' + site.site_name +
-                                '</option>'
-                            );
-                        });
-                    } else {
-                        $siteSelect.append('<option value="">No sites found</option>');
-                    }
-                },
-                error: function(xhr, status, error) {
-                    console.error('Fetch error:', error);
-                }
-            });
-
-            // also update hidden client_id field
-            $('#invoice_client_id').val(clientId);
         });
 
         $(function() {
@@ -395,22 +360,64 @@
             });
         });
 
-            $(document).ready(function() {
-                $('.client-select2').select2({
-                    placeholder: "--choose--",
-                    allowClear: true,
-                    width: '100%',
-                    dropdownParent: $('#generate_invoice'), 
-                    minimumResultsForSearch: 0
-                })
-                $('.site-select2').select2({
-                    placeholder: "--choose--",
-                    allowClear: true,
-                    width: '100%',
-                    dropdownParent: $('#generate_invoice'), 
-                    minimumResultsForSearch: 0
-                })
+        $(document).ready(function() {
+            // Initialize Select2 on both dropdowns
+            $('#invoice_client_name').select2({
+                placeholder: "--- Select Client ---",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#generate_invoice'), 
+                minimumResultsForSearch: 0
             });
+            
+            $('#invoice_site_id').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#generate_invoice'), 
+                minimumResultsForSearch: 0
+            });
+            
+            // Handle client selection change - use Select2 event
+            $('#invoice_client_name').on('change', function(e) {
+                const clientId = $(this).val();
+                var $siteSelect = $('#invoice_site_id');
+                
+                if (!clientId) {
+                    $siteSelect.empty().append('<option value="">--choose--</option>').trigger('change');
+                    return;
+                }
+
+                $siteSelect.empty().append('<option value="">Loading...</option>').trigger('change');
+
+                $.ajax({
+                    url: `${baseUrl}/api/client/${clientId}`,
+                    method: 'GET',
+                    dataType: 'json',
+                    success: function(data) {
+                        $siteSelect.empty().append('<option value="">--choose--</option>');
+                        
+                        if (data.sites && data.sites.length > 0) {
+                            $.each(data.sites, function(index, site) {
+                                $siteSelect.append(
+                                    '<option value="' + site.id + '">' + site.site_name + '</option>'
+                                );
+                            });
+                        } else {
+                            $siteSelect.append('<option value="">No sites found</option>');
+                        }
+                        
+                        $siteSelect.trigger('change');
+                    },
+                    error: function(xhr, status, error) {
+                        console.error('Fetch error:', error);
+                        $siteSelect.empty().append('<option value="">Error loading sites</option>').trigger('change');
+                    }
+                });
+
+                $('#invoice_client_id').val(clientId);
+            });
+        });
     </script>
     {!! $dataTable->scripts() !!}
 @endsection

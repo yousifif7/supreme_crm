@@ -17,9 +17,6 @@ use Maatwebsite\Excel\Concerns\WithStartRow;
 use Maatwebsite\Excel\Concerns\SkipsOnError;
 use Maatwebsite\Excel\Concerns\SkipsErrors;
 use Maatwebsite\Excel\Concerns\SkipsOnFailure;
-use Maatwebsite\Excel\Concerns\WithChunkReading;
-use Maatwebsite\Excel\Concerns\WithBatchInserts;
-use Illuminate\Contracts\Queue\ShouldQueue;
 use Maatwebsite\Excel\Validators\Failure;
 
 /**
@@ -45,59 +42,13 @@ use Maatwebsite\Excel\Validators\Failure;
  * - Client and Site names should match existing records in the database
  * - Officer names are matched against fore_name, sur_name, or full name in employees table
  */
-class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnError, SkipsOnFailure, WithChunkReading, WithBatchInserts, ShouldQueue
+class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnError, SkipsOnFailure
 {
     use SkipsErrors;
 
     private $failures = [];
     private $currentRow = 1; // Track current row number
     private $successCount = 0; // Track successful imports
-    // Cached lookup maps to avoid DB queries per row
-    private $userClientMap = [];
-    private $legacyClientMap = [];
-    private $siteMap = [];
-    private $employeeMap = [];
-
-    public function __construct()
-    {
-        // Preload user-clients (role 'client')
-        try {
-            $users = User::role('client')->get();
-            foreach ($users as $u) {
-                $key = $this->normalizeForCompare(trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? '')));
-                if ($key !== '') $this->userClientMap[$key] = $u;
-            }
-        } catch (\Exception $e) {
-            // ignore
-        }
-
-        // Preload legacy Clients
-        try {
-            $clients = Client::all();
-            foreach ($clients as $c) {
-                $key = $this->normalizeForCompare($c->client_name ?? '');
-                if ($key !== '') $this->legacyClientMap[$key] = $c;
-            }
-        } catch (\Exception $e) {}
-
-        // Preload sites
-        try {
-            $sites = Site::all();
-            foreach ($sites as $s) {
-                $key = $this->normalizeForCompare($s->site_name ?? '');
-                if ($key !== '') $this->siteMap[$key] = $s;
-            }
-        } catch (\Exception $e) {}
-
-        // Preload employees
-        try {
-            $employees = Employee::select('id', 'fore_name', 'sur_name', 'user_id', 'sia_expiry')->get();
-            foreach ($employees as $e) {
-                $key = $this->normalizeForCompare(trim($e->fore_name . ' ' . $e->sur_name));
-                if ($key !== '') $this->employeeMap[$key] = $e;
-            }
-        } catch (\Exception $e) {}
-    }
 
     public function startRow(): int
     {
@@ -180,42 +131,55 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
             if (!empty($clientRaw)) {
                 $search = $this->normalizeForCompare($clientRaw);
 
-                // 1) Try to match against preloaded user-clients map
-                if (isset($this->userClientMap[$search])) {
-                    $client = $this->userClientMap[$search];
-                } else {
-                    // substring match first
-                    foreach ($this->userClientMap as $k => $u) {
-                        if ($k !== '' && strpos($k, $search) !== false) {
-                            $client = $u; break;
+                // 1) Try to match against Users with role 'client'
+                try {
+                    $users = User::role('client')->get();
+                    foreach ($users as $u) {
+                        $full = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                        if ($full) {
+                            if (strpos($this->normalizeForCompare($full), $search) !== false) {
+                                $client = $u; // user record
+                                break;
+                            }
                         }
                     }
 
                     // fuzzy fallback on user full names
-                    if (!$client && !empty($this->userClientMap)) {
+                    if (!$client) {
                         $best = null; $bestDist = PHP_INT_MAX;
-                        foreach ($this->userClientMap as $k => $u) {
-                            $dist = levenshtein($search, $k);
+                        foreach ($users as $u) {
+                            $full = trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''));
+                            $dist = levenshtein($search, $this->normalizeForCompare($full));
                             if ($dist < $bestDist) { $bestDist = $dist; $best = $u; }
                         }
-                        if ($best && $bestDist <= 5) $client = $best;
+                        if ($best && $bestDist <= 5) {
+                            $client = $best;
+                        }
                     }
+                } catch (\Exception $e) {
+                    // ignore role lookup issues and fall back to Client model below
                 }
 
-                // 2) Fallback to legacy client map
-                if (!$client && isset($this->legacyClientMap[$search])) {
-                    $client = $this->legacyClientMap[$search];
-                } elseif (!$client) {
-                    foreach ($this->legacyClientMap as $k => $c) {
-                        if ($k !== '' && strpos($k, $search) !== false) { $client = $c; break; }
+                // 2) Fallback: try legacy Client model matching
+                if (!$client) {
+                    $clients = Client::all();
+                    foreach ($clients as $c) {
+                        if (strpos($this->normalizeForCompare($c->client_name), $search) !== false) {
+                            $client = $c;
+                            break;
+                        }
                     }
-                    if (!$client && !empty($this->legacyClientMap)) {
+
+                    // fuzzy levenshtein fallback on normalized names
+                    if (!$client) {
                         $best = null; $bestDist = PHP_INT_MAX;
-                        foreach ($this->legacyClientMap as $k => $c) {
-                            $dist = levenshtein($search, $k);
+                        foreach ($clients as $c) {
+                            $dist = levenshtein($search, $this->normalizeForCompare($c->client_name));
                             if ($dist < $bestDist) { $bestDist = $dist; $best = $c; }
                         }
-                        if ($best && $bestDist <= 5) $client = $best;
+                        if ($best && $bestDist <= 5) {
+                            $client = $best;
+                        }
                     }
                 }
             }
@@ -228,32 +192,27 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
                 return null;
             }
 
-            // Find site by name (optionally filter by client).
-            // Prefer DB lookup by LIKE with client_id (fast if indexed).
-            $site = null;
-            try {
-                $site = Site::where('site_name', 'like', '%' . trim($siteRaw) . '%')
-                    ->where('client_id', $client->id)
-                    ->first();
-            } catch (\Exception $e) { /* ignore */ }
+            // Find site by name (optionally filter by client)
+            $site = Site::where('site_name', 'like', '%' . trim($siteRaw) . '%')
+                       ->where('client_id', $client->id)
+                       ->first();
 
-            // If not found, try preloaded normalized map
+            // If not found in client's sites, try normalized PHP match across all sites
             if (!$site && !empty($siteRaw)) {
                 $searchSite = $this->normalizeForCompare($siteRaw);
-                if (isset($this->siteMap[$searchSite])) {
-                    $site = $this->siteMap[$searchSite];
-                } else {
-                    foreach ($this->siteMap as $k => $st) {
-                        if ($k !== '' && strpos($k, $searchSite) !== false) { $site = $st; break; }
+                $sites = Site::all();
+                foreach ($sites as $st) {
+                    if (strpos($this->normalizeForCompare($st->site_name), $searchSite) !== false) {
+                        $site = $st; break;
                     }
-                    if (!$site && !empty($this->siteMap)) {
-                        $best = null; $bestDist = PHP_INT_MAX;
-                        foreach ($this->siteMap as $k => $st) {
-                            $dist = levenshtein($searchSite, $k);
-                            if ($dist < $bestDist) { $bestDist = $dist; $best = $st; }
-                        }
-                        if ($best && $bestDist <= 5) $site = $best;
+                }
+                if (!$site) {
+                    $best = null; $bestDist = PHP_INT_MAX;
+                    foreach ($sites as $st) {
+                        $dist = levenshtein($searchSite, $this->normalizeForCompare($st->site_name));
+                        if ($dist < $bestDist) { $bestDist = $dist; $best = $st; }
                     }
+                    if ($best && $bestDist <= 5) { $site = $best; }
                 }
             }
 
@@ -272,24 +231,23 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
             $officerRaw = $this->normalizeCell($officerRaw);
             if (!empty($officerRaw)) {
                 $officerName = trim($officerRaw);
-                $searchEmp = $this->normalizeForCompare($officerName);
+                $staff = Employee::where(function($query) use ($officerName) {
+                    $query->where('fore_name', 'like', '%' . $officerName . '%')
+                          ->orWhere('sur_name', 'like', '%' . $officerName . '%')
+                          ->orWhereRaw("CONCAT(fore_name, ' ', sur_name) LIKE ?", ['%' . $officerName . '%']);
+                })->first();
 
-                // Exact/preloaded match
-                if (isset($this->employeeMap[$searchEmp])) {
-                    $staff = $this->employeeMap[$searchEmp];
-                } else {
-                    // substring match
-                    foreach ($this->employeeMap as $k => $e) {
-                        if ($k !== '' && strpos($k, $searchEmp) !== false) { $staff = $e; break; }
+                // If not found, try fuzzy levenshtein on employee full names
+                if (!$staff) {
+                    $employees = Employee::select('id', 'fore_name', 'sur_name', 'user_id', 'sia_expiry')->get();
+                    $best = null; $bestDist = PHP_INT_MAX;
+                    foreach ($employees as $e) {
+                        $full = trim($e->fore_name . ' ' . $e->sur_name);
+                        $dist = levenshtein(strtolower($officerName), strtolower($full));
+                        if ($dist < $bestDist) { $bestDist = $dist; $best = $e; }
                     }
-                    // fuzzy fallback
-                    if (!$staff && !empty($this->employeeMap)) {
-                        $best = null; $bestDist = PHP_INT_MAX;
-                        foreach ($this->employeeMap as $k => $e) {
-                            $dist = levenshtein($searchEmp, $k);
-                            if ($dist < $bestDist) { $bestDist = $dist; $best = $e; }
-                        }
-                        if ($best && $bestDist <= 5) $staff = $best;
+                    if ($best && $bestDist <= 5) {
+                        $staff = $best;
                     }
                 }
 
@@ -378,6 +336,23 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
                 'restrict_location_check' => 0,
             ]);
 
+            // Check if shift date already exists to avoid duplicates
+            $existingShiftDate = ShiftDate::where('shift_id', $shift->id)
+                ->where('shift_date', $shiftDate)
+                ->where('start_time', $startTime)
+                ->where('end_time', $endTime)
+                ->where('staff_id', $staffUserId)
+                ->first();
+
+            if ($existingShiftDate) {
+                // Skip duplicate shift date entry
+                $this->failures[] = [
+                    'row' => $this->currentRow,
+                    'error' => 'Duplicate shift - already exists in database'
+                ];
+                return null;
+            }
+
             // Create shift date entry
             $shiftDate = new ShiftDate([
                 'shift_id' => $shift->id,
@@ -426,22 +401,6 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
     public function getFailureCount()
     {
         return count($this->failures);
-    }
-
-    /**
-     * Chunk size for reading the spreadsheet. Smaller chunks reduce memory usage.
-     */
-    public function chunkSize(): int
-    {
-        return 1000; // adjust if needed (500-2000)
-    }
-
-    /**
-     * Batch size for inserts when using batch inserts.
-     */
-    public function batchSize(): int
-    {
-        return 500;
     }
 
     /**

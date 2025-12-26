@@ -331,16 +331,19 @@
                     toastr.success(res.message);
                     $('#dobs-table').DataTable().ajax.reload();
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-                        $.each(errors, function(key, value) {
-                            $('#error_' + key).text(value[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
-                        toastr.error('Failed to update entry.');
+                        toast_danger('Something went wrong.');
                     }
-                }
+                },
             });
         });
 
@@ -365,16 +368,19 @@
                     toastr.success(res.message);
                     $('#dobs-table').DataTable().ajax.reload();
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-                        $.each(errors, function(key, value) {
-                            $('#error_' + key).text(value[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
-                        toastr.error('Failed to create DOB entry');
+                        toast_danger('Something went wrong.');
                     }
-                }
+                },
             });
         });
 

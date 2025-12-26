@@ -367,11 +367,14 @@
                     reloadDatatable('#roles-table');
                     form[0].reset();
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-                        $.each(errors, function(field, messages) {
-                            $('#error_' + field).text(messages[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
                         toast_danger('Something went wrong.');
@@ -424,11 +427,14 @@
                     toast_success('Role updated successfully!');
                     reloadDatatable('#roles-table');
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-                        $.each(errors, function(field, messages) {
-                            $('#error_' + field).text(messages[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
                         toast_danger('Something went wrong.');

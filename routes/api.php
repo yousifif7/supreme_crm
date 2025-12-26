@@ -67,6 +67,7 @@ Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('aut
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/all', [ShiftApiController::class, 'getShifts']);
+    Route::get('/shifts/{id}', [ShiftApiController::class, 'shiftDetails']);
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
     Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);

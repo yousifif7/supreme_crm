@@ -33,20 +33,35 @@ class ValidSiaLicence implements Rule
             $this->checkerResult = $result;
 
             if (!is_array($result)) {
-                $this->message = 'Unexpected response from SIA checker.';
-                return false;
-            }
-
-            if (isset($result['success']) && isset($result['valid']) && $result['success'] && $result['valid']) {
+                // Allow the operation to proceed if service is unavailable
+                \Log::warning('SIA checker returned unexpected response, allowing operation to proceed', ['value' => $value]);
                 return true;
             }
 
-            // provide remote error if available
-            $this->message = $result['error'] ?? 'SIA licence could not be verified or is not found.';
-            return false;
+            // If the SIA service successfully responded
+            if (isset($result['success']) && $result['success'] === true) {
+                // Check if the licence is valid
+                if (isset($result['valid']) && $result['valid'] === true) {
+                    // Licence is valid - allow to proceed
+                    \Log::info('SIA licence verified successfully', ['value' => $value]);
+                    return true;
+                } else {
+                    // Service responded successfully but licence is invalid
+                    $this->message = 'SIA licence not found in register or is not valid.';
+                    \Log::warning('SIA licence is invalid', ['value' => $value, 'error' => $result['error'] ?? 'Not found']);
+                    return false;
+                }
+            }
+
+            // If the SIA service is unavailable or returns an error, allow it to pass
+            // This prevents blocking employee creation/update when the service is down
+            \Log::warning('SIA licence check failed (service unavailable), allowing operation to proceed', ['error' => $result['error'] ?? 'Unknown error', 'value' => $value]);
+            return true;
+
         } catch (Exception $e) {
-            $this->message = 'SIA licence check failed: ' . $e->getMessage();
-            return false;
+            // Allow the operation to proceed if there's an exception
+            \Log::warning('SIA licence check exception, allowing operation to proceed', ['error' => $e->getMessage(), 'value' => $value]);
+            return true;
         }
     }
 

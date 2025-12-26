@@ -1690,6 +1690,108 @@ class ShiftApiController extends Controller
         ]);
     }
 
+    public function shiftDetails($id)
+    {
+        $user = Auth::user();
+        $userId = $user->id;
+
+        // Eager-load same relations as getShifts so response shape matches
+        $shiftDate = ShiftDate::with([
+            'shift.site',
+            'trainings' => function ($q) use ($userId) {
+                $q->with(['acknowledgedUsers' => function ($q2) use ($userId) {
+                    $q2->where('user_id', $userId);
+                }]);
+            },
+        ])->find($id);
+
+        if (!$shiftDate) {
+            return response()->json([
+                'message' => 'No shift found with this ID. #'.$id
+            ]);
+        }
+
+        // find any in-progress patrol for this ShiftDate
+        $patrol = Patrol::where('shift_id', $shiftDate->id)->where('status', 'in_progress')->first();
+
+        $today = now()->toDateString();
+
+        // Transform single shiftDate to the same structure used by getShifts
+        $shift = $shiftDate->shift;
+        $site = $shift?->site;
+
+        if ($shiftDate->shift_date < $today) {
+            $category = 'past';
+        } elseif ($shiftDate->shift_date == $today) {
+            $category = 'current';
+        } else {
+            $category = 'upcoming';
+        }
+
+        $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
+
+        $trainings = $shiftDate->trainings->map(function ($training) {
+            $ack = $training->acknowledgedUsers->first();
+            $acknowledged = false;
+            $acknowledgedAt = null;
+            $completionSeconds = null;
+
+            if ($ack) {
+                $acknowledged = !empty($ack->acknowledged_at);
+                $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
+                $completionSeconds = $ack->completion_time_seconds !== null ? (int) $ack->completion_time_seconds : null;
+            }
+
+            return [
+                'id' => $training->id,
+                'title' => $training->title,
+                'description' => $training->description,
+                'pdf_url' => $training->pdf_url,
+                'content_url' => $training->content_url ?? null,
+                'required' => (bool) ($training->required ?? false),
+                'acknowledged' => $acknowledged,
+                'acknowledged_at' => $acknowledgedAt,
+                'completion_time_seconds' => $completionSeconds,
+                'implementation_date' => $training->implementation_date,
+                'complete_by_date' => $training->deadline,
+                'acknowledge_by_date' => $training->acknowledge_by_date,
+                'created_at' => $training->created_at,
+                'updated_at' => $training->updated_at,
+            ];
+        });
+
+        $transformed = [
+            'id' => $shiftDate->id,
+            'shift_id' => $shiftDate->shift_id,
+            'site_id' => $site?->id,
+            'site_name' => $site?->site_name,
+            'site_address' => $site?->address,
+            'start_time' => $shiftDate->start_time,
+            'end_time' => $shiftDate->end_time,
+            'shift_date' => $shiftDate->shift_date,
+            'duties' => $shift?->duties,
+            'supervisor_name' => $shift?->supervisor_name,
+            'supervisor_contact' => $shift?->supervisor_contact,
+            'status' => $shiftDate->status,
+            'started_at' => $shiftDate->absentee_start_time,
+            'ended_at' => $shiftDate->absentee_end_time,
+            'briefing_pdf' => $shift?->briefing_pdf_url,
+            'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
+            'category' => $category,
+            'trainings' => $trainings,
+            'note' => ($note?->note_type === 'guard') ? [
+                'id' => $note->id,
+                'note_type' => $note->note_type,
+                'note' => $note->note,
+            ] : null,
+        ];
+
+        return response()->json([
+            'shift_date' => $transformed,
+            'message' => 'Shift retrieved successfully.'
+        ]);
+    }
+
     public function workHours(Request $request)
     {
         $user = Auth::user();

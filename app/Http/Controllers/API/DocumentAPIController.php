@@ -21,6 +21,13 @@ use App\Helpers\Logger;
 
 class DocumentAPIController extends Controller
 {
+    // Map document types to their corresponding expiry date fields in employees table
+    protected $expiryFields = [
+        'sia_licence_file' => 'sia_expiry',
+        'passport_file' => 'passport_expiry',
+        'driving_licence_file' => 'driving_licence_expiry',
+        // Add other mappings as needed
+    ];
 
     public function upload(Request $request)
     {
@@ -80,12 +87,18 @@ class DocumentAPIController extends Controller
                         'additional_files' => $additionalFiles
                     ]);
                 } else {
-                    // Fixed documents
-                    $employee->update([
+                    // Fixed documents - update file path
+                    $updateData = [
                         $request->document_type => basename($filePath),
-                        // Update expiry if defined
-                        $this->expiryFields[$request->document_type] ?? null => $request->expiry_date
-                    ]);
+                    ];
+                    
+                    // Update expiry date if provided and field mapping exists
+                    if ($request->expiry_date && isset($this->expiryFields[$request->document_type])) {
+                        $expiryField = $this->expiryFields[$request->document_type];
+                        $updateData[$expiryField] = $request->expiry_date;
+                    }
+                    
+                    $employee->update($updateData);
                 }
 
                 // Send notification (dashboard / push)

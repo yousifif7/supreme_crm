@@ -1,6 +1,12 @@
   <div class="modal fade" id="add_employee">
       <div class="modal-dialog modal-dialog-scrollable modal-lg">
           <div class="modal-content">
+              <!-- Loading Overlay -->
+              <div class="modal-loading-overlay" id="add_employee_loading" style="display: none;">
+                  <div class="spinner-border text-primary" role="status">
+                      <span class="visually-hidden">Loading...</span>
+                  </div>
+              </div>
               <div class="modal-header">
                   <h4 class="modal-title">Add New Security Staff</h4>
                   <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
@@ -322,7 +328,7 @@
                           </div>
                           <div class="col-md-4 mb-3">
                               <label class="form-label">Subcontractor</label>
-                              <select class="form-select" name="subcontractor">
+                              <select class="form-select sub-add-select2" name="subcontractor">
                                   <option>----Select Subcontractor----</option>
                                   @foreach ($subcontractors as $subcontractor)
                                       <option value="{{ $subcontractor->id }}">
@@ -624,3 +630,16 @@
           </div>
       </div>
   </div>
+
+<script>
+        $(document).ready(function() {
+
+            $('.sub-add-select2').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#add_employee'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+        });
+    </script>

@@ -51,6 +51,7 @@ Route::get('/dashboard', function () {
     //return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
+
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
 
 Route::group(['middleware' => ['auth']], function () {
@@ -522,7 +523,7 @@ Route::post('/assign-shift-override', [ShiftController::class, 'assignWithOverri
 
 Route::post('/updateshift/{id}/override', [ShiftController::class, 'updateWithOverride'])
     ->middleware(['auth', 'can:assign-shift-override'])
-    ->name('assign.shift.override');
+    ->name('shifts.update.override');
 
 Route::post('/shifts/multi-assign-override', [ShiftController::class, 'multiAssignWithOverride'])
     ->middleware(['auth', 'can:assign-shift-override'])

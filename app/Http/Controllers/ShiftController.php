@@ -670,8 +670,8 @@ class ShiftController extends Controller
             'status_id'   => 'nullable|integer',
             'staff_id'    => 'nullable|integer',
             'guard_rate'  => 'nullable|numeric',
-            'start_shift' => 'required',
-            'end_shift'   => 'required',
+            'start_shift' => 'nullable',
+            'end_shift'   => 'nullable',
             'book_on'     => 'nullable',
             'book_off'    => 'nullable',
             'shift_date'  => 'nullable|date',
@@ -682,32 +682,66 @@ class ShiftController extends Controller
         }
 
         $data = $validator->validated();
+        
+        // Only keep filled values, preserve existing data for empty fields
+        $data = array_filter($data, function($value) {
+            return $value !== null && $value !== '';
+        });
+        
         // preserve guard_rate if provided
         if ($request->filled('guard_rate')) {
             $data['guard_rate'] = $request->input('guard_rate');
         }
-        $data['absentee_start_time'] = $data['book_on'] ?? null;
-        $data['absentee_end_time']   = $data['book_off'] ?? null;
-        $data['start_time']          = $data['start_shift'];
-        $data['end_time']            = $data['end_shift'];
-
-        // Normalize time format
-        if (strlen($data['start_shift']) === 5) {
-            $data['start_shift'] .= ':00';
+        
+        if (isset($data['book_on'])) {
+            $data['absentee_start_time'] = $data['book_on'];
         }
-        if (strlen($data['end_shift']) === 5) {
-            $data['end_shift'] .= ':00';
+        if (isset($data['book_off'])) {
+            $data['absentee_end_time'] = $data['book_off'];
+        }
+        
+        // Use existing values if not provided
+        $startShift = $data['start_shift'] ?? $shift->start_time;
+        $endShift = $data['end_shift'] ?? $shift->end_time;
+        
+        if (isset($data['start_shift'])) {
+            $data['start_time'] = $data['start_shift'];
+            // Normalize time format
+            if (strlen($data['start_shift']) === 5) {
+                $data['start_shift'] .= ':00';
+                $data['start_time'] .= ':00';
+            }
+            $startShift = $data['start_shift'];
+        }
+        
+        if (isset($data['end_shift'])) {
+            $data['end_time'] = $data['end_shift'];
+            // Normalize time format
+            if (strlen($data['end_shift']) === 5) {
+                $data['end_shift'] .= ':00';
+                $data['end_time'] .= ':00';
+            }
+            $endShift = $data['end_shift'];
         }
 
-        // Calculate total hours
-        $data['total_hours'] = $this->calculateTotalHours(
-            $data['start_shift'],
-            $data['end_shift'],
-            'H:i:s'
-        );
+        // Calculate total hours only if we have valid times
+        if ($startShift && $endShift) {
+            try {
+                $data['total_hours'] = $this->calculateTotalHours(
+                    $startShift,
+                    $endShift,
+                    'H:i:s'
+                );
+            } catch (\Exception $e) {
+                // Keep existing total hours if calculation fails
+                $data['total_hours'] = $shift->total_hours;
+            }
+        }
 
-        $data['is_assign'] = $data['status_id'];
-        $shift->status     = 'pending';
+        if (isset($data['status_id'])) {
+            $data['is_assign'] = $data['status_id'];
+        }
+        $shift->status = 'pending';
 
         // ✅ Restrictions only if assigning to a staff member
         if (!empty($data['staff_id'])) {
@@ -726,20 +760,20 @@ class ShiftController extends Controller
                 if ($leave) {
                     return response()->json([
                         'errors' => [
-                            'leave' => ['leave' => "Staff has an approved leave from "
+                            'leave' => "Staff has an approved leave from "
                                 . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
                                 . " to "
-                                . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')]
+                                . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')
                         ]
                     ], 422);
                 }
 
-                $newShiftHours = $data['total_hours'];
+                $newShiftHours = $data['total_hours'] ?? $shift->total_hours;
 
                 // Build new shift start/end
                 $shiftDate    = $data['shift_date'] ?? $shift->shift_date;
-                $newStartTime = \Carbon\Carbon::parse($shiftDate . ' ' . $data['start_shift']);
-                $newEndTime   = \Carbon\Carbon::parse($shiftDate . ' ' . $data['end_shift']);
+                $newStartTime = \Carbon\Carbon::parse($shiftDate . ' ' . $startShift);
+                $newEndTime   = \Carbon\Carbon::parse($shiftDate . ' ' . $endShift);
 
 
                 if ($newEndTime->lte($newStartTime)) {
@@ -1521,27 +1555,32 @@ public function getTodayShifts()
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
+        // Check if override flag is set
+        $override = $request->input('override', false);
+
         $staffId   = $request->staff_id;
         $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift     = Shift::findOrFail($shiftDate->shift_id);
 
         // ====== 1️⃣ Check for approved leave ======
-        $leave = LeaveRequest::where('user_id', $staffId)
-            ->where('status', 'approved')
-            ->where('start_date', '<=', $shiftDate->shift_date) // full datetime comparison
-            ->where('end_date', '>=', $shiftDate->shift_date)   // full datetime comparison
-            ->first();
+        if (!$override) {
+            $leave = LeaveRequest::where('user_id', $staffId)
+                ->where('status', 'approved')
+                ->where('start_date', '<=', $shiftDate->shift_date) // full datetime comparison
+                ->where('end_date', '>=', $shiftDate->shift_date)   // full datetime comparison
+                ->first();
 
-        if ($leave) {
-            return response()->json([
-                'errors' => [
-                    'leave' => "Staff has an approved leave from "
-                        . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
-                        . " to "
-                        . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')
-                ]
-            ], 422);
+            if ($leave) {
+                return response()->json([
+                    'errors' => [
+                        'leave' => "Staff has an approved leave from "
+                            . \Carbon\Carbon::parse($leave->start_date)->format('Y-m-d H:i')
+                            . " to "
+                            . \Carbon\Carbon::parse($leave->end_date)->format('Y-m-d H:i')
+                    ]
+                ], 422);
+            }
         }
 
         $start        = $shift->start_shift ?? null;
@@ -1569,43 +1608,47 @@ public function getTodayShifts()
         // ✅ Apply all restrictions (including 40hr/20hr student visa rule)
         $newShiftStart = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
 
-        // ✅ Apply all restrictions (including 40hr, 20hr student visa, and 12hr rest rule)
-        applyRestrictions(
-            $staff,
-            $validator,
-            'staff_id',
-            $newShiftHours,
-            $shiftDate->shift_date,
-            $newShiftStart //pass new start datetime
-        );
+        // ✅ Apply all restrictions only if not overriding
+        if (!$override) {
+            applyRestrictions(
+                $staff,
+                $validator,
+                'staff_id',
+                $newShiftHours,
+                $shiftDate->shift_date,
+                $newShiftStart //pass new start datetime
+            );
 
-        if ($validator->errors()->any()) {
-            \Log::info('Restrictions failed', $validator->errors()->toArray());
+            if ($validator->errors()->any()) {
+                \Log::info('Restrictions failed', $validator->errors()->toArray());
 
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
+                return response()->json([
+                    'errors' => $validator->errors()
+                ], 422);
+            }
         }
 
-        // ✅ Overlapping check
-        $newStart = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
-        $newEnd   = $this->combineDateTime($shiftDate->shift_date, $shiftDate->end_time);
+        // ✅ Overlapping check - only if not overriding
+        if (!$override) {
+            $newStart = $this->combineDateTime($shiftDate->shift_date, $shiftDate->start_time);
+            $newEnd   = $this->combineDateTime($shiftDate->shift_date, $shiftDate->end_time);
 
-        if ($newEnd->lte($newStart)) {
-            $newEnd->addDay();
-        }
+            if ($newEnd->lte($newStart)) {
+                $newEnd->addDay();
+            }
 
-        $overlap = ShiftDate::where('staff_id', $staff->user_id)
-            ->where(function ($query) use ($newStart, $newEnd) {
-                $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
-                    ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
-            })
-            ->exists();
+            $overlap = ShiftDate::where('staff_id', $staff->user_id)
+                ->where(function ($query) use ($newStart, $newEnd) {
+                    $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
+                        ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
+                })
+                ->exists();
 
-        if ($overlap) {
-            return response()->json([
-                'error' => 'This staff already has a shift during this time.'
-            ], 422);
+            if ($overlap) {
+                return response()->json([
+                    'error' => 'This staff already has a shift during this time.'
+                ], 422);
+            }
         }
 
         // ✅ Assign shift if passes all checks

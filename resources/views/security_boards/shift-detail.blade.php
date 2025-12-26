@@ -160,6 +160,60 @@
             color: #fff;
         }
 
+        /* Custom toast container and styles */
+        #custom-toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99999;
+            pointer-events: none;
+            width: auto;
+            max-width: none;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .custom-toast {
+            display: flex;
+            align-items: center;
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 12px 20px 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            min-width: 320px;
+            max-width: 640px;
+            width: auto;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all .28s cubic-bezier(.2, .8, .2, 1);
+            font-family: Arial, sans-serif;
+            pointer-events: auto;
+            position: relative;
+            overflow: visible;
+        }
+
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .custom-toast .toast-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+
+        .custom-toast .toast-content {
+            flex: 1;
+        }
+
+        .custom-toast .toast-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
         /* Optional: small screens tweaks */
         @media (max-width: 480px) {
             #custom-toast-container {
@@ -941,6 +995,12 @@
     @endphp
 
     <script>
+        // Initialize isSuperAdmin flag FIRST before any other scripts
+        window.isSuperAdmin = @json(auth()->check() && auth()->user() && auth()->user()->getRoleNames()->contains('superadmin'));
+        console.log('[INIT] window.isSuperAdmin set to:', window.isSuperAdmin);
+    </script>
+
+    <script>
         const baseUrl = "{{ url('') }}";
 
         // Handle scan view button clicks
@@ -978,11 +1038,6 @@
                 console.error('Failed to parse scan payload', err);
             }
         });
-
-        window.isSuperAdmin = @json(auth()->check() &&
-                auth()->user() &&
-                auth()->user()->getRoleNames() &&
-                auth()->user()->getRoleNames()->contains('superadmin'));
     </script>
 
     <script>
@@ -1171,56 +1226,56 @@
         $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
             e.preventDefault();
 
-            $.ajax({
-                url: `${baseUrl}/assign-shift`,
-                type: 'POST',
-                data: $(this).serialize(),
-                success: function(response) {
-                    showToast(response.success, 'success', 5000);
-                    location.reload();
-                },
-                error: function(xhr) {
-                    // $('#assignShiftErrors').addClass('d-none').empty(); // clear old errors
-
-                    if (xhr.status === 422 && xhr.responseJSON?.errors) {
-                        let messages = Object.values(xhr.responseJSON.errors).flat();
-                        const restrictionMsg = messages[0]; // first error
-
-                        if (window.isSuperAdmin) {
-                            showRestrictionToast(restrictionMsg, () => {
-                                // Clear errors before override
-                                // $('#assignShiftErrors').addClass('d-none').empty();
-
-                                // Send override request
-                                $.ajax({
-                                    url: `${baseUrl}/assign-shift-override`,
-                                    type: 'POST',
-                                    data: $('#assignShiftForm').serialize(),
-                                    success: function(res) {
-                                        showToast(res.success, 'success', 5000);
-                                        location.reload();
-                                    },
-                                    error: function(err) {
-                                        showToast("Override failed. Try again.",
-                                            "error", 5000);
-                                    }
-                                });
-                            });
-                        } else {
-                            showToast(restrictionMsg, 'error', 5000);
-                        }
-
-                        // Optional fallback in error div
-                        // messages.forEach(msg => $('#assignShiftErrors').append(`<div>${msg}</div>`));
-                        // $('#assignShiftErrors').removeClass('d-none');
-                    } else if (xhr.responseJSON?.error) {
-                        showToast(xhr.responseJSON.error, 'error', 5000);
-                    } else {
-                        showToast('An unexpected error occurred while assigning the shift.', 'error',
-                            5000);
-                    }
+            const submitData = (override = false) => {
+                let formData = $(this).serialize();
+                if (override) {
+                    formData += '&override=1';
                 }
-            });
+
+                $.ajax({
+                    url: `${baseUrl}/assign-shift`,
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        showToast(response.success || 'Shift assigned successfully!', 'success', 5000);
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        console.log("Assign shift error - Status:", xhr.status);
+                        console.log("Response:", xhr.responseJSON);
+                        console.log("Is SuperAdmin:", window.isSuperAdmin);
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat();
+                            console.log("Error messages:", messages);
+
+                            if (messages.length) {
+                                console.log("Checking isSuperAdmin:", window.isSuperAdmin);
+                                if (window.isSuperAdmin) {
+                                    console.log("Showing override toast for:", messages[0]);
+                                    // Show restriction toast with override option
+                                    showRestrictionToast(messages[0], () => {
+                                        console.log("Override confirmed, resubmitting with override=1");
+                                        submitData(true); // retry with override
+                                    });
+                                } else {
+                                    console.log("Not superadmin, showing error toasts");
+                                    messages.forEach(msg => showToast(msg, 'error', 5000));
+                                }
+                            } else {
+                                showToast('Validation failed, but no message returned.', 'error', 5000);
+                            }
+                        } else if (xhr.responseJSON?.error) {
+                            showToast(xhr.responseJSON.error, 'error', 5000);
+                        } else {
+                            showToast('An unexpected error occurred while assigning the shift.', 'error', 5000);
+                        }
+                    }
+                });
+            };
+
+            // Initial submit
+            submitData();
         });
         setTimeout(() => {
             const alertBox = document.querySelector('.alert');
@@ -1228,7 +1283,7 @@
                 alertBox.classList.remove('show');
                 alertBox.classList.add('hide');
             }
-        }, 3000); // hides after 5 seconds
+        }, 3000);
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
@@ -1970,4 +2025,111 @@
     </script>
 
     <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        // Edit shift function
+        function editShift(shiftId) {
+            console.log('Edit shift called with ID:', shiftId);
+            
+            // Set the shift_id immediately
+            $('#shift_id').val(shiftId);
+            
+            $.ajax({
+                url: `${baseUrl}/editshift/${shiftId}`,
+                type: 'GET',
+                success: function(response) {
+                    console.log('Shift data received:', response);
+                    const data = response.shift;
+                    
+                    $('#shift_id').val(data.id);
+                    $('#staff_id').val(data.staff_id).trigger('change');
+                    $('#shift_date').val(data.shift_date);
+                    $('#start_shift').val(data.start_time ? data.start_time.substring(0, 5) : '');
+                    $('#end_shift').val(data.end_time ? data.end_time.substring(0, 5) : '');
+                    $('#guard_rate').val(data.guard_rate || '');
+                    $('#book_on').val(data.absentee_start_time ? data.absentee_start_time.substring(0, 5) : (data.start_time ? data.start_time.substring(0, 5) : ''));
+                    $('#book_off').val(data.absentee_end_time ? data.absentee_end_time.substring(0, 5) : (data.end_time ? data.end_time.substring(0, 5) : ''));
+                    $('#status_id').val(data.is_assign || data.status_id || '').trigger('change');
+                    
+                    // Initialize Select2 in modal
+                    $('.select2_modal').select2({
+                        dropdownParent: $('#edit_shift')
+                    });
+                    
+                    $('#edit_shift').modal('show');
+                },
+                error: function(xhr) {
+                    console.error('Failed to load shift details:', xhr);
+                    showToast('Failed to load shift details', 'error', 5000);
+                }
+            });
+        }
+
+        // Handle edit shift form submission
+        $(document).off('submit', '#edit_shift-form').on('submit', '#edit_shift-form', function(e) {
+            e.preventDefault();
+            
+            const shiftId = $('#shift_id').val();
+            const formData = $('#edit_shift-form').serialize();
+            
+            const submitData = (useOverride = false) => {
+                // Generate URLs properly
+                const url = useOverride 
+                    ? `${baseUrl}/updateshift/${shiftId}/override`
+                    : `${baseUrl}/updateshift/${shiftId}`;
+                
+                console.log('Submitting to URL:', url);
+                
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        $('#edit_shift').modal('hide');
+                        showToast(response.success || response.message || 'Shift updated successfully!', 'success', 5000);
+                        setTimeout(() => location.reload(), 1000);
+                    },
+                    error: function(xhr) {
+                        console.log("Edit shift error - Status:", xhr.status);
+                        console.log("Response:", xhr.responseJSON);
+                        console.log("Is SuperAdmin:", window.isSuperAdmin);
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat();
+                            console.log("Error messages:", messages);
+
+                            if (messages.length) {
+                                console.log("Checking isSuperAdmin:", window.isSuperAdmin);
+                                if (window.isSuperAdmin && !useOverride) {
+                                    showRestrictionToast(messages[0], function() {
+                                        submitData(true);
+                                    });
+                                } else {
+                                    showToast(messages[0], 'error', 5000);
+                                }
+                            } else {
+                                showToast('Validation failed, but no message returned.', 'error', 5000);
+                            }
+                        } else if (xhr.responseJSON?.error) {
+                            if (window.isSuperAdmin && !useOverride) {
+                                showRestrictionToast(xhr.responseJSON.error, function() {
+                                    submitData(true);
+                                });
+                            } else {
+                                showToast(xhr.responseJSON.error, 'error', 5000);
+                            }
+                        } else {
+                            showToast('An unexpected error occurred while updating the shift.', 'error', 5000);
+                        }
+                    }
+                });
+            };
+
+            // Initial submit (without override)
+            submitData(false);
+        });
+    </script>
 @endsection

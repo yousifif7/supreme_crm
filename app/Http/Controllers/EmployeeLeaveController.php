@@ -37,7 +37,7 @@ class EmployeeLeaveController extends Controller
             'reason' => 'required|string|max:255',
             'employee_id' => 'required|exists:employees,id',
             'start_date' => 'required|date',
-            'end_date' => 'required|date|after_or_equal:from_date',
+            'end_date' => 'required|date|after_or_equal:start_date',
             'type' => 'required',
             'user_id' => 'mullable',
         ]);

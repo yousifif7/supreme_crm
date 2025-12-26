@@ -297,8 +297,35 @@
                             $.each(errors, function(key, value) {
                                 $('#error_' + key).text(value[0]);
                             });
+                            
+                            // Get the first error message for toast
+                            let firstError = Object.values(errors)[0][0];
+                            toast_danger(firstError);
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            // Handle other error responses
+                            let errorMessage = 'An error occurred. Please try again.';
+                            
+                            if (xhr.responseJSON && xhr.responseJSON.error) {
+                                errorMessage = xhr.responseJSON.error;
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                // Sometimes errors come as a flat object
+                                let firstError = Object.values(xhr.responseJSON.errors)[0];
+                                errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+                            } else if (xhr.responseText) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    errorMessage = response.error || response.message || errorMessage;
+                                } catch (e) {
+                                    // If not JSON, use responseText if it's reasonable length
+                                    if (xhr.responseText.length < 200) {
+                                        errorMessage = xhr.responseText;
+                                    }
+                                }
+                            }
+                            
+                            toast_danger(errorMessage);
                         }
                     },
                     complete: function() {
@@ -337,13 +364,42 @@
                     },
                     error: function(xhr) {
                         if (xhr.status === 422) {
+                            // Validation errors
                             let errors = xhr.responseJSON.errors;
-
+                            
+                            // Display inline errors
                             $.each(errors, function(key, value) {
                                 $('#editerror_' + key).text(value[0]);
                             });
+                            
+                            // Get the first error message for toast
+                            let firstError = Object.values(errors)[0][0];
+                            toast_danger(firstError);
                         } else {
-                            toast_danger('An error occurred. Please try again.');
+                            // Handle other error responses
+                            let errorMessage = 'An error occurred. Please try again.';
+                            
+                            if (xhr.responseJSON && xhr.responseJSON.error) {
+                                errorMessage = xhr.responseJSON.error;
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.responseJSON && xhr.responseJSON.errors) {
+                                // Sometimes errors come as a flat object
+                                let firstError = Object.values(xhr.responseJSON.errors)[0];
+                                errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+                            } else if (xhr.responseText) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    errorMessage = response.error || response.message || errorMessage;
+                                } catch (e) {
+                                    // If not JSON, use responseText if it's reasonable length
+                                    if (xhr.responseText.length < 200) {
+                                        errorMessage = xhr.responseText;
+                                    }
+                                }
+                            }
+                            
+                            toast_danger(errorMessage);
                         }
                     },
                     complete: function() {
@@ -381,15 +437,28 @@
                         reloadDatatable('#clients-table');
                     },
                     error: function(xhr) {
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
 
-                            $.each(errors, function(key, value) {
-                                $('#invoiceerror_' + key).text(value[0]);
-                            });
-                        } else {
-                            toast_danger('An error occurred. Please try again.');
-                        }
+                            // Handle other error responses
+                            let errorMessage = 'An error occurred. Please try again.';
+                            
+                            if (xhr.responseJSON && xhr.responseJSON.error) {
+                                errorMessage = xhr.responseJSON.error;
+                            } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                errorMessage = xhr.responseJSON.message;
+                            } else if (xhr.responseText) {
+                                try {
+                                    const response = JSON.parse(xhr.responseText);
+                                    errorMessage = response.error || response.message || errorMessage;
+                                } catch (e) {
+                                    // If not JSON, use responseText if it's reasonable length
+                                    if (xhr.responseText.length < 200) {
+                                        errorMessage = xhr.responseText;
+                                    }
+                                }
+                            }
+                            
+                            toast_danger(errorMessage);
+                        
                     },
                     complete: function() {
                         // Re-enable button after response

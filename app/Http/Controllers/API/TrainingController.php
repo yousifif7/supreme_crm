@@ -89,8 +89,6 @@ class TrainingController extends Controller
 
         $filePath = null;
 
-        $filePath = null;
-
         if ($request->hasFile('pdf_url')) {
             // Move file into the public/materials folder
             $fileName = time() . '_' . $request->file('pdf_url')->getClientOriginalName();
@@ -109,13 +107,17 @@ class TrainingController extends Controller
             'title' => $validated['title'],
             'description' => $validated['description'],
             'type' => $validated['type'],
-            'implementation_date' => $validated['implementation_date'],
-            'deadline' => $validated['deadline'],
-            'acknowledge_by_date' => $validated['acknowledge_by_date'],
-            'pdf_url' => $filePath, // correct variable
+            'implementation_date' => $validated['implementation_date'] ?? null,
+            'deadline' => $validated['deadline'] ?? null,
+            'acknowledge_by_date' => $validated['acknowledge_by_date'] ?? null,
+            'pdf_url' => $filePath,
         ]);
 
-        return back()->with('message', 'Material created successfully');
+        if ($request->ajax()) {
+            return response()->json(['success' => true, 'message' => 'Material created successfully']);
+        }
+        
+        return redirect()->back()->with('success', 'Material created successfully');
     }
 
     public function exportMaterialsPdf()
@@ -152,6 +154,7 @@ class TrainingController extends Controller
             'acknowledge_by_date' => 'nullable|date',
         ]);
 
+
         // If file uploaded, replace the old file
         if ($request->hasFile('pdf_url')) {
             $fileName = time() . '_' . $request->file('pdf_url')->getClientOriginalName();
@@ -163,7 +166,7 @@ class TrainingController extends Controller
                 Log::error('File compression failed for training material pdf (update): ' . $e->getMessage());
             }
         } else {
-            unset($validated['pdf_url']); // dont overwrite with null if no file uploaded
+            unset($validated['pdf_url']);
         }
 
         // Update instead of create

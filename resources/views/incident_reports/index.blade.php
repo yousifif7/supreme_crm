@@ -461,16 +461,19 @@
                     $('#incident_reports-table').DataTable().ajax.reload(); // reload DataTable
 
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-                        $.each(errors, function(key, value) {
-                            $('#error_' + key).text(value[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
-                        toast_danger('Failed to update incident.');
+                        toast_danger('Something went wrong.');
                     }
-                }
+                },
             });
         });
 
@@ -559,10 +562,19 @@
                     toastr.success(response.message);
                     $('#incident_reports-table').DataTable().ajax.reload();
                 },
-                error: function(xhr) {
-                    console.error(xhr.responseText);
-                    toastr.error('Failed to create incident');
-                }
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
+                    }
+                },
             });
         });
 

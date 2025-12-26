@@ -188,7 +188,9 @@ class ExportController extends Controller
 
     public function exportUserPdf()
     {
-        $users = User::all();
+        $users = User::whereDoesntHave('roles', function($query) {
+            $query->whereIn('name', ['client', 'subcontractor', 'security_staff']);
+        })->get();
         $pdf = Pdf::loadView('exports.users_pdf', compact('users'));
         return $pdf->download('users.pdf');
     }

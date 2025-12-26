@@ -537,17 +537,19 @@
                         toast_success('User Added Successfully');
                         reloadDatatable('#users-table');
                     },
-                    error: function(xhr) {
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
-
-                            $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
                             });
-                        } else {
-                            toast_danger('An error occurred. Please try again.');
-                        }
-                    },
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
+                    }
+                },
                     complete: function() {
                         submitButton.prop('disabled', false).html('Save');
                     }
@@ -577,16 +579,19 @@
                         toast_success('User updated successfully!');
                         reloadDatatable('#users-table');
                     },
-                    error: function(xhr) {
-                        $('.form-error').text(''); // Clear old errors
-                        if (xhr.status === 422 && xhr.responseJSON.errors) {
-                            $.each(xhr.responseJSON.errors, function(key, value) {
-                                $(`#error_${key}`).text(value[0]);
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
                             });
-                        } else {
-                            toast_danger('An unexpected error occurred.');
-                        }
-                    },
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
+                    }
+                },
                     complete: function() {
                         submitButton.prop('disabled', false).html('Update');
                     }

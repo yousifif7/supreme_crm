@@ -1,6 +1,12 @@
    <div class="modal fade" id="edit_employee">
        <div class="modal-dialog modal-dialog-scrollable modal-lg">
            <div class="modal-content">
+               <!-- Loading Overlay -->
+               <div class="modal-loading-overlay" id="edit_employee_loading" style="display: none;">
+                   <div class="spinner-border text-primary" role="status">
+                       <span class="visually-hidden">Loading...</span>
+                   </div>
+               </div>
                <div class="modal-header">
                    <h4 class="modal-title">Edit Employee</h4>
                    <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
@@ -71,14 +77,6 @@
                                    <div id="passwordHelp" class="text-muted small">
                                        Must be at least 8 characters, include uppercase, lowercase, number, and special
                                        character.
-                                   </div>
-                                   <div class="d-flex gap-2 align-items-center mt-2">
-                                       <button type="button" id="generatePasswordBtn" class="btn btn-sm btn-outline-secondary">Generate Password</button>
-                                       <div class="form-check ms-2 mb-0">
-                                           <input class="form-check-input" type="checkbox" id="showPasswordCheckbox">
-                                           <label class="form-check-label small mb-0" for="showPasswordCheckbox">Show password</label>
-                                       </div>
-                                       <small class="text-muted ms-3">Leave blank to keep the current password (cannot be displayed).</small>
                                    </div>
                                </div>
                            </div>
@@ -322,7 +320,7 @@
 
                            <div class="col-md-4 mb-3">
                                <label class="form-label" for="subcontractor">Subcontractor</label>
-                              <select class="form-select" name="subcontractor" id="subcontractor">
+                              <select class="form-select sub-edit-select2" name="subcontractor" id="subcontractor">
                                   <option>----Select Subcontractor----</option>
                                   @foreach ($subcontractors as $subcontractor)
                                       <option value="{{ $subcontractor->id }}">
@@ -688,4 +686,16 @@
                     });
                 }
             })();
+
+
+        $(document).ready(function() {
+
+            $('.sub-edit-select2').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#edit_employee'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+        });
         </script>

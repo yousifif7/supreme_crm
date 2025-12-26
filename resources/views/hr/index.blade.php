@@ -82,6 +82,26 @@
                 </div>
             </div>
 
+            <style>
+                .modal-loading-overlay {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(255, 255, 255, 0.9);
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    z-index: 1060;
+                    border-radius: 0.5rem;
+                }
+                .modal-loading-overlay .spinner-border {
+                    width: 3rem;
+                    height: 3rem;
+                }
+            </style>
+
             <!-- Add material -->
             <div class="modal fade" id="add_leave">
                 <div class="modal-dialog modal-dialog-centered modal-lg">
@@ -94,7 +114,7 @@
                             </button>
                         </div>
                         <form action="{{ route('materials.store') }}" method="POST" enctype="multipart/form-data"
-                            id="add_materials">
+                            id="add_material_form">
                             @csrf
                             <div class="tab-content" id="myTabContent">
                                 <div class="tab-pane fade show active" id="basic-info" role="tabpanel"
@@ -172,7 +192,13 @@
                                     <div class="modal-footer">
                                         <button type="button" class="btn btn-outline-light border me-2"
                                             data-bs-dismiss="modal">Cancel</button>
-                                        <button type="submit" form="add_materials" class="btn btn-primary">Save</button>
+                                        <button type="submit" form="add_material_form" class="btn btn-primary">Save</button>
+                                    </div>
+                                </div>
+                                <!-- Loading Overlay -->
+                                <div class="modal-loading-overlay" id="add_material_loading" style="display: none;">
+                                    <div class="spinner-border text-primary" role="status">
+                                        <span class="visually-hidden">Loading...</span>
                                     </div>
                                 </div>
                             </div>
@@ -329,7 +355,7 @@
                     }
 
                     // Add Modal: react to type change
-                    $(document).on('change', '#add_materials select[name="type"]', function() {
+                    $(document).on('change', '#add_material_form select[name="type"]', function() {
                         toggleTypeFields($(this).val());
                     });
 
@@ -343,8 +369,7 @@
                         e.preventDefault();
 
                         let formData = new FormData(this);
-                        let submitBtn = $(this).find('button[type="submit"]');
-                        submitBtn.prop('disabled', true).text('Saving...');
+                        $('#add_material_loading').show();
 
                         $.ajax({
                             url: $(this).attr('action'),
@@ -356,23 +381,43 @@
                                 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                             },
                             success: function() {
+                                $('#add_material_loading').hide();
                                 $('#add_material_form')[0].reset();
-                                $('#addMaterialModal').modal('hide');
-                                toast_success('HR Material created successfully!');
+                                
+                                // Properly close the modal using Bootstrap 5 API
+                                const modalElement = document.getElementById('add_leave');
+                                const modal = bootstrap.Modal.getInstance(modalElement);
+                                if (modal) {
+                                    modal.hide();
+                                } else {
+                                    $('#add_leave').modal('hide');
+                                }
+                                
+                                // Clean up backdrop and body classes
+                                $('.modal-backdrop').remove();
+                                $('body').removeClass('modal-open').css('padding-right', '');
+                                
+                                toast_success('Material created successfully!');
                                 reloadDatatable('#materials-table');
                             },
                             error: function(xhr) {
                                 if (xhr.status === 422) {
-                                    let errors = xhr.responseJSON.errors;
-                                    $.each(errors, function(key, value) {
-                                        $('#error_' + key).text(value[0]);
-                                    });
+                                    const errors = xhr.responseJSON.errors;
+                                    // Get the first error message
+                                    let firstError = Object.values(errors)[0][0];
+                                    toast_danger(firstError);
                                 } else {
-                                    toast_danger('Something went wrong!');
+                                    let errorMessage = 'Something went wrong.';
+                                    if (xhr.responseJSON && xhr.responseJSON.error) {
+                                        errorMessage = xhr.responseJSON.error;
+                                    } else if (xhr.responseJSON && xhr.responseJSON.message) {
+                                        errorMessage = xhr.responseJSON.message;
+                                    }
+                                    toast_danger(errorMessage);
                                 }
                             },
                             complete: function() {
-                                submitBtn.prop('disabled', false).text('Save');
+                                $('#add_material_loading').hide();
                             }
                         });
                     });
@@ -506,16 +551,19 @@
                                 toast_success('Material updated successfully!');
                                 reloadDatatable('#materials-table');
                             },
-                            error: function(xhr) {
-                                $('.form-error').text('');
-                                if (xhr.responseJSON && xhr.responseJSON.errors) {
-                                    $.each(xhr.responseJSON.errors, function(key, value) {
-                                        $('#error_' + key).text(value[0]);
-                                    });
-                                } else {
-                                    toast_danger('Failed to update material.');
-                                }
-                            }
+                                error: function (xhr) {
+                                    if (xhr.status === 422) {
+                                        const errors = xhr.responseJSON.errors;
+
+                                        Object.values(errors).forEach(messages => {
+                                            messages.forEach(message => {
+                                                toast_danger(message);
+                                            });
+                                        });
+                                    } else {
+                                        toast_danger('Something went wrong.');
+                                    }
+                                },
                         });
                     });
 

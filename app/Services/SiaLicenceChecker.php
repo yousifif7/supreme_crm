@@ -132,7 +132,7 @@ foreach ($attempts as $idx => $attempt) {
                     $response = Http::withHeaders($commonHeaders)
                         ->withOptions($opts)
                         ->timeout($this->timeout)
-                        ->retry(3, 1500) // 3 retries, 1.5s backoff
+                        ->retry(3, 1500, null, false) // 3 retries, 1.5s backoff, no throwing
                         ->accept('text/html');
 
                     if ($method === 'get') {

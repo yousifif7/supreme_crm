@@ -679,15 +679,17 @@
                     reloadDatatable('#vehicles-table');
                     form.reset();
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-
-                        $.each(errors, function(key, value) {
-                            $('#error_' + key).text(value[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
-                        toast_danger('An error occurred. Please try again.');
+                        toast_danger('Something went wrong.');
                     }
                 },
                 complete: function() {
@@ -723,15 +725,17 @@
                     toast_success('Vehicle Updated Successfully!');
                     reloadDatatable('#vehicles-table');
                 },
-                error: function(xhr) {
+                error: function (xhr) {
                     if (xhr.status === 422) {
-                        let errors = xhr.responseJSON.errors;
-
-                        $.each(errors, function(key, value) {
-                            $('#editerror_' + key).text(value[0]);
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
                         });
                     } else {
-                        toast_danger('An error occurred. Please try again.');
+                        toast_danger('Something went wrong.');
                     }
                 },
                 complete: function() {

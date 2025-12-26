@@ -148,7 +148,7 @@ class ClientController extends Controller
             'office_rate'     => 'nullable|numeric',
             'vat'  => 'nullable',
             'password' => [
-                'required',
+                'nullable',
                 'string',
                 'min:8', // minimum 8 characters
                 'regex:/[A-Z]/', // at least one uppercase

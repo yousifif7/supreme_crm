@@ -11,7 +11,7 @@ class LogController extends Controller
     {
         $logs = Log::with('loggable')
             ->latest()
-            ->get();
+            ->paginate();
 
         return view('logs.index', compact('logs'));
     }

@@ -595,9 +595,10 @@
 
                 // Disable button and show loading
                 submitButton.prop('disabled', true).html('Saving...');
+                $('#add_employee_loading').show();
 
                 $.ajax({
-                    url: $(this).attr('action'),
+                    url: `${baseUrl}/employees`,
                     method: 'POST',
                     data: formData,
                     processData: false,
@@ -606,6 +607,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
+                        $('#add_employee_loading').hide();
                         closeBsModal('#add_employee');
                         toast_success('Employee Added Successfully');
                         reloadDatatable('#employees-table');
@@ -624,15 +626,35 @@
                                     'label').offset().top - $('#add_employee .modal-body')
                                 .offset().top + $('#add_employee .modal-body').scrollTop()
                             );
+                            
+                            // Get the first error message for toast
+                            let firstError = Object.values(errors)[0][0];
+                            toast_danger(firstError);
                         } else {
                             let response = xhr.responseJSON;
 
                             if (response && response.error) {
                                 // Show backend error (like invalid SIA licence)
                                 toast_danger(response.error);
+                            } else if (response && response.message) {
+                                toast_danger(response.message);
+                            } else if (response && response.errors) {
+                                // Sometimes errors come as a flat object
+                                let firstError = Object.values(response.errors)[0];
+                                let errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+                                toast_danger(errorMessage);
                             } else if (xhr.responseText) {
-                                // fallback if backend returns plain text
-                                toast_danger(xhr.responseText);
+                                try {
+                                    const parsedResponse = JSON.parse(xhr.responseText);
+                                    toast_danger(parsedResponse.error || parsedResponse.message || 'An unexpected error occurred.');
+                                } catch (e) {
+                                    // fallback if backend returns plain text
+                                    if (xhr.responseText.length < 200) {
+                                        toast_danger(xhr.responseText);
+                                    } else {
+                                        toast_danger('An unexpected error occurred. Please try again.');
+                                    }
+                                }
                             } else {
                                 toast_danger('An unexpected error occurred. Please try again.');
                             }
@@ -640,6 +662,7 @@
                     },
                     complete: function() {
                         // Re-enable button after response
+                        $('#add_employee_loading').hide();
                         submitButton.prop('disabled', false).html('Save');
                     }
                 });
@@ -650,7 +673,7 @@
                 $("[id^='editerror_']").text('').addClass('d-none');
                 let form = $(this)[0];
                 let formData = new FormData(form);
-                let submitButton = $('#editemployee'); // Your submit button should have this ID
+                let submitButton = $('#editEmployeeBtn'); // Correct button ID
 
                 // Get the employee ID from a hidden input field
                 let employeeId = $('#employee_id')
@@ -658,6 +681,7 @@
 
                 // Disable button and show loading
                 submitButton.prop('disabled', true).html('Updating...');
+                $('#edit_employee_loading').show();
 
                 $.ajax({
                     url: `${baseUrl}/updateemployee/${employeeId}`, // OR use Laravel Blade: `{{ url('employees') }}/` + employeeId
@@ -669,6 +693,7 @@
                         'X-CSRF-TOKEN': $('input[name="_token"]').val()
                     },
                     success: function(response) {
+                        $('#edit_employee_loading').hide();
                         closeBsModal('#edit_employee');
                         toast_success('Employee Updated Successfully');
                         reloadDatatable('#employees-table');
@@ -688,15 +713,35 @@
                                     'label').offset().top - $('#edit_employee .modal-body')
                                 .offset().top + $('#edit_employee .modal-body').scrollTop()
                             );
+                            
+                            // Get the first error message for toast
+                            let firstError = Object.values(errors)[0][0];
+                            toast_danger(firstError);
                         } else {
                             let response = xhr.responseJSON;
 
                             if (response && response.error) {
                                 // Show backend error (like invalid SIA licence)
                                 toast_danger(response.error);
+                            } else if (response && response.message) {
+                                toast_danger(response.message);
+                            } else if (response && response.errors) {
+                                // Sometimes errors come as a flat object
+                                let firstError = Object.values(response.errors)[0];
+                                let errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
+                                toast_danger(errorMessage);
                             } else if (xhr.responseText) {
-                                // fallback if backend returns plain text
-                                toast_danger(xhr.responseText);
+                                try {
+                                    const parsedResponse = JSON.parse(xhr.responseText);
+                                    toast_danger(parsedResponse.error || parsedResponse.message || 'An unexpected error occurred.');
+                                } catch (e) {
+                                    // fallback if backend returns plain text
+                                    if (xhr.responseText.length < 200) {
+                                        toast_danger(xhr.responseText);
+                                    } else {
+                                        toast_danger('An unexpected error occurred. Please try again.');
+                                    }
+                                }
                             } else {
                                 toast_danger('An unexpected error occurred. Please try again.');
                             }
@@ -704,6 +749,7 @@
                     },
                     complete: function() {
                         // Re-enable button after response
+                        $('#edit_employee_loading').hide();
                         submitButton.prop('disabled', false).html('Update');
                     }
                 });
@@ -776,10 +822,30 @@
         var editholiday = 0;
         var editterm = 0;
 
+        // Helper function to format date to YYYY-MM-DD for HTML date inputs
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            
+            // If already in YYYY-MM-DD format, return as is
+            if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+                return dateStr;
+            }
+            
+            // Try to parse and convert to YYYY-MM-DD
+            const date = new Date(dateStr);
+            if (isNaN(date.getTime())) return ''; // Invalid date
+            
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            
+            return `${year}-${month}-${day}`;
+        }
+
         function editEmployee(record_id) {
             $.get(`${baseUrl}/editemployee/` + record_id, function(data) {
                 if (data.employee) {
-                    // Fill all the form fields (same as your code)
+                    // Fill all the form fields
                     $('#employee_id').val(data.employee.id);
                     $('#username').val(data.employee.username);
                     $('#status').val(data.employee.status);
@@ -789,17 +855,19 @@
                     $('#email').val(data.employee.email);
                     $('#ni_number').val(data.employee.ni_number);
                     $('#sia_licence').val(data.employee.sia_licence);
-                    $('#sia_expiry').val(data.employee.sia_expiry);
+                    
+                    // Format date fields
+                    $('#sia_expiry').val(formatDate(data.employee.sia_expiry));
                     $('#licence_type').val(data.employee.licence_type);
-                    $('#entry_date').val(data.employee.entry_date);
-                    $('#dob').val(data.employee.dob);
+                    $('#entry_date').val(formatDate(data.employee.entry_date));
+                    $('#dob').val(formatDate(data.employee.dob));
                     $('#service_type').val(data.employee.service_type);
                     $('#visa_type').val(data.employee.visa_type);
-                    $('#visa_expiry').val(data.employee.visa_expiry);
+                    $('#visa_expiry').val(formatDate(data.employee.visa_expiry));
                     $('#place_work').val(data.employee.place_work);
                     $('#hour_per_week').val(data.employee.hour_per_week);
                     $('#passport_no').val(data.employee.passport_no);
-                    $('#passport_expiry').val(data.employee.passport_expiry);
+                    $('#passport_expiry').val(formatDate(data.employee.passport_expiry));
                     $('#address_group').val(data.employee.address_group);
                     $('#contact').val(data.employee.contact);
                     $('#emergency_contact').val(data.employee.emergency_contact);
@@ -813,16 +881,16 @@
                     $('#kin_work_tel').val(data.employee.kin_work_tel);
                     $('#kin_mobile').val(data.employee.kin_mobile);
                     $('#share_code').val(data.employee.share_code);
-                    $('#share_code_expiry').val(data.employee.share_code_expiry);
+                    $('#share_code_expiry').val(formatDate(data.employee.share_code_expiry));
                     $('#biometric_residence_permit').val(data.employee.biometric_residence_permit);
-                    $('#biometric_residence_permit_expiry').val(data.employee.biometric_residence_permit_expiry);
+                    $('#biometric_residence_permit_expiry').val(formatDate(data.employee.biometric_residence_permit_expiry));
                     $('#settlement').val(data.employee.settlement);
                     $('#tags').val(data.employee.tags);
                     $('#department_id').val(data.employee.department_id);
                     $('#subcontractor').val(data.employee.subcontractor);
                     $('#additional_sia_number').val(data.employee.additional_sia_number);
                     $('#license_type').val(data.employee.license_type);
-                    $('#license_expiry').val(data.employee.license_expiry);
+                    $('#license_expiry').val(formatDate(data.employee.license_expiry));
                     $('#dbs_confirmed').val(data.employee.dbs_confirmed);
                     $('#license_number1').val(data.employee.license_number);
                     $('#address_group_additional').val(data.employee.address_group_additional);
@@ -848,8 +916,39 @@
                     $('#bank_branch').val(data.employee.bank_branch);
                     $('#other_info').val(data.employee.other_info);
                     $('#current_endorsement').val(data.employee.current_endorsement);
-                    $('#employment_start_date').val(data.employment_start_date);
-                    $('#employment_end_date').val(data.employment_end_date);
+                    $('#employment_start_date').val(formatDate(data.employee.employment_start_date));
+                    $('#employment_end_date').val(formatDate(data.employee.employment_end_date));
+
+                    // Display existing documents under each upload field
+                    const documentFields = {
+                        'sia_licence_file': 'SIA Licence',
+                        'passport_file': 'Passport',
+                        'proof_of_address_file': 'Proof of Address',
+                        'driving_licence_file': 'Driving Licence',
+                        'ni_letter_file': 'NI Letter',
+                        'first_aid_certificate_file': 'Right to Work',
+                        'act_certificate_file': 'ACT Certificate'
+                    };
+
+                    // Clear existing previews
+                    $('.document-preview').remove();
+
+                    // Add document previews
+                    Object.keys(documentFields).forEach(field => {
+                        if (data.employee[field]) {
+                            const fileName = data.employee[field];
+                            const url = `${baseUrl}/documents/${fileName}`;
+                            const previewHtml = `
+                                <div class="document-preview mt-2">
+                                    <small class="text-muted">Current: </small>
+                                    <a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary">
+                                        <i class="ti ti-file"></i> View ${documentFields[field]}
+                                    </a>
+                                </div>
+                            `;
+                            $('#' + field).after(previewHtml);
+                        }
+                    });
 
                     // Handle Holidays
                     $('#editholiday-rows').empty();
@@ -1592,3 +1691,22 @@
 
     {!! $dataTable->scripts() !!}
 @endsection
+  <style>
+      .modal-loading-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(255, 255, 255, 0.9);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1060;
+          border-radius: 0.5rem;
+      }
+      .modal-loading-overlay .spinner-border {
+          width: 3rem;
+          height: 3rem;
+      }
+  </style>

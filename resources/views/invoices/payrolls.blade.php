@@ -298,17 +298,19 @@
                         // Reload table
                         reloadDatatable('#payrolls-table');
                     },
-                    error: function(xhr) {
-                        $('.form-error').text('');
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
-                            for (const key in errors) {
-                                $(`#payrollerror_${key}`).text(errors[key][0]);
-                            }
-                        } else {
-                            toast_danger('Something went wrong!');
-                        }
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
+                            });
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
                     }
+                },
                 });
             });
         });

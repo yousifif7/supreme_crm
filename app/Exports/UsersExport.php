@@ -9,6 +9,8 @@ class UsersExport implements FromCollection
 {
     public function collection()
     {
-        return User::select('id', 'name', 'email', 'created_at')->get();
+        return User::whereDoesntHave('roles', function($query) {
+            $query->whereIn('name', ['client', 'subcontractor', 'security_staff']);
+        })->select('id', 'name', 'email', 'created_at')->get();
     }
 }

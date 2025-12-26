@@ -348,16 +348,19 @@
                         reloadDatatable('#documentation-table');
                         $('#add_documentation_form')[0].reset();
                     },
-                    error: function(xhr) {
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
-                            $.each(errors, function(key, value) {
-                                $('#error_' + key).text(value[0]);
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
                             });
-                        } else {
-                            toast_danger('An error occurred. Please try again.');
-                        }
-                    },
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
+                    }
+                },
                     complete: function() {
                         submitButton.prop('disabled', false).html('Upload Documents');
                     }
@@ -389,16 +392,19 @@
                         toast_success('Documents updated successfully.');
                         reloadDatatable('#documentation-table');
                     },
-                    error: function(xhr) {
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
-                            $.each(errors, function(key, value) {
-                                $('#edit_error_' + key).text(value[0]);
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
                             });
-                        } else {
-                            toast_danger('An error occurred. Please try again.');
-                        }
-                    },
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
+                    }
+                },
                     complete: function() {
                         submitButton.prop('disabled', false).html('Update Documents');
                     }

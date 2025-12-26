@@ -508,17 +508,19 @@
                         toast_success('Sites Updated Successfully!');
                         reloadDatatable('#sites-table');
                     },
-                    error: function(xhr) {
-                        if (xhr.status === 422) {
-                            let errors = xhr.responseJSON.errors;
-
-                            $.each(errors, function(key, value) {
-                                $('#editerror_' + key).text(value[0]);
+                error: function (xhr) {
+                    if (xhr.status === 422) {
+                        const errors = xhr.responseJSON.errors;
+    
+                        Object.values(errors).forEach(messages => {
+                            messages.forEach(message => {
+                                toast_danger(message);
                             });
-                        } else {
-                            toast_danger('An error occurred. Please try again.');
-                        }
-                    },
+                        });
+                    } else {
+                        toast_danger('Something went wrong.');
+                    }
+                },
                     complete: function() {
                         // Re-enable button after response
                         submitButton.prop('disabled', false).html('Update');
