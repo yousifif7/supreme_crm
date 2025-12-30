@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', "CRM - Today's Rota")
+@section('title', "SPL Connect - Today's Rota")
 @section('styles')
     <style>
         .datepic .fc-prev-button,

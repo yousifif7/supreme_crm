@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM - Employee')
+@section('title', 'SPL Connect - Employee')
 @section('contents')
     <div id="all-workers" class="page-wrapper">
         <div class="content">

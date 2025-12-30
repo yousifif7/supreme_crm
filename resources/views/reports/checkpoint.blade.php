@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM | Checkpoint Report')
+@section('title', 'SPL Connect | Checkpoint Report')
 @section('contents')
     <div class="page-wrapper">
         <div class="content">

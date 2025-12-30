@@ -1633,9 +1633,9 @@ class ShiftApiController extends Controller
             $completionSeconds = null;
 
             if ($ack) {
-                $acknowledged = !empty($ack->acknowledged_at);
-                $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
-                $completionSeconds = $ack->completion_time_seconds !== null ? (int) $ack->completion_time_seconds : null;
+                $acknowledged = !empty($ack->pivot->acknowledged_at);
+                $acknowledgedAt = $ack->pivot->acknowledged_at ? (string) $ack->pivot->acknowledged_at : null;
+                $completionSeconds = $ack->pivot->completion_time_seconds !== null ? (int) $ack->pivot->completion_time_seconds : null;
             }
 
             return [
@@ -1647,6 +1647,7 @@ class ShiftApiController extends Controller
                 'required' => (bool) ($training->required ?? false),
                 'acknowledged' => $acknowledged,
                 'acknowledged_at' => $acknowledgedAt,
+                'status' => $acknowledgedAt ? 'completed' : 'pending',
                 'completion_time_seconds' => $completionSeconds,
                 'implementation_date' => $training->implementation_date,
                 'complete_by_date' => $training->deadline,
@@ -1737,9 +1738,9 @@ class ShiftApiController extends Controller
             $completionSeconds = null;
 
             if ($ack) {
-                $acknowledged = !empty($ack->acknowledged_at);
-                $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
-                $completionSeconds = $ack->completion_time_seconds !== null ? (int) $ack->completion_time_seconds : null;
+                $acknowledged = !empty($ack->pivot->acknowledged_at);
+                $acknowledgedAt = $ack->pivot->acknowledged_at ? (string) $ack->pivot->acknowledged_at : null;
+                $completionSeconds = $ack->pivot->completion_time_seconds !== null ? (int) $ack->pivot->completion_time_seconds : null;
             }
 
             return [
@@ -1751,6 +1752,7 @@ class ShiftApiController extends Controller
                 'required' => (bool) ($training->required ?? false),
                 'acknowledged' => $acknowledged,
                 'acknowledged_at' => $acknowledgedAt,
+                'status' => $acknowledgedAt ? 'completed' : 'pending',
                 'completion_time_seconds' => $completionSeconds,
                 'implementation_date' => $training->implementation_date,
                 'complete_by_date' => $training->deadline,
@@ -1907,10 +1909,10 @@ class ShiftApiController extends Controller
                 $completionSeconds = null;
 
                 if ($ack) {
-                    $acknowledged = !empty($ack->acknowledged_at);
-                    $acknowledgedAt = $ack->acknowledged_at ? (string) $ack->acknowledged_at : null;
-                    $completionSeconds = $ack->completion_time_seconds !== null
-                        ? (int) $ack->completion_time_seconds
+                    $acknowledged = !empty($ack->pivot->acknowledged_at);
+                    $acknowledgedAt = $ack->pivot->acknowledged_at ? (string) $ack->pivot->acknowledged_at : null;
+                    $completionSeconds = $ack->pivot->completion_time_seconds !== null
+                        ? (int) $ack->pivot->completion_time_seconds
                         : null;
                 }
 
@@ -1923,6 +1925,7 @@ class ShiftApiController extends Controller
                     'required' => (bool) ($training->required ?? false),
                     'acknowledged' => $acknowledged,
                     'acknowledged_at' => $acknowledgedAt,
+                    'status' => $acknowledgedAt ? 'completed' : 'pending',
                     'completion_time_seconds' => $completionSeconds,
                     'implementation_date' => $training->implementation_date,
                     'complete_by_date' => $training->deadline,

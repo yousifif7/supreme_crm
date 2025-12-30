@@ -61,6 +61,10 @@ class TrainingController extends Controller
 
         $material = TrainingMaterial::findOrFail($id);
 
+        if($material->acknowledgedUsers()->where('user_id', Auth::id())->exists()) {
+            return response()->json(['message' => 'Material already acknowledged.'], 400);
+        }
+        
         $ack = TrainingAcknowledgement::updateOrCreate(
             [
                 'user_id' => Auth::id(),

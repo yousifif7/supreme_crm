@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM - Sites')
+@section('title', 'SPL Connect - Sites')
 @section('styles')
     <style>
         .select2-container--default .select2-selection--single {

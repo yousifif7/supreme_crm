@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM - Employee')
+@section('title', 'SPL Connect - Employee')
 
 @section('styles')
     <style>

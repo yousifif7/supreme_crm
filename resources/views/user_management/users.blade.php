@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM - Users')
+@section('title', 'SPL Connect - Users')
 @section('contents')
     <!-- Page Wrapper -->
     <div id="all-workers" class="page-wrapper">

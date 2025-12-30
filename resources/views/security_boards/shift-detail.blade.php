@@ -1,6 +1,6 @@
 @extends('layouts.app')
 @section('title')
-    CRM | Shift detail
+    SPL Connect | Shift detail
 @endsection
 
 @section('styles')

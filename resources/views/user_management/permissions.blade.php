@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'CRM - Permissions')
+@section('title', 'SPL Connect - Permissions')
 @section('contents')
     <div id="permissions-wrapper" class="page-wrapper">
         <div class="content">
