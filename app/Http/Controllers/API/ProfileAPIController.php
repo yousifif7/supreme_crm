@@ -42,8 +42,8 @@ class ProfileAPIController extends Controller
         return response()->json([
             'id' => $user->id,
             'email' => $user->email,
-            'first_name' => $profile->first_name ?? '',
-            'last_name' => $profile->last_name ?? '',
+            'first_name' => $profile->first_name ?? $user->first_name,
+            'last_name' => $profile->last_name ?? $user->last_name,
             'phone' => $profile->phone ?? '',
             'address' => $profile->address ??'',
             'emergency_contact' => $profile->emergencyContact ?? null,
@@ -187,12 +187,7 @@ class ProfileAPIController extends Controller
 
 
         if (! $suppressNotifications) {
-            send_push_notification(
-                Auth::id(),
-                'Profile updated',
-                'You have updated your profile successfully.',
-                ['profile' => $profile],
-            );
+            // Notification to guard removed - only admin notifications kept
             
             $user = Auth::user();
             Notification::create([
@@ -201,6 +196,7 @@ class ProfileAPIController extends Controller
                 'type' => 'alert',
                 'title' => 'Updated Profile',
                 'message' => 'Guard '.$user->first_name.' '.$user->last_name.' has updated their profile.',
+                'action_url'=>'employees#'.$employee->id,
             ]);
         }
 

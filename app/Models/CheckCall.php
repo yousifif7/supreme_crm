@@ -9,7 +9,7 @@ class CheckCall extends Model
     //
     
     protected $fillable = [
-        'shift_id', 'scheduled_time', 'status', 'method','employee_id','name', 'require_media'
+        'shift_id', 'scheduled_time', 'status', 'method','employee_id','name', 'require_media','completed_at', 'notes','approval_status'
     ];
 
     public function shiftDate()

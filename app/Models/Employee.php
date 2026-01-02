@@ -153,6 +153,11 @@ class Employee extends Model
         return $this->hasMany(EmployeeTerm::class, 'employee_id');
     }
 
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function subcontractorDetails()
     {
         return $this->belongsTo(User::class, 'subcontractor');

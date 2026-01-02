@@ -130,21 +130,6 @@ class IncidentReportController extends Controller
             '/incident_report'
         );
 
-        Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => null,
-            'type' => 'alert',
-            'title' => 'Incident Report',
-            'message' => 'You have submitted a Inicident report successfully',
-        ]);
-
-        send_push_notification(
-            $user->id,
-            'Incident report',
-            'You have submitted an incident report successfully.',
-            ['employee' => $employee->id],
-        );
-
         try {
             Logger::log($report, 'Created', 'Incident report created via API');
         } catch (\Exception $e) {
@@ -316,12 +301,7 @@ class IncidentReportController extends Controller
         }
 
 
-        send_push_notification(
-            auth::id(),
-            'Incident report',
-            'You have submitted an incident report successfully.',
-            ['data' => $data],
-        );
+        // Notification to guard removed - only admin notifications kept
 
         try {
             Logger::log($report, 'Updated', 'Incident report updated via API');

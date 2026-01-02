@@ -299,6 +299,7 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
             'last_name' => $data['sur_name'],
             'username' => $data['email'],
             'email' => $data['email'],
+            'plaintext_password' => $data['password'],
             'password' => Hash::make($data['password']),
         ]);
 
@@ -514,14 +515,17 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
                 }
 
                 if ($request->password) {
-                    // Use Hash facade to hash the password
-                    $user->password = Hash::make($request->password);
                     send_push_notification(
                         $user->id,
                         'Creds changed',
-                        'An admin has changed your account credintials! Ask an admin for it.',
+                        'An admin has changed your account credintials! You have been logout from you account.',
                         ['user' => $user],
                     );
+
+                    $user->plaintext_password = $request->password;
+                    $user->password = Hash::make($request->password);
+
+                    $user->tokens()->delete();
                 }
                 if (!$request->password) {
                     // Use Hash facade to hash the password
@@ -659,10 +663,18 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
 
     public function edit($id)
     {
-        $employee = Employee::with('holidays', 'terms')->find($id);
+        $employee = Employee::with(['holidays', 'terms', 'user'])->find($id);
+        
+        // Get plaintext password from related user if exists
+        $plaintext_password = null;
+        if ($employee->user) {
+            $plaintext_password = $employee->user->plaintext_password;
+        }
 
         return response()->json([
-            'employee' => $employee,
+            'employee' => array_merge($employee->toArray(), [
+                'plaintext_password' => $plaintext_password
+            ]),
             'holidays' => $employee->holidays,
             'terms' => $employee->terms,
         ]);
@@ -791,6 +803,8 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
             'address_group'   => $employee?->address_group,
             'guard_rate'      => $employee?->guard_rate,
             'bank_name'       => $employee?->bank_name,
+            'bank_branch'     => $employee?->bank_branch,
+            'sort_code'       => $employee?->sort_code,
             'account_name'    => $employee?->account_name,
             'account_number'  => $employee?->account_number,
             'other_info'      => $employee?->other_info,

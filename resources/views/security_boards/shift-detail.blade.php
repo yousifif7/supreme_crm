@@ -244,13 +244,6 @@
 
     <div class="page-wrapper">
         <div class="content">
-            <div class="alert-box-container"></div>
-            @if (session('success'))
-                <div class="alert alert-success alert-dismissible fade show" role="alert">
-                    {{ session('success') }}
-                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                </div>
-            @endif
             <!-- Breadcrumb -->
             <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
                 <div class="my-auto mb-2">
@@ -420,7 +413,7 @@
                                                 <div class="mb-1">
                                                     <i class="ti ti-calendar"></i>
                                                     <span
-                                                        id="book_on">{{ (format_date($shiftDate->shift_date) ?: '') . ', at ' . ($shiftDate->absentee_start_time ?? '') }}</span>
+                                                        id="book_on">{{ ($shiftDate->shift_date ?: '') . ', at ' . \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}</span>
                                                 </div>
                                                 <div>
                                                     <i class="ti ti-map-pin"></i>
@@ -456,7 +449,7 @@
                                                 <div class="mb-1">
                                                     <i class="ti ti-calendar"></i>
                                                     <span
-                                                        id="book_off">{{ (format_date($shiftDate->shift_date) ?: '') . ', at ' . ($shiftDate->absentee_end_time ?? '') }}</span>
+                                                        id="book_off">{{ ($shiftDate->shift_date ?: '') . ', at ' . \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}</span>
                                                 </div>
                                                 <div>
                                                     <i class="ti ti-map-pin"></i>
@@ -687,8 +680,10 @@
                                         <th>Staff</th>
                                         <th>Time</th>
                                         <th>Status</th>
+                                        <th>Approval Status</th>
                                         <th>Media</th>
                                         <th>Action</th>
+                                        <th>Guard Notes</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -716,6 +711,32 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                @if ($checkcall->approval_status == 'pending' || $checkcall->approval_status == null)
+                                                    <p class="bg-warning">Pending</p>
+                                                @elseif ($checkcall->approval_status == 'approved')
+                                                    <a class="bg-success">Approved</a>
+                                                @elseif($checkcall->approval_status == 'rejected')
+                                                    <a class="bg-danger">Rejected</a>
+                                                @endif
+                                                
+                                                @if($checkcall->status == 'completed' && ($checkcall->approval_status == 'pending' || $checkcall->approval_status == null) )
+                                                    <div class="mt-1">
+                                                        <button class="btn btn-sm btn-success approve-checkcall-btn" 
+                                                            data-id="{{ $checkcall->id }}"
+                                                            data-name="{{ $checkcall->name }}"
+                                                            data-time="{{ \Carbon\Carbon::parse($checkcall->scheduled_time)->format('d-m-Y H:i') }}">
+                                                            Approve
+                                                        </button>
+                                                        <button class="btn btn-sm btn-danger reject-checkcall-btn"
+                                                            data-id="{{ $checkcall->id }}"
+                                                            data-name="{{ $checkcall->name }}"
+                                                            data-time="{{ \Carbon\Carbon::parse($checkcall->scheduled_time)->format('d-m-Y H:i') }}">
+                                                            Reject
+                                                        </button>
+                                                    </div>
+                                                @endif
+                                            </td>
+                                            <td>
                                                 @forelse ($checkCallMedia as $media)
                                                     <a href="{{ asset($media->file_path) }}" target="_blank"
                                                         class="btn btn-sm btn-primary">
@@ -729,7 +750,8 @@
                                                 <button class="btn btn-sm btn-primary edit-checkcall-btn"
                                                     data-id="{{ $checkcall->id }}" data-name="{{ $checkcall->name }}"
                                                     data-time="{{ $checkcall->scheduled_time }}"
-                                                    data-status="{{ $checkcall->status }}"> <!-- Add this -->
+                                                    data-status="{{ $checkcall->status }}"
+                                                    data-approval_status="{{ $checkcall->approval_status ?? 'pending' }}">
                                                     Edit
                                                 </button>
 
@@ -737,6 +759,9 @@
                                                     data-id="{{ $checkcall->id }}">
                                                     Delete
                                                 </button>
+                                            </td>
+                                            <td>
+                                                {{$checkcall->notes ?? 'ــ'}}
                                             </td>
                                         </tr>
                                     @endforeach
@@ -757,6 +782,14 @@
                         @endphp
 
                         @if ($patrols->isNotEmpty())
+                            <div class="mb-3 d-flex justify-content-end gap-2">
+                                <a href="{{ route('patrols.export.pdf', $shiftDate->id) }}" class="btn btn-danger btn-sm" target="_blank">
+                                    <i class="ti ti-file-type-pdf"></i> Export PDF
+                                </a>
+                                {{-- <a href="{{ route('patrols.export.excel', $shiftDate->id) }}" class="btn btn-success btn-sm">
+                                    <i class="ti ti-file-spreadsheet"></i> Export Excel
+                                </a> --}}
+                            </div>
                             <script>
                                 // Declare once for use by initPatrolMap calls below
                                 const siteCheckpoints = @json($checkpoints);
@@ -772,6 +805,7 @@
                                         <th>Started at</th>
                                         <th>completed at</th>
                                         <th>Status</th>
+                                        <th>Approval Status</th>
                                         <th>Scans</th>
                                         <th>Media</th>
                                         <th>Action</th>
@@ -814,6 +848,26 @@
                                                 @endif
                                             </td>
                                             <td>
+                                                @if($patrol->approval_status == 'pending' || $patrol->approval_status == null)
+                                                    <p class="bg-warning">Pending</p>
+                                                @elseif($patrol->approval_status == 'approved')
+                                                    <p class="bg-success">Approved</p>
+                                                @elseif($patrol->approval_status == 'rejected')
+                                                    <p class="bg-danger">Rejected</p>
+                                                @endif
+
+                                                @if($patrol->status == 'completed' && ($patrol->approval_status == 'pending' || $patrol->approval_status == null ))
+                                                    <button class="btn btn-sm btn-success approve-patrol-btn"
+                                                        data-id="{{ $patrol->id }}">
+                                                        Approve
+                                                    </button>
+                                                    <button class="btn btn-sm btn-danger reject-patrol-btn"
+                                                        data-id="{{ $patrol->id }}">
+                                                        Reject
+                                                    </button>
+                                                @endif
+                                            </td>
+                                            <td>
                                                 @if($patrolScans->isNotEmpty())
                                                     @foreach($patrolScans as $scan)
                                                         <div class="mb-1">
@@ -831,11 +885,11 @@
                                                                         'media' => $scan->media()->pluck('file_path')->toArray(),
                                                                     ];
                                                                 @endphp
-                                                                <a href="#" class="btn btn-sm btn-outline-primary view-scan-btn"
+                                                                {{-- <a href="#" class="btn btn-sm btn-outline-primary view-scan-btn"
                                                                     data-scan-id="{{ $scan->id }}"
                                                                     data-scan='@json($scanPayload)'>
                                                                     View
-                                                                </a>
+                                                                </a> --}}
                                                             </div>
                                                         </div>
                                                     @endforeach
@@ -857,7 +911,8 @@
                                                 <button class="btn btn-sm btn-primary edit-patrol-btn"
                                                     data-id="{{ $patrol->id }}" data-name="{{ $patrol->name }}"
                                                     data-time="{{ \Carbon\Carbon::parse($patrol->start_time)->format('H:i') }}"
-                                                    data-status="{{ $patrol->status }}">
+                                                    data-status="{{ $patrol->status }}"
+                                                    data-approval-status="{{ $patrol->approval_status ?? 'pending' }}">
                                                     Edit
                                                 </button>
 
@@ -914,12 +969,44 @@
                                         <option value="missed">Missed</option>
                                     </select>
                                 </div>
+                                <div class="mb-3">
+                                    <label>Approval Status</label>
+                                    <select class="form-select" name="approval_status" id="approval_status" required>
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
                                 <div>
                                     <button type="submit" class="btn btn-primary">Save Changes</button>
                                 </div>
                             </div>
                         </div>
                     </form>
+                </div>
+            </div>
+
+            <!-- Approve/Reject Check Call Confirmation Modal -->
+            <div class="modal fade" id="approvalCheckCallModal" tabindex="-1" aria-labelledby="approvalCheckCallLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="approvalCheckCallLabel">Confirm Action</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="approval-message"></p>
+                            <div class="alert alert-info">
+                                <strong>Check Call:</strong> <span id="approval-checkcall-name"></span><br>
+                                <strong>Scheduled Time:</strong> <span id="approval-checkcall-time"></span>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirm-approval-btn">Confirm</button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -950,6 +1037,14 @@
                                         <option value="in_progress">In Progress</option>
                                         <option value="completed">Completed</option>
                                         <option value="missed">Missed</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Approval Status</label>
+                                    <select id="edit_patrol_approval_status" name="approval_status" class="form-control">
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
                                     </select>
                                 </div>
                             </div>
@@ -1174,24 +1269,32 @@
 
             // Set the status select based on the data-status attribute
             $('#status').val($(this).data('status'));
+            $('#approval_status').val($(this).data('approval_status'));
 
             $('#editCheckCallModal').modal('show');
         });
+        
         // Handle update form submit
         $('#editCheckCallForm').on('submit', function(e) {
             e.preventDefault();
             let id = $('#checkcall_id').val();
 
             $.ajax({
-                url: `/checkcalls/${id}`, // Your update route
-                type: 'POST',
-                data: $(this).serialize(),
+                url: `/checkcalls/${id}`,
+                type: 'PUT',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    name: $('#checkpoint_name').val(),
+                    status: $('#status').val(),
+                    approval_status: $('#approval_status').val()
+                },
                 success: function(res) {
-                    toast_success('Check call updated sucessfully');
-                    location.reload(); // Refresh table
+                    $('#editCheckCallModal').modal('hide');
+                    showToast('Check call updated successfully', 'success', 5000);
+                    location.reload();
                 },
                 error: function(xhr) {
-                    toast_danger('Error updating check call');
+                    showToast('Error updating check call', 'error', 5000);
                 }
             });
         });
@@ -1216,6 +1319,65 @@
                 },
                 error: function() {
                     alert('Error deleting check call');
+                }
+            });
+        });
+
+        // Approve Check Call
+        let approvalAction = '';
+        let approvalCheckCallId = null;
+
+        $(document).on('click', '.approve-checkcall-btn', function() {
+            approvalCheckCallId = $(this).data('id');
+            approvalAction = 'approve';
+            
+            $('#approval-message').text('Are you sure you want to approve this check call?');
+            $('#approval-checkcall-name').text($(this).data('name'));
+            $('#approval-checkcall-time').text($(this).data('time'));
+            $('#confirm-approval-btn').removeClass('btn-danger').addClass('btn-success');
+            
+            $('#approvalCheckCallModal').modal('show');
+        });
+
+        // Reject Check Call
+        $(document).on('click', '.reject-checkcall-btn', function() {
+            approvalCheckCallId = $(this).data('id');
+            approvalAction = 'reject';
+            
+            $('#approval-message').text('Are you sure you want to reject this check call?');
+            $('#approval-checkcall-name').text($(this).data('name'));
+            $('#approval-checkcall-time').text($(this).data('time'));
+            $('#confirm-approval-btn').removeClass('btn-success').addClass('btn-danger');
+            
+            $('#approvalCheckCallModal').modal('show');
+        });
+
+        // Confirm Approval/Rejection
+        $('#confirm-approval-btn').on('click', function() {
+            if (!approvalCheckCallId || !approvalAction) return;
+
+            $.ajax({
+                url: `/checkcalls/${approvalCheckCallId}/${approvalAction}`,
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#approvalCheckCallModal').modal('hide');
+                    showToast(
+                        response.message || `Check call ${approvalAction}d successfully`, 
+                        'success', 
+                        5000
+                    );
+                    location.reload();
+                },
+                error: function(xhr) {
+                    $('#approvalCheckCallModal').modal('hide');
+                    showToast(
+                        xhr.responseJSON?.message || `Error ${approvalAction}ing check call`,
+                        'error',
+                        5000
+                    );
                 }
             });
         });
@@ -1563,6 +1725,7 @@
                 $("#edit_patrol_name").val($(this).data("name"));
                 $("#edit_patrol_time").val($(this).data("time"));
                 $("#edit_patrol_status").val($(this).data("status"));
+                $("#edit_patrol_approval_status").val($(this).data("approval-status") || 'pending');
                 $("#editPatrolModal").modal("show");
             });
 
@@ -1588,7 +1751,7 @@
                         row.find("td:eq(0)").text(patrol.name); // assuming first td is name
                         row.find("td:eq(1)").text(patrol.start_time); // second column = time
 
-                        let statusCell = row.find("td:eq(7)"); // third column = status
+                        let statusCell = row.find("td:eq(7)"); // status column
                         if (patrol.status === "pending") {
                             statusCell.html('<p class="bg-warning text-center">Pending</p>');
                         } else if (patrol.status === "in_progress") {
@@ -1596,7 +1759,25 @@
                                 '<p class="bg-primary text-center">In Progress</p>');
                         } else if (patrol.status === "completed") {
                             statusCell.html('<p class="bg-success text-center">Completed</p>');
+                        } else if (patrol.status === "missed") {
+                            statusCell.html('<p class="bg-danger text-center">Missed</p>');
                         }
+
+                        // Update approval status badge
+                        let approvalCell = row.find("td:eq(8)"); // approval status column
+                        if (patrol.approval_status === "pending") {
+                            approvalCell.html('<span class="badge bg-warning">Pending</span>');
+                        } else if (patrol.approval_status === "approved") {
+                            approvalCell.html('<span class="badge bg-success">Approved</span>');
+                        } else if (patrol.approval_status === "rejected") {
+                            approvalCell.html('<span class="badge bg-danger">Rejected</span>');
+                        }
+
+                        // Update button data attributes
+                        let editBtn = row.find(".edit-patrol-btn");
+                        editBtn.data("status", patrol.status);
+                        editBtn.data("approval-status", patrol.approval_status);
+
                         showToast(
                             "Updated successfully!", // message
                             'success', // type
@@ -1632,6 +1813,71 @@
                     },
                     error: function() {
                         alert("Delete failed!");
+                    }
+                });
+            });
+
+            // Approve patrol
+            $(document).on("click", ".approve-patrol-btn", function() {
+                if (!confirm("Are you sure you want to approve this patrol?")) return;
+
+                let id = $(this).data("id");
+
+                $.ajax({
+                    url: "/patrols/" + id + "/approve",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        let row = $("button.approve-patrol-btn[data-id='" + id + "']").closest("tr");
+                        
+                        // Update approval status badge
+                        row.find("td:eq(8)").html('<span class="badge bg-success">Approved</span>');
+                        
+                        // Remove approve/reject buttons
+                        $("button.approve-patrol-btn[data-id='" + id + "']").remove();
+                        $("button.reject-patrol-btn[data-id='" + id + "']").remove();
+                        
+                        showToast("Patrol approved successfully!", 'success', 5000);
+                    },
+                    error: function(xhr) {
+                        let message = xhr.responseJSON?.message || "Approval failed!";
+                        showToast(message, 'error', 5000);
+                    }
+                });
+            });
+
+            // Reject patrol
+            $(document).on("click", ".reject-patrol-btn", function() {
+                if (!confirm("Are you sure you want to reject this patrol?")) return;
+
+                let id = $(this).data("id");
+
+                $.ajax({
+                    url: "/patrols/" + id + "/reject",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        let row = $("button.reject-patrol-btn[data-id='" + id + "']").closest("tr");
+                        
+                        // Update approval status badge
+                        row.find("td:eq(8)").html('<span class="badge bg-danger">Rejected</span>');
+                        
+                        // Update status to pending
+                        row.find("td:eq(7)").html('<p class="bg-warning text-center">Pending</p>');
+                        
+                        // Remove approve/reject buttons
+                        $("button.approve-patrol-btn[data-id='" + id + "']").remove();
+                        $("button.reject-patrol-btn[data-id='" + id + "']").remove();
+                        
+                        showToast("Patrol rejected successfully!", 'success', 5000);
+                    },
+                    error: function(xhr) {
+                        let message = xhr.responseJSON?.message || "Rejection failed!";
+                        showToast(message, 'error', 5000);
                     }
                 });
             });

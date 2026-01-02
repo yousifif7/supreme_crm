@@ -80,22 +80,6 @@ class InvoiceAPIController extends Controller
 
         $user = Auth::user(); // Get the authenticated user
         $employee = Employee::where('user_id', $user->id)->first();
-        Notify::toDashboard(
-            null,
-            'alert',
-            'Invoice submitted',
-            'Invoice submitted by ' . $employee->fore_name . ' ' . $employee->sur_name,
-            '#'
-        );
-
-        Notification::create([
-            'user_id' => $user->id,
-            'employee_id' => $employee->id,
-            'type' => 'alert',
-            'title' => 'Invoice submitted',
-            'message' => $employee->fore_name . ' You have submitted Invoice (ID: ' . $invoice->invoice_number . ')',
-            'read' => false,
-        ]);
 
         return response()->json([
             'invoice_id' => $invoice->id,

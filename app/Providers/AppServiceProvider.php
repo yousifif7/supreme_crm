@@ -33,6 +33,38 @@ class AppServiceProvider extends ServiceProvider
             return "<?php echo format_date($expression); ?>";
         });
 
+        // Aggressively close database connections to prevent pool exhaustion
+        if (app()->runningInConsole() === false) {
+            // Close connections after each request
+            app()->terminating(function () {
+                try {
+                    \DB::disconnect();
+                } catch (\Exception $e) {
+                    \Log::warning('Failed to disconnect DB: ' . $e->getMessage());
+                }
+            });
+            
+            // Also disconnect on shutdown
+            register_shutdown_function(function () {
+                try {
+                    \DB::disconnect();
+                } catch (\Exception $e) {
+                    // Silently fail
+                }
+            });
+        }
+
+        // For console commands, disconnect after each command
+        if (app()->runningInConsole()) {
+            app()->terminating(function () {
+                try {
+                    \DB::disconnect();
+                } catch (\Exception $e) {
+                    \Log::warning('Console DB disconnect failed: ' . $e->getMessage());
+                }
+            });
+        }
+
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         ini_set('max_execution_time', env('PHP_MAX_EXECUTION_TIME', 300));

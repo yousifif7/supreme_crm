@@ -18,6 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
         ]);
+        
+        // Add DB connection cleanup middleware globally
+        $middleware->append(\App\Http\Middleware\CloseDbConnection::class);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

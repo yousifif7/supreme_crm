@@ -263,29 +263,31 @@ function send_push_notification($userId, $title, $message, $data = [])
                     "body"    => $response
                 ]);
             } else {
+                $responseData = json_decode($response, true);
+                
                 \Log::info("Push Notification: Successfully sent", [
                     "user_id" => $userId,
                     "token"   => $token,
-                    "response" => json_decode($response, true)
+                    "response" => $responseData
                 ]);
+                
+                // Check if Expo reports this token as invalid
+                if (isset($responseData['data'][0]['status']) && $responseData['data'][0]['status'] === 'error') {
+                    $errorDetails = $responseData['data'][0]['details'] ?? [];
+                    $errorType = $errorDetails['error'] ?? '';
+                    
+                    // Remove invalid tokens (DeviceNotRegistered means token expired or app uninstalled)
+                    if (in_array($errorType, ['DeviceNotRegistered', 'InvalidCredentials', 'MessageTooBig', 'MessageRateExceeded'])) {
+                        \Log::warning("Push Notification: Removing invalid token", [
+                            "user_id" => $userId,
+                            "token"   => $token,
+                            "error"   => $errorType
+                        ]);
+                        
+                        \App\Models\DeviceToken::where('push_token', $token)->delete();
+                    }
+                }
             }
-
-            // Save in DB
-            // \App\Models\Notification::create([
-            //     'user_id'    => $userId,
-            //     'employee' => null,
-            //     'type' => 'alert',
-            //     'title'      => $title,
-            //     'message'    => $message,
-            //     'read'       => false,
-            // ]);
-            Notification::create([
-                'user_id' => $userId,
-                'employee_id' => null,
-                'type' => 'alert',
-                'title' => $title,
-                'message' => $message,
-            ]);
         } catch (\Throwable $e) {
             \Log::error("Push Notification: Exception while sending", [
                 "user_id" => $userId,
@@ -294,6 +296,15 @@ function send_push_notification($userId, $title, $message, $data = [])
             ]);
         }
     }
+
+    // Save notification in DB once, outside the loop
+    Notification::create([
+        'user_id' => $userId,
+        'employee_id' => null,
+        'type' => 'alert',
+        'title' => $title,
+        'message' => $message,
+    ]);
 
     return true;
 }

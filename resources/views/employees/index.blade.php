@@ -853,6 +853,16 @@
                     $('#sur_name').val(data.employee.sur_name);
                     $('#gender').val(data.employee.gender);
                     $('#email').val(data.employee.email);
+                    
+                    // Populate password fields with plaintext password if available
+                    if (data.employee.plaintext_password) {
+                        $('input[name="password"]').val(data.employee.plaintext_password);
+                        $('input[name="password_confirmation"]').val(data.employee.plaintext_password);
+                    } else {
+                        $('input[name="password"]').val('');
+                        $('input[name="password_confirmation"]').val('');
+                    }
+                    
                     $('#ni_number').val(data.employee.ni_number);
                     $('#sia_licence').val(data.employee.sia_licence);
                     
@@ -1301,7 +1311,24 @@
                 $('#visa_expiry_detail').text(data.visa_expiry);
                 $('#place_work_detail').text(data.place_work);
                 $('#contact_detail').text(data.contact);
-                $('#emergency_contact_detail').text(data.emergency_contact);
+                
+                // Parse emergency contact if it's JSON
+                let emergencyContactText = 'N/A';
+                if (data.emergency_contact) {
+                    try {
+                        const emergencyContact = typeof data.emergency_contact === 'string' 
+                            ? JSON.parse(data.emergency_contact) 
+                            : data.emergency_contact;
+                        
+                        if (emergencyContact.name || emergencyContact.phone || emergencyContact.relationship) {
+                            emergencyContactText = `${emergencyContact.name || 'N/A'} (${emergencyContact.relationship || 'N/A'}) - ${emergencyContact.phone || 'N/A'}`;
+                        }
+                    } catch (e) {
+                        emergencyContactText = data.emergency_contact;
+                    }
+                }
+                $('#emergency_contact_detail').text(emergencyContactText);
+                
                 $('#job_title_detail').text(data.job_title);
                 $('#nationality_detail').text(data.nationality);
                 $('#passport_no_detail').text(data.passport_no);
@@ -1311,7 +1338,7 @@
                 $('#address_group_detail').text(data.address_group);
                 $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(
-                    `${data.bank_name ?? 'N/A'} / ${data.account_name ?? 'N/A'} / ${data.account_number ?? 'N/A'}`
+                    `${data.bank_name ?? 'N/A'} / ${data.sort_code ?? 'N/A'} / ${data.account_number ?? 'N/A'}`
                 );
                 $('#other_info_detail').text(data.other_info ?? '');
 
@@ -1708,5 +1735,28 @@
       .modal-loading-overlay .spinner-border {
           width: 3rem;
           height: 3rem;
+      }
+      
+      /* Consistent text sizing for employee detail modal */
+      #viewEmployeeDetailModal .modal-body .col-md-4 > div:not(.text-muted),
+      #viewEmployeeDetailModal .modal-body .col-md-12 > div:not(.text-muted),
+      #viewEmployeeDetailModal .modal-body .col-12 > div:not(.text-muted) {
+          font-size: 0.9375rem;
+          line-height: 1.5;
+      }
+      
+      #viewEmployeeDetailModal .text-muted.small {
+          font-size: 0.75rem;
+          margin-bottom: 0.25rem;
+      }
+      
+      #viewEmployeeDetailModal #document_list_detail,
+      #viewEmployeeDetailModal #document_list_detail * {
+          font-size: 0.9375rem;
+      }
+      
+      #viewEmployeeDetailModal h6 {
+          font-size: 1rem;
+          font-weight: 600;
       }
   </style>

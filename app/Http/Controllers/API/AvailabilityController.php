@@ -90,15 +90,6 @@ class AvailabilityController extends Controller
                 'action_url' => 'employees#'.$staff->employee->id,
         ]);
 
-            Notification::create([
-                'user_id' => Auth::id(),
-                'employee_id' => Auth::id(),
-                'type' => 'alert',
-                'title' => 'Availability hours updated',
-                'message' => 'You have updated your Availabilty hours succssfully.',
-                'read' => false,
-            ]);
-
         return response()->json(['message' => 'Availability updated successfully']);
     }
 }

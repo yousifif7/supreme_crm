@@ -110,20 +110,6 @@ class DocumentAPIController extends Controller
                     '/employees#' . $employee->id,
                 );
 
-                Notification::create([
-                    'user_id' => $user->id,
-                    'employee_id' => null,
-                    'type' => 'alert',
-                    'title' => 'Document Uploaded',
-                    'message' => 'You have uploaded a ' . $request->document_type . ' entry successfully',
-                ]);
-
-                send_push_notification(
-                    $user->id,
-                    'You uploaded a document',
-                    'Your Document has been uploaded successfully.',
-                    ['document_id' => $document->id],
-                );
             }
         }
 

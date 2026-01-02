@@ -317,13 +317,6 @@ class ShiftApiController extends Controller
             "/leaves"
         );
 
-        send_push_notification(
-            $user->id,
-            'Leave request submitted',
-            'You have submitted a leave request.',
-            ['leave' => $leave]
-        );
-
         return response()->json([
             'message'  => 'Leave request submitted',
             'leave_id' => $leave->id,
@@ -528,7 +521,7 @@ class ShiftApiController extends Controller
         // ✅ Update status
         $shiftDate->status = 'booked_on';
         $shiftDate->is_assign = 3; // shift started
-        $shiftDate->absentee_start_time = date('H:i', strtotime($request->timestamps));
+        $shiftDate->absentee_start_time = date('H:i', strtotime($now));
         $shiftDate->save();
 
         // ✅ Notifications
@@ -544,21 +537,6 @@ class ShiftApiController extends Controller
 
         Logger::log($shiftDate, 'Booked On', ' booked on shift (ID: ' . $shiftDate->id . ') starting at ' . $shiftDate->start_time);
 
-        Notification::create([
-            'user_id' => $user->id,
-            'employee_id' => $employee->id,
-            'type' => 'alert',
-            'title' => 'Shift booked on',
-            'message' => 'You have booked on shift (ID: ' . $shiftDate->id . ') ends at ' . $shiftDate->shift->end_shift,
-            'read' => false,
-        ]);
-
-        send_push_notification(
-            $user->id,
-            'Shift booked on',
-            'Your shift has been successfully booked on.',
-            ['shift_date_id' => $shiftDate->id]
-        );
 
         return $this->bookOnOff($request, $shiftDate_id, 'book_on');
     }
@@ -613,7 +591,7 @@ class ShiftApiController extends Controller
         if ($shiftDate) {
             $shiftDate->status = 'booked_off';
             $shiftDate->is_assign = 4; //shift ended
-            $timeOnly = date('H:i', strtotime($request->timestamps));
+            $timeOnly = date('H:i', strtotime($now));
 
             $shiftDate->absentee_end_time = $timeOnly;
             $shiftDate->save();
@@ -637,13 +615,6 @@ class ShiftApiController extends Controller
             'read' => false,
             'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
-
-        send_push_notification(
-            $user->id,
-            'Shift booked off',
-            'Your shift has been successfully booked off.',
-            ['shift_date_id' => $shiftDate_id]
-        );
 
         // Remove the "book_on" record
         $existingBooking->delete();
@@ -864,14 +835,6 @@ class ShiftApiController extends Controller
             ]);
 
             if ($otherShiftDate && $otherUser) {
-                Notification::create([
-                    'user_id' => $otherUser->id,
-                    'employee_id' => $otherShiftDate->staff_id,
-                    'type' => 'alert',
-                    'title' => 'Patrol auto-completed',
-                    'message' => 'Your previous patrol was marked completed to allow starting a new patrol at ' . $now,
-                    'read' => false,
-                ]);
 
                 send_push_notification(
                     $otherUser->id,
@@ -900,21 +863,7 @@ class ShiftApiController extends Controller
             'action_url' => "/shift-dates/$patrol->shift_id/view"
         ]);
 
-        Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => auth::id(),
-            'type' => 'alert',
-            'title' => 'Patrol Started',
-            'message' => 'You have started your patrol',
-            'read' => false,
-        ]);
-
-        send_push_notification(
-            Auth::id(),
-            'Patrol started on',
-            'You have started your patrol successfully at ' . $now,
-            ['shift_date_id' => $patrol->shift_id]
-        );
+        // Notification to guard removed - only admin notification kept
 
         return response()->json([
             'message' => 'Patrol started at ' . $now->format('H:i')
@@ -964,21 +913,7 @@ class ShiftApiController extends Controller
             'action_url' => "/shift-dates/$patrol->shift_id/view"
         ]);
 
-        Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => auth::id(),
-            'type' => 'alert',
-            'title' => 'Patrol completed',
-            'message' => 'You have completed your patrol successfully!',
-            'read' => false,
-        ]);
-
-        send_push_notification(
-            Auth::id(),
-            'Patrol Completed',
-            'You have Completed your patrol successfully at ' . $now,
-            ['shift_date_id' => $patrol->shift_id]
-        );
+        // Notification to guard removed - only admin notification kept
 
         return response()->json(['message' => 'Patrol marked as completed']);
     }
@@ -1144,6 +1079,35 @@ class ShiftApiController extends Controller
                 rename($compressedPath, $fullPath);
             }
 
+            switch ($fileType) {
+                case 'jpg':
+                case 'jpeg':
+                case 'png':
+                    $this->addWatermarkToImage($fullPath, $timestampData);
+                    break;
+
+                case 'mp4':
+                case 'mov':
+                case 'avi':
+                case 'mkv':
+                    $this->addTimestampToVideo($fullPath, $timestampData);
+                    break;
+
+                case 'pdf':
+                    $this->addTimestampToPdf($fullPath, $timestampData);
+                    break;
+
+                case 'doc':
+                case 'docx':
+                    $this->addTimestampToDocument($fullPath, $timestampData);
+                    break;
+
+                default:
+                    // For unsupported file types, create a metadata file
+                    $this->createMetadataFile($fullPath, $timestampData);
+                    break;
+            }
+
             // Save DB record
             try {
                 $pm = PatrolMedia::create([
@@ -1171,22 +1135,7 @@ class ShiftApiController extends Controller
                 'read' => false,
                 'action_url' => "/shift-dates/{$patrol->shift_id}/view"
             ]);
-
-            Notification::create([
-                'user_id' => Auth::id(),
-                'employee_id' => Auth::id(),
-                'type' => 'alert',
-                'title' => 'Patrol media uploaded',
-                'message' => 'Your media has been uploaded for patrol ID ' . $patrol->id,
-                'read' => false,
-            ]);
-
-            send_push_notification(
-                Auth::id(),
-                'Patrol media uploaded',
-                'Your media has been uploaded successfully',
-                ['patrol_id' => $patrol->id]
-            );
+            // Notification to guard removed - only admin notification kept
         } catch (\Exception $e) {
             Log::error('Patrol media notification failed: ' . $e->getMessage());
         }

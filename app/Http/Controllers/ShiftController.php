@@ -16,17 +16,25 @@ use Carbon\CarbonPeriod;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\ShiftNote;
+use App\Models\PatrolMedia;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
+use App\Models\Notification;
 use App\Models\ShiftBooking;
+use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
+use App\Exports\PatrolsExport;
+use App\Models\CheckpointScan;
+use App\Models\PatrolCheckPoint;
 use Illuminate\Support\Facades\DB;
 use App\DataTables\ShiftsDataTable;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Auth;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
 {
@@ -70,6 +78,14 @@ class ShiftController extends Controller
 
 
         $shiftDate->save();
+
+        $checkcalls = $shiftDate->checkCalls;
+        foreach ($checkcalls as $checkcall) {
+            if($checkcall->status !=='completed'){
+                $checkcall->employee_id = null;
+                $checkcall->save();
+            }
+        }
 
         return response()->json(['success' => true]);
     }
@@ -741,10 +757,18 @@ class ShiftController extends Controller
         if (isset($data['status_id'])) {
             $data['is_assign'] = $data['status_id'];
         }
-        $shift->status = 'pending';
+        
+        // Only reset status if explicitly changing staff
+        if (!isset($data['staff_id'])) {
+            // Preserve existing status when not changing staff
+        } else {
+            $shift->status = 'pending';
+        }
 
-        // ✅ Restrictions only if assigning to a staff member
-        if (!empty($data['staff_id'])) {
+        // ✅ Restrictions only if assigning to a NEW/DIFFERENT staff member
+        $staffChanged = isset($data['staff_id']) && $data['staff_id'] != $shift->staff_id;
+        
+        if ($staffChanged) {
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
             if ($staffUser) {
                 $staff = Employee::findOrFail($staffUser->id);
@@ -840,6 +864,15 @@ class ShiftController extends Controller
                         "#"
                     );
                 }
+            }
+        }
+
+        $checkcalls = $shift->checkCalls;
+
+        if ($staffChanged && $checkcalls && $checkcalls->isNotEmpty()) {
+            foreach ($checkcalls as $checkCall) {
+                $checkCall->employee_id = $request->input('staff_id');
+                $checkCall->save();
             }
         }
 
@@ -1686,6 +1719,17 @@ public function getTodayShifts()
             );
         }
 
+        $checkcalls = $shiftDate->checkCalls;
+        
+        if($checkcalls && $checkcalls->isNotEmpty()){
+            foreach ($checkcalls as $checkcall) {
+                if($checkcall->status !=='completed'){
+                    $checkcall->employee_id = $request->staff_id;
+                    $checkcall->save();
+                }
+            }
+        }
+
         return response()->json(['success' => 'Shift assigned successfully!'], 200);
     }
 
@@ -1925,6 +1969,7 @@ public function getTodayShifts()
             'name' => 'required|string|max:255',
             'start_time' => 'required',
             'status' => 'required|in:pending,in_progress,completed,missed',
+            'approval_status' => 'nullable|in:pending,approved,rejected',
         ]);
 
         // Fix start_time formatting
@@ -1932,11 +1977,18 @@ public function getTodayShifts()
         $patrolDate = $patrol->date ?? now()->toDateString(); // if you store date separately
         $fixedStartTime = $patrolDate . ' ' . $startTime . ':00';
 
-        $patrol->update([
+        $updateData = [
             'name' => $request->input('name'),
             'start_time' => $fixedStartTime,
             'status' => $request->input('status'),
-        ]);
+        ];
+
+        // Only update approval_status if provided
+        if ($request->has('approval_status')) {
+            $updateData['approval_status'] = $request->input('approval_status');
+        }
+
+        $patrol->update($updateData);
 
         $shift = ShiftDate::find($patrol->shift_id);
         send_push_notification(
@@ -1958,6 +2010,81 @@ public function getTodayShifts()
         $patrol->delete();
 
         return response()->json(['success' => true]);
+    }
+
+    public function patrolApprove($id)
+    {
+        $patrol = Patrol::findOrFail($id);
+
+        // Only allow approval if patrol is completed
+        if ($patrol->status !== 'completed') {
+            return response()->json([
+                'message' => 'Only completed patrols can be approved'
+            ], 400);
+        }
+
+        // Only allow approval if currently pending
+        if ($patrol->approval_status !== 'pending' && $patrol->approval_status !== null) {
+            return response()->json([
+                'message' => 'Patrol has already been ' . $patrol->approval_status
+            ], 400);
+        }
+
+        $patrol->approval_status = 'approved';
+        $patrol->save();
+
+        $shiftDate = ShiftDate::find($patrol->shift_id);
+        if ($shiftDate && $shiftDate->staff_id) {
+            send_push_notification(
+                $shiftDate->staff_id,
+                'Patrol Approved',
+                'Your patrol "' . $patrol->name . '" has been approved by admin.',
+                ['patrol' => $patrol],
+            );
+        }
+
+        return response()->json([
+            'message' => 'Patrol approved successfully',
+            'patrol' => $patrol
+        ]);
+    }
+
+    public function patrolReject($id)
+    {
+        $patrol = Patrol::findOrFail($id);
+
+        // Only allow rejection if patrol is completed
+        if ($patrol->status !== 'completed') {
+            return response()->json([
+                'message' => 'Only completed patrols can be rejected'
+            ], 400);
+        }
+
+        // Only allow rejection if currently pending
+        if ($patrol->approval_status !== 'pending' && $patrol->approval_status !== null) {
+            return response()->json([
+                'message' => 'Patrol has already been ' . $patrol->approval_status
+            ], 400);
+        }
+
+        $patrol->approval_status = 'rejected';
+        $patrol->status = 'in_progress';
+        $patrol->save();
+
+        $shiftDate = ShiftDate::find($patrol->shift_id);
+        if ($shiftDate && $shiftDate->staff_id) {
+            send_push_notification(
+                $shiftDate->staff_id,
+                'Patrol Rejected',
+                'Your patrol "' . $patrol->name . '" has been rejected by admin.',
+                ['patrol' => $patrol],
+            );
+        }
+
+        return response()->json([
+            'message' => 'Patrol rejected successfully',
+            'patrol' => $patrol
+        ]);
     }
 
     public function multiAssign(Request $request)
@@ -2241,6 +2368,16 @@ public function getTodayShifts()
             ['shiftDate' => $shiftDate],
         );
 
+        $checkcalls = $shiftDate->checkCalls;
+        
+        if($checkcalls && $checkcalls->isNotEmpty()){
+            foreach ($checkcalls as $checkcall) {
+                if($checkcall->status !=='completed'){
+                    $checkcall->employee_id = $request->staff_id;
+                    $checkcall->save();
+                }
+            }
+        }
         return response()->json(['success' => 'Shift assigned with override!'], 200);
     }
 
@@ -2325,7 +2462,18 @@ public function getTodayShifts()
             );
 
             $updatedShifts[] = $shiftDate->id;
+
+        $checkcalls = $shift->checkCalls;
+
+        if($checkcalls && $checkcalls->isNotEmpty()){
+            foreach ($checkcalls as $checkcall) {
+                if($checkcall->status !=='completed'){
+                    $checkcall->employee_id = $request->staff_id;
+                    $checkcall->save();
+                }
+            }
         }
+    }
 
         return response()->json([
             'updated' => $updatedShifts,
@@ -2381,6 +2529,17 @@ public function getTodayShifts()
                 'An admin updated a shift for you, overriding restrictions.',
                 ['shift' => $shift]
             );
+        }
+
+        $checkcalls = $shift->checkCalls;
+        
+        if($checkcalls && $checkcalls->isNotEmpty()){
+            foreach ($checkcalls as $checkcall) {
+                if($checkcall->status !=='completed'){
+                    $checkcall->employee_id = $request->staff_id;
+                    $checkcall->save();
+                }
+            }
         }
 
         return response()->json(['success' => 'Shift updated with override!']);
@@ -2681,6 +2840,180 @@ public function getTodayShifts()
         $shiftDate->save();
         $parentShift->save();
 
+        // Handle checkcalls if provided
+        if ($request->has('checkcalls') && is_array($request->checkcalls)) {
+            foreach ($request->checkcalls as $checkcall) {
+                if (!empty($checkcall['name']) && !empty($checkcall['scheduled_time'])) {
+                    CheckCall::create([
+                        'shift_id' => $shiftDate->id,
+                        'employee_id' => $shiftDate->staff_id ?? null,
+                        'name' => $checkcall['name'],
+                        'scheduled_time' => $shiftDate->shift_date . ' ' . $checkcall['scheduled_time'],
+                        'status' => 'pending',
+                        'require_media' => $shiftDate->require_media ?? 0,
+                    ]);
+                }
+            }
+        }
+
         return response()->json(['message' => 'Shift updated successfully', 'shift' => $shiftDate]);
     }
+
+    public function exportPatrolsPdf($shiftDateId)
+    {
+        $shiftDate = ShiftDate::with(['shift.site', 'staff'])->findOrFail($shiftDateId);
+        $patrols = Patrol::where('shift_id', $shiftDateId)
+            ->orderBy('start_time', 'asc')
+            ->get();
+
+        $site = Site::with('checkpoints')->find($shiftDate->shift->site_id);
+        $checkpoints = PatrolCheckPoint::where('site_id', $site->id)->get();
+
+        // For each patrol, get scans and media
+        foreach ($patrols as $patrol) {
+            $patrol->scans = CheckpointScan::where('patrol_id', $patrol->id)
+                ->orderBy('timestamp', 'desc')
+                ->get();
+            $patrol->media = PatrolMedia::where('patrol_id', $patrol->id)->get();
+            
+            // Convert media images to base64 for PDF embedding
+            foreach ($patrol->media as $media) {
+                $filePath = public_path($media->file_path);
+                $fileType = strtolower(pathinfo($media->file_path, PATHINFO_EXTENSION));
+                
+                if (in_array($fileType, ['jpg', 'jpeg', 'png', 'gif']) && file_exists($filePath)) {
+                    try {
+                        $imageData = file_get_contents($filePath);
+                        if ($imageData) {
+                            $mimeType = mime_content_type($filePath);
+                            $media->base64Image = 'data:' . $mimeType . ';base64,' . base64_encode($imageData);
+                        } else {
+                            $media->base64Image = null;
+                        }
+                    } catch (\Exception $e) {
+                        $media->base64Image = null;
+                    }
+                } else {
+                    $media->base64Image = null;
+                }
+            }
+            
+            // Get patrol route locations for static map
+            $patrol->locations = Location::where('shiftdate_id', $shiftDateId)
+                ->whereBetween('created_at', [
+                    $patrol->started_at ?? $patrol->start_time,
+                    $patrol->completed_at ?? now()
+                ])
+                ->get();
+
+            // Get first and last location
+            if ($patrol->locations && $patrol->locations->count() > 0) {
+                $geoService = new GeoService();
+                
+                $firstLocation = $patrol->locations->first();
+                $lastLocation = $patrol->locations->last();
+                
+                $patrol->firstLocation = [
+                    'latitude' => $firstLocation->latitude,
+                    'longitude' => $firstLocation->longitude,
+                    'timestamp' => $firstLocation->created_at,
+                    'address' => null
+                ];
+                
+                $patrol->lastLocation = [
+                    'latitude' => $lastLocation->latitude,
+                    'longitude' => $lastLocation->longitude,
+                    'timestamp' => $lastLocation->created_at,
+                    'address' => null
+                ];
+                
+                // Get addresses from coordinates
+                try {
+                    $firstAddress = $geoService->getAddressFromCoordinates(
+                        $firstLocation->latitude,
+                        $firstLocation->longitude
+                    );
+                    if ($firstAddress) {
+                        $patrol->firstLocation['address'] = $firstAddress['formatted_address'];
+                    }
+                    
+                    $lastAddress = $geoService->getAddressFromCoordinates(
+                        $lastLocation->latitude,
+                        $lastLocation->longitude
+                    );
+                    if ($lastAddress) {
+                        $patrol->lastLocation['address'] = $lastAddress['formatted_address'];
+                    }
+                } catch (\Exception $e) {
+                    // Addresses will remain null
+                }
+            } else {
+                $patrol->firstLocation = null;
+                $patrol->lastLocation = null;
+            }
+            
+            // Generate map image as base64
+            if ($patrol->locations && $patrol->locations->count() > 1) {
+                $apiKey = env('GOOGLE_MAPS_API_KEY');
+                if ($apiKey) {
+                    $center = $patrol->locations->first();
+                    $mapUrl = "https://maps.googleapis.com/maps/api/staticmap?";
+                    $mapUrl .= "center={$center->latitude},{$center->longitude}";
+                    $mapUrl .= "&zoom=15&size=600x300&maptype=roadmap";
+                    
+                    $pathCoords = $patrol->locations->map(fn($loc) => "{$loc->latitude},{$loc->longitude}")->join('|');
+                    $mapUrl .= "&path=color:0xff0000ff|weight:3|{$pathCoords}";
+                    
+                    $first = $patrol->locations->first();
+                    $last = $patrol->locations->last();
+                    $mapUrl .= "&markers=color:green|label:S|{$first->latitude},{$first->longitude}";
+                    $mapUrl .= "&markers=color:red|label:E|{$last->latitude},{$last->longitude}";
+                    $mapUrl .= "&key={$apiKey}";
+
+                    // Download and convert to base64
+                    try {
+                        $imageData = @file_get_contents($mapUrl);
+                        if ($imageData) {
+                            $patrol->mapImage = 'data:image/png;base64,' . base64_encode($imageData);
+                        } else {
+                            $patrol->mapImage = null;
+                        }
+                    } catch (\Exception $e) {
+                        $patrol->mapImage = null;
+                    }
+                } else {
+                    $patrol->mapImage = null;
+                }
+            } else {
+                $patrol->mapImage = null;
+            }
+        }
+
+        $pdf = PDF::loadView('exports.patrols-pdf', [
+            'shiftDate' => $shiftDate,
+            'patrols' => $patrols,
+            'site' => $site,
+            'checkpoints' => $checkpoints,
+        ]);
+
+        // Enable remote image loading for maps
+        $pdf->setOptions([
+            'isRemoteEnabled' => true,
+            'isHtml5ParserEnabled' => true,
+            'isFontSubsettingEnabled' => true,
+        ]);
+
+        $filename = 'patrols_' . $shiftDate->shift_date . '_' . $site->site_name . '.pdf';
+        return $pdf->download($filename);
+    }
+
+    public function exportPatrolsExcel($shiftDateId)
+    {
+        $shiftDate = ShiftDate::with(['shift.site', 'staff'])->findOrFail($shiftDateId);
+        $site = $shiftDate->shift->site;
+        $filename = 'patrols_' . $shiftDate->shift_date . '_' . $site->site_name . '.xlsx';
+
+        return Excel::download(new PatrolsExport($shiftDateId), $filename);
+    }
+
 }

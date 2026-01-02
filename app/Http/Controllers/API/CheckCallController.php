@@ -218,13 +218,12 @@ class CheckCallController extends Controller
             ]);
         }
 
-        // Update check call
-        $checkCall->update([
-            'status' => 'completed',
-            'employee_id' => $user->id,
-            'notes' => $data['notes'] ?? null,
-            'completed_at' => Carbon::now(),
-        ]);
+        // Update check call - explicitly preserve scheduled_time
+        $checkCall->status = 'completed';
+        $checkCall->employee_id = $user->id;
+        $checkCall->notes = $data['notes'] ?? null;
+        $checkCall->completed_at = Carbon::now();
+        $checkCall->save();
 
         // Store location
         Location::create([
@@ -248,20 +247,6 @@ class CheckCallController extends Controller
                 'action_url' => "/shift-dates/{$checkCall->shift_id}/view"
             ]);
 
-            Notification::create([
-                'user_id' => null,
-                'employee_id' => $employee->id,
-                'type' => 'alert',
-                'title' => 'Checkcall completed',
-                'message' => 'You have completed your check call successfully',
-            ]);
-
-            send_push_notification(
-                $user->id,
-                'Checkcall completed',
-                'You have Completed your checkcall.',
-                ['checkcall' => $checkCall]
-            );
         } catch (\Exception $e) {
             Log::error('Notification failed: ' . $e->getMessage());
         }
@@ -786,16 +771,29 @@ class CheckCallController extends Controller
         $checkcall = CheckCall::findOrFail($id);
 
         $validated = $request->validate([
-            'name' => 'string',
-            'scheduled_time' => 'date',
-            'status' => 'in:pending,completed,missed',
+            'name' => 'nullable|string',
+            'scheduled_time' => 'nullable|date',
+            'status' => 'nullable|in:pending,completed,missed',
+            'approval_status' => 'nullable|in:pending,approved,rejected',
         ]);
 
-        $checkcall->update([
-            'name' => $request->name,
-            'scheduled_time' => $request->scheduled_time,
-            'status' => $request->status,
-        ]);
+        // Only update fields that are actually provided in the request
+        $updateData = [];
+        if ($request->has('name')) {
+            $updateData['name'] = $validated['name'];
+        }
+        if ($request->has('status')) {
+            $updateData['status'] = $validated['status'];
+        }
+        if ($request->has('approval_status')) {
+            $updateData['approval_status'] = $validated['approval_status'];
+        }
+        // Only allow scheduled_time update if checkcall is still pending
+        if ($request->has('scheduled_time') && $checkcall->status === 'pending') {
+            $updateData['scheduled_time'] = $validated['scheduled_time'];
+        }
+
+        $checkcall->update($updateData);
 
         send_push_notification(
             $checkcall->employee_id,
@@ -811,5 +809,76 @@ class CheckCallController extends Controller
     {
         CheckCall::findOrFail($id)->delete();
         return response()->json(['success' => true]);
+    }
+
+    public function approve($id)
+    {
+        $checkcall = CheckCall::findOrFail($id);
+
+        // Only allow approval if check call is completed
+        if ($checkcall->status !== 'completed') {
+            return response()->json([
+                'message' => 'Only completed check calls can be approved'
+            ], 400);
+        }
+
+        // Only allow approval if currently pending
+        if ($checkcall->approval_status !== 'pending' && $checkcall->approval_status !== null) {
+            return response()->json([
+                'message' => 'Check call has already been ' . $checkcall->approval_status 
+            ], 400);
+        }
+
+        $checkcall->approval_status = 'approved';
+        $checkcall->save();
+
+        // Send notification to the employee
+        send_push_notification(
+            $checkcall->employee_id,
+            'Check Call Approved',
+            'Your check call "' . $checkcall->name . '" has been approved by admin.',
+            ['checkcall' => $checkcall],
+        );
+
+        return response()->json([
+            'message' => 'Check call approved successfully',
+            'checkcall' => $checkcall
+        ]);
+    }
+
+    public function reject($id)
+    {
+        $checkcall = CheckCall::findOrFail($id);
+
+        // Only allow rejection if check call is completed
+        if ($checkcall->status !== 'completed') {
+            return response()->json([
+                'message' => 'Only completed check calls can be rejected'
+            ], 400);
+        }
+
+        // Only allow rejection if currently pending
+        if ($checkcall->approval_status !== 'pending' && $checkcall->approval_status !== null) {
+            return response()->json([
+                'message' => 'Check call has already been ' . $checkcall->approval_status
+            ], 400);
+        }
+
+        $checkcall->approval_status = 'rejected';
+        $checkcall->status = 'pending';
+        $checkcall->save();
+
+        // Send notification to the employee
+        send_push_notification(
+            $checkcall->employee_id,
+            'Check Call Rejected',
+            'Your check call "' . $checkcall->name . '" has been rejected by admin.',
+            ['checkcall' => $checkcall],
+        );
+
+        return response()->json([
+            'message' => 'Check call rejected successfully',
+            'checkcall' => $checkcall
+        ]);
     }
 }

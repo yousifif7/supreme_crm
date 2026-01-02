@@ -89,14 +89,20 @@ class NotificationController extends Controller
 
         $employee = Employee::where('user_id',Auth::id())->first();
         
-        DeviceToken::where('push_token', $request->push_token)->delete();
+        // Remove this token from any other user (in case device switched users)
+        DeviceToken::where('push_token', $request->push_token)
+            ->where('user_id', '!=', Auth::id())
+            ->delete();
         
+        // Update or create this specific device token for this user
         DeviceToken::updateOrCreate(
-            ['user_id' => Auth::id()],
             [
-
-                'push_token' => $request->push_token,
-                'platform'   => $request->platform
+                'user_id' => Auth::id(),
+                'push_token' => $request->push_token
+            ],
+            [
+                'platform' => $request->platform,
+                'updated_at' => now()
             ]
         );
 

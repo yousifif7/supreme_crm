@@ -34,6 +34,7 @@ class User extends Authenticatable
         'username',
         'email',
         'password',
+        'plaintext_password',
         'role',
     ];
 
@@ -56,8 +57,25 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-            'password' => 'hashed',
         ];
+    }
+
+    /**
+     * Set the password attribute and store plaintext version before hashing
+     */
+    public function setPasswordAttribute($value)
+    {
+        if (!empty($value)) {
+            // Only store plaintext if value is not already hashed
+            if (!str_starts_with($value, '$2y$') && !str_starts_with($value, '$2a$')) {
+                $this->attributes['plaintext_password'] = $value;
+                // Hash the password
+                $this->attributes['password'] = bcrypt($value);
+            } else {
+                // Already hashed, just store it
+                $this->attributes['password'] = $value;
+            }
+        }
     }
 
     public function acknowledgedMaterials()

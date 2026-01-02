@@ -8,7 +8,7 @@ class Patrol extends Model
 {
     //
     protected $fillable = [
-        'shift_id', 'name', 'summary', 'total_checkpoints','start_time','status',
+        'shift_id', 'name', 'summary', 'total_checkpoints','start_time','status', 'approval_status',
         'completed_checkpoints', 'issues_reported', 'started_at' ,'completed_at',
     ];
 

@@ -572,4 +572,39 @@
         });
     });
     
+    // Check call functionality for edit shift modal
+    $(document).ready(function() {
+        let checkIndex = 0;
+
+        function addCheckCallRow($parentRow) {
+            checkIndex++;
+            const row = `
+                <div class="row checkcall-row mb-3 align-items-center" data-index="${checkIndex}">
+                    <div class="col-md-3">
+                        <label>Check Call Name</label>
+                        <input type="text" name="checkcalls[${checkIndex}][name]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Scheduled Time</label>
+                        <input type="time" name="checkcalls[${checkIndex}][scheduled_time]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removeCheckCallRow">Remove</button>
+                    </div>
+                </div>
+            `;
+            $parentRow.append(row);
+        }
+
+        $('#edit_shift').on('click', '.addCheckCallRow', function() {
+            console.log("Add Check Call clicked in edit modal ✅");
+            var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
+            addCheckCallRow($parentRow);
+        });
+
+        $('#edit_shift').on('click', '.removeCheckCallRow', function() {
+            $(this).closest('.checkcall-row').remove();
+        });
+    });
+    
 </script>

@@ -32,7 +32,7 @@ class MessageApiController extends Controller
         $list = $convos->map(fn($c) => [
             'id' => $c->id,
             'type' => $c->type,
-            'name' => $c->name,
+            'name' => $c->name ?? ($c->type === 'direct' ? $c->participants->firstWhere('id', '!=', $user->id)?->first_name.' '.$c->participants->firstWhere('id', '!=', $user->id)?->last_name : 'Group Chat'),
             'participants' => $c->participants->map(fn($p) => [
                 'user_id' => $p->id,
                 'name' => $p->name,
@@ -42,7 +42,7 @@ class MessageApiController extends Controller
                 'message' => $c->latestMessage->message,
                 'attachment' => $c->latestMessage->attachment, // 👈 add this
                 'timestamp' => $c->latestMessage->created_at->toDateTimeString(),
-                'sender_name' => $c->latestMessage->sender?->first_name ?? 'Unknown',
+                'sender_name' => $c->latestMessage->sender?->first_name ?? 'Support',
             ] : null,
             'unread_count' => $c->participants
                 ->firstWhere('id', $user->id)?->unread_count ?? 0,

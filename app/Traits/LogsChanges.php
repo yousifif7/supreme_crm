@@ -36,8 +36,26 @@ trait LogsChanges
 
                 if ($field == 'staff_id') {
                     $oldStaff = \App\Models\User::find($oldValue);
-                    $oldValue = isset($oldStaff->first_name) ? $oldStaff->first_name . ' ' . $oldStaff->last_name : null;
-                    $newValue = isset($model->staff->first_name) ? $model->staff?->first_name . ' ' . $model->staff?->last_name : 'N/A';
+                    $newStaff = \App\Models\User::find($newValue);
+                    
+                    $oldStaffName = $oldStaff ? ($oldStaff->first_name . ' ' . $oldStaff->last_name) : null;
+                    $newStaffName = $newStaff ? ($newStaff->first_name . ' ' . $newStaff->last_name) : null;
+                    
+                    // Determine if it's assign/unassign/reassign
+                    if (!$oldValue && $newValue) {
+                        $label = "Assigned to {$newStaffName}";
+                    } elseif ($oldValue && !$newValue) {
+                        $label = "Unassigned from {$oldStaffName}";
+                    } elseif ($oldValue && $newValue) {
+                        $label = "Reassigned from {$oldStaffName} to {$newStaffName}";
+                    } else {
+                        $label = "Staff";
+                    }
+                    
+                    $oldValue = $oldStaffName;
+                    $newValue = $newStaffName;
+                } else {
+                    $label = isset($arrayValues[$field]) ? $arrayValues[$field] : $field;
                 }
 
                 if ($field == 'status_id') {
@@ -56,35 +74,49 @@ trait LogsChanges
                     $newValue = $statuses[$newValue] ?? $newValue;
                 }
 
-                if (isset($arrayValues[$field])) {
-                    $field = $arrayValues[$field];
-                }
-
-                $label = "$field";
-
-                if ($oldValue) {
-                    if (is_array($oldValue)) {
-                        $oldValue = json_encode($oldValue);
+                // Skip the duplicate label assignment for staff_id
+                if ($field !== 'staff_id') {
+                    if ($oldValue) {
+                        if (is_array($oldValue)) {
+                            $oldValue = json_encode($oldValue);
+                        }
+                        $label .= " from '{$oldValue}'";
                     }
-                    $label .= " from '{$oldValue}'";
-                }
 
-                if ($newValue) {
-                    if (is_array($newValue)) {
-                        $newValue = json_encode($newValue);
+                    if ($newValue) {
+                        if (is_array($newValue)) {
+                            $newValue = json_encode($newValue);
+                        }
+                        $label .= " to '{$newValue}'";
                     }
-                    $label .= " to '{$newValue}'";
                 }
 
-                $fields .= $field . ', ';
+                $fields .= (isset($arrayValues[$field]) ? $arrayValues[$field] : $field) . ', ';
                 $labels .= $label . ', ';
             }
 
             $fields = rtrim($fields, ', ');
             $labels = rtrim($labels, ', ');
 
+            // Add shift context for ShiftDate models
+            $modelType = class_basename($model);
+            if ($modelType == 'ShiftDate') {
+                $site = $model->shift->site->site_name ?? 'Unknown Site';
+                $date = $model->shift_date ?? 'N/A';
+                $start = $model->start_time ?? 'N/A';
+                $end = $model->end_time ?? 'N/A';
+                
+                $labels .= " for shift at {$site} on {$date}";
+            }
+
+            if (auth::user()) {
+                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            } else {
+                $username = 'System';
+            }
+
             $model->logs()->create([
-                'user_name' => optional(Auth::user())->first_name ?? 'System' . ' ' . optional(Auth::user())->last_name ?? 'System',
+                'user_name' => $username,
                 'action' => "Updated {$fields}",
                 'description' => $labels,
             ]);
@@ -99,14 +131,19 @@ trait LogsChanges
             // create shift logs description
             if ($modelType == 'ShiftDate') {
                 $modelType = 'Shift';
-                $staff = isset($model->staff->first_name) ? $model->staff?->first_name . ' ' . $model->staff?->last_name : 'N/A';
-                $site = $model->shift->site->site_name ?? 'N/A';
+                $staff = isset($model->staff->first_name) ? $model->staff->first_name . ' ' . $model->staff->last_name : 'Unassigned';
+                $site = $model->shift->site->site_name ?? 'Unknown Site';
                 $date = $model->shift_date ?? 'N/A';
                 $start = $model->start_time ?? 'N/A';
                 $end = $model->end_time ?? 'N/A';
 
-                // $label = "for the Staff ($staff) on site ($site) on $date from $start to $end";
-                $label = '';
+                $label = "at {$site} on {$date}";
+                
+                if ($model->staff_id) {
+                    $label .= " (Assigned to {$staff})";
+                } else {
+                    $label .= " (Unassigned)";
+                }
             }
 
             if (auth::user()) {

@@ -8,6 +8,8 @@ use App\Models\Client;
 use App\Models\Site;
 use App\Models\Employee;
 use App\Models\User;
+use App\Models\Patrol;
+use App\Models\CheckCall;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Log;
 use Maatwebsite\Excel\Concerns\ToModel;
@@ -365,6 +367,11 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
                 'break_time' => null, // Could be calculated or set from lost time
             ]);
 
+            $shiftDate->save(); // Save the shift date first so we can use its ID
+
+            // Create patrols and checkcalls like in ShiftController::store()
+            $this->createPatrolsAndCheckCalls($shiftDate, $shift, $startTime, $endTime);
+
             $this->successCount++; // Increment success counter
             return $shiftDate;
 
@@ -375,6 +382,71 @@ class ShiftDateImport implements ToModel, WithHeadingRow, WithStartRow, SkipsOnE
                 'error' => $e->getMessage()
             ];
             return null;
+        }
+    }
+
+    /**
+     * Create patrols and checkcalls for a shift date (same logic as ShiftController::store)
+     */
+    private function createPatrolsAndCheckCalls(ShiftDate $shiftDate, Shift $shift, string $startTime, string $endTime)
+    {
+        try {
+            $start = Carbon::createFromFormat('H:i:s', $startTime);
+            $end = Carbon::createFromFormat('H:i:s', $endTime);
+
+            // Convert to minutes since midnight
+            $startMinutes = $start->hour * 60 + $start->minute;
+            $endMinutes = $end->hour * 60 + $end->minute;
+
+            // Calculate duration in minutes, handle overnight automatically
+            $durationMinutes = ($endMinutes - $startMinutes + 1440) % 1440;
+
+            // if shift is exactly 24 hours, make it 1440
+            if ($durationMinutes == 0) {
+                $durationMinutes = 1440;
+            }
+
+            $numberOfCheckCalls = ceil($durationMinutes / 60);
+
+            $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $startTime);
+
+            // Get site checkpoints for patrol
+            $site = Site::with('checkpoints')->find($shift->site_id);
+            $totalCheckpoints = $site->checkpoints->count() ?? 0;
+
+            // Create auto patrols and checkcalls for each hour of the shift
+            for ($n = 0; $n < (int) $numberOfCheckCalls; $n++) {
+                $checkTime = $shiftStart->copy()->addHours($n);
+                $patrolTime = $shiftStart->copy()->addHours($n);
+
+                // Always create patrols
+                Patrol::create([
+                    'shift_id' => $shiftDate->id,
+                    'name' => 'Auto Patrol ' . ($n + 1),
+                    'summary' => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
+                    'start_time' => $patrolTime->format('Y-m-d H:i:s'),
+                    'status' => 'pending',
+                    'total_checkpoints' => $totalCheckpoints,
+                    'completed_checkpoints' => 0,
+                    'issues_reported' => 0,
+                    'completed_at' => null,
+                ]);
+
+                // Create auto checkcalls (you can enable/disable this based on your needs)
+                // For now, creating them by default for imported shifts
+                CheckCall::create([
+                    'shift_id' => $shiftDate->id,
+                    'employee_id' => $shiftDate->staff_id ?? null,
+                    'name' => 'Auto CheckCall ' . ($n + 1),
+                    'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
+                    'status' => 'pending',
+                    'require_media' => $shiftDate->require_media ?? 0,
+                ]);
+            }
+
+            Log::info("Created {$numberOfCheckCalls} patrols and checkcalls for imported shift date #{$shiftDate->id}");
+        } catch (\Exception $e) {
+            Log::error("Error creating patrols/checkcalls for shift date #{$shiftDate->id}: " . $e->getMessage());
         }
     }
 

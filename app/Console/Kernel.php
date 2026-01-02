@@ -19,7 +19,13 @@ class Kernel extends ConsoleKernel
         // Use withoutOverlapping to avoid concurrent runs.
         $schedule->command('shifts:process-notifications')
             ->everyFifteenMinutes()
-            ->withoutOverlapping();
+            ->withoutOverlapping()
+            ->runInBackground();
+        
+        // Cleanup stuck connections every 5 minutes
+        $schedule->command('db:cleanup-connections')
+            ->everyFiveMinutes()
+            ->runInBackground();
     }
 
     protected function commands(): void

@@ -314,6 +314,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
+    
 
     Route::post('/shifts/multi-assign', [ShiftController::class, 'multiAssign'])
         ->name('shifts.multi-assign');
@@ -325,6 +326,14 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
 
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
+    Route::post('/checkcalls/{id}/approve', [CheckCallController::class, 'approve']);
+    Route::post('/checkcalls/{id}/reject', [CheckCallController::class, 'reject']);
+
+    Route::post('/patrols/{id}/approve', [ShiftController::class, 'patrolApprove']);
+    Route::post('/patrols/{id}/reject', [ShiftController::class, 'patrolReject']);
+
+    Route::get('/patrols/export/pdf/{shiftDateId}', [ShiftController::class, 'exportPatrolsPdf'])->name('patrols.export.pdf');
+    Route::get('/patrols/export/excel/{shiftDateId}', [ShiftController::class, 'exportPatrolsExcel'])->name('patrols.export.excel');
 
     Route::get('shifts/{sd_id}', [ShiftController::class, 'showShiftModal']);
 

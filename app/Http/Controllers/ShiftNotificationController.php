@@ -148,21 +148,24 @@ class ShiftNotificationController extends BaseController
             // per-user alerts list — reset so alerts don't bleed between users
             $alerts = [];
 
-            // Patrol alerts
-            $patrols = Patrol::whereHas('shift', fn($q) => $q->where('staff_id', $user->id))
-                ->where('status', 'pending')
-                ->get();  
+            // Patrol alerts - get all pending patrols and filter by user
+            $allPatrols = Patrol::where('status', 'pending')->get();
+            $patrols = $allPatrols->filter(function($patrol) use ($user) {
+                $shift = ShiftDate::find($patrol->shift_id);
+                return $shift && $shift->staff_id == $user->id && $shift->is_assign == 3;
+            });
+
+            Log::info('ProcessShiftNotifications (web): patrols found', ['user_id' => $user->id, 'count' => $patrols->count()]);  
 
             foreach ($patrols as $patrol) {
                 $shift = ShiftDate::find($patrol->shift_id);
                 if (!$shift) continue;
 
-                if ($shift->is_assign == 2) {
-                    $start = Carbon::parse($patrol->start_time);
-                    $diff = now()->diffInMinutes($start, false);
+                $start = Carbon::parse($patrol->start_time);
+                $diff = now()->diffInMinutes($start, false);
 
-                    // 5-min warning
-                    if ($diff <= 5 && $diff > 0) {
+                // 5-min warning
+                if ($diff <= 5 && $diff > 0) {
                         $alert = [
                             'type' => 'patrol_warning',
                             'patrol_id' => $patrol->id,
@@ -176,6 +179,9 @@ class ShiftNotificationController extends BaseController
                             Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                             $alert['_first_shown'] = true;
                             try {
+                                // Send push notification to guard
+                                send_push_notification($user->id, 'Upcoming Patrol', "Patrol starting soon: {$patrol->name} at {$patrol->start_time}", ['patrol_id' => $patrol->id, 'type' => 'patrol_warning', 'shift_date_id' => $patrol->shift_id]);
+                                
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                                 $adminTitle = "Upcoming patrol for {$empName}";
@@ -189,11 +195,114 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = false;
                         }
 
-                        $alerts[] = $alert;
-                    }
+                    $alerts[] = $alert;
+                }
 
-                    // 50-min missed
-                    if ($diff <= -50) {
+                // Patrol is due NOW (at start time)
+                if ($diff <= 0 && $diff > -5) {
+                        $alert = [
+                            'type' => 'patrol_due',
+                            'patrol_id' => $patrol->id,
+                            'title' => 'Patrol Due Now',
+                            'message' => 'Your patrol is due now: ' . $patrol->name,
+                            'scheduled_time' => $patrol->start_time,
+                        ];
+
+                        $cacheKey = "alerts:patrol_due:user:{$user->id}:patrol:{$patrol->id}";
+                        if (!Cache::has($cacheKey)) {
+                            Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                            $alert['_first_shown'] = true;
+                            try {
+                                // Send push notification to guard
+                                send_push_notification($user->id, 'Patrol Due Now', "Your patrol is due now: {$patrol->name}. Please start immediately.", ['patrol_id' => $patrol->id, 'type' => 'patrol_due', 'shift_date_id' => $patrol->shift_id]);
+                                
+                                $emp = $user->employee;
+                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                                $adminTitle = "Patrol due for {$empName}";
+                                $adminMessage = "{$empName}'s patrol '{$patrol->name}' is due now at {$patrol->start_time}.";
+                                $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
+                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                            } catch (\Exception $e) {
+                                Log::warning('Dashboard notify failed for patrol_due: ' . $e->getMessage());
+                            }
+                        } else {
+                            $alert['_first_shown'] = false;
+                        }
+
+                    $alerts[] = $alert;
+                }
+
+                // Patrol is overdue (between 5-45 mins past start time)
+                if ($diff <= -5 && $diff > -45) {
+                        $alert = [
+                            'type' => 'patrol_overdue',
+                            'patrol_id' => $patrol->id,
+                            'title' => 'Patrol Overdue',
+                            'message' => 'Your patrol is overdue and not completed: ' . $patrol->name,
+                            'scheduled_time' => $patrol->start_time,
+                        ];
+
+                        $cacheKey = "alerts:patrol_overdue:user:{$user->id}:patrol:{$patrol->id}";
+                        if (!Cache::has($cacheKey)) {
+                            Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                            $alert['_first_shown'] = true;
+                            try {
+                                // Send push notification to guard
+                                $minutesOverdue = abs((int)$diff);
+                                send_push_notification($user->id, 'Patrol Overdue', "Your patrol is {$minutesOverdue} minutes overdue and not completed: {$patrol->name}. Please complete it now.", ['patrol_id' => $patrol->id, 'type' => 'patrol_overdue', 'shift_date_id' => $patrol->shift_id]);
+                                
+                                $emp = $user->employee;
+                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                                $adminTitle = "Overdue patrol for {$empName}";
+                                $adminMessage = "{$empName}'s patrol '{$patrol->name}' is {$minutesOverdue} minutes overdue and not completed.";
+                                $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
+                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                            } catch (\Exception $e) {
+                                Log::warning('Dashboard notify failed for patrol_overdue: ' . $e->getMessage());
+                            }
+                        } else {
+                            $alert['_first_shown'] = false;
+                        }
+
+                    $alerts[] = $alert;
+                }
+
+                // 45-min completion reminder (5 mins before 50-min deadline)
+                if ($diff <= -45 && $diff > -50) {
+                        $alert = [
+                            'type' => 'patrol_completion_reminder',
+                            'patrol_id' => $patrol->id,
+                            'title' => 'Complete Patrol Soon',
+                            'message' => 'Please complete your patrol soon: ' . $patrol->name,
+                            'scheduled_time' => $patrol->start_time,
+                        ];
+
+                        $cacheKey = "alerts:patrol_completion:user:{$user->id}:patrol:{$patrol->id}";
+                        if (!Cache::has($cacheKey)) {
+                            Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                            $alert['_first_shown'] = true;
+                            try {
+                                // Send push notification to guard
+                                send_push_notification($user->id, 'Complete Patrol Soon', "Please complete your patrol soon: {$patrol->name}. You have 5 minutes remaining.", ['patrol_id' => $patrol->id, 'type' => 'patrol_completion_reminder', 'shift_date_id' => $patrol->shift_id]);
+                                
+                                $emp = $user->employee;
+                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                                $adminTitle = "Patrol completion reminder for {$empName}";
+                                $adminMessage = "{$empName} has 5 minutes to complete patrol '{$patrol->name}'.";
+                                $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
+                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                            } catch (\Exception $e) {
+                                Log::warning('Dashboard notify failed for patrol_completion_reminder: ' . $e->getMessage());
+                            }
+                        } else {
+                            $alert['_first_shown'] = false;
+                        }
+
+                    $alerts[] = $alert;
+                }
+
+                // 50-min missed
+                if ($diff <= -50) {
                         $markerKey = "missed_marker:patrol:user:{$user->id}:patrol:{$patrol->id}";
                         $missedThreshold = Carbon::parse($patrol->start_time)->addMinutes(50);
                         $markAtCarbon = $missedThreshold->copy()->addMinutes($patrolMarkDelay);
@@ -233,6 +342,10 @@ class ShiftNotificationController extends BaseController
                             Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                             $alert['_first_shown'] = true;
                             try {
+                                // Send push notification to guard
+                                $pushTitle = ($alertType === 'patrol_missed') ? 'Missed Patrol' : 'Potential Missed Patrol';
+                                send_push_notification($user->id, $pushTitle, $alertMessage, ['patrol_id' => $patrol->id, 'type' => $alertType, 'shift_date_id' => $patrol->shift_id]);
+                                
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                                 $adminTitle = ($alertType === 'patrol_missed') ? "Missed patrol by {$empName}" : "Potential missed patrol for {$empName}";
@@ -246,26 +359,28 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = false;
                         }
 
-                        $alerts[] = $alert;
-                    }
+                    $alerts[] = $alert;
                 }
             }
 
-            // Check Calls
-            $checkCalls = CheckCall::whereHas('shiftDate', fn($q) => $q->where('staff_id', $user->id))
-                ->where('status', 'pending')
-                ->get();
+            // Check Calls - get all pending and filter by user
+            $allCheckCalls = CheckCall::where('status', 'pending')->get();
+            $checkCalls = $allCheckCalls->filter(function($checkCall) use ($user) {
+                $shift = $checkCall->shiftDate;
+                return $shift && $shift->staff_id == $user->id && $shift->is_assign == 3;
+            });
+
+            Log::info('ProcessShiftNotifications (web): checkcalls found', ['user_id' => $user->id, 'count' => $checkCalls->count()]);
 
             foreach ($checkCalls as $checkCall) {
                 // guard: ensure related shiftDate exists
                 if (!$checkCall->shiftDate) {
                     continue;
                 }
-                if ($checkCall->shiftDate->is_assign == 2) {
-                    $scheduled = Carbon::parse($checkCall->scheduled_time);
-                    $diff = now()->diffInMinutes($scheduled, false);
+                $scheduled = Carbon::parse($checkCall->scheduled_time);
+                $diff = now()->diffInMinutes($scheduled, false);
 
-                    if ($diff <= 5 && $diff > 0) {
+                if ($diff <= 5 && $diff > 0) {
                         $alert = [
                             'type' => 'checkcall_warning',
                             'checkcall_id' => $checkCall->id,
@@ -279,6 +394,9 @@ class ShiftNotificationController extends BaseController
                             Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                             $alert['_first_shown'] = true;
                             try {
+                                // Send push notification to guard
+                                send_push_notification($user->id, 'Upcoming Check Call', "Check call coming up: {$checkCall->name} at {$checkCall->scheduled_time}", ['checkcall_id' => $checkCall->id, 'type' => 'checkcall_warning', 'shift_date_id' => $checkCall->shiftDate->id]);
+                                
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                                 $adminTitle = "Upcoming check call for {$empName}";
@@ -292,10 +410,44 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = false;
                         }
 
-                        $alerts[] = $alert;
-                    }
+                    $alerts[] = $alert;
+                }
 
-                    if ($diff <= -15) {
+                // 10-min completion reminder (5 mins before 15-min deadline)
+                if ($diff <= -10 && $diff > -15) {
+                        $alert = [
+                            'type' => 'checkcall_completion_reminder',
+                            'checkcall_id' => $checkCall->id,
+                            'title' => 'Complete Check Call Soon',
+                            'message' => 'Please complete your check call soon: ' . $checkCall->name,
+                            'scheduled_time' => $checkCall->scheduled_time,
+                        ];
+
+                        $cacheKey = "alerts:checkcall_completion:user:{$user->id}:checkcall:{$checkCall->id}";
+                        if (!Cache::has($cacheKey)) {
+                            Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                            $alert['_first_shown'] = true;
+                            try {
+                                // Send push notification to guard
+                                send_push_notification($user->id, 'Complete Check Call Soon', "Please complete your check call soon: {$checkCall->name}. You have 5 minutes remaining.", ['checkcall_id' => $checkCall->id, 'type' => 'checkcall_completion_reminder', 'shift_date_id' => $checkCall->shiftDate->id]);
+                                
+                                $emp = $user->employee;
+                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                                $adminTitle = "Check call completion reminder for {$empName}";
+                                $adminMessage = "{$empName} has 5 minutes to complete check call '{$checkCall->name}'.";
+                                $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
+                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                            } catch (\Exception $e) {
+                                Log::warning('Dashboard notify failed for checkcall_completion_reminder: ' . $e->getMessage());
+                            }
+                        } else {
+                            $alert['_first_shown'] = false;
+                        }
+
+                    $alerts[] = $alert;
+                }
+
+                if ($diff <= -15) {
                         $markerKey = "missed_marker:checkcall:user:{$user->id}:checkcall:{$checkCall->id}";
                         $missedThreshold = Carbon::parse($checkCall->scheduled_time)->addMinutes(15);
                         $markAtCarbon = $missedThreshold->copy()->addMinutes($checkcallMarkDelay);
@@ -335,6 +487,10 @@ class ShiftNotificationController extends BaseController
                             Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
                             $alert['_first_shown'] = true;
                             try {
+                                // Send push notification to guard
+                                $pushTitle = ($alertType === 'checkcall_missed') ? 'Missed Check Call' : 'Potential Missed Check Call';
+                                send_push_notification($user->id, $pushTitle, $alertMessage, ['checkcall_id' => $checkCall->id, 'type' => $alertType, 'shift_date_id' => $checkCall->shiftDate->id]);
+                                
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                                 $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
@@ -348,8 +504,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = false;
                         }
 
-                        $alerts[] = $alert;
-                    }
+                    $alerts[] = $alert;
                 }
             }
 

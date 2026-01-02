@@ -26,36 +26,68 @@ class InvoiceService
             throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
         }
 
-        $client = Client::where('user_id', $clientId)->first();
-        $shift = Shift::where('client_id', $clientId)
-            ->where('site_id', $siteId)
-            ->firstOrFail();
+        \Log::info('Invoice Generation Debug', [
+            'clientId' => $clientId,
+            'siteId' => $siteId,
+            'dateFrom' => $dateFrom,
+            'dateTo' => $dateTo
+        ]);
 
-        $shiftDates = ShiftDate::where('shift_id', $shift->id)
+        $client = Client::where('user_id', $clientId)->first();
+        
+        if (!$client) {
+            throw new \InvalidArgumentException('Client not found');
+        }
+        
+        // Get ALL shifts for this client and site (there may be multiple with different date ranges)
+        $shifts = Shift::where('client_id', $clientId)
+            ->where('site_id', $siteId)
+            ->get();
+
+        if ($shifts->isEmpty()) {
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('No shift found for this client and site');
+        }
+
+        // Collect shift dates from ALL shifts within the date range
+        $shiftIds = $shifts->pluck('id')->toArray();
+        $shiftDates = ShiftDate::whereIn('shift_id', $shiftIds)
             ->whereDate('shift_date', '>=', $dateFrom)
             ->whereDate('shift_date', '<=', $dateTo)
             ->orderBy('shift_date')
             ->get();
+
+        if ($shiftDates->isEmpty()) {
+            $shiftRanges = $shifts->map(fn($s) => "{$s->from_shift} to {$s->to_shift}")->join(', ');
+            $message = "No shift dates found in the selected date range ({$dateFrom} to {$dateTo}). ";
+            $message .= "Found " . $shifts->count() . " shift(s) configured for: {$shiftRanges}. ";
+            $message .= "Please ensure shift dates exist within your selected invoice period.";
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException($message);
+        }
 
         $invoiceItems = [];
         $totalHours = 0;
         $totalBreaks = 0;
         $totalBookOnHours = 0;
         $totalBookOffHours = 0;
+        $totalAmount = 0; // Track actual billed amount
 
         foreach ($shiftDates as $shiftDate) {
-            $item = $this->processShiftDate($shiftDate, $client->office_rate);
+            $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->site->rate ?? $client->office_rate);
+            
+            $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
 
             $totalHours += $item['hours'] + $item['break_hours'] + $item['book_on_hours'] + $item['book_off_hours'];
             $totalBreaks += $item['break_hours'];
             $totalBookOnHours += $item['book_on_hours'];
             $totalBookOffHours += $item['book_off_hours'];
+            $totalAmount += $item['amount']; // Sum actual invoice item amounts
         }
 
         $totalDeductionsHours = $totalBreaks + $totalBookOnHours + $totalBookOffHours;
-        $grossAmount = ($totalHours - $totalBreaks) * $client->office_rate;
-        $netAmount = $grossAmount - (($totalBookOnHours + $totalBookOffHours) * $client->office_rate);
+        $averageRate = ($totalHours - $totalDeductionsHours) > 0 
+            ? $totalAmount / ($totalHours - $totalDeductionsHours) 
+            : ($client->office_rate ?? 0);
 
         $invoice = Invoice::create([
             'type' => 'client',
@@ -65,18 +97,18 @@ class InvoiceService
             'due_date' => $dueDate,
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
-            'total_amount' => $netAmount,
+            'total_amount' => $totalAmount,
             'status' => 'draft',
             'notes' => $notes,
             'payment_note' => $client->payment_terms,
-            'rate_per_hour' => $client->office_rate,
+            'rate_per_hour' => $averageRate,
             'total_shift_hours' => $totalHours - $totalDeductionsHours,
             'total_duration_hours' => $totalHours,
             'total_break_hours' => $totalBreaks,
             'total_deductions_hours' => $totalDeductionsHours,
-            'gross_amount' => $grossAmount,
-            'net_amount' => $netAmount,
-            'frequency' => $frequency, // <-- store frequency here
+            'gross_amount' => $totalAmount,
+            'net_amount' => $totalAmount,
+            'frequency' => $frequency,
         ]);
 
         foreach ($invoiceItems as $itemData) {
@@ -113,6 +145,7 @@ class InvoiceService
         $totalBreaks = 0;
         $totalBookOnHours = 0;
         $totalBookOffHours = 0;
+        $totalAmount = 0; // Track actual billed amount
 
         foreach ($siteIds as $siteId) {
             $shift = Shift::where('client_id', $clientId)
@@ -131,23 +164,28 @@ class InvoiceService
                 ->get();
 
             foreach ($shiftDates as $shiftDate) {
-                $item = $this->processShiftDate($shiftDate, $client->office_rate);
+                // Use guard_rate from shift date, fall back to site rate, then client office_rate
+                $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->site->rate ?? $client->office_rate);
+                
+                $item = $this->processShiftDate($shiftDate, $hourlyRate);
                 $invoiceItems[] = $item;
 
                 $totalHours += $item['hours'] + $item['break_hours'] + $item['book_on_hours'] + $item['book_off_hours'];
                 $totalBreaks += $item['break_hours'];
                 $totalBookOnHours += $item['book_on_hours'];
                 $totalBookOffHours += $item['book_off_hours'];
+                $totalAmount += $item['amount']; // Sum actual invoice item amounts
             }
         }
 
         if (empty($invoiceItems)) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('No shifts found for selected sites');
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('No shift dates found in the selected date range for any of the selected sites');
         }
 
         $totalDeductionsHours = $totalBreaks + $totalBookOnHours + $totalBookOffHours;
-        $grossAmount = ($totalHours - $totalBreaks) * $client->office_rate;
-        $netAmount = $grossAmount - (($totalBookOnHours + $totalBookOffHours) * $client->office_rate);
+        $averageRate = ($totalHours - $totalDeductionsHours) > 0 
+            ? $totalAmount / ($totalHours - $totalDeductionsHours) 
+            : ($client->office_rate ?? 0);
 
         // Create single invoice for all sites. site_id left null to indicate multiple sites.
         $invoice = Invoice::create([
@@ -158,17 +196,17 @@ class InvoiceService
             'due_date' => $dueDate,
             'date_from' => $dateFrom,
             'date_to' => $dateTo,
-            'total_amount' => $netAmount,
+            'total_amount' => $totalAmount,
             'status' => 'draft',
             'notes' => $notes ? $notes . ' | Sites: ' . json_encode($siteIds) : 'Sites: ' . json_encode($siteIds),
             'payment_note' => $client->payment_terms,
-            'rate_per_hour' => $client->office_rate,
+            'rate_per_hour' => $averageRate,
             'total_shift_hours' => $totalHours - $totalDeductionsHours,
             'total_duration_hours' => $totalHours,
             'total_break_hours' => $totalBreaks,
             'total_deductions_hours' => $totalDeductionsHours,
-            'gross_amount' => $grossAmount,
-            'net_amount' => $netAmount,
+            'gross_amount' => $totalAmount,
+            'net_amount' => $totalAmount,
             'frequency' => $frequency,
         ]);
 

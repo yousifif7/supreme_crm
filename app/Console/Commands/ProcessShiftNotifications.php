@@ -41,31 +41,35 @@ class ProcessShiftNotifications extends Command
 
         $users = User::role('security_staff')->get();
         Log::info('ProcessShiftNotifications: found users count', ['count' => $users->count()]);
-        $alerts = [];
         $cooldownMinutes = 15; // show alerts for 15 minutes after first shown
         $patrolMarkDelay = 10; // minutes after detection before marking patrol as missed
         $checkcallMarkDelay = 5; // minutes after detection before marking checkcall as missed
         $visibilityMinutes = 5; // keep recent alerts visible for this many minutes
 
         foreach($users as $user){
+        $alerts = [];
         /**
          * 2. Patrol Alerts (5 min notification / 50 min missed)
          */
-        $patrols = Patrol::whereHas('shift', fn($q) => $q->where('staff_id', $user->id))
-            ->where('status', 'pending')
-            ->get();
+        $allPatrols = Patrol::where('status', 'pending')->get();
+        $patrols = $allPatrols->filter(function($patrol) use ($user) {
+            $shift = ShiftDate::find($patrol->shift_id);
+            return $shift && $shift->staff_id == $user->id && $shift->is_assign == 2;
+        });
+
+        Log::info('ProcessShiftNotifications: patrols found', ['user_id' => $user->id, 'count' => $patrols->count()]);
 
         foreach ($patrols as $patrol) {
             // debug: log each patrol found for this user
             $shift = ShiftDate::find($patrol->shift_id);
 
-            if ($shift->is_assign == 2) {
+            if (!$shift) continue;
 
-                $start = Carbon::parse($patrol->start_time);
-                $diff = now()->diffInMinutes($start, false); // negative if past
+            $start = Carbon::parse($patrol->start_time);
+            $diff = now()->diffInMinutes($start, false); // negative if past
 
-                // 5-min warning
-                if ($diff <= 5 && $diff > 0) {
+            // 5-min warning
+            if ($diff <= 5 && $diff > 0) {
                     $alert = [
                         'type' => 'patrol_warning',
                         'patrol_id' => $patrol->id,
@@ -93,11 +97,11 @@ class ProcessShiftNotifications extends Command
                         $alert['_first_shown'] = false;
                     }
 
-                    $alerts[] = $alert;
-                }
+                $alerts[] = $alert;
+            }
 
-                // 50-min missed (compute canonical mark time from start_time + threshold + delay)
-                if ($diff <= -50) {
+            // 50-min missed (compute canonical mark time from start_time + threshold + delay)
+            if ($diff <= -50) {
                     $markerKey = "missed_marker:patrol:user:{$user->id}:patrol:{$patrol->id}";
 
                     // canonical mark time = patrol start + 50 minutes (threshold) + patrolMarkDelay
@@ -156,25 +160,30 @@ class ProcessShiftNotifications extends Command
                         $alert['_first_shown'] = false;
                     }
 
-                    $alerts[] = $alert;
-                }
+                $alerts[] = $alert;
             }
         }
 
         /**
          * 3. Check Call Alerts (5 min notification / 15 min missed)
          */
-        $checkCalls = CheckCall::whereHas('shiftDate', fn($q) => $q->where('staff_id', $user->id))
-            ->where('status', 'pending')
-            ->get();
+        $allCheckCalls = CheckCall::where('status', 'pending')->get();
+        $checkCalls = $allCheckCalls->filter(function($checkCall) use ($user) {
+            $shift = $checkCall->shiftDate;
+            return $shift && $shift->staff_id == $user->id && $shift->is_assign == 2;
+        });
+
+        Log::info('ProcessShiftNotifications: checkcalls found', ['user_id' => $user->id, 'count' => $checkCalls->count()]);
 
         foreach ($checkCalls as $checkCall) {
-            if($checkCall->shiftDate->is_assign == 2){
-                $scheduled = Carbon::parse($checkCall->scheduled_time);
-                $diff = now()->diffInMinutes($scheduled, false);
-    
-                // 5-min warning
-                if ($diff <= 5 && $diff > 0) {
+            if(!$checkCall->shiftDate) {
+                continue;
+            }
+            $scheduled = Carbon::parse($checkCall->scheduled_time);
+            $diff = now()->diffInMinutes($scheduled, false);
+
+            // 5-min warning
+            if ($diff <= 5 && $diff > 0) {
                     $alert = [
                         'type' => 'checkcall_warning',
                         'checkcall_id' => $checkCall->id,
@@ -202,11 +211,11 @@ class ProcessShiftNotifications extends Command
                         $alert['_first_shown'] = false;
                     }
     
-                    $alerts[] = $alert;
-                }
-    
-                // 15-min missed (compute canonical mark time from scheduled_time + threshold + delay)
-                if ($diff <= -15) {
+                $alerts[] = $alert;
+            }
+
+            // 15-min missed (compute canonical mark time from scheduled_time + threshold + delay)
+            if ($diff <= -15) {
                     $markerKey = "missed_marker:checkcall:user:{$user->id}:checkcall:{$checkCall->id}";
     
                     // canonical mark time = scheduled time + 15 minutes (threshold) + checkcallMarkDelay
@@ -262,10 +271,9 @@ class ProcessShiftNotifications extends Command
                         $alert['_first_shown'] = false;
                     }
     
-                    $alerts[] = $alert;
-                }
+                $alerts[] = $alert;
             }
-            }
+        }
 
         // Recent-alerts cache: keep last few alerts visible for $visibilityMinutes
         $recentKey = "recent_alerts:user:{$user->id}";
@@ -314,6 +322,7 @@ class ProcessShiftNotifications extends Command
                 } catch (\Exception $e) {
                     Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $alert, 'error' => $e->getMessage()]);
                 }
+            } else {
                 // existing: update the stored alert content in case message changed
                 $idx = $recentMap[$uid];
                 $recent[$idx] = array_merge($recent[$idx], $alert);
@@ -337,6 +346,8 @@ class ProcessShiftNotifications extends Command
 
         Log::info('Notification command Ended');
 
+        // Close any lingering database connections
+        \DB::disconnect();
 
         $this->info('✅ Shift notifications processed successfully.');
     }

@@ -102,28 +102,12 @@ class DobApiController extends Controller
             ]);
         }
 
-        // Send basic notification (optional, no logs)
-        Notification::create([
-            'user_id' => Auth::id(),
-            'employee_id' => null,
-            'type' => 'alert',
-            'title' => 'DOB Uploaded',
-            'message' => 'You have uploaded a DOB entry successfully',
-        ]);
-
         Notify::toDashboard(
             null,
             'alert',
             'DOB uploaded',
             'DOB uploaded by guard ' . $employee->fore_name . ' ' . $employee->sur_name,
             '/dobs'
-        );
-
-        send_push_notification(
-            $employee->user_id,
-            'DOB uploaded',
-            'You have submitted a DOB successfully.',
-            ['entry' => $entry],
         );
 
         try {
@@ -270,16 +254,7 @@ class DobApiController extends Controller
         } catch (\Exception $e) {
             Log::error('Logger failed for DOB update: ' . $e->getMessage());
         }
-        try {
-            send_push_notification(
-                $user->id,
-                'DOB Updated',
-                'Your DOB has been updated successfully.',
-                ['employee' => $employee->id]
-            );
-        } catch (\Exception $e) {
-            Log::error('Push notification failed: ' . $e->getMessage());
-        }
+        // Notification to guard removed - only admin notifications kept
 
         return response()->json([
             'entry_id' => $entry->id,
