@@ -92,7 +92,7 @@ class AuthAPIController extends Controller
             $user->id,
             'PASSWORD Reset code',
             'Password code reset was requested from your account! Check your email.',
-            ['code' => $code]
+            ['type' => 'profile']
         );
 
         return response()->json([
@@ -161,7 +161,7 @@ class AuthAPIController extends Controller
             $user->id,
             'PASSWORD changed successfully',
             'Your account password has been changed successfully!.',
-            ['user' => $user]
+            ['type' => 'profile']
         );
 
         return response()->json([

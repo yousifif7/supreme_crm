@@ -196,7 +196,7 @@ class PayrollController extends Controller
             $staff->user_id,
             'Payroll generated',
             "A new payroll has been generated for you!",
-            ['invoice' => $invoice]
+            ['type' => 'payment']
         );
 
         Logger::log(
@@ -322,7 +322,7 @@ class PayrollController extends Controller
                     $employeeId,
                     'Payroll generated',
                     "A new payroll has been generated for you!",
-                    ['invoice' => $invoice]
+                    ['type' => 'payment']
                 );
 
                 Logger::log(

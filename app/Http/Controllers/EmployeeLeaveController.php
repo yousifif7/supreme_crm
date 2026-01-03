@@ -86,7 +86,7 @@ class EmployeeLeaveController extends Controller
             $user->id,
             'Leave Approved',
             "An admin had made a leave for you from {$leave->start_date} to {$leave->end_date}",
-            ['leave' => $leave]
+            ['type' => 'leave', 'leaveRequestId' => $leave->id]
         );
         return response()->json(['message' => 'Leave created successfully']);
     }
@@ -211,7 +211,7 @@ class EmployeeLeaveController extends Controller
                     $userId,
                     'Removed from shift',
                     "You have been removed from shift (ID: " . $shift->id . ' at ' . $shift->shift_date,
-                    ['shift' => $shift]
+                    ['type' => 'shift', 'shiftId' => $shift->id]
                 );
 
                 Notify::toDashboard(
@@ -228,7 +228,7 @@ class EmployeeLeaveController extends Controller
                 $userId,
                 'Leave Approved',
                 "Your leave request has been approved by admin.",
-                ['leave' => $leave]
+                ['type' => 'leave', 'leaveRequestId' => $leave->id]
             );
         }
 
@@ -246,7 +246,7 @@ class EmployeeLeaveController extends Controller
                 $userId,
                 'Leave Rejected',
                 "Your leave request was rejected. Reason: {$leave->reject_reason}",
-                ['leave' => $leave]
+                ['type' => 'leave', 'leaveRequestId' => $leave->id]
             );
         }
 
@@ -470,7 +470,7 @@ class EmployeeLeaveController extends Controller
                 $userId,
                 'Removed from shift',
                 "You have been removed from shift (ID: {$shift->id} at {$shift->shift_date})",
-                ['shift' => $shift]
+                ['type' => 'shift', 'shiftId' => $shift->id]
             );
 
             Notify::toDashboard(
@@ -488,13 +488,11 @@ class EmployeeLeaveController extends Controller
             $userId,
             'Leave Approved',
             "Your leave request has been approved by admin.",
-            ['leave' => $leave]
+            ['type' => 'leave', 'leaveRequestId' => $leave->id]
         );
 
         return response()->json(['success' => true, 'message' => 'Leave approved']);
     }
-
-
 
     public function reject(Request $request, LeaveRequest $leave)
     {
@@ -519,7 +517,7 @@ class EmployeeLeaveController extends Controller
             $leave->user_id,
             'Leave Rejected',
             "Your leave request was rejected. Reason: {$leave->reject_reason}",
-            ['leave' => $leave]
+            ['type' => 'leave', 'leaveRequestId' => $leave->id]
         );
 
         return response()->json(['success' => true, 'message' => 'Leave rejected']);

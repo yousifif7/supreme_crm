@@ -69,7 +69,7 @@ class ShiftController extends Controller
             $shiftDate->staff->id,
             'Shift Unassigned',
             'An admin unassigned a shift for you, check your schedule.',
-            ['shiftDate' => $shiftDate],
+            ['type' => 'shift', 'shiftId' => $shiftDate->id],
         );
 
         $shiftDate->staff_id = null; // Remove assigned staff
@@ -840,7 +840,7 @@ class ShiftController extends Controller
                     $staff->user_id,
                     'Shift reassigned',
                     'An admin reassigned a shift for you, You have to respond!',
-                    ['shift' => $shift],
+                    ['type' => 'shift', 'shiftId' => $shift->id],
                 );
 
                 $weekStart = now()->startOfWeek();
@@ -912,7 +912,7 @@ class ShiftController extends Controller
                 $shiftDate->staff_id,
                 'Shift Deleted',
                 'An assigned shift for you has been deleted. (ID: ' . $shiftDate->id . ') at ' . $shiftDate->shift->site->site_name,
-                ['shiftDate' => $shiftDate],
+                ['type' => 'shift', 'shiftId' => $shiftDate->id],
                 );
         }
         $shiftDate->forceDelete();
@@ -972,7 +972,7 @@ class ShiftController extends Controller
                     $shiftDate->staff_id,
                     'Shift assigned',
                     'An admin booked you ON for shift (ID: ' . $shiftDate->id . ') starting at ' . $shiftDate->start_time,
-                    ['shiftDate' => $shiftDate],
+                    ['type' => 'shift', 'shiftId' => $shiftDate->id],
                 );
                 return response()->json(['success' => 'Shift booked on successfully'], 200);
             }
@@ -1039,7 +1039,7 @@ class ShiftController extends Controller
                     $shiftDate->staff_id,
                     'Shift assigned',
                     'An admin booked you OFF for shift (ID: ' . $shiftDate->id . ') ending at ' . $shiftDate->end_time,
-                    ['shiftDate' => $shiftDate],
+                    ['type' => 'shift', 'shiftId' => $shiftDate->id],
                 );
                 return response()->json(['success' => 'Shift booked off successfully'], 200);
             }
@@ -1694,7 +1694,7 @@ public function getTodayShifts()
             $staff->user_id,
             'Shift assigned',
             'An admin assigned a shift for you, You have to respond!',
-            ['shiftDate' => $shiftDate],
+            ['type' => 'shift', 'shiftId' => $shiftDate->id],
         );
 
         $weekStart = now()->startOfWeek();
@@ -2039,7 +2039,7 @@ public function getTodayShifts()
                 $shiftDate->staff_id,
                 'Patrol Approved',
                 'Your patrol "' . $patrol->name . '" has been approved by admin.',
-                ['patrol' => $patrol],
+                ['type' => 'patrol', 'patrolId' => $patrol->id],
             );
         }
 
@@ -2068,7 +2068,7 @@ public function getTodayShifts()
         }
 
         $patrol->approval_status = 'rejected';
-        $patrol->status = 'in_progress';
+        $patrol->status = 'pending';
         $patrol->save();
 
         $shiftDate = ShiftDate::find($patrol->shift_id);
@@ -2077,7 +2077,7 @@ public function getTodayShifts()
                 $shiftDate->staff_id,
                 'Patrol Rejected',
                 'Your patrol "' . $patrol->name . '" has been rejected by admin.',
-                ['patrol' => $patrol],
+                ['type' => 'patrol', 'patrolId' => $patrol->id],
             );
         }
 
@@ -2227,7 +2227,7 @@ public function getTodayShifts()
                 $staffUser->user_id,
                 'Shift assigned',
                 'An admin assigned a shift for you, You have to respond!',
-                ['shiftDate' => $shiftDate]
+                ['type' => 'shift', 'shiftId' => $shiftDate->id]
             );
 
             $updatedShifts[] = $shiftDate->id;
@@ -2365,7 +2365,7 @@ public function getTodayShifts()
             $staffUser->user_id,
             'Shift assigned (override)',
             'An admin assigned a shift for you, overriding restrictions.',
-            ['shiftDate' => $shiftDate],
+            ['type' => 'shift', 'shiftId' => $shiftDate->id],
         );
 
         $checkcalls = $shiftDate->checkCalls;
@@ -2458,7 +2458,7 @@ public function getTodayShifts()
                 $staffUser->user_id,
                 'Shift assigned (override)',
                 'An admin assigned a shift for you, overriding restrictions.',
-                ['shiftDate' => $shiftDate]
+                ['type' => 'shift', 'shiftId' => $shiftDate->id]
             );
 
             $updatedShifts[] = $shiftDate->id;
@@ -2527,7 +2527,7 @@ public function getTodayShifts()
                 $staffUser->user_id,
                 'Shift updated (override)',
                 'An admin updated a shift for you, overriding restrictions.',
-                ['shift' => $shift]
+                ['type' => 'shift', 'shiftId' => $shift->id]
             );
         }
 
@@ -2713,7 +2713,7 @@ public function getTodayShifts()
                     $shift->staff_id,
                     'New shift',
                     'A new shift has been assigned to you, check out your schedule.',
-                    ['shiftDate' => $shiftDate]
+                    ['type' => 'shift', 'shiftId' => $shiftDate->id]
                 );
             }
         }

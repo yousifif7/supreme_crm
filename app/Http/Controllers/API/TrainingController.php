@@ -136,10 +136,42 @@ class TrainingController extends Controller
         return Excel::download(new MaterialsExport, 'materials.xlsx');
     }
 
+    /**
+     * Get a single training material by ID
+     */
     public function show($id)
     {
-        $material = TrainingMaterial::findOrFail($id);
-        return response()->json($material);
+        $userId = Auth::id();
+        
+        $material = TrainingMaterial::with(['acknowledgedUsers' => function ($query) use ($userId) {
+            $query->where('user_id', $userId);
+        }])->find($id);
+
+        if (!$material) {
+            return response()->json(['message' => 'Training material not found'], 404);
+        }
+
+        $ack = $material->acknowledgedUsers->first();
+
+        return response()->json([
+            'material' => [
+                'id' => $material->id,
+                'title' => $material->title,
+                'description' => $material->description,
+                'type' => $material->type,
+                'content_url' => $material->content_url,
+                'pdf_url' => $material->pdf_url,
+                'required' => $material->required,
+                'acknowledged' => $ack ? true : false,
+                'acknowledged_at' => $ack ? $ack->acknowledged_at : null,
+                'completion_time_seconds' => $ack ? $ack->completion_time_seconds : null,
+                'implementation_date' => $material->implementation_date,
+                'complete_by_date' => $material->deadline,
+                'acknowledge_by_date' => $material->acknowledge_by_date,
+                'created_at' => $material->created_at,
+                'updated_at' => $material->updated_at,
+            ]
+        ]);
     }
 
 

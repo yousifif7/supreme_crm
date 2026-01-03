@@ -134,7 +134,7 @@ class LocationAPIController extends Controller
                 $user->id,
                 'Idle Alert',
                 'You have been idle for 15 minutes.',
-                ['location' => $lastLocation]
+                ['type' => 'alert']
             );
             $alerts[] = 'guard_notified';
         }

@@ -364,6 +364,42 @@ class ShiftApiController extends Controller
         ]);
     }
 
+    /**
+     * Get a single leave request by ID
+     */
+    public function showLeaveRequest($id)
+    {
+        $leave = LeaveRequest::where('user_id', Auth::id())
+            ->where('id', $id)
+            ->first();
+
+        if (!$leave) {
+            return response()->json(['message' => 'Leave request not found'], 404);
+        }
+
+        return response()->json([
+            'leave' => [
+                'id'                => $leave->id,
+                'shift_id'          => $leave->shift_id,
+                'type'              => $leave->type,
+                'status'            => $leave->status,
+                'reason'            => $leave->reason,
+                'start_date'        => $leave->start_date,
+                'end_date'          => $leave->end_date,
+                'hours'             => max(0, $leave->hours ?? 0),
+                'reject_reason'     => $leave->reject_reason,
+                'approved_hours'    => max(0, $leave->approved_hours ?? 0),
+                'paid'              => (bool) $leave->paid,
+                'ssp_paid_days'     => max(0, $leave->ssp_paid_days ?? 0),
+                'holiday_days_used' => max(0, $leave->holiday_days_used ?? 0),
+                'unpaid_days'       => max(0, $leave->unpaid_days ?? 0),
+                'amount_paid'       => max(0, $leave->amount_paid ?? 0),
+                'created_at'        => $leave->created_at,
+                'updated_at'        => $leave->updated_at,
+            ]
+        ]);
+    }
+
 
     // 13. Acknowledge Shift Documents
     public function acknowledgeDocuments(Request $request, $shift_id)
@@ -840,7 +876,7 @@ class ShiftApiController extends Controller
                     $otherUser->id,
                     'Patrol auto-completed',
                     'Your previous patrol was marked completed at ' . $now,
-                    ['shift_date_id' => $other->shift_id]
+                    ['type' => 'shift', 'shiftId' => $other->shift_id]
                 );
             }
         }
@@ -879,6 +915,7 @@ class ShiftApiController extends Controller
         // Guard can complete patrol only up to 50 mins after start
         if ($now->gt($patrolStart->copy()->addMinutes(50))) {
             $patrol->status = 'completed';
+            $patrol->approval_status = 'pending';
             $patrol->save();
             return response()->json([
                 'message' => 'Patrol completion time exceeded. However it is considered as completed.'
@@ -899,6 +936,7 @@ class ShiftApiController extends Controller
             'issues_reported' => $request->issues_reported,
             'completed_at' => $now,
             'status' => 'completed',
+            'approval_status' => 'pending',
         ]);
 
         $shiftDate = ShiftDate::find($patrol->shift_id);

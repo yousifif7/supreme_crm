@@ -467,7 +467,7 @@ class DocumentAPIController extends Controller
                         $user->id,
                         $alert['title'],
                         $alert['message'],
-                        $alert
+                        ['type' => 'document']
                     );
                 } catch (\Exception $e) {
                     Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $alert, 'error' => $e->getMessage()]);

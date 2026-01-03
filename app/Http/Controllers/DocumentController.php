@@ -170,7 +170,7 @@ class DocumentController extends Controller
             $employee->user_id,
             'Document Approved',
             'Your '.$doc->document_type.' document has been Approved.',
-            ['document_id' => $doc->id]
+            ['type' => 'document']
         );
 
         return response()->json(['message' => 'Document approved', 'document' => $doc]);
@@ -217,7 +217,7 @@ class DocumentController extends Controller
             $employee->user_id,
             'Document rejected',
             'Your '.$doc->document_type.' document has been rejected, check you application to view the reason.',
-            ['document_id' => $doc->id]
+            ['type' => 'document']
         );
 
         return response()->json(['message' => 'Document rejected', 'document' => $doc]);

@@ -289,8 +289,9 @@ class ChatController extends Controller
                         ? "📎 Attachment from {$sender?->first_name} {$sender?->last_name}"
                         : "You received a new message"),
                 [
-                    'conversation_id' => $conversation->id,
-                    'message_id' => $message->id,
+                    'type' => 'message',
+                    'conversationId' => $conversation->id,
+                    'chatTitle' => ($sender?->first_name ?? '') . ' ' . ($sender?->last_name ?? ''),
                 ]
             );
         }

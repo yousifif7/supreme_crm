@@ -137,7 +137,7 @@ class DobController extends Controller
             $dobEntry->user_id,
             'Dob report updated',
             'An admin has updated your dob report, check your DOBs ',
-            ['dobEntry' => $dobEntry],
+            ['type' => 'dob', 'dobId' => $dobEntry->id],
         );
 
         return response()->json(['message' => 'DOB Entry updated successfully']);

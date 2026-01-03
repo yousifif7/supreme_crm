@@ -314,4 +314,48 @@ class IncidentReportController extends Controller
             'incident_id' => $report->id
         ], 200);
     }
+
+    /**
+     * Get a single incident report by ID
+     */
+    public function show($id)
+    {
+        $user = Auth::user();
+        
+        $report = IncidentReport::with(['media', 'people'])
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$report) {
+            return response()->json(['message' => 'Incident report not found'], 404);
+        }
+
+        return response()->json([
+            'incident' => [
+                'id' => $report->id,
+                'shift_id' => $report->shift_id,
+                'category' => $report->category,
+                'severity' => $report->severity,
+                'title' => $report->title,
+                'description' => $report->description,
+                'location' => $report->location,
+                'pre_captured_media' => $report->media->where('type', 'pre_captured')->pluck('file_url')->toArray(),
+                'live_media' => $report->media->where('type', 'live')->pluck('file_url')->toArray(),
+                'people_involved' => $report->people->map(fn($p) => [
+                    'name' => $p->name,
+                    'role' => $p->role,
+                    'contact' => $p->contact,
+                    'description' => $p->description,
+                ])->toArray(),
+                'police_notified' => (bool) $report->police_notified,
+                'police_reference' => $report->police_reference,
+                'immediate_action_taken' => $report->immediate_action_taken,
+                'admin_comments' => $report->admin_comments,
+                'edit_requested' => $report->edit_requested,
+                'created_at' => $report->created_at,
+                'updated_at' => $report->updated_at,
+            ]
+        ]);
+    }
 }

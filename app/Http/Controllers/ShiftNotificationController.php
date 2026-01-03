@@ -50,7 +50,7 @@ class ShiftNotificationController extends BaseController
 
                         // Push to the guard
                         if ($employee) {
-                            send_push_notification($employee->id, 'Missed Book On', "You did not book on for your shift at {$sd->start_time} on {$sd->shift_date}.", ['shift_date_id' => $sd->id, 'type' => 'missed_book_on']);
+                            send_push_notification($employee->id, 'Missed Book On', "You did not book on for your shift at {$sd->start_time} on {$sd->shift_date}.", ['type' => 'shift', 'shiftId' => $sd->id]);
                         }
                     } catch (\Exception $e) {
                         Log::warning('ShiftNotificationController: missed book on notify failed: ' . $e->getMessage());
@@ -92,7 +92,7 @@ class ShiftNotificationController extends BaseController
                     $guardName = $employee ? trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? '')) : 'Unknown';
 
                     if ($employee) {
-                        send_push_notification($employee->id, 'Missed Book Off', "You did not book off for your shift at {$sd->end_time} on {$sd->shift_date}.", ['shift_date_id' => $sd->id, 'type' => 'missed_book_off']);
+                        send_push_notification($employee->id, 'Missed Book Off', "You did not book off for your shift at {$sd->end_time} on {$sd->shift_date}.", ['type' => 'shift', 'shiftId' => $sd->id]);
                     }
                 } catch (\Exception $e) {
                     Log::warning('ShiftNotificationController: missed book off notify failed: ' . $e->getMessage());
@@ -120,7 +120,7 @@ class ShiftNotificationController extends BaseController
                         $message = "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and you have not accepted it.";
 
                         if ($employee) {
-                            send_push_notification($employee->id, 'Unaccepted Shift', $message, ['shift_date_id' => $sd->id, 'type' => 'unaccepted_shift']);
+                            send_push_notification($employee->id, 'Unaccepted Shift', $message, ['type' => 'shift', 'shiftId' => $sd->id]);
                         }
                     } catch (\Exception $e) {
                         Log::warning('ShiftNotificationController: unaccepted shift notify failed: ' . $e->getMessage());
@@ -152,7 +152,31 @@ class ShiftNotificationController extends BaseController
             $allPatrols = Patrol::where('status', 'pending')->get();
             $patrols = $allPatrols->filter(function($patrol) use ($user) {
                 $shift = ShiftDate::find($patrol->shift_id);
-                return $shift && $shift->staff_id == $user->id && $shift->is_assign == 3;
+                if (!$shift || $shift->staff_id != $user->id) {
+                    return false;
+                }
+                
+                // Send notifications if shift is booked on (is_assign == 3)
+                if ($shift->is_assign == 3) {
+                    return true;
+                }
+                
+                // Also send if shift is accepted (is_assign == 2) and we're within the shift time window
+                if ($shift->is_assign == 2) {
+                    $now = now();
+                    $shiftStart = Carbon::parse($shift->shift_date . ' ' . $shift->start_time);
+                    $shiftEnd = Carbon::parse($shift->shift_date . ' ' . $shift->end_time);
+                    
+                    // Handle overnight shifts
+                    if ($shiftEnd->lt($shiftStart)) {
+                        $shiftEnd->addDay();
+                    }
+                    
+                    // Send alerts if current time is within or near shift window (15 min before to end)
+                    return $now->gte($shiftStart->copy()->subMinutes(15)) && $now->lte($shiftEnd);
+                }
+                
+                return false;
             });
 
             Log::info('ProcessShiftNotifications (web): patrols found', ['user_id' => $user->id, 'count' => $patrols->count()]);  
@@ -180,7 +204,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Upcoming Patrol', "Patrol starting soon: {$patrol->name} at {$patrol->start_time}", ['patrol_id' => $patrol->id, 'type' => 'patrol_warning', 'shift_date_id' => $patrol->shift_id]);
+                                send_push_notification($user->id, 'Upcoming Patrol', "Patrol starting soon: {$patrol->name} at {$patrol->start_time}", ['type' => 'patrol', 'patrolId' => $patrol->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -214,7 +238,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Patrol Due Now', "Your patrol is due now: {$patrol->name}. Please start immediately.", ['patrol_id' => $patrol->id, 'type' => 'patrol_due', 'shift_date_id' => $patrol->shift_id]);
+                                send_push_notification($user->id, 'Patrol Due Now', "Your patrol is due now: {$patrol->name}. Please start immediately.", ['type' => 'patrol', 'patrolId' => $patrol->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -249,7 +273,7 @@ class ShiftNotificationController extends BaseController
                             try {
                                 // Send push notification to guard
                                 $minutesOverdue = abs((int)$diff);
-                                send_push_notification($user->id, 'Patrol Overdue', "Your patrol is {$minutesOverdue} minutes overdue and not completed: {$patrol->name}. Please complete it now.", ['patrol_id' => $patrol->id, 'type' => 'patrol_overdue', 'shift_date_id' => $patrol->shift_id]);
+                                send_push_notification($user->id, 'Patrol Overdue', "Your patrol is {$minutesOverdue} minutes overdue and not completed: {$patrol->name}. Please complete it now.", ['type' => 'patrol', 'patrolId' => $patrol->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -283,7 +307,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Complete Patrol Soon', "Please complete your patrol soon: {$patrol->name}. You have 5 minutes remaining.", ['patrol_id' => $patrol->id, 'type' => 'patrol_completion_reminder', 'shift_date_id' => $patrol->shift_id]);
+                                send_push_notification($user->id, 'Complete Patrol Soon', "Please complete your patrol soon: {$patrol->name}. You have 5 minutes remaining.", ['type' => 'patrol', 'patrolId' => $patrol->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -344,7 +368,7 @@ class ShiftNotificationController extends BaseController
                             try {
                                 // Send push notification to guard
                                 $pushTitle = ($alertType === 'patrol_missed') ? 'Missed Patrol' : 'Potential Missed Patrol';
-                                send_push_notification($user->id, $pushTitle, $alertMessage, ['patrol_id' => $patrol->id, 'type' => $alertType, 'shift_date_id' => $patrol->shift_id]);
+                                send_push_notification($user->id, $pushTitle, $alertMessage, ['type' => 'patrol', 'patrolId' => $patrol->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -367,7 +391,31 @@ class ShiftNotificationController extends BaseController
             $allCheckCalls = CheckCall::where('status', 'pending')->get();
             $checkCalls = $allCheckCalls->filter(function($checkCall) use ($user) {
                 $shift = $checkCall->shiftDate;
-                return $shift && $shift->staff_id == $user->id && $shift->is_assign == 3;
+                if (!$shift || $shift->staff_id != $user->id) {
+                    return false;
+                }
+                
+                // Send notifications if shift is booked on (is_assign == 3)
+                if ($shift->is_assign == 3) {
+                    return true;
+                }
+                
+                // Also send if shift is accepted (is_assign == 2) and we're within the shift time window
+                if ($shift->is_assign == 2) {
+                    $now = now();
+                    $shiftStart = Carbon::parse($shift->shift_date . ' ' . $shift->start_time);
+                    $shiftEnd = Carbon::parse($shift->shift_date . ' ' . $shift->end_time);
+                    
+                    // Handle overnight shifts
+                    if ($shiftEnd->lt($shiftStart)) {
+                        $shiftEnd->addDay();
+                    }
+                    
+                    // Send alerts if current time is within or near shift window (15 min before to end)
+                    return $now->gte($shiftStart->copy()->subMinutes(15)) && $now->lte($shiftEnd);
+                }
+                
+                return false;
             });
 
             Log::info('ProcessShiftNotifications (web): checkcalls found', ['user_id' => $user->id, 'count' => $checkCalls->count()]);
@@ -395,7 +443,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Upcoming Check Call', "Check call coming up: {$checkCall->name} at {$checkCall->scheduled_time}", ['checkcall_id' => $checkCall->id, 'type' => 'checkcall_warning', 'shift_date_id' => $checkCall->shiftDate->id]);
+                                send_push_notification($user->id, 'Upcoming Check Call', "Check call coming up: {$checkCall->name} at {$checkCall->scheduled_time}", ['type' => 'shift', 'shiftId' => $checkCall->shiftDate->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -429,7 +477,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Complete Check Call Soon', "Please complete your check call soon: {$checkCall->name}. You have 5 minutes remaining.", ['checkcall_id' => $checkCall->id, 'type' => 'checkcall_completion_reminder', 'shift_date_id' => $checkCall->shiftDate->id]);
+                                send_push_notification($user->id, 'Complete Check Call Soon', "Please complete your check call soon: {$checkCall->name}. You have 5 minutes remaining.", ['type' => 'shift', 'shiftId' => $checkCall->shiftDate->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -489,7 +537,7 @@ class ShiftNotificationController extends BaseController
                             try {
                                 // Send push notification to guard
                                 $pushTitle = ($alertType === 'checkcall_missed') ? 'Missed Check Call' : 'Potential Missed Check Call';
-                                send_push_notification($user->id, $pushTitle, $alertMessage, ['checkcall_id' => $checkCall->id, 'type' => $alertType, 'shift_date_id' => $checkCall->shiftDate->id]);
+                                send_push_notification($user->id, $pushTitle, $alertMessage, ['type' => 'shift', 'shiftId' => $checkCall->shiftDate->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));

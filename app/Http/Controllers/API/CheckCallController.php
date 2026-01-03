@@ -220,6 +220,7 @@ class CheckCallController extends Controller
 
         // Update check call - explicitly preserve scheduled_time
         $checkCall->status = 'completed';
+        $checkCall->approval_status = 'pending';
         $checkCall->employee_id = $user->id;
         $checkCall->notes = $data['notes'] ?? null;
         $checkCall->completed_at = Carbon::now();
@@ -799,7 +800,7 @@ class CheckCallController extends Controller
             $checkcall->employee_id,
             'Checkcall updated',
             'An admin has updated your checkcall! check on your app now.',
-            ['checkcall' => $checkcall],
+            ['type' => 'shift', 'shiftId' => $checkcall->shift_date_id],
         );
 
         return response()->json(['message' => 'Check call updated successfully']);
@@ -837,7 +838,7 @@ class CheckCallController extends Controller
             $checkcall->employee_id,
             'Check Call Approved',
             'Your check call "' . $checkcall->name . '" has been approved by admin.',
-            ['checkcall' => $checkcall],
+            ['type' => 'shift', 'shiftId' => $checkcall->shift_date_id],
         );
 
         return response()->json([
@@ -873,7 +874,7 @@ class CheckCallController extends Controller
             $checkcall->employee_id,
             'Check Call Rejected',
             'Your check call "' . $checkcall->name . '" has been rejected by admin.',
-            ['checkcall' => $checkcall],
+            ['type' => 'shift', 'shiftId' => $checkcall->shift_date_id],
         );
 
         return response()->json([

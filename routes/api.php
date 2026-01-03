@@ -71,6 +71,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
     Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);
+    Route::get('/leave-requests/{id}', [ShiftApiController::class, 'showLeaveRequest']);
     Route::get('/holiday-Balance', [ShiftApiController::class, 'holidayBalances']);
     Route::post('/shifts/{shift_id}/acknowledge-documents', [ShiftApiController::class, 'acknowledgeDocuments']);
 
@@ -111,6 +112,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/dob', [DobApiController::class, 'store']);
     Route::get('/dob', [DobApiController::class, 'index']);
+    Route::get('/dob/{id}', [DobApiController::class, 'show']);
     Route::put('/dob/{id}', [DobApiController::class, 'update']);
 });
 
@@ -120,6 +122,7 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware('auth:sanctum')->group(function () {
     Route::post('/incidents ', [IncidentReportController::class, 'store']);
     Route::get('/incidents', [IncidentReportController::class, 'index']);
+    Route::get('/incidents/{id}', [IncidentReportController::class, 'show']);
     Route::put('/incidents/{id}', [IncidentReportController::class, 'update']);
 });
 
@@ -168,6 +171,7 @@ Route::middleware('auth:sanctum')->prefix('invoices')->group(function () {
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/training', [TrainingController::class, 'index']);
+    Route::get('/training/{id}', [TrainingController::class, 'show']);
     Route::post('/training/{training_id}/acknowledge', [TrainingController::class, 'acknowledge']);
 });
 

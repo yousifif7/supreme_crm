@@ -15,10 +15,10 @@ class Kernel extends ConsoleKernel
 
     protected function schedule(Schedule $schedule): void
     {
-        // Schedule the shift notification command to run every 15 minutes.
+        // Schedule the shift notification command to run every 5 minutes.
         // Use withoutOverlapping to avoid concurrent runs.
         $schedule->command('shifts:process-notifications')
-            ->everyFifteenMinutes()
+            ->everyFiveMinutes()
             ->withoutOverlapping()
             ->runInBackground();
         

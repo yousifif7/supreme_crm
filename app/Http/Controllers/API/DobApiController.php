@@ -261,4 +261,38 @@ class DobApiController extends Controller
             'message' => 'DOB entry updated successfully',
         ], 200);
     }
+
+    /**
+     * Get a single DOB entry by ID
+     */
+    public function show($id)
+    {
+        $user = Auth::user();
+        
+        $entry = DobEntry::with('media')
+            ->where('id', $id)
+            ->where('user_id', $user->id)
+            ->first();
+
+        if (!$entry) {
+            return response()->json(['message' => 'DOB entry not found'], 404);
+        }
+
+        return response()->json([
+            'entry' => [
+                'id' => $entry->id,
+                'shift_id' => $entry->shift_id,
+                'entry_type' => $entry->entry_type,
+                'title' => $entry->title,
+                'description' => $entry->description,
+                'media_urls' => $entry->media ? $entry->media->pluck('file_url')->toArray() : [],
+                'location' => json_decode($entry->location),
+                'timestamp' => $entry->timestamp,
+                'admin_comments' => $entry->admin_comments,
+                'edit_requested' => $entry->edit_requested,
+                'created_at' => $entry->created_at,
+                'updated_at' => $entry->updated_at,
+            ]
+        ]);
+    }
 }

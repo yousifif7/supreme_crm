@@ -519,7 +519,7 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
                         $user->id,
                         'Creds changed',
                         'An admin has changed your account credintials! You have been logout from you account.',
-                        ['user' => $user],
+                        ['type' => 'profile'],
                     );
 
                     $user->plaintext_password = $request->password;

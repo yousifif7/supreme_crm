@@ -37,7 +37,7 @@ class EmergencyAlertAPIController extends Controller
             Auth::id(),
             'Emergency alert',
             'Energmency alert has been triggered from your device!',
-            ['alert' => $alert]
+            ['type' => 'alert']
         );
 
         $employee = Auth::user()->employee;

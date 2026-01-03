@@ -79,7 +79,7 @@ class ProfileChangeRequestController extends Controller
             'message' => 'Your email has been changed from ' . $old . ' to ' . $user->email,
         ]);
 
-        send_push_notification($user->id, 'Email changed', 'Your email change was approved by admin.', []);
+        send_push_notification($user->id, 'Email changed', 'Your email change was approved by admin.', ['type' => 'profile']);
 
         return response()->json(['message' => 'Request approved']);
     }
@@ -107,7 +107,7 @@ class ProfileChangeRequestController extends Controller
             'message' => 'Your email change request was denied. ' . ($req->admin_note ?? ''),
         ]);
 
-        send_push_notification($req->user_id, 'Email change denied', 'Your email change was denied by admin.', []);
+        send_push_notification($req->user_id, 'Email change denied', 'Your email change was denied by admin.', ['type' => 'profile']);
 
         return response()->json(['message' => 'Request denied']);
     }
