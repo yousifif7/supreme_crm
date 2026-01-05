@@ -65,6 +65,7 @@ Route::group(['middleware' => ['auth']], function () {
     Route::post('/conversations/{conversationId}/send-messages', [ChatController::class, 'sendMessage'])->name('conversations.sendMessage');
     Route::delete('/messages/{messageId}', [ChatController::class, 'deleteMessage'])->name('messages.delete');
     Route::get('/conversations/{conversationId}/members', [ChatController::class, 'viewMembers'])->name('conversations.members');
+    Route::delete('/conversations/{conversationId}', [ChatController::class, 'deleteConversation'])->name('conversations.delete');
     Route::post('/conversations/{conversationId}/pin', [ChatController::class, 'togglePin'])->name('conversations.togglePin');
     Route::post('/create-one-to-one-conversation', [ChatController::class, 'createOneToOneConversation'])->name('create.one.to.one');
     Route::post('/conversations/{conversationId}/typing', [ChatController::class, 'userTyping'])->name('conversations.typing');

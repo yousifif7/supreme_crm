@@ -67,6 +67,7 @@ Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('aut
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/all', [ShiftApiController::class, 'getShifts']);
+    Route::get('/shifts/calendar', [ShiftApiController::class, 'calendar']);
     Route::get('/shifts/{id}', [ShiftApiController::class, 'shiftDetails']);
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
@@ -77,8 +78,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::post('/shifts/{shiftDate_id}/book-on', [ShiftApiController::class, 'bookOn']);
     Route::post('/shifts/{shiftDate_id}/book-off', [ShiftApiController::class, 'bookOff']);
-
-    Route::get('/shifts/calendar', [ShiftApiController::class, 'calendar']);
 
     Route::get('/alarms/booking', [ShiftApiController::class, 'getBookingAlarms']);
     Route::post('/alarms/{alarm_id}/acknowledge', [ShiftApiController::class, 'acknowledgeAlarm']);

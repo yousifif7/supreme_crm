@@ -61,6 +61,9 @@ class DobsDataTable extends DataTable
             })
             ->rawColumns(['actions', 'files', 'address', 'checkbox'])
 
+            // Ensure ordering on the displayed timestamp column maps to the DB timestamp
+            ->orderColumn('timestamp', 'dob_entries.timestamp $1')
+
             // Global search across dob_entries columns and related user / site fields
             ->filter(function ($query, $keyword) {
                 if (empty($keyword)) return;
@@ -103,7 +106,7 @@ class DobsDataTable extends DataTable
     }
     public function query(DobEntry $model)
     {
-        return $model->with(['media'])->newQuery()->select('dob_entries.*');
+        return $model->with(['media'])->newQuery()->select('dob_entries.*')->orderBy('timestamp', 'desc');
     }
 
     public function html(): HtmlBuilder
@@ -112,7 +115,7 @@ class DobsDataTable extends DataTable
             ->setTableId('dobs-table')
             ->columns($this->getColumns())
             ->minifiedAjax()
-            ->orderBy(0);
+            ->orderBy(6, 'desc');
     }
 
     protected function getColumns(): array

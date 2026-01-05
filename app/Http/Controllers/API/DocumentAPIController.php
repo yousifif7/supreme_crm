@@ -144,6 +144,8 @@ class DocumentAPIController extends Controller
     public function alerts(Request $request)
     {
         $user = $request->user();
+        Log::info("Alerts endpoint called", ['user_id' => $user->id, 'user_name' => $user->name ?? $user->first_name]);
+        
         $alerts = [];
         $cooldownMinutes = 15; // show alerts for 15 minutes after first shown
         $patrolMarkDelay = 10; // minutes after detection before marking patrol as missed
@@ -169,22 +171,70 @@ class DocumentAPIController extends Controller
                 ->orderByDesc('expiry_date')
                 ->first();
 
-            if ($doc && $doc->expiry_date) {
-                $expiryDate = Carbon::parse($doc->expiry_date);
+            $expiryDate = null;
+            // Prefer expiry date from the document row
+            if ($doc && !empty($doc->expiry_date)) {
+                try {
+                    $expiryDate = Carbon::parse($doc->expiry_date);
+                    Log::info("Document expiry check for user {$user->id}", [
+                        'type' => $type,
+                        'doc_id' => $doc->id,
+                        'expiry_date' => $doc->expiry_date,
+                        'parsed_date' => $expiryDate->toDateString(),
+                        'days_until_expiry' => now()->diffInDays($expiryDate, false)
+                    ]);
+                } catch (\Exception $e) {
+                    $expiryDate = null;
+                    Log::warning("Failed to parse document expiry date", ['type' => $type, 'doc_id' => $doc->id, 'expiry_date' => $doc->expiry_date]);
+                }
+            }
 
-                if ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30))) {
-                    $daysRemaining = (int) now()->diffInDays($expiryDate); // always integer
+            // Fallback: check employee fixed-field mappings (some uploads update employee fields)
+            if (!$expiryDate && $user->employee && isset($this->expiryFields[$type])) {
+                $empField = $this->expiryFields[$type];
+                if (!empty($user->employee->$empField)) {
+                    try {
+                        $expiryDate = Carbon::parse($user->employee->$empField);
+                        Log::info("Document expiry from employee field for user {$user->id}", [
+                            'type' => $type,
+                            'field' => $empField,
+                            'expiry_date' => $user->employee->$empField,
+                            'parsed_date' => $expiryDate->toDateString()
+                        ]);
+                    } catch (\Exception $e) {
+                        $expiryDate = null;
+                    }
+                }
+            }
+
+            if ($expiryDate) {
+                // Include only documents expiring today or within the next 30 days
+                if ($expiryDate->isToday() || ($expiryDate->isFuture() && $expiryDate->lte(now()->addDays(30)))) {
+                    $daysRemaining = (int) now()->diffInDays($expiryDate); // 0 for today, positive for future
+
+                    if ($expiryDate->isToday()) {
+                        $message = "Your {$type} expires today ({$expiryDate->toDateString()}).";
+                    } else {
+                        $message = "Your {$type} is about to expire in {$daysRemaining} day(s) on {$expiryDate->toDateString()}.";
+                    }
 
                     $alert = [
                         'type' => 'document_expiry',
-                        'document_id' => $doc->id,
+                        'document_id' => $doc ? $doc->id : null,
                         'title' => 'Document Expiry Alert',
-                        'message' => "Your {$doc->document_type} is about to expire in {$daysRemaining} day(s) on {$expiryDate->toDateString()}.",
+                        'message' => $message,
                         'expiry_date' => $expiryDate->toDateString(),
                         'days_remaining' => $daysRemaining,
                     ];
 
-                    $cacheKey = "alerts:document_expiry:user:{$user->id}:doc:{$doc->id}";
+                    Log::info("Document expiry alert created for user {$user->id}", [
+                        'type' => $type,
+                        'message' => $message,
+                        'days_remaining' => $daysRemaining
+                    ]);
+
+                    $docIdPart = $doc ? $doc->id : 'type_' . $type;
+                    $cacheKey = "alerts:document_expiry:user:{$user->id}:doc:{$docIdPart}";
                     if (!Cache::has($cacheKey)) {
                         // first time: persist a marker for cooldown duration
                         Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
@@ -194,7 +244,7 @@ class DocumentAPIController extends Controller
                             $emp = $user->employee;
                             $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                             $adminTitle = "Expiring document for {$empName}";
-                            $adminMessage = "{$empName}'s {$doc->document_type} expires in {$daysRemaining} day(s) on {$expiryDate->toDateString()}.";
+                            $adminMessage = "{$empName}'s {$type} expires in {$daysRemaining} day(s) on {$expiryDate->toDateString()}.";
                             $actionUrl = '/employees#' . ($emp ? $emp->id : $user->id);
                             Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                         } catch (\Exception $e) {
@@ -206,289 +256,321 @@ class DocumentAPIController extends Controller
                     }
 
                     $alerts[] = $alert;
+                } else {
+                    Log::info("Document expiry excluded (outside window) for user {$user->id}", [
+                        'type' => $type,
+                        'expiry_date' => $expiryDate->toDateString(),
+                        'days_until_expiry' => now()->diffInDays($expiryDate, false)
+                    ]);
                 }
             }
         }
         /**
          * 2. Patrol Alerts (5 min notification / 50 min missed)
          */
+        // Eager-load shift to avoid N+1 and guard against missing shift records
         $patrols = Patrol::whereHas('shift', fn($q) => $q->where('staff_id', $user->id))
             ->where('status', 'pending')
+            ->with('shift')
             ->get();
 
         foreach ($patrols as $patrol) {
-            $shift = ShiftDate::find($patrol->shift_id);
+            $shift = $patrol->shift;
 
-            if ($shift->is_assign == 2) {
+            // skip if shift unexpectedly missing or not assigned
+            if($shift->is_assign==3){
+                continue;
+            }
 
-                $start = Carbon::parse($patrol->start_time);
-                $diff = now()->diffInMinutes($start, false); // negative if past
+            if (empty($patrol->start_time)) {
+                continue;
+            }
 
-                // 5-min warning
-                if ($diff <= 5 && $diff > 0) {
-                    $alert = [
-                        'type' => 'patrol_warning',
-                        'patrol_id' => $patrol->id,
-                        'title' => 'Upcoming Patrol',
-                        'message' => 'Patrol starting soon: ' . $patrol->name,
-                        'scheduled_time' => $patrol->start_time,
-                    ];
+            $start = Carbon::parse($patrol->start_time);
+            $diff = now()->diffInMinutes($start, false); // negative if past
 
-                    $cacheKey = "alerts:patrol_warning:user:{$user->id}:patrol:{$patrol->id}";
-                    if (!Cache::has($cacheKey)) {
-                        Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
-                        $alert['_first_shown'] = true;
-                        // Dashboard notify for admin
-                        try {
-                            $emp = $user->employee;
-                            $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
-                            $adminTitle = "Upcoming patrol for {$empName}";
-                            $adminMessage = "{$empName} has an upcoming patrol '{$patrol->name}' scheduled at {$patrol->start_time}.";
-                            $actionUrl = '/patrols/' . $patrol->id;
-                            Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
-                        } catch (\Exception $e) {
-                            Log::warning('Dashboard notify failed for patrol_warning: ' . $e->getMessage());
-                        }
-                    } else {
-                        $alert['_first_shown'] = false;
+            // 5-min warning
+            if ($diff <= 5 && $diff > 0) {
+                $alert = [
+                    'type' => 'patrol_warning',
+                    'patrol_id' => $patrol->id,
+                    'title' => 'Upcoming Patrol',
+                    'message' => 'Patrol starting soon: ' . $patrol->name,
+                    'scheduled_time' => $patrol->start_time,
+                ];
+
+                $cacheKey = "alerts:patrol_warning:user:{$user->id}:patrol:{$patrol->id}";
+                if (!Cache::has($cacheKey)) {
+                    Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                    $alert['_first_shown'] = true;
+                    // Dashboard notify for admin
+                    try {
+                        $emp = $user->employee;
+                        $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                        $adminTitle = "Upcoming patrol for {$empName}";
+                        $adminMessage = "{$empName} has an upcoming patrol '{$patrol->name}' scheduled at {$patrol->start_time}.";
+                        $actionUrl = '/patrols/' . $patrol->id;
+                        Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                    } catch (\Exception $e) {
+                        Log::warning('Dashboard notify failed for patrol_warning: ' . $e->getMessage());
                     }
-
-                    $alerts[] = $alert;
+                } else {
+                    $alert['_first_shown'] = false;
                 }
 
-                // 50-min missed (compute canonical mark time from start_time + threshold + delay)
-                if ($diff <= -50) {
-                    $markerKey = "missed_marker:patrol:user:{$user->id}:patrol:{$patrol->id}";
+                $alerts[] = $alert;
+            }
 
-                    // canonical mark time = patrol start + 50 minutes (threshold) + patrolMarkDelay
-                    $missedThreshold = Carbon::parse($patrol->start_time)->addMinutes(50);
-                    $markAtCarbon = $missedThreshold->copy()->addMinutes($patrolMarkDelay);
+            // 50-min missed (compute canonical mark time from start_time + threshold + delay)
+            if ($diff <= -50) {
+                $markerKey = "missed_marker:patrol:user:{$user->id}:patrol:{$patrol->id}";
 
-                    // If mark time already passed, mark immediately
-                    if (now()->gte($markAtCarbon)) {
-                        try {
-                            $patrol->update(['status' => 'missed']);
-                        } catch (\Exception $e) {
-                            Log::error('Failed to mark patrol missed', ['patrol_id' => $patrol->id, 'error' => $e->getMessage()]);
-                        }
-                        Cache::forget($markerKey);
+                // canonical mark time = patrol start + 50 minutes (threshold) + patrolMarkDelay
+                $missedThreshold = Carbon::parse($patrol->start_time)->addMinutes(50);
+                $markAtCarbon = $missedThreshold->copy()->addMinutes($patrolMarkDelay);
 
-                        $alertType = 'patrol_missed';
-                        $alertMessage = 'You missed a patrol: ' . $patrol->name;
-                    } else {
-                        // ensure a persistent marker exists until after the mark time
-                        if (!Cache::has($markerKey)) {
-                            $secondsUntilMark = max(1, $markAtCarbon->diffInSeconds(now()));
-                            // keep marker a bit longer than the mark time so the next request can detect it
-                            Cache::put($markerKey, $markAtCarbon->timestamp, now()->addSeconds($secondsUntilMark + 60));
-                        }
-                        $markAt = Cache::get($markerKey);
-
-                        $alertType = 'patrol_missed_pending';
-                        $remaining = $markAt ? max(0, (int)$markAt - now()->timestamp) : ($patrolMarkDelay * 60);
-                        $alertMessage = 'Patrol appears missed and will be marked in ' . gmdate('i:s', $remaining) . ' unless handled: ' . $patrol->name;
+                // If mark time already passed, mark immediately
+                if (now()->gte($markAtCarbon)) {
+                    try {
+                        $patrol->update(['status' => 'missed']);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to mark patrol missed', ['patrol_id' => $patrol->id, 'error' => $e->getMessage()]);
                     }
+                    Cache::forget($markerKey);
 
-                    $alert = [
-                        'type' => $alertType,
-                        'patrol_id' => $patrol->id,
-                        'title' => ($alertType === 'patrol_missed') ? 'Missed Patrol' : 'Potential Missed Patrol',
-                        'message' => $alertMessage,
-                        'scheduled_time' => $patrol->start_time,
-                    ];
-
-                    $cacheKey = "alerts:patrol_missed:user:{$user->id}:patrol:{$patrol->id}";
-                    if (!Cache::has($cacheKey)) {
-                        Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
-                        $alert['_first_shown'] = true;
-                        // Dashboard notify for admin
-                        try {
-                            $emp = $user->employee;
-                            $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
-                            $adminTitle = ($alertType === 'patrol_missed') ? "Missed patrol by {$empName}" : "Potential missed patrol for {$empName}";
-                            $adminMessage = ($alertType === 'patrol_missed') ? "{$empName} missed patrol '{$patrol->name}'." : "{$empName} appears to have missed patrol '{$patrol->name}' and it will be marked soon unless handled.";
-                            $actionUrl = '/patrols/' . $patrol->id;
-                            Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
-                        } catch (\Exception $e) {
-                            Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
-                        }
-                    } else {
-                        $alert['_first_shown'] = false;
+                    $alertType = 'patrol_missed';
+                    $alertMessage = 'You missed a patrol: ' . $patrol->name;
+                } else {
+                    // ensure a persistent marker exists until after the mark time
+                    if (!Cache::has($markerKey)) {
+                        $secondsUntilMark = max(1, $markAtCarbon->diffInSeconds(now()));
+                        // keep marker a bit longer than the mark time so the next request can detect it
+                        Cache::put($markerKey, $markAtCarbon->timestamp, now()->addSeconds($secondsUntilMark + 60));
                     }
+                    $markAt = Cache::get($markerKey);
 
-                    $alerts[] = $alert;
+                    $alertType = 'patrol_missed_pending';
+                    $remaining = $markAt ? max(0, (int)$markAt - now()->timestamp) : ($patrolMarkDelay * 60);
+                    $alertMessage = 'Patrol appears missed and will be marked in ' . gmdate('i:s', $remaining) . ' unless handled: ' . $patrol->name;
                 }
+
+                $alert = [
+                    'type' => $alertType,
+                    'patrol_id' => $patrol->id,
+                    'title' => ($alertType === 'patrol_missed') ? 'Missed Patrol' : 'Potential Missed Patrol',
+                    'message' => $alertMessage,
+                    'scheduled_time' => $patrol->start_time,
+                ];
+
+                $cacheKey = "alerts:patrol_missed:user:{$user->id}:patrol:{$patrol->id}";
+                if (!Cache::has($cacheKey)) {
+                    Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                    $alert['_first_shown'] = true;
+                    // Dashboard notify for admin
+                    try {
+                        $emp = $user->employee;
+                        $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                        $adminTitle = ($alertType === 'patrol_missed') ? "Missed patrol by {$empName}" : "Potential missed patrol for {$empName}";
+                        $adminMessage = ($alertType === 'patrol_missed') ? "{$empName} missed patrol '{$patrol->name}'." : "{$empName} appears to have missed patrol '{$patrol->name}' and it will be marked soon unless handled.";
+                        $actionUrl = '/patrols/' . $patrol->id;
+                        Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                    } catch (\Exception $e) {
+                        Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
+                    }
+                } else {
+                    $alert['_first_shown'] = false;
+                }
+
+                $alerts[] = $alert;
             }
         }
 
         /**
          * 3. Check Call Alerts (5 min notification / 15 min missed)
          */
+        // Eager-load shiftDate to avoid N+1 and guard against missing relations
         $checkCalls = CheckCall::whereHas('shiftDate', fn($q) => $q->where('staff_id', $user->id))
             ->where('status', 'pending')
+            ->with('shiftDate')
             ->get();
 
         foreach ($checkCalls as $checkCall) {
-            if($checkCall->shiftDate->is_assign == 2){
-                $scheduled = Carbon::parse($checkCall->scheduled_time);
-                $diff = now()->diffInMinutes($scheduled, false);
-    
-                // 5-min warning
-                if ($diff <= 5 && $diff > 0) {
-                    $alert = [
-                        'type' => 'checkcall_warning',
-                        'checkcall_id' => $checkCall->id,
-                        'title' => 'Upcoming Check Call',
-                        'message' => 'Check call coming up: ' . $checkCall->name,
-                        'scheduled_time' => $checkCall->scheduled_time,
-                    ];
-    
-                    $cacheKey = "alerts:checkcall_warning:user:{$user->id}:checkcall:{$checkCall->id}";
-                    if (!Cache::has($cacheKey)) {
-                        Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
-                        $alert['_first_shown'] = true;
-                            // Dashboard notify for admin
-                            try {
-                                $emp = $user->employee;
-                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
-                                $adminTitle = "Upcoming check call for {$empName}";
-                                $adminMessage = "{$empName} has an upcoming check call '{$checkCall->name}' scheduled at {$checkCall->scheduled_time}.";
-                                $actionUrl = '/checkcalls/' . $checkCall->id;
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
-                            } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for checkcall_warning: ' . $e->getMessage());
-                            }
-                    } else {
-                        $alert['_first_shown'] = false;
-                    }
-    
-                    $alerts[] = $alert;
-                }
-    
-                // 15-min missed (compute canonical mark time from scheduled_time + threshold + delay)
-                if ($diff <= -15) {
-                    $markerKey = "missed_marker:checkcall:user:{$user->id}:checkcall:{$checkCall->id}";
-    
-                    // canonical mark time = scheduled time + 15 minutes (threshold) + checkcallMarkDelay
-                    $missedThreshold = Carbon::parse($checkCall->scheduled_time)->addMinutes(15);
-                    $markAtCarbon = $missedThreshold->copy()->addMinutes($checkcallMarkDelay);
-    
-                    if (now()->gte($markAtCarbon)) {
-                        try {
-                            $checkCall->update(['status' => 'missed']);
-                        } catch (\Exception $e) {
-                            Log::error('Failed to mark checkcall missed', ['checkcall_id' => $checkCall->id, 'error' => $e->getMessage()]);
-                        }
-                        Cache::forget($markerKey);
-    
-                        $alertType = 'checkcall_missed';
-                        $alertMessage = 'You missed a check call: ' . $checkCall->name;
-                    } else {
-                        if (!Cache::has($markerKey)) {
-                            $secondsUntilMark = max(1, $markAtCarbon->diffInSeconds(now()));
-                            Cache::put($markerKey, $markAtCarbon->timestamp, now()->addSeconds($secondsUntilMark + 60));
-                        }
-                        $markAt = Cache::get($markerKey);
-    
-                        $alertType = 'checkcall_missed_pending';
-                        $remaining = $markAt ? max(0, (int)$markAt - now()->timestamp) : ($checkcallMarkDelay * 60);
-                        $alertMessage = 'Check call appears missed and will be marked in ' . gmdate('i:s', $remaining) . ' unless handled: ' . $checkCall->name;
-                    }
-    
-                    $alert = [
-                        'type' => $alertType,
-                        'checkcall_id' => $checkCall->id,
-                        'title' => ($alertType === 'checkcall_missed') ? 'Missed Check Call' : 'Potential Missed Check Call',
-                        'message' => $alertMessage,
-                        'scheduled_time' => $checkCall->scheduled_time,
-                    ];
-    
-                    $cacheKey = "alerts:checkcall_missed:user:{$user->id}:checkcall:{$checkCall->id}";
-                    if (!Cache::has($cacheKey)) {
-                        Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
-                        $alert['_first_shown'] = true;
-                            // Dashboard notify for admin
-                            try {
-                                $emp = $user->employee;
-                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
-                                $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
-                                $adminMessage = ($alertType === 'checkcall_missed') ? "{$empName} missed check call '{$checkCall->name}'." : "{$empName} appears to have missed check call '{$checkCall->name}' and it will be marked soon unless handled.";
-                                $actionUrl = '/checkcalls/' . $checkCall->id;
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
-                            } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for checkcall_missed: ' . $e->getMessage());
-                            }
-                    } else {
-                        $alert['_first_shown'] = false;
-                    }
-    
-                    $alerts[] = $alert;
-                }
+            // guard against missing relation or missing scheduled time
+            $shiftDate = $checkCall->shiftDate;
+
+            if($shiftDate->is_assign==3){
+                continue;
             }
+
+            if (empty($checkCall->scheduled_time)) {
+                continue;
             }
+
+            $scheduled = Carbon::parse($checkCall->scheduled_time);
+            $diff = now()->diffInMinutes($scheduled, false);
+
+            // 5-min warning
+            if ($diff <= 5 && $diff > 0) {
+                $alert = [
+                    'type' => 'checkcall_warning',
+                    'checkcall_id' => $checkCall->id,
+                    'title' => 'Upcoming Check Call',
+                    'message' => 'Check call coming up: ' . $checkCall->name,
+                    'scheduled_time' => $checkCall->scheduled_time,
+                ];
+
+                $cacheKey = "alerts:checkcall_warning:user:{$user->id}:checkcall:{$checkCall->id}";
+                if (!Cache::has($cacheKey)) {
+                    Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                    $alert['_first_shown'] = true;
+                    // Dashboard notify for admin
+                    try {
+                        $emp = $user->employee;
+                        $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                        $adminTitle = "Upcoming check call for {$empName}";
+                        $adminMessage = "{$empName} has an upcoming check call '{$checkCall->name}' scheduled at {$checkCall->scheduled_time}.";
+                        $actionUrl = '/checkcalls/' . $checkCall->id;
+                        Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                    } catch (\Exception $e) {
+                        Log::warning('Dashboard notify failed for checkcall_warning: ' . $e->getMessage());
+                    }
+                } else {
+                    $alert['_first_shown'] = false;
+                }
+
+                $alerts[] = $alert;
+            }
+
+            // 15-min missed (compute canonical mark time from scheduled_time + threshold + delay)
+            if ($diff <= -15) {
+                $markerKey = "missed_marker:checkcall:user:{$user->id}:checkcall:{$checkCall->id}";
+
+                // canonical mark time = scheduled time + 15 minutes (threshold) + checkcallMarkDelay
+                $missedThreshold = Carbon::parse($checkCall->scheduled_time)->addMinutes(15);
+                $markAtCarbon = $missedThreshold->copy()->addMinutes($checkcallMarkDelay);
+
+                if (now()->gte($markAtCarbon)) {
+                    try {
+                        $checkCall->update(['status' => 'missed']);
+                    } catch (\Exception $e) {
+                        Log::error('Failed to mark checkcall missed', ['checkcall_id' => $checkCall->id, 'error' => $e->getMessage()]);
+                    }
+                    Cache::forget($markerKey);
+
+                    $alertType = 'checkcall_missed';
+                    $alertMessage = 'You missed a check call: ' . $checkCall->name;
+                } else {
+                    if (!Cache::has($markerKey)) {
+                        $secondsUntilMark = max(1, $markAtCarbon->diffInSeconds(now()));
+                        Cache::put($markerKey, $markAtCarbon->timestamp, now()->addSeconds($secondsUntilMark + 60));
+                    }
+                    $markAt = Cache::get($markerKey);
+
+                    $alertType = 'checkcall_missed_pending';
+                    $remaining = $markAt ? max(0, (int)$markAt - now()->timestamp) : ($checkcallMarkDelay * 60);
+                    $alertMessage = 'Check call appears missed and will be marked in ' . gmdate('i:s', $remaining) . ' unless handled: ' . $checkCall->name;
+                }
+
+                $alert = [
+                    'type' => $alertType,
+                    'checkcall_id' => $checkCall->id,
+                    'title' => ($alertType === 'checkcall_missed') ? 'Missed Check Call' : 'Potential Missed Check Call',
+                    'message' => $alertMessage,
+                    'scheduled_time' => $checkCall->scheduled_time,
+                ];
+
+                $cacheKey = "alerts:checkcall_missed:user:{$user->id}:checkcall:{$checkCall->id}";
+                if (!Cache::has($cacheKey)) {
+                    Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                    $alert['_first_shown'] = true;
+                    // Dashboard notify for admin
+                    try {
+                        $emp = $user->employee;
+                        $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                        $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
+                        $adminMessage = ($alertType === 'checkcall_missed') ? "{$empName} missed check call '{$checkCall->name}'." : "{$empName} appears to have missed check call '{$checkCall->name}' and it will be marked soon unless handled.";
+                        $actionUrl = '/checkcalls/' . $checkCall->id;
+                        Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                    } catch (\Exception $e) {
+                        Log::warning('Dashboard notify failed for checkcall_missed: ' . $e->getMessage());
+                    }
+                } else {
+                    $alert['_first_shown'] = false;
+                }
+
+                $alerts[] = $alert;
+            }
+        }
 
         // Recent-alerts cache: keep last few alerts visible for $visibilityMinutes
         $recentKey = "recent_alerts:user:{$user->id}";
         $recent = Cache::get($recentKey, []);
 
-        // Build a lookup of recent UIDs
-        $recentMap = [];
-        foreach ($recent as $idx => $r) {
+        // Build a set of existing UIDs for quick lookup
+        $existingUids = [];
+        foreach ($recent as $r) {
             if (!empty($r['_uid'])) {
-                $recentMap[$r['_uid']] = $idx;
+                $existingUids[$r['_uid']] = true;
             }
         }
 
-        // For each newly computed alert, add to recent cache if not present
+        // Prepare computed alerts with stable UIDs
+        $prepared = [];
         foreach ($alerts as $alert) {
-            // compute a stable uid for this alert
             $idPart = $alert['type'] . ':' . (
                 $alert['document_id'] ?? $alert['patrol_id'] ?? $alert['checkcall_id'] ?? ($alert['scheduled_time'] ?? uniqid())
             );
             $uid = md5($idPart);
             $alert['_uid'] = $uid;
+            // mark if it's the first time we see this alert in this visibility window
+            $alert['_first_shown'] = !isset($existingUids[$uid]);
+            $prepared[$uid] = $alert;
+        }
 
-            if (!isset($recentMap[$uid])) {
-                // new alert — prepend so newest are first
-                array_unshift($recent, $alert);
-                // limit stored alerts
-                if (count($recent) > 50) {
-                    array_pop($recent);
-                }
-                // update lookup
-                $recentMap[$uid] = 0;
-
-                // persist recent list for visibility window
-                Cache::put($recentKey, $recent, now()->addMinutes($visibilityMinutes));
-
-                // send push for new items only
-                try {
-                    send_push_notification(
-                        $user->id,
-                        $alert['title'],
-                        $alert['message'],
-                        ['type' => 'document']
-                    );
-                } catch (\Exception $e) {
-                    Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $alert, 'error' => $e->getMessage()]);
-                }
-            } else {
-                // existing: update the stored alert content in case message changed
-                $idx = $recentMap[$uid];
-                $recent[$idx] = array_merge($recent[$idx], $alert);
-                Cache::put($recentKey, $recent, now()->addMinutes($visibilityMinutes));
+        // Merge: keep newest alerts first (prepared), then fall back to cached recent for older items
+        // Use associative map by uid to deduplicate
+        $mergedMap = [];
+        // add prepared (newest first)
+        foreach ($prepared as $uid => $alert) {
+            $mergedMap[$uid] = $alert;
+        }
+        // append older cached ones that aren't already present
+        foreach ($recent as $r) {
+            if (empty($r['_uid'])) continue;
+            if (!isset($mergedMap[$r['_uid']])) {
+                $mergedMap[$r['_uid']] = $r;
             }
         }
 
-        // Return the recent list (newest first), strip internal uid keys
+        // Keep order: prepared first (as added), then remaining recent; limit to 50
+        $final = array_values($mergedMap);
+        if (count($final) > 50) {
+            $final = array_slice($final, 0, 50);
+        }
+
+        // Persist merged recent list and send pushes for truly new items
+        Cache::put($recentKey, $final, now()->addMinutes($visibilityMinutes));
+
+        foreach ($final as $item) {
+            if (!empty($item['_first_shown'])) {
+                try {
+                    send_push_notification(
+                        $user->id,
+                        $item['title'],
+                        $item['message'],
+                        ['type' => $item['type'] ?? 'alert']
+                    );
+                } catch (\Exception $e) {
+                    Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $item, 'error' => $e->getMessage()]);
+                }
+            }
+        }
+
+        // Return the merged list (newest first), strip internal uid/first_shown keys
         $result = [];
-        foreach ($recent as $r) {
-            if (isset($r['_uid'])) {
-                unset($r['_uid']);
-            }
-            if (isset($r['_first_shown'])) {
-                unset($r['_first_shown']);
-            }
+        foreach ($final as $r) {
+            if (isset($r['_uid'])) unset($r['_uid']);
+            if (isset($r['_first_shown'])) unset($r['_first_shown']);
             $result[] = $r;
         }
 

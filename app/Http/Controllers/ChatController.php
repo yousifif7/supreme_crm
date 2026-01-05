@@ -326,6 +326,53 @@ class ChatController extends Controller
         return response()->json(['success' => true]);
     }
 
+    public function deleteConversation($conversationId)
+    {
+        $user = Auth::user();
+        $conversation = Conversation::with(['participants', 'messages'])->findOrFail($conversationId);
+
+        // only allow participants to delete the conversation
+        $isParticipant = $conversation->participants->contains('id', $user->id);
+        if (! $isParticipant) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Delete attachments and related records in a transaction
+        try {
+            \DB::transaction(function () use ($conversation) {
+                // delete message attachments files
+                foreach ($conversation->messages as $msg) {
+                    if ($msg->attachment && file_exists(public_path($msg->attachment))) {
+                        @unlink(public_path($msg->attachment));
+                    }
+                    // delete message read receipts
+                    \App\Models\MessageRead::where('message_id', $msg->id)->delete();
+                    // delete message
+                    $msg->delete();
+                }
+
+                // delete pinned records
+                \App\Models\UserPinnedConversation::where('conversation_id', $conversation->id)->delete();
+
+                // detach participants
+                $conversation->participants()->detach();
+
+                // delete conversation icon file
+                if ($conversation->icon_path && file_exists(public_path($conversation->icon_path))) {
+                    @unlink(public_path($conversation->icon_path));
+                }
+
+                // finally delete conversation
+                $conversation->delete();
+            });
+        } catch (\Exception $e) {
+            \Log::error('Failed to delete conversation: ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to delete conversation'], 500);
+        }
+
+        return response()->json(['success' => true]);
+    }
+
     private function uploadAttachment(Request $request)
     {
         $attachment = $request->file('attachment');

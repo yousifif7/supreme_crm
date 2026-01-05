@@ -231,6 +231,25 @@
     </div>
 </div>
 
+                            <!-- Delete Conversation Confirmation Modal -->
+                            <div class="modal fade" id="deleteConversationModal" tabindex="-1" aria-labelledby="deleteConversationModalLabel" aria-hidden="true">
+                                <div class="modal-dialog modal-dialog-centered">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title" id="deleteConversationModalLabel">Delete Conversation</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                        </div>
+                                        <div class="modal-body">
+                                            <p id="deleteConversationText">Are you sure you want to delete this conversation? This action cannot be undone.</p>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                            <button type="button" id="confirmDeleteConversationBtn" class="btn btn-danger">Delete</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
 <!-- Group Members Modal -->
 <div class="modal fade" id="membersModal" tabindex="-1" aria-labelledby="membersModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
@@ -510,6 +529,18 @@
                         togglePin(conversation.id, !conversation.pinned);
                     };
 
+                    // Add delete button next to pin
+                    const deleteButton = document.createElement('label');
+                    deleteButton.className = 'pin-icon ms-2 delete-icon';
+                    const delIcon = document.createElement('i');
+                    delIcon.className = 'bi bi-trash';
+                    deleteButton.appendChild(delIcon);
+
+                    deleteButton.onclick = event => {
+                        event.stopPropagation();
+                        openDeleteConversationModal(conversation.id, conversation.name || 'this conversation');
+                    };
+
                     // Add unread badge if there are unread messages
                     if (conversation.unread_count > 0) {
                         const unreadBadge = document.createElement('span');
@@ -518,9 +549,10 @@
                         contentWrapper.appendChild(unreadBadge);
                     }
 
-                    // Append content and pin button
+                    // Append content, pin and delete buttons
                     conversationItem.appendChild(contentWrapper);
                     conversationItem.appendChild(pinButton);
+                    conversationItem.appendChild(deleteButton);
                     conversationList.appendChild(conversationItem);
                 });
 
@@ -1107,6 +1139,48 @@ console.log(messages)
         if (searchContainer.style.display === 'block') {
             document.getElementById('conversationSearch').focus();
         }
+    });
+
+    // Delete conversation flow
+    let conversationToDeleteId = null;
+    function openDeleteConversationModal(id, name) {
+        conversationToDeleteId = id;
+        const textEl = document.getElementById('deleteConversationText');
+        textEl.textContent = `Are you sure you want to delete "${name}"? This action cannot be undone.`;
+        const modalEl = new bootstrap.Modal(document.getElementById('deleteConversationModal'));
+        modalEl.show();
+    }
+
+    document.getElementById('confirmDeleteConversationBtn').addEventListener('click', function() {
+        if (!conversationToDeleteId) return;
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+        fetch(`/conversations/${conversationToDeleteId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRF-TOKEN': csrfToken,
+                'Accept': 'application/json'
+            }
+        })
+        .then(resp => {
+            if (!resp.ok) throw new Error('Delete failed');
+            return resp.json().catch(() => ({}));
+        })
+        .then(() => {
+            toastr.success('Conversation deleted');
+            // close modal
+            bootstrap.Modal.getInstance(document.getElementById('deleteConversationModal')).hide();
+            // refresh conversations
+            loadConversations();
+            // clear current view if deleted was active
+            if (currentConversationId == conversationToDeleteId) {
+                currentConversationId = null;
+                document.getElementById('messagesSection').style.display = 'none';
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            toastr.error('Failed to delete conversation');
+        });
     });
 
     // Search conversations

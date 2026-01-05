@@ -1862,6 +1862,9 @@ class ShiftApiController extends Controller
         $userId = Auth::id();
         $today  = now()->toDateString();
 
+        // Debug: Check if user ID is valid
+        Log::info('Calendar request', ['user_id' => $userId]);
+
         // Eager-load trainings and site similar to getShifts but return ALL results (no pagination, no filters)
         $shiftDates = ShiftDate::with([
             'shift.site',
@@ -1874,6 +1877,8 @@ class ShiftApiController extends Controller
             ->where('staff_id', $userId)
             ->orderBy('shift_date', 'desc')
             ->get();
+
+        Log::info('Calendar shifts found', ['count' => $shiftDates->count()]);
 
         $transformed = $shiftDates->transform(function ($shiftDate) use ($today) {
             $shift = $shiftDate->shift;

@@ -21,7 +21,7 @@ class ShiftNotificationController extends BaseController
         Log::info('ShiftNotificationController: web trigger started', ['by' => $request->user()?->id ?? null]);
 
         // Avoid running the heavy missed-shift checks more than once per hour
-        $hourKey = 'missed_shifts_checked_' . now()->format('Y-d-mH');
+        $hourKey = 'missed_shifts_checked_' . now()->format('Y-m-d-H');
         if (Cache::has($hourKey)) {
             Log::info('ShiftNotificationController: missed/unassigned checks skipped (recent run)');
         } else {
@@ -30,7 +30,9 @@ class ShiftNotificationController extends BaseController
             // only consider shifts from yesterday and after
             $cutoff = $now->copy()->subDay()->toDateString();
 
-            $missedBookOns = ShiftDate::whereNotNull('staff_id')
+            // Consider only shifts within the last 24 hours (cutoff → today)
+            $missedBookOns = ShiftDate::with('staff')
+                ->whereNotNull('staff_id')
                 ->whereNull('absentee_start_time')
                 ->whereDate('shift_date', '>=', $cutoff)
                 ->whereDate('shift_date', '<=', $now->toDateString())
@@ -45,10 +47,8 @@ class ShiftNotificationController extends BaseController
                     }
 
                     try {
-                        $employee = User::find($sd->staff_id);
-                        $guardName = $employee ? trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? '')) : 'Unknown';
+                        $employee = $sd->staff ?? User::find($sd->staff_id);
 
-                        // Push to the guard
                         if ($employee) {
                             send_push_notification($employee->id, 'Missed Book On', "You did not book on for your shift at {$sd->start_time} on {$sd->shift_date}.", ['type' => 'shift', 'shiftId' => $sd->id]);
                         }
@@ -63,7 +63,9 @@ class ShiftNotificationController extends BaseController
 
             // --- Missed Book Off Notifications ---
             // only consider shifts from yesterday and after
-            $missedBookOffs = ShiftDate::whereNotNull('staff_id')
+            // Consider only shifts within the last 24 hours
+            $missedBookOffs = ShiftDate::with('staff')
+                ->whereNotNull('staff_id')
                 ->whereNull('absentee_end_time')
                 ->whereDate('shift_date', '>=', $cutoff)
                 ->whereDate('shift_date', '<=', $now->toDateString())
@@ -87,22 +89,23 @@ class ShiftNotificationController extends BaseController
                     continue;
                 }
 
-                try {
-                    $employee = User::find($sd->staff_id);
-                    $guardName = $employee ? trim(($employee->first_name ?? '') . ' ' . ($employee->last_name ?? '')) : 'Unknown';
+                    try {
+                        $employee = $sd->staff ?? User::find($sd->staff_id);
 
-                    if ($employee) {
-                        send_push_notification($employee->id, 'Missed Book Off', "You did not book off for your shift at {$sd->end_time} on {$sd->shift_date}.", ['type' => 'shift', 'shiftId' => $sd->id]);
+                        if ($employee) {
+                            send_push_notification($employee->id, 'Missed Book Off', "You did not book off for your shift at {$sd->end_time} on {$sd->shift_date}.", ['type' => 'shift', 'shiftId' => $sd->id]);
+                        }
+                    } catch (\Exception $e) {
+                        Log::warning('ShiftNotificationController: missed book off notify failed: ' . $e->getMessage());
                     }
-                } catch (\Exception $e) {
-                    Log::warning('ShiftNotificationController: missed book off notify failed: ' . $e->getMessage());
-                }
 
                 Cache::put($perShiftKey, true, now()->addHour());
             }
 
             // --- Assigned Shifts Starting Soon and not accepted (push to guard) ---
-            $assignedSoon = ShiftDate::whereNotNull('staff_id')
+            // Upcoming unaccepted/unresponded shifts within the next hour (today only)
+            $assignedSoon = ShiftDate::with('staff')
+                ->whereNotNull('staff_id')
                 ->whereDate('shift_date', '=', $now->toDateString())
                 ->whereTime('start_time', '>=', $now->format('H:i:s'))
                 ->whereTime('start_time', '<=', $now->copy()->addHour()->format('H:i:s'))
@@ -116,7 +119,7 @@ class ShiftNotificationController extends BaseController
                     }
 
                     try {
-                        $employee = User::find($sd->staff_id);
+                        $employee = $sd->staff ?? User::find($sd->staff_id);
                         $message = "A shift at {$sd->start_time} on {$sd->shift_date} is starting soon and you have not accepted it.";
 
                         if ($employee) {
@@ -142,47 +145,59 @@ class ShiftNotificationController extends BaseController
         $checkcallMarkDelay = 5; // minutes after detection before marking checkcall as missed
         $visibilityMinutes = 5; // keep recent alerts visible for this many minutes
 
+        // Load all pending patrols and checkcalls ONCE with their shifts (eager loading)
+        // Only check items within last 24 hours to keep processing efficient
+        $allPatrols = Patrol::where('status', 'pending')
+            ->where('start_time', '>=', now()->subDay())
+            ->with('shift')
+            ->whereHas('shift') // Only get patrols with existing shifts
+            ->get();
+        $allCheckCalls = CheckCall::where('status', 'pending')
+            ->where('scheduled_time', '>=', now()->subDay())
+            ->with('shiftDate')
+            ->whereHas('shiftDate') // Only get checkcalls with existing shifts
+            ->get();
+        Log::info('All pending patrols/checkcalls loaded (last 24h)', ['patrols' => $allPatrols->count(), 'checkcalls' => $allCheckCalls->count()]);
+
         $processed = 0;
 
         foreach ($users as $user) {
             // per-user alerts list — reset so alerts don't bleed between users
             $alerts = [];
 
-            // Patrol alerts - get all pending patrols and filter by user
-            $allPatrols = Patrol::where('status', 'pending')->get();
+            // Patrol alerts - filter by user from already-loaded patrols
             $patrols = $allPatrols->filter(function($patrol) use ($user) {
-                $shift = ShiftDate::find($patrol->shift_id);
-                if (!$shift || $shift->staff_id != $user->id) {
+                // Use eager-loaded relationship instead of fresh query
+                $shift = $patrol->shift;
+                
+                if (!$shift) {
                     return false;
                 }
                 
-                // Send notifications if shift is booked on (is_assign == 3)
-                if ($shift->is_assign == 3) {
-                    return true;
+                if ($shift->staff_id != $user->id) {
+                    return false;
                 }
                 
-                // Also send if shift is accepted (is_assign == 2) and we're within the shift time window
-                if ($shift->is_assign == 2) {
-                    $now = now();
-                    $shiftStart = Carbon::parse($shift->shift_date . ' ' . $shift->start_time);
-                    $shiftEnd = Carbon::parse($shift->shift_date . ' ' . $shift->end_time);
-                    
-                    // Handle overnight shifts
-                    if ($shiftEnd->lt($shiftStart)) {
-                        $shiftEnd->addDay();
-                    }
-                    
-                    // Send alerts if current time is within or near shift window (15 min before to end)
+                $now = now();
+                $shiftStart = Carbon::parse($shift->shift_date . ' ' . $shift->start_time);
+                $shiftEnd = Carbon::parse($shift->shift_date . ' ' . $shift->end_time);
+                
+                // Handle overnight shifts
+                if ($shiftEnd->lt($shiftStart)) {
+                    $shiftEnd->addDay();
+                }
+                
+                // Send notifications if shift is booked on (is_assign == 3) and within shift window
+                if ($shift->is_assign == 3) {
                     return $now->gte($shiftStart->copy()->subMinutes(15)) && $now->lte($shiftEnd);
                 }
                 
                 return false;
             });
 
-            Log::info('ProcessShiftNotifications (web): patrols found', ['user_id' => $user->id, 'count' => $patrols->count()]);  
-
             foreach ($patrols as $patrol) {
-                $shift = ShiftDate::find($patrol->shift_id);
+                // Use eager-loaded relationship
+                $shift = $patrol->shift;
                 if (!$shift) continue;
 
                 $start = Carbon::parse($patrol->start_time);
@@ -387,38 +402,34 @@ class ShiftNotificationController extends BaseController
                 }
             }
 
-            // Check Calls - get all pending and filter by user
-            $allCheckCalls = CheckCall::where('status', 'pending')->get();
+            // Check Calls - filter by user from already-loaded checkcalls
             $checkCalls = $allCheckCalls->filter(function($checkCall) use ($user) {
                 $shift = $checkCall->shiftDate;
-                if (!$shift || $shift->staff_id != $user->id) {
+                
+                if (!$shift) {
                     return false;
                 }
                 
-                // Send notifications if shift is booked on (is_assign == 3)
-                if ($shift->is_assign == 3) {
-                    return true;
+                if ($shift->staff_id != $user->id) {
+                    return false;
                 }
                 
-                // Also send if shift is accepted (is_assign == 2) and we're within the shift time window
-                if ($shift->is_assign == 2) {
-                    $now = now();
-                    $shiftStart = Carbon::parse($shift->shift_date . ' ' . $shift->start_time);
-                    $shiftEnd = Carbon::parse($shift->shift_date . ' ' . $shift->end_time);
-                    
-                    // Handle overnight shifts
-                    if ($shiftEnd->lt($shiftStart)) {
-                        $shiftEnd->addDay();
-                    }
-                    
-                    // Send alerts if current time is within or near shift window (15 min before to end)
+                $now = now();
+                $shiftStart = Carbon::parse($shift->shift_date . ' ' . $shift->start_time);
+                $shiftEnd = Carbon::parse($shift->shift_date . ' ' . $shift->end_time);
+                
+                // Handle overnight shifts
+                if ($shiftEnd->lt($shiftStart)) {
+                    $shiftEnd->addDay();
+                }
+                
+                // Send notifications if shift is booked on (is_assign == 3) and within shift window
+                if ($shift->is_assign == 3) {
                     return $now->gte($shiftStart->copy()->subMinutes(15)) && $now->lte($shiftEnd);
                 }
                 
                 return false;
             });
-
-            Log::info('ProcessShiftNotifications (web): checkcalls found', ['user_id' => $user->id, 'count' => $checkCalls->count()]);
 
             foreach ($checkCalls as $checkCall) {
                 // guard: ensure related shiftDate exists
@@ -443,7 +454,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Upcoming Check Call', "Check call coming up: {$checkCall->name} at {$checkCall->scheduled_time}", ['type' => 'shift', 'shiftId' => $checkCall->shiftDate->id]);
+                                send_push_notification($user->id, 'Upcoming Check Call', "Check call coming up: {$checkCall->name} at {$checkCall->scheduled_time}", ['type' => 'check-call', 'checkCallId' => $checkCall->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -477,7 +488,7 @@ class ShiftNotificationController extends BaseController
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                send_push_notification($user->id, 'Complete Check Call Soon', "Please complete your check call soon: {$checkCall->name}. You have 5 minutes remaining.", ['type' => 'shift', 'shiftId' => $checkCall->shiftDate->id]);
+                                send_push_notification($user->id, 'Complete Check Call Soon', "Please complete your check call soon: {$checkCall->name}. You have 5 minutes remaining.", ['type' => 'check-call', 'checkCallId' => $checkCall->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -537,7 +548,7 @@ class ShiftNotificationController extends BaseController
                             try {
                                 // Send push notification to guard
                                 $pushTitle = ($alertType === 'checkcall_missed') ? 'Missed Check Call' : 'Potential Missed Check Call';
-                                send_push_notification($user->id, $pushTitle, $alertMessage, ['type' => 'shift', 'shiftId' => $checkCall->shiftDate->id]);
+                                send_push_notification($user->id, $pushTitle, $alertMessage, ['type' => 'check-call', 'checkCallId' => $checkCall->id]);
                                 
                                 $emp = $user->employee;
                                 $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
@@ -581,9 +592,7 @@ class ShiftNotificationController extends BaseController
                     Cache::put($recentKey, $recent, now()->addMinutes($visibilityMinutes));
 
                     try {
-                        Log::info('ProcessShiftNotifications (web): sending push', ['user_id' => $user->id, 'title' => $alert['title'], 'type' => $alert['type']]);
                         send_push_notification($user->id, $alert['title'], $alert['message'], $alert);
-                        Log::debug('ProcessShiftNotifications (web): push sent', ['user_id' => $user->id, 'type' => $alert['type']]);
                         $processed++;
                     } catch (\Exception $e) {
                         Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $alert, 'error' => $e->getMessage()]);

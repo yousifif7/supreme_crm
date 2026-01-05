@@ -1018,8 +1018,8 @@ document.addEventListener('click', () => {
         (function setupShiftNotificationsTrigger() {
             const ENDPOINT = `${baseUrl}/process-shift-notifications`;
             const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-            const LOCK_TTL_MS = 4 * 60 * 1000; // avoid re-running within 4 minutes from another tab
+            const INTERVAL_MS = 1 * 60 * 1000; // 1 minute
+            const LOCK_TTL_MS = 50 * 1000; // avoid re-running within 50 seconds from another tab
 
             async function triggerOnce(reason = 'manual') {
                 try {
