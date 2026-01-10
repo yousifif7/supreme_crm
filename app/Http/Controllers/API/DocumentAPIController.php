@@ -277,8 +277,8 @@ class DocumentAPIController extends Controller
         foreach ($patrols as $patrol) {
             $shift = $patrol->shift;
 
-            // skip if shift unexpectedly missing or not assigned
-            if($shift->is_assign==3){
+            // skip if shift unexpectedly missing or not booked on
+            if(!$shift || $shift->is_assign != 3){
                 continue;
             }
 
@@ -309,7 +309,7 @@ class DocumentAPIController extends Controller
                         $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                         $adminTitle = "Upcoming patrol for {$empName}";
                         $adminMessage = "{$empName} has an upcoming patrol '{$patrol->name}' scheduled at {$patrol->start_time}.";
-                        $actionUrl = '/patrols/' . $patrol->id;
+                        $actionUrl = '/shift-dates/' . $patrol->shift->id.'/view';
                         Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for patrol_warning: ' . $e->getMessage());
@@ -372,7 +372,7 @@ class DocumentAPIController extends Controller
                         $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                         $adminTitle = ($alertType === 'patrol_missed') ? "Missed patrol by {$empName}" : "Potential missed patrol for {$empName}";
                         $adminMessage = ($alertType === 'patrol_missed') ? "{$empName} missed patrol '{$patrol->name}'." : "{$empName} appears to have missed patrol '{$patrol->name}' and it will be marked soon unless handled.";
-                        $actionUrl = '/patrols/' . $patrol->id;
+                        $actionUrl = '/shift-dates/' . $patrol->shift->id.'/view';
                         Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
@@ -398,7 +398,8 @@ class DocumentAPIController extends Controller
             // guard against missing relation or missing scheduled time
             $shiftDate = $checkCall->shiftDate;
 
-            if($shiftDate->is_assign==3){
+            // skip if shift unexpectedly missing or not booked on
+            if(!$shiftDate || $shiftDate->is_assign != 3){
                 continue;
             }
 
@@ -429,7 +430,7 @@ class DocumentAPIController extends Controller
                         $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                         $adminTitle = "Upcoming check call for {$empName}";
                         $adminMessage = "{$empName} has an upcoming check call '{$checkCall->name}' scheduled at {$checkCall->scheduled_time}.";
-                        $actionUrl = '/checkcalls/' . $checkCall->id;
+                        $actionUrl = '/shift-dates/' . $checkCall->shift_date_id.'/view';
                         Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for checkcall_warning: ' . $e->getMessage());
@@ -489,7 +490,7 @@ class DocumentAPIController extends Controller
                         $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                         $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
                         $adminMessage = ($alertType === 'checkcall_missed') ? "{$empName} missed check call '{$checkCall->name}'." : "{$empName} appears to have missed check call '{$checkCall->name}' and it will be marked soon unless handled.";
-                        $actionUrl = '/checkcalls/' . $checkCall->id;
+                        $actionUrl = '/shift-dates/' . $checkCall->shift_date_id.'/view';
                         Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for checkcall_missed: ' . $e->getMessage());
@@ -548,23 +549,7 @@ class DocumentAPIController extends Controller
             $final = array_slice($final, 0, 50);
         }
 
-        // Persist merged recent list and send pushes for truly new items
         Cache::put($recentKey, $final, now()->addMinutes($visibilityMinutes));
-
-        foreach ($final as $item) {
-            if (!empty($item['_first_shown'])) {
-                try {
-                    send_push_notification(
-                        $user->id,
-                        $item['title'],
-                        $item['message'],
-                        ['type' => $item['type'] ?? 'alert']
-                    );
-                } catch (\Exception $e) {
-                    Log::error('Failed to send push for alert', ['user_id' => $user->id, 'alert' => $item, 'error' => $e->getMessage()]);
-                }
-            }
-        }
 
         // Return the merged list (newest first), strip internal uid/first_shown keys
         $result = [];
@@ -576,4 +561,14 @@ class DocumentAPIController extends Controller
 
         return response()->json(['alerts' => $result]);
     }
+
+    public function alertsCount(Request $request)
+    {
+        // Call the main alerts endpoint logic and count the results
+        $alertsResponse = $this->alerts($request);
+        $alertsData = json_decode($alertsResponse->getContent(), true);
+        
+        return response()->json(['count' => count($alertsData['alerts'] ?? [])]);
+    }
 }
+

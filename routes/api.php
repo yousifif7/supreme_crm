@@ -62,6 +62,7 @@ Route::middleware('auth:sanctum')->prefix('documents')->group(function () {
     Route::get('/', [DocumentAPIController::class, 'index']);
 });
 Route::get('/alerts', [DocumentAPIController::class, 'alerts'])->middleware('auth:sanctum');
+Route::get('/alerts/count', [DocumentAPIController::class, 'alertsCount'])->middleware('auth:sanctum');
 
 //Shifts api controller routes
 //Should be authenticated

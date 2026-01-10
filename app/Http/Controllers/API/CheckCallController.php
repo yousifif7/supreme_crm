@@ -429,9 +429,9 @@ class CheckCallController extends Controller
         $ext = strtolower(pathinfo($imagePath, PATHINFO_EXTENSION));
 
         if ($ext === 'jpg' || $ext === 'jpeg') {
-            $img = imagecreatefromjpeg($imagePath);
+            $img = @imagecreatefromjpeg($imagePath);
         } elseif ($ext === 'png') {
-            $img = imagecreatefrompng($imagePath);
+            $img = @imagecreatefrompng($imagePath);
         }
 
         if (!$img) return;
@@ -439,12 +439,19 @@ class CheckCallController extends Controller
         $white = imagecolorallocate($img, 255, 255, 255);
         $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80);
 
-        $text = "Time: " . $timestampData['time'] .
-            "\nEmployee: " . $timestampData['employee'] .
-            "\nLat: " . $timestampData['latitude'] . "  " .
-            "Lng: " . $timestampData['longitude'] .
-            "\nSite: " . $timestampData['site'] .
-            "\nLocation: " . ($timestampData['location']['formatted_address'] ?? 'Unknown');
+        $locationText = 'Unknown';
+        if (is_array($timestampData['location'] ?? null)) {
+            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
+        } else {
+            $locationText = $timestampData['location'] ?? 'Unknown';
+        }
+
+        $text = "Time: " . ($timestampData['time'] ?? '') .
+            "\nEmployee: " . ($timestampData['employee'] ?? '') .
+            "\nLat: " . ($timestampData['latitude'] ?? '') . "  " .
+            "Lng: " . ($timestampData['longitude'] ?? '') .
+            "\nSite: " . ($timestampData['site'] ?? '') .
+            "\nLocation: " . $locationText;
 
         $lines = explode("\n", $text);
         $fontPath = public_path('fonts/Arial.ttf');
@@ -456,26 +463,95 @@ class CheckCallController extends Controller
         }
 
         $imgWidth = imagesx($img);
-        $fontSize = max(30, intval($imgWidth * 0.025));
-        $lineHeight = $fontSize + 30;
-        $padding = 15;
+        $imgHeight = imagesy($img);
 
-        $rectWidth = 0;
-        foreach ($lines as $line) {
-            $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
-            $lineWidth = abs($bbox[4] - $bbox[0]);
-            if ($lineWidth > $rectWidth) {
-                $rectWidth = $lineWidth;
+        $padding = max(12, intval($imgWidth * 0.02));
+        $maxRectWidth = max(100, intval($imgWidth * 0.9) - 2 * $padding);
+
+        // Start font size relative to image width; allow downscaling until content fits
+        $fontSize = max(14, intval($imgWidth * 0.03));
+        $minFontSize = 10;
+
+        // Helper: split a very long 'word' into chunks that fit
+        $splitLongWord = function ($word, $fontSizeLocal) use ($fontPath, $maxRectWidth) {
+            $pieces = [];
+            $len = mb_strlen($word);
+            $start = 0;
+            while ($start < $len) {
+                $part = '';
+                // Build char-by-char until it no longer fits
+                for ($i = $start; $i < $len; $i++) {
+                    $test = $part . mb_substr($word, $i, 1);
+                    $bb = imagettfbbox($fontSizeLocal, 0, $fontPath, $test);
+                    $w = abs($bb[4] - $bb[0]);
+                    if ($w > $maxRectWidth) break;
+                    $part = $test;
+                }
+                if ($part === '') {
+                    // single character too wide? force at least one char
+                    $part = mb_substr($word, $start, 1);
+                    $start++;
+                } else {
+                    $start += mb_strlen($part);
+                }
+                $pieces[] = $part;
             }
-        }
-        $rectHeight = count($lines) * $lineHeight + 2 * $padding;
+            return $pieces;
+        };
 
+        // Wrap lines and reduce font size if the block is too tall
+        while (true) {
+            $lineHeight = max(12, intval($fontSize * 1.18));
+            $wrapped = [];
+
+            foreach ($lines as $line) {
+                $words = preg_split('/\s+/', trim($line));
+                $current = '';
+                foreach ($words as $w) {
+                    $test = $current === '' ? $w : $current . ' ' . $w;
+                    $bb = imagettfbbox($fontSize, 0, $fontPath, $test);
+                    $wWidth = abs($bb[4] - $bb[0]);
+                    if ($wWidth > $maxRectWidth) {
+                        if ($current === '') {
+                            // single very long word -> split it
+                            $pieces = $splitLongWord($w, $fontSize);
+                            foreach ($pieces as $p) $wrapped[] = $p;
+                            $current = '';
+                        } else {
+                            $wrapped[] = $current;
+                            $current = $w;
+                        }
+                    } else {
+                        $current = $test;
+                    }
+                }
+                if (strlen($current)) $wrapped[] = $current;
+            }
+
+            $rectWidth = 0;
+            foreach ($wrapped as $rl) {
+                $bb = imagettfbbox($fontSize, 0, $fontPath, $rl);
+                $w = abs($bb[4] - $bb[0]);
+                if ($w > $rectWidth) $rectWidth = $w;
+            }
+            $rectWidth = min($rectWidth, $maxRectWidth);
+            $rectHeight = count($wrapped) * $lineHeight + 2 * $padding;
+
+            // If the watermark block uses too much vertical space, reduce font
+            if ($rectHeight > intval($imgHeight * 0.5) && $fontSize > $minFontSize) {
+                $fontSize = max($minFontSize, $fontSize - 2);
+                continue; // recalc wrapping with smaller font
+            }
+            break;
+        }
+
+        // Draw background rectangle and text
         imagefilledrectangle($img, 0, 0, $rectWidth + 2 * $padding, $rectHeight, $blackTrans);
 
         $x = $padding;
         $y = $padding + $fontSize;
-        foreach ($lines as $line) {
-            imagettftext($img, $fontSize, 0, $x, $y, $white, $fontPath, $line);
+        foreach ($wrapped as $rl) {
+            imagettftext($img, $fontSize, 0, $x, $y, $white, $fontPath, $rl);
             $y += $lineHeight;
         }
 
@@ -789,8 +865,8 @@ class CheckCallController extends Controller
         if ($request->has('approval_status')) {
             $updateData['approval_status'] = $validated['approval_status'];
         }
-        // Only allow scheduled_time update if checkcall is still pending
-        if ($request->has('scheduled_time') && $checkcall->status === 'pending') {
+        // Allow scheduled_time update regardless of status
+        if ($request->has('scheduled_time')) {
             $updateData['scheduled_time'] = $validated['scheduled_time'];
         }
 

@@ -79,6 +79,9 @@
                         </div>
                     </div>
                 </div>
+                
+                @can('Read Invoice Management')
+
                 <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
@@ -98,6 +101,7 @@
                         </div>
                     </div>
                 </div>
+                @endcan
                 <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
@@ -116,6 +120,9 @@
                         </div>
                     </div>
                 </div>
+                
+                @can('Read HR Managment')
+ 
                 <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
@@ -137,6 +144,7 @@
                         </div>
                     </div>
                 </div>
+                @endcan
             </div>
             <div class="row">
                 <div class="col-xl-12">

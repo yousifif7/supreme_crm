@@ -63,7 +63,7 @@ class ShiftApiController extends Controller
 
         $shifts = $query->paginate($limit);
 
-        $transformed = $shifts->getCollection()->transform(function ($shiftDate) use ($today) {
+        $transformed = $shifts->getCollection()->transform(function ($shiftDate) use ($today, $userId) {
             $shift = $shiftDate->shift;
             $site  = $shift?->site;
 
@@ -78,7 +78,15 @@ class ShiftApiController extends Controller
             // Fetch the note for this shift
             $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first(); // assuming you have a relation: ShiftDate -> note
 
-            $trainings = $shiftDate->trainings->map(function ($training) {
+                // Load trainings from the site (materials belong to site), not the shift
+                $siteTrainings = collect();
+                if ($site) {
+                    $siteTrainings = $site->trainings()->with(['acknowledgedUsers' => function ($q) use ($userId) {
+                        $q->where('user_id', $userId);
+                    }])->get();
+                }
+
+                $trainings = $siteTrainings->map(function ($training) {
                 $ack = $training->acknowledgedUsers->first();
                 $acknowledged = false;
                 $acknowledgedAt = null;
@@ -781,10 +789,42 @@ class ShiftApiController extends Controller
             return response()->json(['message' => 'You are not assigned to this patrol.'], 403);
         }
 
+        // Get the site from the shift
+        $shift = $shiftDate->shift;
+        if (!$shift) {
+            return response()->json(['message' => 'Shift not found for this patrol.'], 404);
+        }
+
+        $site = $shift->site;
+        if (!$site) {
+            return response()->json(['message' => 'Site not found for this shift.'], 404);
+        }
+
         $scanData = trim($request->scan_data);
         $method = $request->scan_method;
 
-        // Create scan tied to the patrol (no checkpoint matching required)
+        // Verify scan data matches site's QR code or NFC tag
+        if ($method === 'qr') {
+            // Check if QR code image exists for this site
+            if (!$site->has_qr || !file_exists(public_path('qrForSites/site_' . $site->id . '.png'))) {
+                return response()->json(['message' => 'This site does not have a QR code configured.'], 422);
+            }
+            
+            // The QR code content is the site URL
+            $expectedQrContent = config('app.url') . '/sites/' . $site->id;
+            if ($scanData !== $expectedQrContent) {
+                return response()->json(['message' => 'Invalid QR code. Please scan the correct QR code for this site.'], 422);
+            }
+        } elseif ($method === 'nfc') {
+            if (empty($site->nfc_tag)) {
+                return response()->json(['message' => 'This site does not have an NFC tag configured.'], 422);
+            }
+            if ($scanData !== $site->nfc_tag) {
+                return response()->json(['message' => 'Invalid NFC tag. Please scan the correct NFC tag for this site.'], 422);
+            }
+        }
+
+        // Create scan tied to the patrol (checkpoint matching verified)
         $scan = CheckpointScan::create([
             'patrol_id' => $patrol->id,
             'user_id' => Auth::id(),
@@ -1366,12 +1406,19 @@ class ShiftApiController extends Controller
         $white = imagecolorallocate($img, 255, 255, 255);
         $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80);
 
-        $text = "Time: " . $timestampData['time'] .
-            "\nEmployee: " . $timestampData['employee'] .
-            "\nLat: " . $timestampData['latitude'] . "  " .
-            "Lng: " . $timestampData['longitude'] .
-            "\nSite: " . $timestampData['site'] .
-            "\nLocation: " . ($timestampData['location']['formatted_address'] ?? 'Unknown');
+        $locationText = 'Unknown';
+        if (is_array($timestampData['location'] ?? null)) {
+            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
+        } else {
+            $locationText = $timestampData['location'] ?? 'Unknown';
+        }
+
+        $text = "Time: " . ($timestampData['time'] ?? '') .
+            "\nEmployee: " . ($timestampData['employee'] ?? '') .
+            "\nLat: " . ($timestampData['latitude'] ?? '') . "  " .
+            "Lng: " . ($timestampData['longitude'] ?? '') .
+            "\nSite: " . ($timestampData['site'] ?? '') .
+            "\nLocation: " . $locationText;
 
         $lines = explode("\n", $text);
         $fontPath = public_path('fonts/Arial.ttf');
@@ -1383,26 +1430,95 @@ class ShiftApiController extends Controller
         }
 
         $imgWidth = imagesx($img);
-        $fontSize = max(30, intval($imgWidth * 0.025));
-        $lineHeight = $fontSize + 30;
-        $padding = 15;
+        $imgHeight = imagesy($img);
 
-        $rectWidth = 0;
-        foreach ($lines as $line) {
-            $bbox = imagettfbbox($fontSize, 0, $fontPath, $line);
-            $lineWidth = abs($bbox[4] - $bbox[0]);
-            if ($lineWidth > $rectWidth) {
-                $rectWidth = $lineWidth;
+        $padding = max(12, intval($imgWidth * 0.02));
+        $maxRectWidth = max(100, intval($imgWidth * 0.9) - 2 * $padding);
+
+        // Start font size relative to image width; allow downscaling until content fits
+        $fontSize = max(14, intval($imgWidth * 0.03));
+        $minFontSize = 10;
+
+        // Helper: split a very long 'word' into chunks that fit
+        $splitLongWord = function ($word, $fontSizeLocal) use ($fontPath, $maxRectWidth) {
+            $pieces = [];
+            $len = mb_strlen($word);
+            $start = 0;
+            while ($start < $len) {
+                $part = '';
+                // Build char-by-char until it no longer fits
+                for ($i = $start; $i < $len; $i++) {
+                    $test = $part . mb_substr($word, $i, 1);
+                    $bb = imagettfbbox($fontSizeLocal, 0, $fontPath, $test);
+                    $w = abs($bb[4] - $bb[0]);
+                    if ($w > $maxRectWidth) break;
+                    $part = $test;
+                }
+                if ($part === '') {
+                    // single character too wide? force at least one char
+                    $part = mb_substr($word, $start, 1);
+                    $start++;
+                } else {
+                    $start += mb_strlen($part);
+                }
+                $pieces[] = $part;
             }
-        }
-        $rectHeight = count($lines) * $lineHeight + 2 * $padding;
+            return $pieces;
+        };
 
+        // Wrap lines and reduce font size if the block is too tall
+        while (true) {
+            $lineHeight = max(12, intval($fontSize * 1.18));
+            $wrapped = [];
+
+            foreach ($lines as $line) {
+                $words = preg_split('/\s+/', trim($line));
+                $current = '';
+                foreach ($words as $w) {
+                    $test = $current === '' ? $w : $current . ' ' . $w;
+                    $bb = imagettfbbox($fontSize, 0, $fontPath, $test);
+                    $wWidth = abs($bb[4] - $bb[0]);
+                    if ($wWidth > $maxRectWidth) {
+                        if ($current === '') {
+                            // single very long word -> split it
+                            $pieces = $splitLongWord($w, $fontSize);
+                            foreach ($pieces as $p) $wrapped[] = $p;
+                            $current = '';
+                        } else {
+                            $wrapped[] = $current;
+                            $current = $w;
+                        }
+                    } else {
+                        $current = $test;
+                    }
+                }
+                if (strlen($current)) $wrapped[] = $current;
+            }
+
+            $rectWidth = 0;
+            foreach ($wrapped as $rl) {
+                $bb = imagettfbbox($fontSize, 0, $fontPath, $rl);
+                $w = abs($bb[4] - $bb[0]);
+                if ($w > $rectWidth) $rectWidth = $w;
+            }
+            $rectWidth = min($rectWidth, $maxRectWidth);
+            $rectHeight = count($wrapped) * $lineHeight + 2 * $padding;
+
+            // If the watermark block uses too much vertical space, reduce font
+            if ($rectHeight > intval($imgHeight * 0.5) && $fontSize > $minFontSize) {
+                $fontSize = max($minFontSize, $fontSize - 2);
+                continue; // recalc wrapping with smaller font
+            }
+            break;
+        }
+
+        // Draw background rectangle and text
         imagefilledrectangle($img, 0, 0, $rectWidth + 2 * $padding, $rectHeight, $blackTrans);
 
         $x = $padding;
         $y = $padding + $fontSize;
-        foreach ($lines as $line) {
-            imagettftext($img, $fontSize, 0, $x, $y, $white, $fontPath, $line);
+        foreach ($wrapped as $rl) {
+            imagettftext($img, $fontSize, 0, $x, $y, $white, $fontPath, $rl);
             $y += $lineHeight;
         }
 
@@ -1613,7 +1729,15 @@ class ShiftApiController extends Controller
 
         $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
 
-        $trainings = $shiftDate->trainings->map(function ($training) {
+        // Load trainings from the site (materials belong to site), not the shift
+        $siteTrainings = collect();
+        if ($site) {
+            $siteTrainings = $site->trainings()->with(['acknowledgedUsers' => function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            }])->get();
+        }
+
+        $trainings = $siteTrainings->map(function ($training) {
             $ack = $training->acknowledgedUsers->first();
             $acknowledged = false;
             $acknowledgedAt = null;
@@ -1718,7 +1842,15 @@ class ShiftApiController extends Controller
 
         $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
 
-        $trainings = $shiftDate->trainings->map(function ($training) {
+        // Load trainings from the site (materials belong to site), not the shift
+        $siteTrainings = collect();
+        if ($site) {
+            $siteTrainings = $site->trainings()->with(['acknowledgedUsers' => function ($q) use ($userId) {
+                $q->where('user_id', $userId);
+            }])->get();
+        }
+
+        $trainings = $siteTrainings->map(function ($training) {
             $ack = $training->acknowledgedUsers->first();
             $acknowledged = false;
             $acknowledgedAt = null;
@@ -1894,7 +2026,15 @@ class ShiftApiController extends Controller
 
             $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
 
-            $trainings = $shiftDate->trainings->map(function ($training) {
+            // Load trainings from the site (materials belong to site), not the shift
+            $siteTrainings = collect();
+            if ($site) {
+                $siteTrainings = $site->trainings()->with(['acknowledgedUsers' => function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                }])->get();
+            }
+
+            $trainings = $siteTrainings->map(function ($training) {
                 $ack = $training->acknowledgedUsers->first();
                 $acknowledged = false;
                 $acknowledgedAt = null;

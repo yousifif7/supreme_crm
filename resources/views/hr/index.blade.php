@@ -187,6 +187,26 @@
                                                     <span class="text-danger form-error" id="file_error"></span>
                                                 </div>
                                             </div>
+                                            <div class="col-md-6">
+                                                <div class="mb-3">
+                                                    <label class="form-label">Client <span class="text-danger">*</span></label>
+                                                    <select name="client_id" id="hr_client_id" class="form-select client-select2">
+                                                        <option value="">--- Select Client ---</option>
+                                                        @foreach ($clients as $client)
+                                                            <option value="{{ $client->id }}">{{ ($client->first_name ?? $client->name) }}{{ isset($client->last_name) ? ' ' . $client->last_name : '' }}</option>
+                                                        @endforeach
+                                                    </select>
+                                                    <span class="text-danger form-error" id="error_client_id"></span>
+                                                </div>
+
+                                                <div class="mb-3">
+                                                    <label class="form-label">Site <span class="text-danger"></span></label>
+                                                    <select name="site_id" id="hr_site_id" class="form-select site-select2">
+                                                        <option value="">--choose--</option>
+                                                    </select>
+                                                    <span class="text-danger form-error" id="error_site_id"></span>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                     <div class="modal-footer">
@@ -293,6 +313,24 @@
                                     <span class="text-muted small">Leave blank to keep current file.</span>
                                     <span class="text-danger form-error" id="error_pdf_url"></span>
                                 </div>
+                                <div class="mb-2">
+                                    <label>Client</label>
+                                    <select name="client_id" id="editClientId" class="form-select client-select2">
+                                        <option value="">--- Select Client ---</option>
+                                        @foreach ($clients as $client)
+                                            <option value="{{ $client->id }}">{{ ($client->first_name ?? $client->name) }}{{ isset($client->last_name) ? ' ' . $client->last_name : '' }}</option>
+                                        @endforeach
+                                    </select>
+                                    <span class="text-danger form-error" id="error_edit_client_id"></span>
+                                </div>
+
+                                <div class="mb-2">
+                                    <label>Site</label>
+                                    <select name="site_id" id="editSiteId" class="form-select site-select2">
+                                        <option value="">--choose--</option>
+                                    </select>
+                                    <span class="text-danger form-error" id="error_edit_site_id"></span>
+                                </div>
                             </div>
 
                             <div class="modal-footer">
@@ -362,6 +400,100 @@
                     // Edit Modal: react to type change
                     $(document).on('change', '#editMaterialForm select[name="type"]', function() {
                         toggleTypeFields($(this).val(), 'edit-');
+                    });
+
+                    // Initialize Select2 for HR client/site selects
+                    $('#hr_client_id').select2({
+                        placeholder: '--- Select Client ---',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $('#add_leave'),
+                        minimumResultsForSearch: 0
+                    });
+
+                    $('#hr_site_id').select2({
+                        placeholder: '--choose--',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $('#add_leave'),
+                        minimumResultsForSearch: 0
+                    });
+
+                    // Edit modal selects
+                    $('#editClientId').select2({
+                        placeholder: '--- Select Client ---',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $('#editMaterialModal'),
+                        minimumResultsForSearch: 0
+                    });
+
+                    $('#editSiteId').select2({
+                        placeholder: '--choose--',
+                        allowClear: true,
+                        width: '100%',
+                        dropdownParent: $('#editMaterialModal'),
+                        minimumResultsForSearch: 0
+                    });
+
+                    // When edit client changes, load sites
+                    $('#editClientId').on('change', function() {
+                        const clientId = $(this).val();
+                        var $siteSelect = $('#editSiteId');
+                        if (!clientId) {
+                            $siteSelect.empty().append('<option value="">--choose--</option>').trigger('change');
+                            return;
+                        }
+                        $siteSelect.empty().append('<option value="">Loading...</option>').trigger('change');
+                        $.ajax({
+                            url: `${baseUrl}/api/client/${clientId}`,
+                            method: 'GET',
+                            dataType: 'json',
+                            success: function(data) {
+                                $siteSelect.empty().append('<option value="">--choose--</option>');
+                                if (data.sites && data.sites.length > 0) {
+                                    $.each(data.sites, function(index, site) {
+                                        $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                                    });
+                                } else {
+                                    $siteSelect.append('<option value="">No sites found</option>');
+                                }
+                                $siteSelect.trigger('change');
+                            },
+                            error: function() {
+                                $siteSelect.empty().append('<option value="">Error loading sites</option>').trigger('change');
+                            }
+                        });
+                    });
+
+                    // When HR client changes, load sites via same API used by invoices
+                    $('#hr_client_id').on('change', function() {
+                        const clientId = $(this).val();
+                        var $siteSelect = $('#hr_site_id');
+                        if (!clientId) {
+                            $siteSelect.empty().append('<option value="">--choose--</option>').trigger('change');
+                            return;
+                        }
+                        $siteSelect.empty().append('<option value="">Loading...</option>').trigger('change');
+                        $.ajax({
+                            url: `${baseUrl}/api/client/${clientId}`,
+                            method: 'GET',
+                            dataType: 'json',
+                            success: function(data) {
+                                $siteSelect.empty().append('<option value="">--choose--</option>');
+                                if (data.sites && data.sites.length > 0) {
+                                    $.each(data.sites, function(index, site) {
+                                        $siteSelect.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                                    });
+                                } else {
+                                    $siteSelect.append('<option value="">No sites found</option>');
+                                }
+                                $siteSelect.trigger('change');
+                            },
+                            error: function() {
+                                $siteSelect.empty().append('<option value="">Error loading sites</option>').trigger('change');
+                            }
+                        });
                     });
 
                     // ✅ Add Material AJAX
@@ -505,6 +637,34 @@
                             $('#editImplementationDate').val(data.implementation_date || '');
                             $('#editDeadline').val(data.deadline || '');
                             $('#editAcknowledgeByDate').val(data.acknowledge_by_date || '');
+
+                            // Set client/site selects
+                            $('#editClientId').val(data.client_id || '').trigger('change.select2');
+
+                            // If client set, fetch sites and then select site_id
+                            if (data.client_id) {
+                                var $editSite = $('#editSiteId');
+                                $editSite.empty().append('<option value="">Loading...</option>').trigger('change');
+                                $.ajax({
+                                    url: `${baseUrl}/api/client/${data.client_id}`,
+                                    method: 'GET',
+                                    dataType: 'json',
+                                    success: function(d) {
+                                        $editSite.empty().append('<option value="">--choose--</option>');
+                                        if (d.sites && d.sites.length > 0) {
+                                            $.each(d.sites, function(index, site) {
+                                                $editSite.append('<option value="' + site.id + '">' + site.site_name + '</option>');
+                                            });
+                                        }
+                                        $editSite.val(data.site_id || '').trigger('change.select2');
+                                    },
+                                    error: function() {
+                                        $editSite.empty().append('<option value="">Error loading sites</option>').trigger('change');
+                                    }
+                                });
+                            } else {
+                                $('#editSiteId').empty().append('<option value="">--choose--</option>').trigger('change');
+                            }
 
                             if (data.pdf_url) {
                                 let fileName = data.pdf_url.split('/').pop();

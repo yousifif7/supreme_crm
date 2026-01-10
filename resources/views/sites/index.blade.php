@@ -654,25 +654,27 @@
                                                                 $('#qr_image_detail').html('<span class="text-muted">No QR generated</span>');
                                                             }
 
-                                                            // NFC tags list
-                                                            if (data.checkpoints && data.checkpoints.length > 0) {
-                                                                const nfcItems = data.checkpoints.filter(cp => cp.nfc_tag).map(cp => ({name: cp.name, tag: cp.nfc_tag}));
-                                                                if (nfcItems.length > 0) {
-                                                                    let nhtml = '<div class="d-flex gap-2 flex-column">';
-                                                                    nfcItems.forEach(item => {
-                                                                        nhtml += `<div><strong>${item.name}:</strong> <code class="me-2">${item.tag}</code> <button class="btn btn-sm btn-outline-secondary copy-nfc" data-tag="${item.tag}">Copy</button></div>`;
+                                                            // NFC tag for site (similar to QR code)
+                                                            if (data.nfc_tag) {
+                                                                const nfcHtml = `
+                                                                    <div class="d-flex align-items-center gap-2">
+                                                                        <code class="p-2 bg-light border rounded">${data.nfc_tag}</code>
+                                                                        <button type="button" class="btn btn-sm btn-outline-secondary copy-site-nfc" data-tag="${data.nfc_tag}">
+                                                                            <i class="ti ti-copy"></i> Copy
+                                                                        </button>
+                                                                    </div>
+                                                                `;
+                                                                $('#nfc_tags_detail').html(nfcHtml);
+                                                                $('.copy-site-nfc').on('click', function(){
+                                                                    const tag = $(this).data('tag');
+                                                                    navigator.clipboard?.writeText(tag).then(() => { 
+                                                                        toast_success('NFC tag copied to clipboard'); 
+                                                                    }).catch(() => { 
+                                                                        alert('Failed to copy NFC tag'); 
                                                                     });
-                                                                    nhtml += '</div>';
-                                                                    $('#nfc_tags_detail').html(nhtml);
-                                                                    $('.copy-nfc').on('click', function(){
-                                                                        const tag = $(this).data('tag');
-                                                                        navigator.clipboard?.writeText(tag).then(() => { toast_success('NFC tag copied'); }).catch(() => { alert('Copy failed'); });
-                                                                    });
-                                                                } else {
-                                                                    $('#nfc_tags_detail').html('<span class="text-muted">No NFC tags</span>');
-                                                                }
+                                                                });
                                                             } else {
-                                                                $('#nfc_tags_detail').html('<span class="text-muted">No NFC tags</span>');
+                                                                $('#nfc_tags_detail').html('<span class="text-muted">No NFC tag generated</span>');
                                                             }
 
             $('#checkpoints_detail').html(checkpointsHtml);

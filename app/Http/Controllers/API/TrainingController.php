@@ -7,6 +7,9 @@ use App\Exports\InvoiceExport;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Exports\MaterialsExport;
 use App\Models\TrainingMaterial;
+use App\Models\Client;
+use App\Models\Site;
+use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
@@ -49,7 +52,9 @@ class TrainingController extends Controller
     public function matsView(MaterialDataTable $dataTable)
     {
         $materials = TrainingMaterial::all();
-        return $dataTable->render('hr.index', compact('materials'));
+            // Use users with role 'client' so site API (/api/client/{id}) returns sites correctly
+            $clients = User::role('client')->orderBy('first_name')->get();
+        return $dataTable->render('hr.index', compact('materials', 'clients'));
     }
 
     public function acknowledge(Request $request, $id)
@@ -89,6 +94,8 @@ class TrainingController extends Controller
             'implementation_date' => 'nullable|date',
             'deadline' => 'nullable|date',
             'acknowledge_by_date' => 'nullable|date',
+            'client_id' => 'nullable|exists:users,id',
+            'site_id' => 'nullable|exists:sites,id',
         ]);
 
         $filePath = null;
@@ -115,6 +122,8 @@ class TrainingController extends Controller
             'deadline' => $validated['deadline'] ?? null,
             'acknowledge_by_date' => $validated['acknowledge_by_date'] ?? null,
             'pdf_url' => $filePath,
+            'client_id' => $validated['client_id'] ?? null,
+            'site_id' => $validated['site_id'] ?? null,
         ]);
 
         if ($request->ajax()) {
@@ -153,25 +162,27 @@ class TrainingController extends Controller
 
         $ack = $material->acknowledgedUsers->first();
 
-        return response()->json([
-            'material' => [
-                'id' => $material->id,
-                'title' => $material->title,
-                'description' => $material->description,
-                'type' => $material->type,
-                'content_url' => $material->content_url,
-                'pdf_url' => $material->pdf_url,
-                'required' => $material->required,
-                'acknowledged' => $ack ? true : false,
-                'acknowledged_at' => $ack ? $ack->acknowledged_at : null,
-                'completion_time_seconds' => $ack ? $ack->completion_time_seconds : null,
-                'implementation_date' => $material->implementation_date,
-                'complete_by_date' => $material->deadline,
-                'acknowledge_by_date' => $material->acknowledge_by_date,
-                'created_at' => $material->created_at,
-                'updated_at' => $material->updated_at,
-            ]
-        ]);
+        $resp = [
+            'id' => $material->id,
+            'title' => $material->title,
+            'description' => $material->description,
+            'type' => $material->type,
+            'content_url' => $material->content_url,
+            'pdf_url' => $material->pdf_url,
+            'required' => $material->required,
+            'acknowledged' => $ack ? true : false,
+            'acknowledged_at' => $ack ? $ack->acknowledged_at : null,
+            'completion_time_seconds' => $ack ? $ack->completion_time_seconds : null,
+            'implementation_date' => $material->implementation_date,
+            'deadline' => $material->deadline,
+            'acknowledge_by_date' => $material->acknowledge_by_date,
+            'client_id' => $material->client_id,
+            'site_id' => $material->site_id,
+            'created_at' => $material->created_at,
+            'updated_at' => $material->updated_at,
+        ];
+
+        return response()->json($resp);
     }
 
 
@@ -188,6 +199,8 @@ class TrainingController extends Controller
             'implementation_date' => 'nullable|date',
             'deadline' => 'nullable|date',
             'acknowledge_by_date' => 'nullable|date',
+            'client_id' => 'nullable|exists:users,id',
+            'site_id' => 'nullable|exists:sites,id',
         ]);
 
 
@@ -206,7 +219,11 @@ class TrainingController extends Controller
         }
 
         // Update instead of create
-        $material->update($validated);
+        $updateData = $validated;
+        if ($request->hasFile('pdf_url')) {
+            $updateData['pdf_url'] = $validated['pdf_url'];
+        }
+        $material->update($updateData);
 
         return response()->json(['success' => true]);
     }

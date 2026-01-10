@@ -473,6 +473,35 @@ class UserController extends Controller
         // limit checks to shift_dates within the last 24 hours to avoid scanning historic data
         $cutoff24 = $now->copy()->subDay()->toDateString();
 
+        // --- Auto-complete in_progress patrols after 50 minutes ---
+        $inProgressPatrols = \App\Models\Patrol::where('status', 'in_progress')
+            ->where('start_time', '<=', $now->copy()->subMinutes(50))
+            ->where('start_time', '>=', $cutoff24)
+            ->get();
+
+        foreach ($inProgressPatrols as $patrol) {
+            try {
+                $patrol->status = 'completed';
+                $patrol->completed_at = $now;
+                $patrol->save();
+
+                \Log::info("Auto-completed patrol {$patrol->id} after 50 minutes");
+
+                // Notify the guard
+                $shiftDate = \App\Models\ShiftDate::find($patrol->shift_id);
+                if ($shiftDate && $shiftDate->staff_id) {
+                    send_push_notification(
+                        $shiftDate->staff_id,
+                        'Patrol Auto-Completed',
+                        "Your patrol '{$patrol->name}' has been automatically marked as completed.",
+                        ['type' => 'patrol', 'patrolId' => $patrol->id]
+                    );
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to auto-complete patrol: ' . $e->getMessage());
+            }
+        }
+
         // --- Missed Book On Notifications ---
         $missedBookOns = ShiftDate::whereNotNull('staff_id')
             ->whereNull('absentee_start_time')
@@ -481,11 +510,11 @@ class UserController extends Controller
             ->select('id', 'staff_id', 'start_time', 'shift_date', 'is_assign')
             ->get();
 
-        // --- Missed Book Off Notifications ---
+        // --- Auto Book Off (5 minutes after shift end) ---
         $missedBookOffs = ShiftDate::whereNotNull('staff_id')
             ->whereNull('absentee_end_time')
             ->whereBetween('shift_date', [$cutoff24, $now->toDateString()])
-            ->whereTime('end_time', '<=', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->whereTime('end_time', '<=', $now->copy()->subMinutes(5)->format('H:i:s'))
             ->select('id', 'staff_id', 'end_time', 'shift_date')
             ->get();
 
@@ -499,6 +528,72 @@ class UserController extends Controller
                 ->keyBy('id');
         }
 
+        // --- Book On Reminder (5 minutes before shift start) ---
+        $bookOnReminders5MinsBefore = ShiftDate::whereNotNull('staff_id')
+            ->where('is_assign', 2) // Accepted shifts
+            ->whereNull('absentee_start_time')
+            ->whereDate('shift_date', $now->toDateString())
+            ->whereTime('start_time', '<=', $now->copy()->addMinutes(5)->format('H:i:s'))
+            ->whereTime('start_time', '>', $now->format('H:i:s'))
+            ->select('id', 'staff_id', 'start_time', 'shift_date')
+            ->get();
+
+        foreach ($bookOnReminders5MinsBefore as $sd) {
+            $perShiftKey = 'bookon_reminder_5before_' . $sd->id;
+            if (Cache::has($perShiftKey)) {
+                continue;
+            }
+
+            $employee = $staffMap[$sd->staff_id] ?? User::find($sd->staff_id);
+            if ($employee) {
+                try {
+                    send_push_notification(
+                        $employee->id,
+                        'Shift Starting Soon',
+                        "Your shift starts at {$sd->start_time}. Please prepare to book on.",
+                        ['type' => 'shift', 'shiftId' => $sd->id]
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Push notification failed for 5-min before reminder: ' . $e->getMessage());
+                }
+            }
+
+            Cache::put($perShiftKey, true, now()->addMinutes(10));
+        }
+
+        // --- Book On Reminder (5 minutes after shift start - missed book on) ---
+        $bookOnReminders5MinsAfter = ShiftDate::whereNotNull('staff_id')
+            ->where('is_assign', 2) // Accepted shifts
+            ->whereNull('absentee_start_time')
+            ->whereBetween('shift_date', [$cutoff24, $now->toDateString()])
+            ->whereTime('start_time', '<=', $now->copy()->subMinutes(5)->format('H:i:s'))
+            ->whereTime('start_time', '>', $now->copy()->subMinutes(15)->format('H:i:s'))
+            ->select('id', 'staff_id', 'start_time', 'shift_date')
+            ->get();
+
+        foreach ($bookOnReminders5MinsAfter as $sd) {
+            $perShiftKey = 'bookon_reminder_5after_' . $sd->id;
+            if (Cache::has($perShiftKey)) {
+                continue;
+            }
+
+            $employee = $staffMap[$sd->staff_id] ?? User::find($sd->staff_id);
+            if ($employee) {
+                try {
+                    send_push_notification(
+                        $employee->id,
+                        'Missed Book On',
+                        "You have not booked on for your shift that started at {$sd->start_time}. Please book on now.",
+                        ['type' => 'shift', 'shiftId' => $sd->id]
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Push notification failed for 5-min after reminder: ' . $e->getMessage());
+                }
+            }
+
+            Cache::put($perShiftKey, true, now()->addMinutes(15));
+        }
+
         foreach ($missedBookOns as $sd) {
             if ($sd->is_assign == 2) {
                 $perShiftKey = 'missed_shift_on_' . $sd->id;
@@ -509,6 +604,21 @@ class UserController extends Controller
                 $employee = $staffMap[$sd->staff_id] ?? null;
                 $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
 
+                // Send push notification to guard (final reminder)
+                if ($employee) {
+                    try {
+                        send_push_notification(
+                            $employee->id,
+                            'Final Reminder - Book On Now',
+                            "You still have not booked on for your shift that started at {$sd->start_time} on {$sd->shift_date}. Please book on immediately.",
+                            ['type' => 'shift', 'shiftId' => $sd->id]
+                        );
+                    } catch (\Exception $e) {
+                        \Log::warning('Push notification failed for missed book on: ' . $e->getMessage());
+                    }
+                }
+
+                // Send dashboard notification
                 Notify::toDashboard(
                     $employee?->id,
                     'alarm',
@@ -527,14 +637,67 @@ class UserController extends Controller
                 continue;
             }
 
+            // Only process if guard actually booked on for this shift
+            $bookedOnExists = ShiftBooking::where('shift_id', $sd->id)
+                ->where('type', 'book_on')
+                ->where('user_id', $sd->staff_id)
+                ->exists();
+
+            if (!$bookedOnExists) {
+                continue; // Skip if guard never booked on
+            }
+
             $employee = $staffMap[$sd->staff_id] ?? null;
             $guardName = $employee ? "{$employee->first_name} {$employee->last_name}" : 'Unknown';
 
+            // Auto-create book off booking
+            try {
+                $existingBookOff = ShiftBooking::where('shift_id', $sd->id)
+                    ->where('type', 'book_off')
+                    ->where('user_id', $sd->staff_id)
+                    ->first();
+
+                if (!$existingBookOff) {
+                    ShiftBooking::create([
+                        'shift_id' => $sd->id,
+                        'user_id' => $sd->staff_id,
+                        'type' => 'book_off',
+                        'timestamp' => now(),
+                        'latitude' => null,
+                        'longitude' => null,
+                    ]);
+
+                    // Update shift date with book off time
+                    $sd->absentee_end_time = now()->format('H:i:s');
+                    $sd->is_assign = 4; // Booked off
+                    $sd->save();
+
+                    \Log::info("Auto-booked off shift {$sd->id} for user {$sd->staff_id}");
+                }
+            } catch (\Exception $e) {
+                \Log::error('Failed to auto-create book off: ' . $e->getMessage());
+            }
+
+            // Send push notification to guard
+            if ($employee) {
+                try {
+                    send_push_notification(
+                        $employee->id,
+                        'Auto Booked Off',
+                        "Your shift ended at {$sd->end_time} on {$sd->shift_date}. You have been automatically booked off after 5 minutes.",
+                        ['type' => 'shift', 'shiftId' => $sd->id]
+                    );
+                } catch (\Exception $e) {
+                    \Log::warning('Push notification failed for missed book off: ' . $e->getMessage());
+                }
+            }
+
+            // Send dashboard notification
             Notify::toDashboard(
                 $employee?->id,
                 'alarm',
-                'Missed Book Off',
-                "Guard {$guardName} did not book off for their shift ending at {$sd->end_time} on {$sd->shift_date}.",
+                'Auto Booked Off',
+                "Guard {$guardName} was automatically booked off 5 minutes after shift ended at {$sd->end_time} on {$sd->shift_date}.",
                 "/shift-dates/{$sd->id}/view"
             );
 

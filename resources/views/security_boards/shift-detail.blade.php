@@ -791,6 +791,23 @@
                                 </a> --}}
                             </div>
                             <script>
+                                        // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
+                                        function formatToDisplay(raw) {
+                                            if (!raw) return '';
+                                            // Accepts '2026-01-06T11:52:37' or '2026-01-06 11:52:37'
+                                            let d = raw.replace('T', ' ').split(/[- :]/);
+                                            if (d.length < 6) return raw;
+                                            return `${d[2]}-${d[1]}-${d[0]} ${d[3]}:${d[4]}:${d[5]}`;
+                                        }
+
+                                        // Parse dd-MM-yyyy HH:mm:ss to yyyy-MM-dd HH:mm:ss
+                                        function parseToBackend(display) {
+                                            if (!display) return '';
+                                            // Accepts '06-01-2026 11:40:37'
+                                            let m = display.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+                                            if (!m) return display;
+                                            return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+                                        }
                                 // Declare once for use by initPatrolMap calls below
                                 const siteCheckpoints = @json($checkpoints);
                             </script>
@@ -958,8 +975,8 @@
                                 </div>
                                 <div class="mb-3">
                                     <label>Scheduled Time</label>
-                                    <input type="datetime" class="form-control" name="scheduled_time"
-                                        id="scheduled_time" required>
+                                    <input type="text" class="form-control" name="scheduled_time"
+                                        id="scheduled_time" placeholder="dd-MM-yyyy HH:mm:ss" required>
                                 </div>
                                 <div class="mb-3">
                                     <label>Status</label>
@@ -1265,7 +1282,10 @@
         $(document).on('click', '.edit-checkcall-btn', function() {
             $('#checkcall_id').val($(this).data('id'));
             $('#checkpoint_name').val($(this).data('name'));
-            $('#scheduled_time').val($(this).data('time').replace(' ', 'T')); // for datetime-local
+            // Format ISO or DB datetime to dd-MM-yyyy HH:mm:ss
+            let rawTime = $(this).data('time');
+            let formatted = formatToDisplay(rawTime);
+            $('#scheduled_time').val(formatted);
 
             // Set the status select based on the data-status attribute
             $('#status').val($(this).data('status'));
@@ -1279,12 +1299,20 @@
             e.preventDefault();
             let id = $('#checkcall_id').val();
 
+            // Parse display format back to yyyy-MM-dd HH:mm:ss for backend
+            let displayTime = $('#scheduled_time').val();
+            let backendTime = parseToBackend(displayTime);
+            if (!backendTime || backendTime.length < 16) {
+                showToast('Invalid date/time format. Please use dd-MM-yyyy HH:mm:ss', 'error', 5000);
+                return;
+            }
             $.ajax({
                 url: `/checkcalls/${id}`,
                 type: 'PUT',
                 data: {
                     _token: '{{ csrf_token() }}',
                     name: $('#checkpoint_name').val(),
+                    scheduled_time: backendTime,
                     status: $('#status').val(),
                     approval_status: $('#approval_status').val()
                 },
@@ -1294,9 +1322,30 @@
                     location.reload();
                 },
                 error: function(xhr) {
-                    showToast('Error updating check call', 'error', 5000);
+                    let msg = 'Error updating check call';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    showToast(msg, 'error', 5000);
                 }
             });
+                // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
+                function formatToDisplay(raw) {
+                    if (!raw) return '';
+                    // Accepts '2026-01-06T11:52:37' or '2026-01-06 11:52:37'
+                    let d = raw.replace('T', ' ').split(/[- :]/);
+                    if (d.length < 6) return raw;
+                    return `${d[2]}-${d[1]}-${d[0]} ${d[3]}:${d[4]}:${d[5]}`;
+                }
+
+                // Parse dd-MM-yyyy HH:mm:ss to yyyy-MM-dd HH:mm:ss
+                function parseToBackend(display) {
+                    if (!display) return '';
+                    // Accepts '06-01-2026 11:40:37'
+                    let m = display.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+                    if (!m) return display;
+                    return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+                }
         });
 
         $(document).on('click', '.delete-checkcall-btn', function() {
@@ -1499,20 +1548,52 @@
 
             // Pre-compute checkpoint markers & bounds
             const checkpointBounds = new google.maps.LatLngBounds();
+            const infoWindows = []; // Store info windows to close others when one opens
+            
             checkpoints.forEach(cp => {
                 const lat = parseFloat(cp.latitude);
                 const lng = parseFloat(cp.longitude);
                 if (!isNaN(lat) && !isNaN(lng)) {
                     const pos = new google.maps.LatLng(lat, lng);
+                    
+                    // Create custom marker with enhanced appearance
                     const m = new google.maps.Marker({
                         position: pos,
                         map,
                         title: cp.name,
                         icon: {
-                            url: "http://maps.google.com/mapfiles/ms/icons/green-dot.png",
-                            scaledSize: new google.maps.Size(40, 40)
-                        }
+                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                            scaledSize: new google.maps.Size(45, 45)
+                        },
+                        animation: google.maps.Animation.DROP,
+                        cursor: 'pointer'
                     });
+                    
+                    // Create info window for this checkpoint
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `
+                            <div style="padding: 8px; min-width: 150px;">
+                                <h6 style="margin: 0 0 8px 0; color: #2c3e50; font-weight: 600;">
+                                    📍 Checkpoint
+                                </h6>
+                                <p style="margin: 0; color: #34495e; font-size: 14px;">
+                                    <strong>${cp.name}</strong>
+                                </p>
+                                ${cp.description ? `<p style="margin: 4px 0 0 0; color: #7f8c8d; font-size: 12px;">${cp.description}</p>` : ''}
+                            </div>
+                        `
+                    });
+                    
+                    infoWindows.push(infoWindow);
+                    
+                    // Add click listener to show info window
+                    m.addListener('click', function() {
+                        // Close all other info windows
+                        infoWindows.forEach(iw => iw.close());
+                        // Open this info window
+                        infoWindow.open(map, m);
+                    });
+                    
                     checkpointMarkers.push(m);
                     checkpointBounds.extend(pos);
                 }
@@ -1593,21 +1674,23 @@
                         });
                     }
 
-                    // Determine combined bounds (checkpoints + guard locations)
+                    // Determine bounds - prioritize guard locations if they exist
                     const combinedBounds = new google.maps.LatLngBounds();
                     let points = 0;
-                    // include checkpoint markers in combined bounds
-                    if (checkpointMarkers.length > 0) {
-                        checkpointMarkers.forEach(m => {
-                            combinedBounds.extend(m.getPosition());
-                        });
-                        points += checkpointMarkers.length;
-                    }
+                    
+                    // If guard locations exist, focus on them only
                     if (valid.length > 0) {
                         valid.forEach(loc => {
                             combinedBounds.extend(new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude)));
                         });
-                        points += valid.length;
+                        points = valid.length;
+                    } 
+                    // Otherwise, show checkpoints
+                    else if (checkpointMarkers.length > 0) {
+                        checkpointMarkers.forEach(m => {
+                            combinedBounds.extend(m.getPosition());
+                        });
+                        points = checkpointMarkers.length;
                     }
 
                     if (points === 0) {

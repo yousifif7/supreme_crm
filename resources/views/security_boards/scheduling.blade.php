@@ -948,7 +948,6 @@
 
         $(document).ready(function() {
             $(document).on('click', '.addCheckCallRow', function() {
-                console.log("Add Check Call clicked ✅");
                 var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
                 addCheckCallRow($parentRow);
             });
@@ -960,24 +959,12 @@
     </script>
     <script>
         $(document).ready(function() {
-            let autoCheckcallEnabled = true; // default ON
-
-            // Toggle listener
-            $('#autoCheckcallToggle').change(function() {
-                autoCheckcallEnabled = $(this).is(':checked');
-                const message = autoCheckcallEnabled ? 'Auto checkcalls enabled' :
-                    'Auto checkcalls disabled';
-                toast_success(message);
-            });
-
+            // Remove manual auto_checkcall_enabled append; rely on native form serialization
             $('#add_shift-form').on('submit', function(e) {
                 e.preventDefault();
                 $("[id^='error_']").text('');
                 let form = this;
                 let formData = new FormData(form);
-
-                // Add the auto checkcall state to formData
-                formData.append('auto_checkcall_enabled', autoCheckcallEnabled ? 1 : 0);
 
                 let submitButton = $('#saveshift');
                 submitButton.prop('disabled', true).html('Saving...');
@@ -1048,7 +1035,6 @@
                                         } catch (e) {
                                             // ignore parsing errors
                                         }
-
                                         showToast(msg, 'error', 7000);
 
                                         if (err && err.responseJSON && err.responseJSON.trace) {
@@ -1859,7 +1845,11 @@ ${shift.note
 }
 
             function formatDate(date) {
-                return date.toISOString().split('T')[0];
+                // Use local date to avoid timezone issues
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
             }
 
             function getMonday(date) {
@@ -1904,8 +1894,12 @@ ${shift.note
                     const filteredShifts = allShiftsData.filter(shift => {
                         if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
                             return false;
-                        if (filters.client_id && parseInt(shift.client_id) !== parseInt(filters
-                                .client_id)) return false;
+                        // Check both client_id and clientId field names
+                        if (filters.client_id) {
+                            const shiftClientId = shift.client_id ?? shift.clientId;
+                            if (parseInt(shiftClientId) !== parseInt(filters.client_id)) 
+                                return false;
+                        }
                         if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
                             return false;
                         if (filters.status && parseInt(shift.status) !== parseInt(filters.status))

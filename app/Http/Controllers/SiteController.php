@@ -102,12 +102,16 @@ class SiteController extends Controller
 
         Logger::log(Auth::user(), 'Create', 'Site '.$site->site_name.' Created');
 
-        // Generate QR image if requested
+        // Generate QR image and NFC tag if requested
         if (!empty($data['has_qr'])) {
             try {
+                // Generate NFC tag for the site
+                $nfcTag = 'NFC-SITE-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
+                $site->update(['nfc_tag' => $nfcTag]);
+                
                 $this->generateQrForSite($site);
             } catch (\Exception $e) {
-                Log::warning('Failed to generate QR for site ' . $site->id . ': ' . $e->getMessage());
+                Log::warning('Failed to generate QR/NFC for site ' . $site->id . ': ' . $e->getMessage());
             }
         }
 
@@ -170,16 +174,23 @@ class SiteController extends Controller
         // Handle QR generation or removal on update
         try {
             if (!empty($data['has_qr'])) {
+                // Generate NFC tag if not exists
+                if (empty($site->nfc_tag)) {
+                    $nfcTag = 'NFC-SITE-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
+                    $site->update(['nfc_tag' => $nfcTag]);
+                }
+                
                 $this->generateQrForSite($site);
             } else {
-                // remove existing QR image if any (public copy)
+                // remove existing QR image and NFC tag
                 $filename = public_path('qrForSites/site_' . $site->id . '.png');
                 if (File::exists($filename)) {
                     File::delete($filename);
                 }
+                $site->update(['nfc_tag' => null]);
             }
         } catch (\Exception $e) {
-            Log::warning('Failed to update QR for site ' . $site->id . ': ' . $e->getMessage());
+            Log::warning('Failed to update QR/NFC for site ' . $site->id . ': ' . $e->getMessage());
         }
 
         // ✅ Sync employee types
@@ -320,6 +331,7 @@ class SiteController extends Controller
             'manager_1_name'   => $site->manager_1_id ?? '',
             'manager_2_name'   => $site->manager_2_id ?? '',
             'has_qr' => (bool) $site->has_qr,
+            'nfc_tag' => $site->nfc_tag,
 
             // QR image URL if generated (served from public/qrForSites)
             'qr_image' => file_exists(public_path('qrForSites/site_' . $site->id . '.png')) ? asset('qrForSites/site_' . $site->id . '.png') : null,

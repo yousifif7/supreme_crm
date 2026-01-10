@@ -39,6 +39,20 @@ class ProcessShiftNotifications extends Command
 
         Log::info('Notification command started');
 
+        // Also invoke the web controller process to run any logic present there
+        try {
+            $controllerClass = '\\App\\Http\\Controllers\\ShiftNotificationController';
+            if (class_exists($controllerClass)) {
+                Log::info('Invoking ShiftNotificationController::process from scheduled command');
+                $controller = new $controllerClass();
+                $controller->process(new \Illuminate\Http\Request());
+            } else {
+                Log::warning('ShiftNotificationController class not found; skipping controller invocation');
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed invoking ShiftNotificationController::process: ' . $e->getMessage());
+        }
+
         $users = User::role('security_staff')->get();
         Log::info('ProcessShiftNotifications: found users count', ['count' => $users->count()]);
         $cooldownMinutes = 15; // show alerts for 15 minutes after first shown

@@ -227,6 +227,18 @@ class ShiftController extends Controller
     public function store(Request $request)
     {
         try {
+        // Debug: log incoming payload to inspect toggle serialization
+        try {
+            \Log::debug('ShiftController@store incoming', [
+                'client_id_count' => is_array($request->client_id) ? count($request->client_id) : null,
+                'auto_checkcall_enabled' => $request->auto_checkcall_enabled ?? null,
+                'raw' => array_intersect_key($request->all(), array_flip(['client_id','site_id','auto_checkcall_enabled','require_media_upload','checkcalls']))
+            ]);
+        } catch (\Throwable $e) {
+            // swallow logging errors to avoid breaking the request flow
+            \Log::debug('ShiftController@store logging failed: '.$e->getMessage());
+        }
+
         $shiftCount = count($request->client_id);
 
         $documents = [
@@ -590,8 +602,8 @@ class ShiftController extends Controller
                             $checkTime  = $start->copy()->addHours($n);
                             $patrolTime = $start->copy()->addHours($n);
 
-                            $autoEnabledForGroup = !empty($request->auto_checkcall_enabled[$i]) ? true : false;
-                            if ($autoEnabledForGroup) {
+                            // Only create checkcalls if toggle is ON (value '1')
+                            if (isset($request->auto_checkcall_enabled[$i]) && $request->auto_checkcall_enabled[$i] == '1') {
                                 CheckCall::create([
                                     'shift_id'       => $shiftDate->id,
                                     'employee_id'    => $shiftDate->staff_id ?? null,
@@ -758,15 +770,24 @@ class ShiftController extends Controller
             $data['is_assign'] = $data['status_id'];
         }
         
-        // Only reset status if explicitly changing staff
-        if (!isset($data['staff_id'])) {
-            // Preserve existing status when not changing staff
-        } else {
-            $shift->status = 'pending';
-        }
-
-        // ✅ Restrictions only if assigning to a NEW/DIFFERENT staff member
+        // Only update staff and is_assign when staff is actually being changed
         $staffChanged = isset($data['staff_id']) && $data['staff_id'] != $shift->staff_id;
+        
+        if ($staffChanged) {
+            // Staff is being changed - set to dispatched
+            if ($data['staff_id']) {
+                $shift->staff_id = $data['staff_id'];
+                $shift->is_assign = 1;
+                $shift->status = 'pending';
+            } else {
+                // Staff is being removed
+                $shift->staff_id = null;
+                $shift->is_assign = 0;
+                $shift->status = 'pending';
+            }
+        } elseif (!isset($data['staff_id'])) {
+            // No staff change - preserve existing status
+        }
         
         if ($staffChanged) {
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
@@ -2199,10 +2220,7 @@ public function getTodayShifts()
                 continue;
             }
 
-            // Assign shift and extra fields
-            $shiftDate->staff_id            = $staffUser->user_id;
-            $shiftDate->is_assign           = 1;
-            $shiftDate->status              = 'pending';
+            // Update shift times and dates
             $shiftDate->start_time          = $newStart;
             $shiftDate->end_time            = $newEnd;
             $shiftDate->absentee_start_time = $bookOn;
@@ -2213,12 +2231,24 @@ public function getTodayShifts()
             } catch (\Exception $e) {
                 $normalized = $newDate; // fallback to raw value
             }
-            $shiftDate->shift_date          = $normalized;           // ✅ add this
+            $shiftDate->shift_date          = $normalized;
 
             // Normalize time format for hours calculation
             $startCalc = strlen($newStart) === 5 ? $newStart . ':00' : $newStart;
             $endCalc   = strlen($newEnd) === 5 ? $newEnd . ':00' : $newEnd;
             $shiftDate->total_hours = $this->calculateTotalHours($startCalc, $endCalc, 'H:i:s');
+
+            // Only update staff and is_assign when staff is actually being changed
+            $oldStaffId = $shiftDate->staff_id;
+            $newStaffId = $staffUser->user_id;
+
+            if ($newStaffId != $oldStaffId) {
+                // Staff is being changed - set to dispatched
+                $shiftDate->staff_id = $newStaffId;
+                $shiftDate->is_assign = 1;
+                $shiftDate->status = 'pending';
+            }
+            // If same staff, preserve current is_assign and status
 
             $shiftDate->save();
 
@@ -2766,12 +2796,25 @@ public function getTodayShifts()
         $data = $validator->validated();
 
         // Update ShiftDate fields
-        if (array_key_exists('staff_id', $data) && $data['staff_id']) {
-            $shiftDate->staff_id = $data['staff_id'];
-            $shiftDate->is_assign = 1;
-        } elseif (array_key_exists('staff_id', $data) && !$data['staff_id']) {
-            $shiftDate->staff_id = null;
-            $shiftDate->is_assign = 0;
+        // Only change is_assign when staff is actually being changed
+        if (array_key_exists('staff_id', $data)) {
+            $oldStaffId = $shiftDate->staff_id;
+            $newStaffId = $data['staff_id'];
+            
+            if ($newStaffId && $newStaffId != $oldStaffId) {
+                // Staff is being changed to a new person - set to dispatched
+                $shiftDate->staff_id = $newStaffId;
+                $shiftDate->is_assign = 1;
+                $shiftDate->status = 'pending';
+
+            } elseif (!$newStaffId && $oldStaffId) {
+                // Staff is being removed - set to unassigned
+                $shiftDate->staff_id = null;
+                $shiftDate->is_assign = 0;
+            } elseif ($newStaffId && $newStaffId == $oldStaffId) {
+                // Same staff - don't change is_assign, just keep current status
+                // No changes needed
+            }
         }
         
         if (array_key_exists('start_shift', $data) && $data['start_shift']) {
@@ -2836,7 +2879,6 @@ public function getTodayShifts()
             }
         }
 
-        $shiftDate->status = 'pending';
         $shiftDate->save();
         $parentShift->save();
 

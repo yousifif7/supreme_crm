@@ -319,17 +319,17 @@
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
-                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox"
-                                                            name="auto_checkcall_enabled[]" checked>
-                                                        <label class="form-check-label form-label"
-                                                            >Enable Auto Checkcalls</label>
+                                                        <!-- Always send a value: hidden input for 0, checkbox for 1 -->
+                                                        <input type="hidden" name="auto_checkcall_enabled[]" value="0">
+                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox" name="auto_checkcall_enabled[]" value="1">
+                                                        <label class="form-check-label form-label">Enable Auto Checkcalls</label>
                                                     </div>
                                                 </div>
 
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center requireMediaToggleWrapper">
                                                     <div class="form-check form-switch mb-3">
                                                             <input class="form-check-input requireMediaToggle" type="checkbox"
-                                                                name="require_media_upload[]" checked>
+                                                                name="require_media_upload[]" >
                                                             <label class="form-check-label form-label"
                                                                 >Require Media Upload for checkcalls</label>
                                                     </div>
@@ -425,31 +425,12 @@
             try {
                 var $auto = $group.find('.autoCheckcallToggle').first();
                 var $wrapper = $group.find('.requireMediaToggleWrapper').first();
-                var $require = $group.find('.requireMediaToggle').first();
-                var $from = $group.find('input[name="from_shift[]"]').first();
-                var $to = $group.find('input[name="to_shift[]"]').first();
                 if ($auto.length && $wrapper.length) {
                     if ($auto.is(':checked')) {
                         $wrapper.show();
                     } else {
                         $wrapper.hide();
                     }
-                }
-
-                // If a shift date (from/to) is present, ensure auto-checkcalls is enabled and require-media checked
-                try {
-                    var hasDate = ($from.length && $from.val()) || ($to.length && $to.val());
-                    if (hasDate) {
-                        if ($auto.length && !$auto.is(':checked')) {
-                            $auto.prop('checked', true);
-                            if ($wrapper.length) $wrapper.show();
-                        }
-                        if ($require.length && !$require.is(':checked')) {
-                            $require.prop('checked', true);
-                        }
-                    }
-                } catch (e) {
-                    console && console.error && console.error('Error checking shift date for group', e);
                 }
             } catch (e) {
                 console && console.error && console.error('Error updating RequireMedia visibility for group', e);

@@ -15,6 +15,8 @@ class TrainingMaterial extends Model
         'content_url',
         'pdf_url',
         'required',
+        'client_id',
+        'site_id',
         'implementation_date',
         'deadline',
         'acknowledge_by_date',
