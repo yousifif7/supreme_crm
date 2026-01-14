@@ -328,11 +328,9 @@
                           </div>
                           <div class="col-md-4 mb-3">
                               <label class="form-label">Subcontractor</label>
-                              <select class="form-select sub-add-select2" name="subcontractor">
-                                  <option>----Select Subcontractor----</option>
+                              <select class="form-select sub-add-select2" name="subcontractor[]" multiple="multiple" data-placeholder="Select subcontractors">
                                   @foreach ($subcontractors as $subcontractor)
-                                      <option value="{{ $subcontractor->id }}">
-                                          {{ $subcontractor->name }}</option>
+                                      <option value="{{ $subcontractor->id }}">{{ $subcontractor->name }}</option>
                                   @endforeach
                               </select>
                               <span class="text-danger form-error" id="error_subcontractor"></span>

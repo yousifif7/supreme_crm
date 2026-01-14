@@ -29,6 +29,7 @@ use App\Exports\PatrolsExport;
 use App\Models\CheckpointScan;
 use App\Models\PatrolCheckPoint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use App\DataTables\ShiftsDataTable;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Auth;
@@ -58,6 +59,21 @@ class ShiftController extends Controller
         }
 
         return Carbon::parse(trim($dateOnly . ' ' . $timeVal));
+    }
+
+    /**
+     * Return a small, cached list of subcontractor users.
+     * Caches minimal columns for fast responses in UI endpoints.
+     *
+     * @return \Illuminate\Database\Eloquent\Collection
+     */
+    protected function getSubcontractors()
+    {
+        return Cache::remember('subcontractors_min_list', 300, function () {
+            return User::role('subcontractor')
+                ->orderBy('first_name', 'asc')
+                ->get(['id', 'first_name', 'last_name', 'email']);
+        });
     }
 
 
@@ -148,7 +164,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->orderBy('first_name', 'asc')->get();
         $sites = Site::orderBy('site_name', 'asc')->get();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = User::role('subcontractor')->get();
+            $subcontractors = $this->getSubcontractors();
         $users = User::all();
         $services = EmployeeType::all();
         return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -162,7 +178,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = User::role('subcontractor')->get();
+            $subcontractors = $this->getSubcontractors();
         $services = EmployeeType::all();
         return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
     }
@@ -178,7 +194,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = User::role('subcontractor')->get();
+        $subcontractors = $this->getSubcontractors();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.worker_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -195,7 +211,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = User::role('subcontractor')->get();
+            $subcontractors = $this->getSubcontractors();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.site_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -212,7 +228,7 @@ class ShiftController extends Controller
         $clients = User::role('client')->get();
         $sites = Site::all();
         $staffs = User::role('security_staff')->get();
-        $subcontractors = User::role('subcontractor')->get();
+            $subcontractors = $this->getSubcontractors();
         $users = User::all();
         $services = EmployeeType::all();
         return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
@@ -482,6 +498,11 @@ class ShiftController extends Controller
                 'end_shift'   => $request->end_shift[$i],
                 'service_type_1'   => $serviceType1?->name,
                 'service_type_2'   => $serviceType2?->name,
+                'subcontractor'   => $request->subcontractor_id[$i] ?? null,
+                // Persist site-level rate on the parent Shift record so it is
+                // available for later edits and reports.
+                'site_rate'        => $request->site_rate[$i] ?? null,
+                'employee_rate'        => $request->employee_rate[$i] ?? null,
             ]);
 
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
@@ -536,13 +557,14 @@ class ShiftController extends Controller
                             'shift_date'  => $date->format('Y-m-d'),
                             'start_time'  => $request->start_shift[$i],
                             'end_time'    => $request->end_shift[$i],
+                            'subcontractor_id'    => $request->subcontractor_id[$i] ?? null,
                             'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
                             'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
                             'total_hours' => $this->calculateTotalHours(
                                 $request->start_shift[$i],
                                 $request->end_shift[$i]
                             ),
-                            'guard_rate'  => $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0,
+                            'guard_rate'  => $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0,
                             'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                         ]);
 
@@ -613,18 +635,21 @@ class ShiftController extends Controller
                                     'require_media'  => $shiftDate->require_media ?? 0,
                                 ]);
                             }
-
-                            Patrol::create([
-                                'shift_id'              => $shiftDate->id,
-                                'name'                  => 'Auto Patrol ' . ($n + 1),
-                                'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
-                                'start_time'            => $patrolTime->format('Y-m-d H:i:s'),
-                                'status'                => 'pending',
-                                'total_checkpoints'     => $totalCheckpoints,
-                                'completed_checkpoints' => 0,
-                                'issues_reported'       => 0,
-                                'completed_at'          => null,
-                            ]);
+                            
+                            
+                            if (isset($request->auto_patrol_enabled[$i]) && $request->auto_patrol_enabled[$i] == '1') {
+                                Patrol::create([
+                                    'shift_id'              => $shiftDate->id,
+                                    'name'                  => 'Auto Patrol ' . ($n + 1),
+                                    'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
+                                    'start_time'            => $patrolTime->format('Y-m-d H:i:s'),
+                                    'status'                => 'pending',
+                                    'total_checkpoints'     => $totalCheckpoints,
+                                    'completed_checkpoints' => 0,
+                                    'issues_reported'       => 0,
+                                    'completed_at'          => null,
+                                ]);
+                            }
                         }
 
                         // Manually added checkcalls (form-level) — create per ShiftDate
@@ -677,11 +702,12 @@ class ShiftController extends Controller
         $clients = User::role('client')->orderBy('first_name', 'asc')->get();
         $sites = Site::orderBy('site_name', 'asc')->get();
         $staffs = User::role('security_staff')->orderBy('first_name', 'asc')->get();
-        $subcontractors = User::role('subcontractor')->orderBy('first_name', 'asc')->get();
+        $subcontractors = $this->getSubcontractors();
         $services = EmployeeType::all();
 
         return response()->json([
             'shift' => $shift,
+            'parent_shift' => $shift->shift,
             'clients' => $clients,
             'sites' => $sites,
             'staffs' => $staffs,
@@ -698,6 +724,7 @@ class ShiftController extends Controller
             'status_id'   => 'nullable|integer',
             'staff_id'    => 'nullable|integer',
             'guard_rate'  => 'nullable|numeric',
+            'subcontractor_id' => 'nullable',
             'start_shift' => 'nullable',
             'end_shift'   => 'nullable',
             'book_on'     => 'nullable',
@@ -899,6 +926,35 @@ class ShiftController extends Controller
 
         // ✅ Update shift
         $shift->update($data);
+
+        // If subcontractor provided, ensure parent shift record is updated as well
+        if (!empty($data['subcontractor_id'])) {
+            try {
+                $parent = $shift->shift;
+                if ($parent) {
+                    $parent->subcontractor = $data['subcontractor_id'];
+                    $parent->save();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to update parent shift subcontractor (updateWithOverride): '.$e->getMessage());
+            }
+        }
+
+        // If subcontractor was provided in the request, ensure it's persisted
+        if ($request->has('subcontractor_id')) {
+            $shift->subcontractor_id = $request->subcontractor_id ?: null;
+            $shift->save();
+
+            try {
+                $parent = $shift->shift;
+                if ($parent) {
+                    $parent->subcontractor = $request->subcontractor_id ?: null;
+                    $parent->save();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to update parent shift subcontractor (update): '.$e->getMessage());
+            }
+        }
 
         return response()->json(['message' => 'Shift updated successfully']);
     }
@@ -1603,6 +1659,7 @@ public function getTodayShifts()
         $validator = Validator::make($request->all(), [
             'shift_id' => 'required|exists:shift_dates,id',
             'staff_id' => 'required|exists:users,id',
+            'subcontractor_id' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -1709,7 +1766,21 @@ public function getTodayShifts()
         $shiftDate->staff_id = $staff->user_id;
         $shiftDate->is_assign = 1;
         $shiftDate->status = 'pending';
+        // store subcontractor on the shift_date and also update parent shift record
+        $shiftDate->subcontractor_id = $request->subcontractor_id ?? null;
         $shiftDate->save();
+
+        if (!empty($request->subcontractor_id)) {
+            try {
+                $parent = $shiftDate->shift;
+                if ($parent) {
+                    $parent->subcontractor = $request->subcontractor_id;
+                    $parent->save();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to update parent shift subcontractor: '.$e->getMessage());
+            }
+        }
 
         send_push_notification(
             $staff->user_id,
@@ -1772,6 +1843,47 @@ public function getTodayShifts()
         return response()->json([
             'employee' => $employee,
         ]);
+    }
+
+    public function subcontractorsForEmployee($id)
+    {
+        $employee = \App\Models\Employee::where('user_id', $id)->first();
+
+        $subs = collect();
+        if ($employee) {
+            $raw = $employee->subcontractor;
+
+            if (is_array($raw)) {
+                $ids = array_filter($raw);
+            } elseif (is_null($raw) || $raw === '') {
+                $ids = [];
+            } else {
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $ids = array_filter($decoded);
+                } else {
+                    $ids = array_filter(array_map('trim', explode(',', (string) $raw)));
+                }
+            }
+
+            $ids = array_map('intval', $ids);
+
+            if (!empty($ids)) {
+                $subs = \App\Models\Subcontractor::whereIn('id', $ids)
+                    ->select('id', 'company_name', 'user_id', 'email')
+                    ->orderBy('company_name')
+                    ->get();
+
+                if ($subs->isEmpty()) {
+                    $subs = \App\Models\Subcontractor::whereIn('user_id', $ids)
+                        ->select('id', 'company_name', 'user_id', 'email')
+                        ->orderBy('company_name')
+                        ->get();
+                }
+            }
+        }
+
+        return response()->json(['data' => $subs]);
     }
 
     public function filter(Request $request)
@@ -1978,7 +2090,10 @@ public function getTodayShifts()
             'checkCalls'
         ]);
 
-        return view('security_boards.shift-detail', compact('shiftDate'));
+        $subcontractors = $this->getSubcontractors();
+
+
+        return view('security_boards.shift-detail', compact('shiftDate','subcontractors'));
     }
 
 
@@ -2114,6 +2229,7 @@ public function getTodayShifts()
             'shift_ids'   => 'required|array',
             'shift_ids.*' => 'exists:shift_dates,id',
             'staff_id'    => 'nullable|exists:users,id',
+            'subcontractor_id' => 'nullable',
             'start_times' => 'nullable|array', // optional keyed by shift ID
             'end_times'   => 'nullable|array', // optional keyed by shift ID
             'book_on'     => 'nullable|array', // optional keyed by shift ID
@@ -2352,6 +2468,7 @@ public function getTodayShifts()
         $validator = Validator::make($request->all(), [
             'shift_id' => 'required|exists:shift_dates,id',
             'staff_id' => 'required|exists:users,id',
+            'subcontractor_id' => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -2389,7 +2506,21 @@ public function getTodayShifts()
         $shiftDate->staff_id = $staffUser->user_id;
         $shiftDate->is_assign = 1;
         $shiftDate->status = 'pending';
+        // store subcontractor on the shift_date and also update parent shift record
+        $shiftDate->subcontractor_id = $request->subcontractor_id ?? null;
         $shiftDate->save();
+
+        if (!empty($request->subcontractor_id)) {
+            try {
+                $parent = $shiftDate->shift;
+                if ($parent) {
+                    $parent->subcontractor = $request->subcontractor_id;
+                    $parent->save();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to update parent shift subcontractor (override): '.$e->getMessage());
+            }
+        }
 
         send_push_notification(
             $staffUser->user_id,
@@ -2417,6 +2548,7 @@ public function getTodayShifts()
             'shift_ids'   => 'required|array',
             'shift_ids.*' => 'exists:shift_dates,id',
             'staff_id'    => 'required|exists:users,id',
+            'subcontractor_id' => 'nullable',
             'start_times' => 'nullable|array',
             'end_times'   => 'nullable|array',
             'book_on'     => 'nullable|array',
@@ -2482,6 +2614,20 @@ public function getTodayShifts()
             $endCalc   = strlen($newEnd) === 5 ? $newEnd . ':00' : $newEnd;
             $shiftDate->total_hours = $this->calculateTotalHours($startCalc, $endCalc, 'H:i:s');
 
+            // persist subcontractor if provided for bulk assign
+            if ($request->has('subcontractor_id')) {
+                $shiftDate->subcontractor_id = $request->subcontractor_id ?: null;
+                try {
+                    $parent = $shiftDate->shift;
+                    if ($parent) {
+                        $parent->subcontractor = $request->subcontractor_id ?: null;
+                        $parent->save();
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to update parent shift subcontractor (multiAssign): '.$e->getMessage());
+                }
+            }
+
             $shiftDate->save();
 
             send_push_notification(
@@ -2523,6 +2669,7 @@ public function getTodayShifts()
             'book_on'     => 'nullable',
             'book_off'    => 'nullable',
             'shift_date'  => 'nullable|date',
+            'subcontractor_id'  => 'nullable',
         ]);
 
         if ($validator->fails()) {
@@ -2534,6 +2681,7 @@ public function getTodayShifts()
         $data['absentee_end_time']   = $data['book_off'] ?? null;
         $data['start_time']          = $data['start_shift'];
         $data['end_time']            = $data['end_shift'];
+        $data['subcontractor_id']            = $data['subcontractor_id'] ?? null;
 
         // Normalize time format
         if (strlen($data['start_shift']) === 5) $data['start_shift'] .= ':00';
@@ -2776,6 +2924,7 @@ public function getTodayShifts()
         $validator = Validator::make($request->all(), [
             'staff_id' => 'nullable|integer',
             'employee_rate' => 'nullable|numeric',
+            'site_rate' => 'nullable|numeric',
             'start_shift' => 'nullable',
             'end_shift' => 'nullable',
             'book_on' => 'nullable',
@@ -2835,6 +2984,12 @@ public function getTodayShifts()
         
         if (array_key_exists('employee_rate', $data)) {
             $shiftDate->guard_rate = $data['employee_rate'];
+            $parentShift->employee_rate = $data['employee_rate'];
+        }
+
+        if (array_key_exists('site_rate', $data)) {
+            $shiftDate->guard_rate = $data['site_rate'];
+            $parentShift->site_rate = $data['site_rate'];
         }
         
         if (array_key_exists('shift_date', $data)) {

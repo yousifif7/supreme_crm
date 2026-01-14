@@ -33,35 +33,74 @@ class InvoiceService
             'dateTo' => $dateTo
         ]);
 
+        // Resolve client record whether the caller passed user_id or client.id
         $client = Client::where('user_id', $clientId)->first();
-        
-        if (!$client) {
-            throw new \InvalidArgumentException('Client not found');
-        }
-        
-        // Get ALL shifts for this client and site (there may be multiple with different date ranges)
-        $shifts = Shift::where('client_id', $clientId)
-            ->where('site_id', $siteId)
-            ->get();
-
-        if ($shifts->isEmpty()) {
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('No shift found for this client and site');
+        if (! $client) {
+            $client = Client::find($clientId);
         }
 
-        // Collect shift dates from ALL shifts within the date range
-        $shiftIds = $shifts->pluck('id')->toArray();
-        $shiftDates = ShiftDate::whereIn('shift_id', $shiftIds)
+        if (! $client) {
+            // If still not found, assume $clientId was actually the user's id
+            $clientUserId = $clientId;
+        } else {
+            $clientUserId = $client->user_id ?? $clientId;
+        }
+
+        // Fetch ShiftDate rows for this client (by client user id) and the given site
+        $shiftDates = ShiftDate::with(['shift.site', 'staff'])
+            ->whereHas('shift', function ($q) use ($clientUserId, $siteId) {
+                $q->where('client_id', $clientUserId)
+                  ->where('site_id', $siteId);
+            })
             ->whereDate('shift_date', '>=', $dateFrom)
             ->whereDate('shift_date', '<=', $dateTo)
             ->orderBy('shift_date')
             ->get();
 
+        try {
+            $debugPath = storage_path('logs/invoice_debug.log');
+            $payload = [
+                'timestamp' => now()->toDateTimeString(),
+                'context' => 'generateClientInvoice',
+                'clientId_param' => $clientId,
+                'resolved_client_user_id' => $clientUserId,
+                'siteId' => $siteId,
+                'dateFrom' => $dateFrom,
+                'dateTo' => $dateTo,
+                'shiftDateCount' => $shiftDates->count(),
+                'shiftIds' => $shiftDates->pluck('shift_id')->unique()->values()->all(),
+                'shift_samples' => $shiftDates->take(20)->map(function($sd) use ($client) {
+                    $siteRate = $sd->shift->site->rate ?? ($client->office_rate ?? 0);
+                    $hourlyRate = $sd->guard_rate ?? $siteRate;
+                    $computed = [];
+                    try {
+                        $computed = $this->processShiftDate($sd, $hourlyRate);
+                    } catch (\Throwable $e) {
+                        $computed = ['error' => $e->getMessage()];
+                    }
+
+                    return [
+                        'id' => $sd->id,
+                        'shift_id' => $sd->shift_id,
+                        'shift_date' => $sd->shift_date,
+                        'start_time' => $sd->start_time,
+                        'end_time' => $sd->end_time,
+                        'break_time' => $sd->break_time,
+                        'absentee_start_time' => $sd->absentee_start_time,
+                        'absentee_end_time' => $sd->absentee_end_time,
+                        'guard_rate' => $sd->guard_rate,
+                        'resolved_hourly_rate' => $hourlyRate,
+                        'computed' => $computed,
+                    ];
+                })->values()->all(),
+            ];
+            file_put_contents($debugPath, json_encode($payload, JSON_PRETTY_PRINT) . "\n\n", FILE_APPEND | LOCK_EX);
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
         if ($shiftDates->isEmpty()) {
-            $shiftRanges = $shifts->map(fn($s) => "{$s->from_shift} to {$s->to_shift}")->join(', ');
-            $message = "No shift dates found in the selected date range ({$dateFrom} to {$dateTo}). ";
-            $message .= "Found " . $shifts->count() . " shift(s) configured for: {$shiftRanges}. ";
-            $message .= "Please ensure shift dates exist within your selected invoice period.";
-            throw new \Illuminate\Database\Eloquent\ModelNotFoundException($message);
+            throw new \Illuminate\Database\Eloquent\ModelNotFoundException('No shift dates found for the selected client/site and date range');
         }
 
         $invoiceItems = [];
@@ -72,7 +111,7 @@ class InvoiceService
         $totalAmount = 0; // Track actual billed amount
 
         foreach ($shiftDates as $shiftDate) {
-            $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->site->rate ?? $client->office_rate);
+            $hourlyRate = $shiftDate->shift->site_rate ?? $shiftDate->guard_rate ;
             
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -124,10 +163,17 @@ class InvoiceService
      */
     public function generateClientInvoiceForSites($clientId, array $siteIds = [], $dateFrom = null, $dateTo = null, $dueDate = null, $notes = null, $frequency = null)
     {
+        // Resolve client whether caller passed a client model id or the client's user id
         $client = Client::where('user_id', $clientId)->first();
-        if (!$client) {
+        if (! $client) {
+            $client = Client::find($clientId);
+        }
+
+        if (! $client) {
             throw new \Illuminate\Database\Eloquent\ModelNotFoundException('Client not found');
         }
+
+        $clientUserId = $client->user_id ?? $clientId;
 
         // Normalize and validate dates
         $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->toDateString() : Carbon::today()->toDateString();
@@ -137,7 +183,7 @@ class InvoiceService
         }
 
         if (empty($siteIds)) {
-            $siteIds = Site::where('client_id', $clientId)->pluck('id')->toArray();
+            $siteIds = Site::where('client_id', $clientUserId)->pluck('id')->toArray();
         }
 
         $invoiceItems = [];
@@ -147,26 +193,25 @@ class InvoiceService
         $totalBookOffHours = 0;
         $totalAmount = 0; // Track actual billed amount
 
-        foreach ($siteIds as $siteId) {
-            $shift = Shift::where('client_id', $clientId)
-                ->where('site_id', $siteId)
-                ->first();
+        // Fetch all ShiftDate rows for these sites (client-scoped) in one query and group by site
+        $shiftDates = ShiftDate::with(['shift.site', 'staff'])
+            ->whereHas('shift', function ($q) use ($clientUserId, $siteIds) {
+                $q->where('client_id', $clientUserId)
+                  ->whereIn('site_id', $siteIds);
+            })
+            ->whereDate('shift_date', '>=', $dateFrom)
+            ->whereDate('shift_date', '<=', $dateTo)
+            ->orderBy('shift_date')
+            ->get();
 
-            if (!$shift) {
-                // no shift for this site; skip
-                continue;
-            }
+        // Group by site id so we can iterate site-by-site and include all shifts for each site
+        $grouped = $shiftDates->groupBy(function ($sd) {
+            return $sd->shift->site_id ?? null;
+        });
 
-            $shiftDates = ShiftDate::where('shift_id', $shift->id)
-                ->whereDate('shift_date', '>=', $dateFrom)
-                ->whereDate('shift_date', '<=', $dateTo)
-                ->orderBy('shift_date')
-                ->get();
-
-            foreach ($shiftDates as $shiftDate) {
-                // Use guard_rate from shift date, fall back to site rate, then client office_rate
-                $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->site->rate ?? $client->office_rate);
-                
+        foreach ($grouped as $siteId => $datesForSite) {
+            foreach ($datesForSite as $shiftDate) {
+                $hourlyRate = ($shiftDate->shift->site_rate ?? $client->office_rate) ?? $shiftDate->guard_rate;
                 $item = $this->processShiftDate($shiftDate, $hourlyRate);
                 $invoiceItems[] = $item;
 
@@ -231,9 +276,21 @@ class InvoiceService
 
         // Get all shifts managed by this subcontractor. Optionally filter to a specific staff member.
         $shifts = Shift::with(['shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId, $securityStaffId) {
+            // When a subcontractor filter is provided, include shiftDates that satisfy any of:
+            // - the shift_date has subcontractor_id set to the requested id
+            // - the parent Shift->subcontractor equals the requested id
+            // - the staff's Employee->subcontractor field contains the requested id (supports scalar, JSON array or CSV)
             $q->when($subcontractorId, function ($query) use ($subcontractorId) {
-                $query->whereHas('staff.employee', function ($q) use ($subcontractorId) {
-                    $q->where('subcontractor', $subcontractorId);
+                $query->where(function ($wr) use ($subcontractorId) {
+                    $wr->where('subcontractor_id', $subcontractorId)
+                       ->orWhereHas('shift', function ($qs) use ($subcontractorId) {
+                            $qs->where('subcontractor_id', $subcontractorId);
+                       })
+                       ->orWhereHas('staff.employee', function ($qe) use ($subcontractorId) {
+                            $qe->where('subcontractor', $subcontractorId)
+                               ->orWhereRaw('JSON_CONTAINS(`subcontractor`, ?)', [json_encode($subcontractorId)])
+                               ->orWhere('subcontractor', 'like', '%'. $subcontractorId .'%');
+                       });
                 });
             });
 
@@ -255,7 +312,7 @@ class InvoiceService
             foreach ($shift->shiftDates as $shiftDate) {
                 // Prefer guard_rate on the shift date if present, otherwise fall back to PO rate
                 // Also, if guard_rate is zero or null, but the staff has a guard_rate, prefer staff's guard_rate for security staff payrolls
-                $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->po_rate ?? 0);
+                $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->employee_rate ?? 0);
 
                 $item = $this->processShiftDate($shiftDate, $hourlyRate);
                 $invoiceItems[] = $item;
@@ -356,7 +413,7 @@ class InvoiceService
 
         foreach ($shiftDates as $shiftDate) {
             // Prefer guard_rate on the shift date if present, otherwise fall back to PO rate
-            $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->po_rate ?? 0);
+            $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->employee_rate ?? 0);
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -431,12 +488,25 @@ class InvoiceService
         $bookOffHours = 0;
 
         // Compute absentee (book on) hours if within the shift
-        if (! empty($shiftDate->absentee_start_time)) {
-            $absStart = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
-            if ($absStart->between($start, $end)) {
-                $bookOnHours = $start->diffInMinutes($absStart) / 60;
-            }
+if (! empty($shiftDate->absentee_start_time)) {
+    $absStart = Carbon::createFromFormat(
+        'Y-m-d H:i:s',
+        $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time
+    );
+
+    $graceStart = $start->copy()->subMinutes(15);
+
+    if ($absStart->between($graceStart, $end)) {
+        if ($absStart->lt($start)) {
+            // Early but within grace → no deduction
+            $bookOnHours = 0;
+        } elseif ($absStart->gt($start)) {
+            // Late → deduct from scheduled start
+            $bookOnHours = $start->diffInMinutes($absStart) / 60;
         }
+    }
+}
+
 
         // Compute absentee (book off) hours if within the shift
         if (! empty($shiftDate->absentee_end_time)) {

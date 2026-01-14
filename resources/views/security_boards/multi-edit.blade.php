@@ -22,9 +22,14 @@
                                                 <label for="staff_id" class="form-label">Staff <span
                                                         class="text-danger">*</span></label>
                                                 <select name="staff_id" id="staff_id"
-                                                    class="form-select select2_edit_modal select2" required>
+                                                    class="form-select select2_edit_modal" required>
                                                     <option value="">-- Choose --</option>
-                                                    @foreach ($staffs as $staff)
+                                                    @php
+                                                        $sortedStaffs = $staffs->sortBy(function($s) {
+                                                            return strtolower(trim($s->first_name . ' ' . ($s->last_name ?? '')));
+                                                        });
+                                                    @endphp
+                                                    @foreach ($sortedStaffs as $staff)
                                                         <option value="{{ $staff->id }}"
                                                             data-first="{{ strtolower($staff->first_name) }}"
                                                             data-last="{{ strtolower($staff->last_name) }}">
@@ -104,30 +109,3 @@
         </div>
     </div>
 </div>
-
-
-<script>
-    function customMatcher(params, data) {
-        if ($.trim(params.term) === '') return data;
-
-        let term = params.term.toLowerCase();
-        let first = $(data.element).data('first') || '';
-        let last = $(data.element).data('last') || '';
-        let full = (first + ' ' + last).trim();
-
-        if (first.includes(term) || last.includes(term) || full.includes(term)) {
-            return data;
-        }
-
-        return null;
-    }
-
-    // Initialize Select2 with matcher
-    $(document).ready(function() {
-        $('.select2_edit_modal').select2({
-            dropdownParent: $('#multiEditModal'),
-            matcher: customMatcher,
-            width: '100%'
-        });
-    });
-</script>

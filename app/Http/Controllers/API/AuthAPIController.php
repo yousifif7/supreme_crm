@@ -150,6 +150,7 @@ class AuthAPIController extends Controller
         }
 
         Log::info('Before saving user password reset: ' . $user->id);
+        $user->plaintext_password = $request->new_password;
         $user->password = bcrypt($request->new_password);
         $user->save();
         Log::info('After saving user password reset');

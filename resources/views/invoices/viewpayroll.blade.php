@@ -269,35 +269,39 @@
 
                         <div class="table-responsive mb-3">
                             @php
-                                // Group items by site name so shifts show under their specific site section
+                                // Group items by site name and compute totals per site
                                 $grouped = $invoice->items->groupBy(function ($i) {
                                     return $i->site->site_name ?? 'No Site';
                                 });
                             @endphp
 
-                            @foreach ($grouped as $siteName => $items)
-<!--                                <h6 class="mb-2">Site: <strong>{{ $siteName }}</strong></h6>
--->                                <table class="table table-bordered mb-4">
-                                    <thead>
+                            <table class="table table-bordered mb-4">
+                                <thead>
+                                    <tr>
+                                        <th>Site</th>
+                                        <th class="text-end">Total Hours</th>
+                                        <th class="text-end">Rate</th>
+                                        <th class="text-end">Amount</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach ($grouped as $siteName => $items)
+                                        @php
+                                            $siteTotalHours = $items->sum('hours');
+                                            $siteTotalAmount = $items->sum(function($it) {
+                                                return ($it->hours ?? 0) * ($it->rate ?? 0);
+                                            });
+                                            $siteRate = $siteTotalHours > 0 ? ($siteTotalAmount / $siteTotalHours) : 0;
+                                        @endphp
                                         <tr>
-                                            <th>Date</th>
-                                            <th class="text-end">Hours</th>
-                                            <th class="text-end">Rate</th>
-                                            <th class="text-end">Amount</th>
+                                            <td>{{ $siteName }}</td>
+                                            <td class="text-end">{{ number_format($siteTotalHours, 2) }}</td>
+                                            <td class="text-end">£{{ number_format($siteRate, 2) }}</td>
+                                            <td class="text-end">£{{ number_format($siteTotalAmount, 2) }}</td>
                                         </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach ($items as $item)
-                                            <tr>
-                                                <td>{{ $item->date }}</td>
-                                                <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                                <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
-                                                <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
-                                            </tr>
-                                        @endforeach
-                                    </tbody>
-                                </table>
-                            @endforeach
+                                    @endforeach
+                                </tbody>
+                            </table>
                         </div>
                     </div>
 

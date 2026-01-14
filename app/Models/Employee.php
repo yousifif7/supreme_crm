@@ -118,6 +118,7 @@ class Employee extends Model
         'holiday_from_additional' => 'date',
         'holiday_to_additional' => 'date',
         'additional_files' => 'array',
+        'subcontractor' => 'array',
     ];
 
     protected static function boot()

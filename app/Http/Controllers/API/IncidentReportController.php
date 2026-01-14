@@ -23,7 +23,7 @@ class IncidentReportController extends Controller
     {
         // Validate input
         $data = $request->validate([
-            'shift_id' => 'required',
+            'shift_id' => 'nullable',
             'category' => 'required|in:theft,assault,fire,medical,property_damage,suspicious_activity,other',
             'severity' => 'required|in:low,medium,high,critical',
             'title' => 'required|string',

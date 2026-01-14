@@ -103,15 +103,17 @@
                                             </div>
                                         </div>
 
+                                        @hasanyrole('superadmin')
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Site rate </label>
                                                 <input type="text" name="site_rate" placeholder="£"
-                                                    class="form-control numeric-input siteRate">
+                                                    class="form-control numeric-input siteRate" id="site_rate">
                                                 <span class="text-danger form-error error_site_rate"></span>
                                             </div>
                                         </div>
 
+                                        @endhasanyrole
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Select Service Type</label>
@@ -190,7 +192,12 @@
                                                 <select class="form-select StaffSelect" name="staff_id"
                                                     id="staff_id">
                                                     <option value="">--choose--</option>
-                                                    @foreach ($staffs as $staff)
+                                                   @php
+                                                        $sortedStaffs = $staffs->sortBy(function($s) {
+                                                            return strtolower(trim($s->first_name . ' ' . ($s->last_name ?? '')));
+                                                        });
+                                                    @endphp
+                                                    @foreach ($sortedStaffs as $staff)
                                                         <option value="{{ $staff->id }}">
                                                             {{ $staff->first_name }} {{ $staff->last_name }}</option>
                                                     @endforeach
@@ -201,12 +208,29 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
+                                                <label class="form-label">Select Subcontractor</label>
+                                                <select class="form-select SubcontractorSelect" name="subcontractor_id" id="subcontractor_id">
+                                                    <option value="">--choose--</option>
+                                                    @if(isset($subcontractors) && $subcontractors->count())
+                                                        @foreach($subcontractors as $s)
+                                                            <option value="{{ $s->id }}">{{ $s->company_name ?? ($s->first_name . ' ' . ($s->last_name??'')) }}</option>
+                                                        @endforeach
+                                                    @endif
+                                                </select>
+                                                <span class="text-danger form-error error_subcontractor_id"></span>
+                                            </div>
+                                        </div>
+
+                                        @hasanyrole('superadmin')
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
                                                 <label class="form-label">Employee Rate</label>
                                                 <input type="text" name="employee_rate" id="guard_rate" placeholder="£"
                                                     class="form-control numeric-input staffRate">
                                                 <span class="text-danger form-error error_employee_rate"></span>
                                             </div>
                                         </div>
+                                        @endhasanyrole
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
@@ -331,6 +355,14 @@
                                                     </div>
                                                 </div>
 
+                                                <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
+                                                    <div class="form-check form-switch mb-3">
+                                                        <input class="form-check-input autoPatrolToggle" type="checkbox"
+                                                            name="auto_patrol_enabled">
+                                                        <label class="form-check-label form-label">Enable Auto Patrols</label>
+                                                    </div>
+                                                </div>
+
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center requireMediaToggleWrapper">
                                                     <div class="form-check form-switch mb-3">
                                                             <input class="form-check-input requireMediaToggle" type="checkbox"
@@ -404,7 +436,7 @@
 
     $(document).ready(function() {
         // Initialize Select2 for edit shift modal
-        $('#edit_shift .select2_client, #edit_shift .select2_site, #edit_shift .StaffSelect').each(function() {
+        $('#edit_shift .select2_client, #edit_shift .select2_site, #edit_shift .StaffSelect, #edit_shift .SubcontractorSelect').each(function() {
             if (!$(this).hasClass('select2-hidden-accessible')) {
                 $(this).select2({
                     placeholder: "--choose--",
@@ -448,9 +480,15 @@
                 url: `${baseUrl}/api/client/${clientId}`,
                 method: 'GET',
                 dataType: 'json',
-                success: function(data) {
+                    success: function(data) {
                     try {
                         $shiftGroup.find('.siteRate').val(data.client.office_rate || '');
+                        // Also clear guard/employee rate if no staff is selected for this group
+                        const staffVal = $shiftGroup.find('.StaffSelect').val();
+                        if (!staffVal) {
+                            $shiftGroup.find('.staffRate').val('');
+                            $shiftGroup.find('#guard_rate').val('');
+                        }
                     } catch (err) {}
                     if (data.sites && data.sites.length > 0) {
                         $.each(data.sites, function(index, site) {
@@ -474,7 +512,49 @@
             });
         });
 
-        // Update staff guard rate when staff selection changes
+        // Helper: populate subcontractor select for a shift-group based on staffId
+        function populateSubcontractorsForGroup($shiftGroup, staffId, preserveValue) {
+            var $sub = $shiftGroup.find('#subcontractor_id, .SubcontractorSelect').first();
+            if (!$sub.length) return;
+
+            var current = (typeof preserveValue !== 'undefined') ? preserveValue : $sub.val();
+
+            $sub.prop('disabled', true);
+            $sub.html('<option value="">Loading...</option>');
+
+            if (!staffId) {
+                $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false).trigger('change');
+                return;
+            }
+
+            $.ajax({
+                url: `${baseUrl}/subcontractors/for-employee/${staffId}`,
+                method: 'GET',
+                dataType: 'json'
+            }).done(function(res) {
+                $sub.empty().append('<option value="">--choose--</option>');
+                if (res && res.data && res.data.length) {
+                    res.data.forEach(function(s) {
+                        var label = s.company_name || (s.first_name ? (s.first_name + ' ' + (s.last_name||'')) : ('Subcontractor ' + s.id));
+                        $sub.append(`<option value="${s.id}">${label}</option>`);
+                    });
+                }
+
+                // restore preserved value if still present
+                if (current) {
+                    try { $sub.val(current); } catch (e) {}
+                }
+
+                if ($sub.hasClass('select2-hidden-accessible')) {
+                    $sub.trigger('change.select2');
+                }
+                $sub.prop('disabled', false).trigger('change');
+            }).fail(function() {
+                $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+            });
+        }
+
+        // Update staff guard rate when staff selection changes and populate subcontractors
         $('#edit_shift').on("change select2:select", ".StaffSelect", function(e) {
             var $target = $(e.target && e.target.nodeName === 'SELECT' ? e.target : this);
             const staffId = $target.val();
@@ -484,6 +564,7 @@
 
             if (!staffId) {
                 $shiftGroup.find('.staffRate').val('');
+                populateSubcontractorsForGroup($shiftGroup, null);
                 return;
             }
 
@@ -496,10 +577,43 @@
                         const guardRate = data.staff.guard_rate || data.staff.employee?.guard_rate || '';
                         $shiftGroup.find('.staffRate').val(guardRate);
                     }
+                    // preserve any currently selected subcontractor value (if present)
+                    var preserve = $shiftGroup.find('#subcontractor_id, .SubcontractorSelect').first().val();
+                    populateSubcontractorsForGroup($shiftGroup, staffId, preserve);
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch staff error:', error);
                 }
+            });
+        });
+
+        // Also handle plain change on #staff_id (non-Select2 instances or different DOM IDs)
+        $('#edit_shift').on('change', '#staff_id', function(e) {
+            var $target = $(this);
+            const staffId = $target.val();
+            var $shiftGroup = $target.closest('.shift-group');
+            if (!$shiftGroup.length) $shiftGroup = $('#edit_shift .shift-group').first();
+
+            if (!staffId) {
+                $shiftGroup.find('.staffRate').val('');
+                populateSubcontractorsForGroup($shiftGroup, null);
+                return;
+            }
+
+            // Try to fetch guard rate then populate subcontractors
+            $.ajax({
+                url: `${baseUrl}/api/staff/${staffId}`,
+                method: 'GET',
+                dataType: 'json'
+            }).done(function(data) {
+                if (data && data.staff) {
+                    const guardRate = data.staff.guard_rate || data.staff.employee?.guard_rate || '';
+                    $shiftGroup.find('.staffRate').val(guardRate);
+                }
+                var preserve = $shiftGroup.find('#subcontractor_id, .SubcontractorSelect').first().val();
+                populateSubcontractorsForGroup($shiftGroup, staffId, preserve);
+            }).fail(function() {
+                populateSubcontractorsForGroup($shiftGroup, staffId);
             });
         });
 
@@ -524,9 +638,10 @@
     
     // Toggle visibility of the "Require Media Upload" option per shift-group
     $(document).ready(function() {
-        function updateForGroup($group) {
+                function updateForGroup($group) {
             try {
                 var $auto = $group.find('.autoCheckcallToggle').first();
+                var $autoPatrol = $group.find('.autoPatrolToggle').first();
                 var $wrapper = $group.find('.requireMediaToggleWrapper').first();
                 var $require = $group.find('.requireMediaToggle').first();
                 var $from = $group.find('input[name="from_shift"]').first();
@@ -546,6 +661,9 @@
                             $auto.prop('checked', true);
                             if ($wrapper.length) $wrapper.show();
                         }
+                        if ($autoPatrol.length && !$autoPatrol.is(':checked')) {
+                            $autoPatrol.prop('checked', true);
+                        }
                         if ($require.length && !$require.is(':checked')) {
                             $require.prop('checked', true);
                         }
@@ -562,13 +680,27 @@
             updateForGroup($(this));
         });
 
-        $('#edit_shift').on('change', '.autoCheckcallToggle', function() {
+        $('#edit_shift').on('change', '.autoCheckcallToggle, .autoPatrolToggle', function() {
             var $group = $(this).closest('.shift-group');
             updateForGroup($group);
         });
 
+        // NOTE: subcontractor->staff legacy handler removed. Employee->subcontractor flow is used instead.
+
         $('#edit_shift').on('initShiftGroup', '.shift-group', function() {
             updateForGroup($(this));
+        });
+
+        // When the edit modal is shown, ensure subcontractor selects are populated based on current staff
+        $('#edit_shift').on('shown.bs.modal', function() {
+            $('#edit_shift .shift-group').each(function() {
+                var $group = $(this);
+                var staffId = $group.find('.StaffSelect').first().val();
+                var currentSub = $group.find('#subcontractor_id, .SubcontractorSelect').first().val();
+                if (staffId) {
+                    populateSubcontractorsForGroup($group, staffId, currentSub);
+                }
+            });
         });
     });
     

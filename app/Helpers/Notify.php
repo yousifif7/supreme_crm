@@ -72,7 +72,31 @@ function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShi
                 break;
 
             case 'document_check':
-                if (empty($entity->$field)) {
+                // First check the entity's field (e.g. Employee::sia_licence_file)
+                $hasDocument = false;
+                try {
+                    if (!empty($entity->$field)) {
+                        $hasDocument = true;
+                    } else {
+                        // Try to resolve a user id for the entity (Employee has user_id, User has id)
+                        $userId = $entity->user_id ?? $entity->id ?? null;
+                        if ($userId) {
+                            $docExists = \App\Models\Document::where('user_id', $userId)
+                                ->where('document_type', $field)
+                                ->where('status', 'approved')
+                                ->exists();
+
+                            if ($docExists) {
+                                $hasDocument = true;
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // If anything goes wrong, conservatively treat as missing
+                    \Log::warning('applyRestrictions document_check lookup failed: ' . $e->getMessage());
+                }
+
+                if (! $hasDocument) {
                     $missingDocuments[] = $message;
                 }
                 break;

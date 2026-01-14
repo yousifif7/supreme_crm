@@ -28,7 +28,6 @@ class CheckSiaLicences extends Command
 
                 $newStatus = (!empty($result) && !empty($result['valid'])) ? 'Active' : 'Inactive';
 
-                // Only save if status changed
                 if ($employee->sia_status !== $newStatus) {
                     $employee->sia_status = $newStatus;
                     $employee->save();

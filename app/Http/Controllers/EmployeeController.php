@@ -7,6 +7,7 @@ use App\Helpers\Logger;
 use App\Models\Holiday;
 use App\Models\License;
 use App\Models\Employee;
+use App\Models\Document;
 use App\Models\VisaType;
 use App\Models\Department;
 use App\Models\EmployeeTerm;
@@ -17,6 +18,7 @@ use Spatie\Permission\Models\Role;
 use App\Services\SiaLicenceChecker;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use App\Jobs\RunSiaCheck;
 use App\DataTables\EmployeesDataTable;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
@@ -96,7 +98,8 @@ class EmployeeController extends Controller
             'brp_status' => 'nullable',
             'gourd_rate' => 'nullable|numeric',
             'department_id' => 'nullable',
-            'subcontractor' => 'nullable',
+            'subcontractor' => 'nullable|array',
+            'subcontractor.*' => 'nullable|integer|exists:users,id',
             'tags' => 'nullable',
             'additional_sia_number' => 'nullable',
             'license_expiry' => 'nullable|date',
@@ -175,29 +178,31 @@ $validator->after(function ($validator) use ($request) {
         $data = $validator->validated();
         
         // Auto-generate email if subcontractor is selected but no email provided
-if (!empty($data['subcontractor']) && empty($data['email'])) {
+        if (!empty($data['subcontractor']) && empty($data['email'])) {
+            // subcontractor may be an array (multiple) — use first as primary for email generation
+            $primarySub = is_array($data['subcontractor']) ? ($data['subcontractor'][0] ?? null) : $data['subcontractor'];
 
-    $sub = Subcontractor::where('user_id',$data['subcontractor'])->first();
+            $sub = Subcontractor::where('user_id', $primarySub)->first();
 
-    if ($sub && $sub->email) {
-        // Split main email
-        $emailParts = explode('@', $sub->email);
-        $name = $emailParts[0];  // before @
-        $domain = $emailParts[1]; // after @
+            if ($sub && $sub->email) {
+                // Split main email
+                $emailParts = explode('@', $sub->email);
+                $name = $emailParts[0];  // before @
+                $domain = $emailParts[1] ?? 'example.com'; // fallback domain
 
-        // Start generating email
-        $counter = 1;
-        $generatedEmail = "{$name}+{$counter}@{$domain}";
+                // Start generating email
+                $counter = 1;
+                $generatedEmail = "{$name}+{$counter}@{$domain}";
 
-        // Ensure uniqueness
-        while (User::where('email', $generatedEmail)->exists()) {
-            $counter++;
-            $generatedEmail = "{$name}+{$counter}@{$domain}";
+                // Ensure uniqueness
+                while (User::where('email', $generatedEmail)->exists()) {
+                    $counter++;
+                    $generatedEmail = "{$name}+{$counter}@{$domain}";
+                }
+
+                $data['email'] = $generatedEmail;
+            }
         }
-
-        $data['email'] = $generatedEmail;
-    }
-}
 
 
         // Check and verify SIA Licence via SiaLicenceChecker if provided
@@ -319,6 +324,85 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
         $employee = Employee::create($employeeData);
         Logger::log(Auth::user(), 'Create', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Created.');
 
+        // Create Document records for files uploaded via admin UI so other parts
+        // of the app (which rely on the documents table) see these uploads.
+        try {
+            $docExpiryMap = [
+                'sia_licence_file' => 'sia_expiry',
+                'passport_file' => 'passport_expiry',
+                'act_certificate_file' => 'license_expiry',
+                'driving_licence_file' => 'driving_licence_expiry',
+            ];
+
+            foreach ($documents as $document => $label) {
+                if (empty($data[$document])) continue;
+
+                $fileVal = $data[$document];
+                $basename = basename($fileVal);
+                $candidates = [];
+                if (strpos($fileVal, '/') === false) {
+                    $candidates[] = 'documents/' . $fileVal;
+                    $candidates[] = 'uploads/' . $document . '/' . $fileVal;
+                } else {
+                    $candidates[] = $fileVal;
+                }
+
+                $expiry = $docExpiryMap[$document] ?? null;
+
+                // Try to find an existing document by exact path or basename
+                $existing = Document::where('user_id', $user->id)
+                    ->where('document_type', $document)
+                    ->where(function ($q) use ($candidates, $basename) {
+                        foreach ($candidates as $p) {
+                            $q->orWhere('file_path', $p);
+                        }
+                        $q->orWhere('file_path', 'like', "%{$basename}%");
+                    })->first();
+
+                $normalizedPath = (strpos($fileVal, '/') === false) ? ('documents/' . $fileVal) : $fileVal;
+
+                if ($existing) {
+                    $existing->file_path = $normalizedPath;
+                    $existing->expiry_date = $expiry ? ($data[$expiry] ?? null) : null;
+                    $existing->status = 'approved';
+                    $existing->save();
+                } else {
+                    Document::create([
+                        'user_id' => $user->id,
+                        'document_type' => $document,
+                        'file_path' => $normalizedPath,
+                        'expiry_date' => $expiry ? ($data[$expiry] ?? null) : null,
+                        'status' => 'approved',
+                    ]);
+                }
+            }
+
+            // Additional files
+            if (!empty($data['additional_files']) && is_array($data['additional_files'])) {
+                foreach ($data['additional_files'] as $path) {
+                    $basename = basename($path);
+                    $existing = Document::where('user_id', $user->id)
+                        ->where('document_type', 'other')
+                        ->where('file_path', 'like', "%{$basename}%")
+                        ->first();
+                    if ($existing) {
+                        $existing->file_path = $path;
+                        $existing->status = 'approved';
+                        $existing->save();
+                    } else {
+                        Document::create([
+                            'user_id' => $user->id,
+                            'document_type' => 'other',
+                            'file_path' => $path,
+                            'status' => 'approved',
+                        ]);
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to create Document records for employee upload: ' . $e->getMessage());
+        }
+
         if ($request->has('holidays')) {
             foreach ($request->holidays as $holiday) {
                 Holiday::create([
@@ -354,7 +438,7 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
             'email' => 'email',
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string',
-            'sia_licence' => ['nullable', 'string'],
+            'sia_licence' => ['nullable', 'string', new \App\Rules\ValidSiaLicence()],
             'sia_expiry' => 'nullable|date',
             'licence_type' => 'nullable|string',
             'driving_licence_number' => 'nullable|string',
@@ -389,7 +473,8 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
             'brp_status' => 'nullable',
             'gourd_rate' => 'nullable|numeric',
             'department_id' => 'nullable',
-            'subcontractor' => 'nullable',
+            'subcontractor' => 'nullable|array',
+            'subcontractor.*' => 'nullable|integer|exists:users,id',
             'tags' => 'nullable',
             'additional_sia_number' => 'nullable',
             'license_expiry' => 'nullable|date',
@@ -658,6 +743,43 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
             }
         }
 
+        // Ensure uploaded files are represented in the documents table as well
+        try {
+            $docExpiryMap = [
+                'sia_licence_file' => 'sia_expiry',
+                'passport_file' => 'passport_expiry',
+                'act_certificate_file' => 'license_expiry',
+                'driving_licence_file' => 'driving_licence_expiry',
+            ];
+
+            foreach ($documents as $document) {
+                if (!empty($data[$document])) {
+                    $expiry = $docExpiryMap[$document] ?? null;
+                    Document::updateOrCreate(
+                        ['user_id' => $employee->user_id, 'document_type' => $document],
+                        [
+                            'file_path' => (strpos($data[$document], '/') === false) ? 'documents/' . $data[$document] : $data[$document],
+                            'expiry_date' => $expiry ? ($data[$expiry] ?? null) : null,
+                            'status' => 'approved',
+                        ]
+                    );
+                }
+            }
+
+            if (!empty($data['additional_files']) && is_array($data['additional_files'])) {
+                foreach ($data['additional_files'] as $path) {
+                    Document::create([
+                        'user_id' => $employee->user_id,
+                        'document_type' => 'other',
+                        'file_path' => $path,
+                        'status' => 'approved',
+                    ]);
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::error('Failed to sync uploaded files to documents table (update): ' . $e->getMessage());
+        }
+
         return response()->json(['message' => 'Employee updated successfully']);
     }
 
@@ -907,6 +1029,40 @@ if (!empty($data['subcontractor']) && empty($data['email'])) {
         return $pdf->download("employment_report_{$employee->id}.pdf");
     }
     
+
+    public function processSia(Request $request)
+    {
+        $user = auth()->user();
+        \Log::info('EmployeeController: processSia web trigger started', ['by' => $user->id]);
+
+        $siaChecker = app(SiaLicenceChecker::class);
+        $processed = 0;
+
+        try {
+            // Process employees in chunks to avoid memory/time spikes
+            \App\Models\Employee::whereNotNull('sia_licence')->chunk(100, function($employees) use ($siaChecker, &$processed) {
+                foreach ($employees as $employee) {
+                    try {
+                        $result = $siaChecker->checkByLicenceNumber($employee->sia_licence, true);
+                        $newStatus = (!empty($result) && !empty($result['valid'])) ? 'Active' : 'Inactive';
+                        if ($employee->sia_status !== $newStatus) {
+                            $employee->sia_status = $newStatus;
+                            $employee->save();
+                        }
+                        $processed++;
+                    } catch (\Throwable $e) {
+                        \Log::error('processSia: failed for employee ' . ($employee->id ?? 'unknown') . ': ' . $e->getMessage());
+                    }
+                }
+            });
+
+            \Log::info('EmployeeController: processSia completed', ['processed' => $processed]);
+            return response()->json(['processed' => $processed]);
+        } catch (\Throwable $e) {
+            \Log::error('EmployeeController: processSia failed: ' . $e->getMessage());
+            return response()->json(['error' => 'processing failed'], 500);
+        }
+    }
 
 
 }

@@ -129,7 +129,7 @@ class DocumentAPIController extends Controller
             return [
                 'id' => $doc->id,
                 'type' => $doc->document_type,
-                'filename' => basename($doc->file_path),
+                'filename' => '/documents/' . basename($doc->file_path),
                 'status' => $doc->status,
                 'description' => $doc->description,
                 'expiry_date' => $doc->expiry_date,

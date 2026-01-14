@@ -63,51 +63,62 @@ class ShiftNotificationController extends BaseController
             ->get();
 
         // --- Auto Book Off (5 minutes after shift end) ---
-        $missedBookOffs = ShiftDate::whereNotNull('staff_id')
-            ->whereNull('absentee_end_time')
-            ->whereBetween('shift_date', [$cutoff, $now->toDateString()])
-            ->whereTime('end_time', '<=', $now->copy()->subMinutes(5)->format('H:i:s'))
-            ->select('id', 'staff_id', 'end_time', 'shift_date')
-            ->get();
+        $threshold = now()->subMinutes(5)->format('Y-m-d H:i:s');
 
-            Log::info('Missed Book Offs found: ' . $missedBookOffs->count());
+$missedBookOffs = ShiftDate::whereNotNull('staff_id')
+    ->whereNull('absentee_end_time')
+    ->whereBetween('shift_date', [$cutoff, $now->toDateString()])
+    ->whereRaw("
+        CASE
+            WHEN end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), end_time)
+            ELSE TIMESTAMP(shift_date, end_time)
+        END <= ?
+    ", [$threshold])
+    ->select('id', 'staff_id', 'start_time', 'end_time', 'shift_date')
+    ->get();
 
-        // --- Auto book-off: apply admin-like book_off for eligible shifts ---
-        foreach ($missedBookOffs as $mb) {
-            try {
-                $sd = ShiftDate::find($mb->id);
-                if (!$sd) continue;
+Log::info('Missed Book Offs found: ' . $missedBookOffs->count());
 
-                // Only auto book-off if currently booked ON (is_assign == 3)
-                if ($sd->staff_id && $sd->is_assign == 3) {
-                    $sd->absentee_end_time = now()->format('H:i:s');
-                    $sd->status = 'booked_off';
-                    $sd->is_assign = 4;
-                    $sd->save();
+// --- Auto book-off: apply admin-like book_off for eligible shifts ---
+foreach ($missedBookOffs as $mb) {
+    try {
+        $sd = ShiftDate::find($mb->id);
+        if (!$sd) continue;
 
-        $latestBooking = ShiftBooking::where('user_id', $sd->staff_id)
-            ->where('type', 'book_on')
-            ->latest('created_at')
-            ->first();
+        // Only auto book-off if currently booked ON (is_assign == 3)
+        if ($sd->staff_id && $sd->is_assign == 3) {
+            $sd->absentee_end_time = now()->format('H:i:s');
+            $sd->status = 'booked_off';
+            $sd->is_assign = 4;
+            $sd->save();
 
-            $latestBooking->type='book_off';
-            $latestBooking->timestamp=now();
-            $latestBooking->save();
+            $latestBooking = ShiftBooking::where('user_id', $sd->staff_id)
+                ->where('type', 'book_on')
+                ->latest('created_at')
+                ->first();
 
-                    // Notify staff
-                    send_push_notification(
-                        $sd->staff_id,
-                        'Shift Booked Off',
-                        "You have been automatically booked OFF for shift (ID: {$sd->id}) that ended at {$sd->end_time}",
-                        ['type' => 'shift', 'shiftId' => $sd->id]
-                    );
-
-                    Log::info("Auto-booked off shift {$sd->id} for staff {$sd->staff_id}");
-                }
-            } catch (\Exception $e) {
-                Log::error('Auto book-off failed for shift ' . ($mb->id ?? 'unknown') . ': ' . $e->getMessage());
+            if ($latestBooking) {
+                $latestBooking->type = 'book_off';
+                $latestBooking->timestamp = now();
+                $latestBooking->save();
+            } else {
+                Log::warning('Auto book-off: no latest book_on found for user', ['user_id' => $sd->staff_id, 'shift_date_id' => $sd->id]);
             }
+
+            // Notify staff
+            send_push_notification(
+                $sd->staff_id,
+                'Shift Booked Off',
+                "You have been automatically booked OFF for shift (ID: {$sd->id}) that ended at {$sd->end_time}",
+                ['type' => 'shift', 'shiftId' => $sd->id]
+            );
+
+            Log::info("Auto-booked off shift {$sd->id} for staff {$sd->staff_id}");
         }
+    } catch (\Exception $e) {
+        Log::error('Auto book-off failed for shift ' . ($mb->id ?? 'unknown') . ': ' . $e->getMessage());
+    }
+}
 
         // --- Book On Reminder (5 minutes before shift start) ---
         $bookOnReminders5MinsBefore = ShiftDate::whereNotNull('staff_id')
@@ -209,6 +220,34 @@ class ShiftNotificationController extends BaseController
             ->with('shift')
             ->whereHas('shift') // Only get patrols with existing shifts
             ->get();
+        // --- Mark pending patrols as missed if not started within 15 minutes ---
+        foreach ($allPatrols as $p) {
+            try {
+                $start = Carbon::parse($p->start_time);
+                $graceEnd = $start->copy()->addMinutes(15);
+                if (now()->gt($graceEnd) && $p->status === 'pending') {
+                    $p->status = 'missed';
+                    $p->save();
+
+                    // Notify admin and guard (if assigned)
+                    try {
+                        Notify::toDashboard(1, 'alert', 'Patrol missed', "Patrol '{$p->name}' (ID: {$p->id}) was not started within 15 minutes and has been marked missed.", '/shift-dates/' . ($p->shift?->id ?? $p->shift_id) . '/view');
+                    } catch (\Exception $e) {
+                        Log::warning('Dashboard notify failed for patrol_missed auto-mark: ' . $e->getMessage());
+                    }
+
+                    if ($p->shift && $p->shift->staff_id) {
+                        try {
+                            send_push_notification($p->shift->staff_id, 'Patrol Missed', "Your patrol '{$p->name}' was marked as missed.", ['type' => 'patrol', 'patrolId' => $p->id]);
+                        } catch (\Exception $e) {
+                            Log::warning('Push notify failed for auto patrol_missed: ' . $e->getMessage());
+                        }
+                    }
+                }
+            } catch (\Exception $e) {
+                Log::warning('Failed to auto-mark patrol missed: ' . $e->getMessage());
+            }
+        }
         $allCheckCalls = CheckCall::where('status', 'pending')
             ->where('scheduled_time', '>=', now()->subDay())
             ->with('shiftDate')
@@ -256,12 +295,12 @@ class ShiftNotificationController extends BaseController
                 // Use eager-loaded relationship
                 $shift = $patrol->shift;
                 if (!$shift) continue;
-
                 $start = Carbon::parse($patrol->start_time);
-                $diff = now()->diffInMinutes($start, false);
+                // minutes until start: positive => start in future, negative => minutes since start
+                $minutesUntilStart = now()->diffInMinutes($start, false);
 
-                // 5-min warning
-                if ($diff <= 5 && $diff > 0) {
+                // 5-min warning (start in future within 5 minutes)
+                if ($minutesUntilStart <= 5 && $minutesUntilStart > 0) {
                         $alert = [
                             'type' => 'patrol_warning',
                             'patrol_id' => $patrol->id,
@@ -295,7 +334,7 @@ class ShiftNotificationController extends BaseController
                 }
 
                 // Patrol is due NOW (at start time)
-                if ($diff <= 0 && $diff > -5) {
+                if ($minutesUntilStart <= 0 && $minutesUntilStart > -5) {
                         $alert = [
                             'type' => 'patrol_due',
                             'patrol_id' => $patrol->id,
@@ -328,15 +367,16 @@ class ShiftNotificationController extends BaseController
                     $alerts[] = $alert;
                 }
 
-                // Patrol is overdue (between 5-45 mins past start time)
-                if ($diff <= -5 && $diff > -45) {
-                        $alert = [
-                            'type' => 'patrol_overdue',
-                            'patrol_id' => $patrol->id,
-                            'title' => 'Patrol Overdue',
-                            'message' => 'Your patrol is overdue and not completed: ' . $patrol->name,
-                            'scheduled_time' => $patrol->start_time,
-                        ];
+
+                // Patrol is overdue (between 5-15 mins past start time)
+                if ($minutesUntilStart <= -5 && $minutesUntilStart > -15) {
+                    $alert = [
+                        'type' => 'patrol_overdue',
+                        'patrol_id' => $patrol->id,
+                        'title' => 'Patrol Overdue',
+                        'message' => 'Your patrol is overdue and not completed: ' . $patrol->name,
+                        'scheduled_time' => $patrol->start_time,
+                    ];
 
                         $cacheKey = "alerts:patrol_overdue:user:{$user->id}:patrol:{$patrol->id}";
                         if (!Cache::has($cacheKey)) {
@@ -362,101 +402,43 @@ class ShiftNotificationController extends BaseController
 
                     $alerts[] = $alert;
                 }
+                // Patrol is overdue by 15+ minutes (missed)
+                if ($minutesUntilStart <= -15) {
+                    $alert = [
+                        'type' => 'patrol_missed',
+                        'patrol_id' => $patrol->id,
+                        'title' => 'Patrol Missed',
+                        'message' => 'Your patrol is overdue and marked as missed: ' . $patrol->name,
+                        'scheduled_time' => $patrol->start_time,
+                    ];
 
-                // 45-min completion reminder (5 mins before 50-min deadline)
-                if ($diff <= -45 && $diff > -50) {
-                        $alert = [
-                            'type' => 'patrol_completion_reminder',
-                            'patrol_id' => $patrol->id,
-                            'title' => 'Complete Patrol Soon',
-                            'message' => 'Please complete your patrol soon: ' . $patrol->name,
-                            'scheduled_time' => $patrol->start_time,
-                        ];
-
-                        $cacheKey = "alerts:patrol_completion:user:{$user->id}:patrol:{$patrol->id}";
-                        if (!Cache::has($cacheKey)) {
-                            Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
-                            $alert['_first_shown'] = true;
-                            try {
-                                // Send push notification to guard
-                                send_push_notification($user->id, 'Complete Patrol Soon', "Please complete your patrol soon: {$patrol->name}. You have 5 minutes remaining.", ['type' => 'patrol', 'patrolId' => $patrol->id]);
-                                
-                                $emp = $user->employee;
-                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
-                                $adminTitle = "Patrol completion reminder for {$empName}";
-                                $adminMessage = "{$empName} has 5 minutes to complete patrol '{$patrol->name}'.";
-                                $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
-                            } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for patrol_completion_reminder: ' . $e->getMessage());
+                    $cacheKey = "alerts:patrol_missed:user:{$user->id}:patrol:{$patrol->id}";
+                    if (!Cache::has($cacheKey)) {
+                        Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
+                        $alert['_first_shown'] = true;
+                        try {
+                            // Only send push if patrol wasn't already globally marked missed earlier
+                            if ($patrol->status !== 'missed') {
+                                $minutesOverdue = abs((int)$minutesUntilStart);
+                                send_push_notification($user->id, 'Patrol Missed', "Your patrol is {$minutesOverdue} minutes overdue: {$patrol->name}.", ['type' => 'patrol', 'patrolId' => $patrol->id]);
                             }
-                        } else {
-                            $alert['_first_shown'] = false;
+
+                            $emp = $user->employee;
+                            $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
+                            $adminTitle = "Overdue patrol for {$empName}";
+                            $adminMessage = "{$empName}'s patrol '{$patrol->name}' is overdue and not completed.";
+                            $actionUrl = '/shift-dates/' . ($patrol->shift->id ?? $patrol->shift_id) . '/view';
+                            Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                        } catch (\Exception $e) {
+                            Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
                         }
+                    } else {
+                        $alert['_first_shown'] = false;
+                    }
 
                     $alerts[] = $alert;
                 }
 
-                // 50-min missed
-                if ($diff <= -50) {
-                        $markerKey = "missed_marker:patrol:user:{$user->id}:patrol:{$patrol->id}";
-                        $missedThreshold = Carbon::parse($patrol->start_time)->addMinutes(50);
-                        $markAtCarbon = $missedThreshold->copy()->addMinutes($patrolMarkDelay);
-
-                        if (now()->gte($markAtCarbon)) {
-                            try {
-                                $patrol->update(['status' => 'missed']);
-                            } catch (\Exception $e) {
-                                Log::error('Failed to mark patrol missed', ['patrol_id' => $patrol->id, 'error' => $e->getMessage()]);
-                            }
-                            Cache::forget($markerKey);
-
-                            $alertType = 'patrol_missed';
-                            $alertMessage = 'You missed a patrol: ' . $patrol->name;
-                        } else {
-                            if (!Cache::has($markerKey)) {
-                                $secondsUntilMark = max(1, $markAtCarbon->diffInSeconds(now()));
-                                Cache::put($markerKey, $markAtCarbon->timestamp, now()->addSeconds($secondsUntilMark + 60));
-                            }
-                            $markAt = Cache::get($markerKey);
-
-                            $alertType = 'patrol_missed_pending';
-                            $remaining = $markAt ? max(0, (int)$markAt - now()->timestamp) : ($patrolMarkDelay * 60);
-                            $alertMessage = 'Patrol appears missed and will be marked in ' . gmdate('i:s', $remaining) . ' unless handled: ' . $patrol->name;
-                        }
-
-                        $alert = [
-                            'type' => $alertType,
-                            'patrol_id' => $patrol->id,
-                            'title' => ($alertType === 'patrol_missed') ? 'Missed Patrol' : 'Potential Missed Patrol',
-                            'message' => $alertMessage,
-                            'scheduled_time' => $patrol->start_time,
-                        ];
-
-                        $cacheKey = "alerts:patrol_missed:user:{$user->id}:patrol:{$patrol->id}";
-                        if (!Cache::has($cacheKey)) {
-                            Cache::put($cacheKey, true, now()->addMinutes($cooldownMinutes));
-                            $alert['_first_shown'] = true;
-                            try {
-                                // Send push notification to guard
-                                $pushTitle = ($alertType === 'patrol_missed') ? 'Missed Patrol' : 'Potential Missed Patrol';
-                                send_push_notification($user->id, $pushTitle, $alertMessage, ['type' => 'patrol', 'patrolId' => $patrol->id]);
-                                
-                                $emp = $user->employee;
-                                $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
-                                $adminTitle = ($alertType === 'patrol_missed') ? "Missed patrol by {$empName}" : "Potential missed patrol for {$empName}";
-                                $adminMessage = ($alertType === 'patrol_missed') ? "{$empName} missed patrol '{$patrol->name}'." : "{$empName} appears to have missed patrol '{$patrol->name}' and it will be marked soon unless handled.";
-                                $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
-                            } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
-                            }
-                        } else {
-                            $alert['_first_shown'] = false;
-                        }
-
-                    $alerts[] = $alert;
-                }
             }
 
             // Check Calls - filter by user from already-loaded checkcalls

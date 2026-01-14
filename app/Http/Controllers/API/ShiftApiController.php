@@ -34,7 +34,7 @@ class ShiftApiController extends Controller
     public function getShifts(Request $request)
     {
         $userId   = Auth::id();
-        $limit    = $request->query('limit', 10);
+        $limit    = $request->query('limit', 50);
         $category = $request->query('category'); // "past", "current", "upcoming"
         $today    = now()->toDateString();
 
@@ -67,9 +67,9 @@ class ShiftApiController extends Controller
             $shift = $shiftDate->shift;
             $site  = $shift?->site;
 
-            if ($shiftDate->shift_date < $today) {
+            if ($shiftDate->shift_date < $today || $shiftDate->is_assign == 4) {
                 $category = 'past';
-            } elseif ($shiftDate->shift_date == $today) {
+            } elseif ($shiftDate->shift_date == $today && $shiftDate->is_assign !== 4) {
                 $category = 'current';
             } else {
                 $category = 'upcoming';
@@ -554,21 +554,27 @@ class ShiftApiController extends Controller
             }
         }
 
-        // ✅ Only allow booking on at or after shift start
-        $now = Carbon::now();
-        $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+        
+$now = Carbon::now();
+$shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
-        if ($now->lt($shiftStart)) {
-            return response()->json(['message' => 'You can only book on when the shift is due at ' . $shiftDate->start_time], 422);
-        }
+// 15 minutes before the shift starts
+$bookingOpensAt = $shiftStart->copy()->subMinutes(15);
 
-        // ✅ Update status
+if ($now->lt($bookingOpensAt)) {
+    return response()->json([
+        'message' => 'You can only book on within 15 minutes of the shift start time (' . $shiftDate->start_time . ')'
+    ], 422);
+}
+
+
+        // Update status
         $shiftDate->status = 'booked_on';
         $shiftDate->is_assign = 3; // shift started
         $shiftDate->absentee_start_time = date('H:i', strtotime($now));
         $shiftDate->save();
 
-        // ✅ Notifications
+        // notifications
         Notification::create([
             'user_id' => 1,
             'employee_id' => null,
@@ -922,6 +928,33 @@ class ShiftApiController extends Controller
         }
 
         // Start requested patrol
+        // If more than 15 minutes have passed since scheduled start, mark missed
+        try {
+            $gracePeriodEnd = Carbon::parse($patrol->start_time)->addMinutes(15);
+            if ($now->gt($gracePeriodEnd)) {
+                $patrol->status = 'missed';
+                $patrol->save();
+
+                // notify admin
+                Notification::create([
+                    'user_id' => 1,
+                    'employee_id' => null,
+                    'type' => 'alert',
+                    'title' => 'Patrol missed',
+                    'message' => 'Patrol ID ' . $patrol->id . ' was marked as missed (started after 15 minute grace period).',
+                    'read' => false,
+                    'action_url' => "/shift-dates/{$patrol->shift_id}/view"
+                ]);
+
+                return response()->json([
+                    'message' => 'Patrol missed: more than 15 minutes have passed since scheduled start.'
+                ], 422);
+            }
+        } catch (\Exception $e) {
+            // If any parsing error occurs, continue to attempt to start the patrol
+            Log::warning('Failed to evaluate patrol grace period: ' . $e->getMessage());
+        }
+
         $patrol->update([
             'status' => 'in_progress',
             'started_at' => $now
@@ -1913,49 +1946,50 @@ class ShiftApiController extends Controller
         ]);
     }
 
-    public function workHours(Request $request)
-    {
-        $user = Auth::user();
+public function workHours(Request $request)
+{
+    $user = Auth::user();
 
-        // Get all ended shifts for this guard
-        $shifts = ShiftDate::where('staff_id', $user->id)
-            ->where('is_assign', 4) // only finished shifts
-            ->get();
+    $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString();
+    $endOfWeek   = Carbon::now()->endOfWeek(Carbon::SUNDAY)->toDateString();
 
-        $totalWorked = 0;
+    // Get ended shifts for this guard in the current week (Mon–Sun)
+    $shifts = ShiftDate::where('staff_id', $user->id)
+        ->where('is_assign', 4)
+        ->whereBetween('shift_date', [$startOfWeek, $endOfWeek])
+        ->get();
 
-        foreach ($shifts as $shift) {
-            // Prefer total_hours if stored
-            if ($shift->total_hours) {
-                $worked = $shift->total_hours;
-            } else {
-                // Calculate manually from times
-                $start = Carbon::parse($shift->start_time);
-                $end   = Carbon::parse($shift->end_time);
+    $totalWorked = 0;
 
-                $worked = $end->diffInMinutes($start) / 60;
+    foreach ($shifts as $shift) {
+        if ($shift->total_hours) {
+            $worked = $shift->total_hours;
+        } else {
+            $start = Carbon::parse($shift->start_time);
+            $end   = Carbon::parse($shift->end_time);
 
-                // subtract break if available
-                if ($shift->break_time) {
-                    $worked -= $shift->break_time;
-                }
+            $worked = $end->diffInMinutes($start) / 60;
+
+            if ($shift->break_time) {
+                $worked -= $shift->break_time;
             }
-
-            $totalWorked += max($worked, 0); // avoid negatives
         }
 
-        $employee = Employee::where('user_id', $user->id)->firstOrFail();
-
-        $weeklyLimit = $employee->visa_type ===  'Student' ? 20 : 40;
-
-        $remaining = max($weeklyLimit - $totalWorked, 0);
-
-        return response()->json([
-            'total_worked_hours' => round($totalWorked, 2),
-            'remaining_hours'    => round($remaining, 2),
-            'weekly_limit'       => $weeklyLimit,
-        ]);
+        $totalWorked += max($worked, 0);
     }
+
+    $employee = Employee::where('user_id', $user->id)->firstOrFail();
+
+    $weeklyLimit = $employee->visa_type === 'Student' ? 20 : 40;
+    $remaining = max($weeklyLimit - $totalWorked, 0);
+
+    return response()->json([
+        'total_worked_hours' => round($totalWorked, 2),
+        'remaining_hours'    => round($remaining, 2),
+        'weekly_limit'       => $weeklyLimit,
+    ]);
+}
+
 
 
     public function holidayBalances()
@@ -2012,7 +2046,7 @@ class ShiftApiController extends Controller
 
         Log::info('Calendar shifts found', ['count' => $shiftDates->count()]);
 
-        $transformed = $shiftDates->transform(function ($shiftDate) use ($today) {
+        $transformed = $shiftDates->transform(function ($shiftDate) use ($today,$userId) {
             $shift = $shiftDate->shift;
             $site  = $shift?->site;
 

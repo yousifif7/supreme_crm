@@ -382,9 +382,11 @@
                         $modal.find('#shift_date').val(shiftObj.shift_date || shiftObj.shift_date || '');
                         $modal.find('#start_shift').val(shiftObj.start_time || shiftObj.start_time || '');
                         $modal.find('#end_shift').val(shiftObj.end_time || shiftObj.end_time || '');
-                        if (typeof shiftObj.guard_rate !== 'undefined') {
-                            $modal.find('#guard_rate').val(shiftObj.guard_rate);
-                        }
+                        
+                        $modal.find('#guard_rate').val(data.parent_shift.employee_rate);
+
+                        $modal.find('#site_rate').val(data.parent_shift.site_rate);
+
                         if (typeof shiftObj.absentee_start_time != 'undefined') $modal.find('#book_on').val(shiftObj.absentee_start_time);
                         if (typeof shiftObj.absentee_end_time != 'undefined') $modal.find('#book_off').val(shiftObj.absentee_end_time);
                         $modal.find('#status_id').val(shiftObj.is_assign || shiftObj.status || '');
@@ -400,17 +402,60 @@
                             // ignore
                         }
 
-                        // Show modal
+                        // Re-apply parent site/employee rates after any async select handlers
+                        try {
+                            const finalSiteRate = (data && data.parent_shift && typeof data.parent_shift.site_rate !== 'undefined') ? data.parent_shift.site_rate : '';
+                            const finalEmployeeRate = (data && data.parent_shift && typeof data.parent_shift.employee_rate !== 'undefined') ? data.parent_shift.employee_rate : '';
+                            $modal.find('#site_rate').val(finalSiteRate);
+                            $modal.find('.siteRate').val(finalSiteRate);
+                            // Only set guard rate from parent when no staff selected
+                            const staffSelectedNow = $modal.find('#staff_id').val();
+                            if (!staffSelectedNow) {
+                                $modal.find('#guard_rate').val(finalEmployeeRate);
+                                $modal.find('.staffRate').val(finalEmployeeRate);
+                            }
+                        } catch (e) {
+                            // ignore
+                        }
+
+                        // Show modal and re-apply rates on shown to override any async handlers
                         try {
                             const modalEl = document.getElementById('edit_shift');
+                            const applyFinalRates = function() {
+                                try {
+                                    const finalSiteRate = (data && data.parent_shift && typeof data.parent_shift.site_rate !== 'undefined') ? data.parent_shift.site_rate : '';
+                                    const finalEmployeeRate = (data && data.parent_shift && typeof data.parent_shift.employee_rate !== 'undefined') ? data.parent_shift.employee_rate : '';
+                                    $modal.find('#site_rate').val(finalSiteRate);
+                                    $modal.find('.siteRate').val(finalSiteRate);
+                                    const staffSelectedNow = $modal.find('#staff_id').val();
+                                    if (!staffSelectedNow) {
+                                        $modal.find('#guard_rate').val(finalEmployeeRate);
+                                        $modal.find('.staffRate').val(finalEmployeeRate);
+                                    }
+                                } catch (e) { /* ignore */ }
+                            };
+
                             if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                                 const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
+                                // re-apply once when modal is shown
+                                modalEl.addEventListener('shown.bs.modal', function handler() {
+                                    applyFinalRates();
+                                    modalEl.removeEventListener('shown.bs.modal', handler);
+                                });
                                 modalInstance.show();
                             } else if (typeof $ !== 'undefined' && $.fn && $.fn.modal) {
+                                $modal.on('shown.bs.modal.once', function() {
+                                    applyFinalRates();
+                                    $modal.off('shown.bs.modal.once');
+                                });
                                 $modal.modal('show');
                             } else {
                                 console.warn('No modal API available to show #edit_shift');
                             }
+
+                            // Extra safety: re-apply after short delays in case other async handlers run later
+                            setTimeout(applyFinalRates, 150);
+                            setTimeout(applyFinalRates, 500);
                         } catch (err) {
                             console.error('Error showing edit modal', err);
                         }

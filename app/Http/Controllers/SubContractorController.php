@@ -238,7 +238,19 @@ class SubContractorController extends Controller
 
     public function employees($id)
     {
-        $userIds = \App\Models\Employee::where('subcontractor', $id)->pluck('user_id')->filter()->unique()->toArray();
+        $employees = \App\Models\Employee::query();
+
+                // Support both legacy scalar subcontractor values and JSON arrays.
+                // Only use JSON_CONTAINS when the column holds valid JSON; check both numeric and string representations.
+                $employees->where(function ($q) use ($id) {
+                        $q->where('subcontractor', $id)
+                            ->orWhereRaw(
+                                    '(JSON_VALID(subcontractor) AND (JSON_CONTAINS(subcontractor, ?) OR JSON_CONTAINS(subcontractor, ?)))',
+                                    [json_encode((int) $id), json_encode((string) $id)]
+                            );
+                });
+
+        $userIds = $employees->pluck('user_id')->filter()->unique()->toArray();
 
         $users = [];
         if (!empty($userIds)) {
@@ -249,5 +261,55 @@ class SubContractorController extends Controller
         }
 
         return response()->json(['data' => $users]);
+    }
+
+    /**
+     * Given a user id (employee), return the subcontractors associated with that employee.
+     * Handles legacy scalar, CSV string, and JSON/array storage in `subcontractor`.
+     */
+    public function subcontractorsForEmployee($userId)
+    {
+        $employee = \App\Models\Employee::where('user_id', $userId)->first();
+
+        $subs = [];
+        if ($employee) {
+            $raw = $employee->subcontractor;
+
+            // Normalize into array of ids (may be array, CSV, or single scalar)
+            if (is_array($raw)) {
+                $ids = array_filter($raw);
+            } elseif (is_null($raw) || $raw === '') {
+                $ids = [];
+            } else {
+                // Try to decode JSON first
+                $decoded = json_decode($raw, true);
+                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                    $ids = array_filter($decoded);
+                } else {
+                    // Fallback: comma-separated values or single value
+                    $ids = array_filter(array_map('trim', explode(',', (string) $raw)));
+                }
+            }
+
+            $ids = array_map('intval', $ids);
+
+            if (!empty($ids)) {
+                // First try matching sub_contractors.id
+                $subs = Subcontractor::whereIn('id', $ids)
+                    ->select('id', 'company_name', 'user_id', 'email')
+                    ->orderBy('company_name')
+                    ->get();
+
+                // If nothing found, maybe the stored ids are actually user_ids referencing subcontractor.user_id
+                if ($subs->isEmpty()) {
+                    $subs = Subcontractor::whereIn('user_id', $ids)
+                        ->select('id', 'company_name', 'user_id', 'email')
+                        ->orderBy('company_name')
+                        ->get();
+                }
+            }
+        }
+
+        return response()->json(['data' => $subs]);
     }
 }

@@ -27,7 +27,12 @@
                                                         class="text-danger">*</span></label>
                                                 <select name="staff_id" class="form-select select2_modal select2" id="staff_id">
                                                     <option value="">--choose--</option>
-                                                    @foreach ($staffs as $staff)
+                                                        @php
+                                                            $sortedStaffs = $staffs->sortBy(function ($s) {
+                                                                return strtolower(trim($s->first_name . ' ' . ($s->last_name ?? '')));
+                                                            });
+                                                        @endphp
+                                                    @foreach ($sortedStaffs as $staff)
                                                         <option value="{{ $staff->id }}">
                                                             {{ $staff->first_name }} {{ $staff->last_name }}</option>
                                                     @endforeach
@@ -36,21 +41,6 @@
                                             </div>
                                         </div>
 
-                                        {{-- <div class="col-md-4">
-                                                    <div class="mb-3">
-                                                        <label class="form-label">Site <span
-                                                                class="text-danger">*</span></label>
-                                                        <select name="site_id" id="site_id" class="form-select select2"
-                                                            readonly>
-                                                            <option value="">--choose--</option>
-                                                            @foreach ($sites as $site)
-                                                                <option value="{{ $staff->id }}">
-                                                                    {{ $site->site_name }}</option>
-                                                            @endforeach
-                                                        </select>
-                                                        <span class="text-danger form-error" id="error_site_id"></span>
-                                                    </div>
-                                                </div> --}}
                                         @hasanyrole('superadmin')       
                                         <div class="col-md-4">
                                             <div class="mb-3">

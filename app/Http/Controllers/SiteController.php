@@ -51,7 +51,7 @@ class SiteController extends Controller
 
             // ✅ Checkpoints validation
             'checkpoints'                => 'nullable|array',
-            'checkpoints.*.name'         => 'required_with:checkpoints|string|max:255',
+            'checkpoints.*.name'         => 'required_with:patrol_check_points|string|max:255',
             'checkpoints.*.latitude'     => 'nullable|numeric',
             'checkpoints.*.longitude'    => 'nullable|numeric',
             'checkpoints.*.qr_code'      => 'nullable|string|max:255',
@@ -149,10 +149,10 @@ class SiteController extends Controller
 
             // checkpoints validation
             'checkpoints'   => 'nullable|array',
-            'checkpoints.*.id' => 'nullable|integer|exists:checkpoints,id',
-            'checkpoints.*.name' => 'required_with:checkpoints|string|max:255',
-            'checkpoints.*.latitude' => 'required_with:checkpoints|numeric',
-            'checkpoints.*.longitude' => 'required_with:checkpoints|numeric',
+            'checkpoints.*.id' => 'nullable|integer|exists:patrol_check_points,id',
+            'checkpoints.*.name' => 'required_with:patrol_check_points|string|max:255',
+            'checkpoints.*.latitude' => 'required_with:patrol_check_points|numeric',
+            'checkpoints.*.longitude' => 'required_with:patrol_check_points|numeric',
             'has_qr' => 'nullable|boolean'
         ]);
 

@@ -168,6 +168,12 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
     Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
 
+    // Web-trigger for SIA licence check. Admins only. Runs synchronously (inline) like shift notifications.
+    Route::post('/process-sia-licences', [EmployeeController::class, 'processSia'])
+        ->middleware('auth')
+        ->name('process.sia.licences');
+
+
     // Documents AJAX endpoints (used by employee modal)
     Route::get('/documents/user/{userId}/ajax', [DocumentController::class, 'byUser'])->name('documents.byUser');
     Route::post('/employees/{id}/documents/approve', [DocumentController::class, 'approveByEmployee'])->name('employees.documents.approve');
@@ -188,6 +194,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/subcontractors/{id}/logs/ajax', [SubContractorController::class, 'getLogs'])->name('subcontractors.logs.ajax');
     Route::get('/subcontractors/{id}/view', [SubContractorController::class, 'view'])->name('subcontractors.view');
     Route::get('/subcontractor/{id}/employees', [SubContractorController::class, 'employees'])->name('subcontractors.employees');
+    Route::get('/subcontractors/for-employee/{userId}', [ShiftController::class, 'subcontractorsForEmployee'])->name('subcontractors.forEmployee');
 
     Route::get('/subcontractors/export/excel', [ExportController::class, 'exportSubcontractorExcel'])->name('subcontractors.export.excel');
     Route::get('/subcontractors/export/pdf', [ExportController::class, 'exportSubcontractorPdf'])->name('subcontractors.export.pdf');
@@ -347,6 +354,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
 
     Route::get('/api/client/{id}', [ShiftController::class, 'getClient']);
     Route::get('/api/staff/{id}', [ShiftController::class, 'getStaff']);
+    Route::get('/api/subcontractor/{id}/staff', [ShiftController::class, 'getStaffBySubcontractor']);
 
     Route::get('/shifts/stats', [ShiftController::class, 'getMonthlyShiftsStats'])->name('getMonthlyShiftsStats');
     Route::post('/assign-shift', [ShiftController::class, 'assign'])->name('shifts.assign');

@@ -187,7 +187,12 @@
                                                 <select class="form-select StaffSelect" name="staff_id[]"
                                                     id="StaffSelect">
                                                     <option value="">--choose--</option>
-                                                    @foreach ($staffs as $staff)
+                                                    @php
+                                                        $sortedStaffs = $staffs->sortBy(function($s) {
+                                                            return strtolower(trim($s->first_name . ' ' . ($s->last_name ?? '')));
+                                                        });
+                                                    @endphp
+                                                    @foreach ($sortedStaffs as $staff)
                                                         <option value="{{ $staff->id }}">
                                                             {{ $staff->first_name }} {{ $staff->last_name }}</option>
                                                     @endforeach
@@ -320,9 +325,18 @@
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
                                                         <!-- Always send a value: hidden input for 0, checkbox for 1 -->
-                                                        <input type="hidden" name="auto_checkcall_enabled[]" value="0">
+                                                        {{-- <input type="hidden" name="auto_checkcall_enabled[]" value="0"> --}}
                                                         <input class="form-check-input autoCheckcallToggle" type="checkbox" name="auto_checkcall_enabled[]" value="1">
                                                         <label class="form-check-label form-label">Enable Auto Checkcalls</label>
+                                                    </div>
+                                                </div>
+
+                                                <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
+                                                    <div class="form-check form-switch mb-3">
+                                                        <!-- Always send a value: hidden input for 0, checkbox for 1 -->
+                                                        {{-- <input type="hidden" name="auto_patrol_enabled[]" value="0"> --}}
+                                                        <input class="form-check-input autoPatrolToggle" type="checkbox" name="auto_patrol_enabled[]" value="1">
+                                                        <label class="form-check-label form-label">Enable Auto Patrols</label>
                                                     </div>
                                                 </div>
 
@@ -443,9 +457,51 @@
         });
 
         // when an auto toggle changes, update only its group
-        $(document).on('change', '.autoCheckcallToggle', function() {
+        $(document).on('change', '.autoCheckcallToggle, .autoPatrolToggle', function() {
             var $group = $(this).closest('.shift-group');
             updateForGroup($group);
+        });
+
+        // NOTE: subcontractor->staff legacy handler removed. Use employee->subcontractor flow instead.
+
+        // When a staff (employee) is selected, load that employee's subcontractors and populate the subcontractor select
+        $(document).on('change', '.StaffSelect', function() {
+            var $group = $(this).closest('.shift-group');
+            var userId = $(this).val();
+            var $sub = $group.find('select[name="subcontractor_id[]"]').first();
+
+            // reset
+            $sub.prop('disabled', true);
+            $sub.html('<option value="">Loading...</option>');
+
+            if (!userId) {
+                // empty selection — restore default
+                $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+                return;
+            }
+
+            $.ajax({
+                url: `${baseUrl}/subcontractors/for-employee/${userId}`,
+                method: 'GET',
+                dataType: 'json'
+            }).done(function(res) {
+                $sub.empty().append('<option value="">--choose--</option>');
+                if (res && res.data && res.data.length) {
+                    res.data.forEach(function(s) {
+                        var label = s.company_name || (s.first_name ? (s.first_name + ' ' + (s.last_name||'')) : ('Subcontractor ' + s.id));
+                        $sub.append(`<option value="${s.id}">${label}</option>`);
+                    });
+                }
+
+                // If select2 is used on subcontractor select, refresh it
+                if ($sub.hasClass('select2-hidden-accessible')) {
+                    $sub.trigger('change.select2');
+                }
+
+                $sub.prop('disabled', false).trigger('change');
+            }).fail(function() {
+                $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+            });
         });
 
         // If shift groups are dynamically cloned, ensure newly added groups are initialized by listening for a custom event

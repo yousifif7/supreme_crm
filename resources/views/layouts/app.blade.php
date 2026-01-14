@@ -850,6 +850,57 @@ document.addEventListener('click', () => {
             // Periodic polling
             setInterval(fetchNotifications, POLL_INTERVAL_MS);
         })();
+        // Expose manual trigger for SIA check (call from console or other scripts)
+        window.triggerSiaCheck = async function ({ force = false } = {}) {
+            const KEY = 'sia_check_last_v1';
+            const DAY_MS = 24 * 60 * 60 * 1000;
+            const LOCK_KEY = 'sia_check_lock_v1';
+            const ENDPOINT = "{{ route('process.sia.licences') }}";
+            const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+            try {
+                if (!force) {
+                    const last = parseInt(localStorage.getItem(KEY) || '0', 10);
+                    if (Date.now() - last < DAY_MS) {
+                        return { skipped: true, reason: 'recent' };
+                    }
+                }
+
+                const now = Date.now();
+                const lock = localStorage.getItem(LOCK_KEY);
+                if (lock && (now - parseInt(lock, 10) < 60 * 1000)) {
+                    return { skipped: true, reason: 'locked' };
+                }
+
+                try { localStorage.setItem(LOCK_KEY, now.toString()); } catch (e) { /* ignore */ }
+
+                const res = await fetch(ENDPOINT, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: {
+                        'Accept': 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': CSRF
+                    },
+                    body: JSON.stringify({ triggered_by: 'manual' })
+                });
+
+                if (!res.ok) {
+                    const txt = await res.text().catch(() => null);
+                    throw new Error('Server error ' + res.status + ' ' + (txt || ''));
+                }
+
+                const json = await res.json().catch(() => null);
+                try { localStorage.setItem(KEY, Date.now().toString()); } catch (e) { /* ignore */ }
+                try { localStorage.removeItem(LOCK_KEY); } catch (e) { /* ignore */ }
+
+                return { ok: true, json };
+            } catch (err) {
+                console.error('triggerSiaCheck failed', err);
+                try { localStorage.removeItem(LOCK_KEY); } catch (e) { /* ignore */ }
+                throw err;
+            }
+        };
 
         // Helper to open profile change request modal
         async function openProfileChangeModal(id) {

@@ -8,11 +8,13 @@ use App\Models\Client;
 use App\Models\Invoice;
 use App\Models\Location;
 use App\Models\ShiftDate;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Routing\Controller as BaseController;
 
 class ClientDashboardController extends BaseController
@@ -39,65 +41,66 @@ class ClientDashboardController extends BaseController
 
         $clientId = auth()->id(); // the logged-in client's user ID
 
-        // --- Get latest user locations (only for users in client's sites) ---
-        $userLocations = Location::with([
-            'user:id,first_name,last_name',
-            'user.employee:id,user_id,service_type',
-        ])
-            ->whereNotNull('latitude')
-            ->whereNotNull('longitude')
-            ->whereIn('id', function ($query) {
-                $query->select(DB::raw('MAX(id)'))
-                    ->from('locations')
-                    ->whereNotNull('user_id')
-                    ->groupBy('user_id');
-            })
-            ->whereIn('user_id', function ($query) use ($clientId) {
-                $query->select('staff_id')
-                    ->from('shift_dates')
-                    ->whereIn('shift_id', function ($subQuery) use ($clientId) {
-                        $subQuery->select('id')
-                            ->from('shifts')
-                            ->whereIn('site_id', function ($siteQuery) use ($clientId) {
-                                $siteQuery->select('id')
-                                    ->from('sites')
-                                    ->where('client_id', $clientId);
-                            });
-                    });
-            })
-            ->get()
-            ->map(function ($l) {
-                return [
-                    'id' => 'user-' . $l->user_id,
-                    'latitude' => (float) $l->latitude,
-                    'longitude' => (float) $l->longitude,
-                    'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
-                    'type' => 'user',
-                    'service_type_id' => optional(optional($l->user)->employee)->service_type,
-                    'accuracy' => $l->accuracy,
-                    'on_duty' => (bool) $l->on_duty,
-                    'timestamp' => optional($l->created_at)->toDateTimeString(),
-                ];
-            });
+        $cutoff24 = Carbon::now()->subDay();
+$cacheKeyUsers = 'client_dashboard_user_locations_' . $clientId;
 
-        // --- Sites belonging to this client ---
-        $sites = Site::where('client_id', $clientId)
-            ->whereHas('shifts', function ($query) {
-                $query->whereHas('shiftDates', function ($query) {
-                    $query->whereNotNull('staff_id');
-                });
-            })
-            ->select('id', 'site_name', 'post_code')
-            ->get();
+$userLocations = Cache::remember($cacheKeyUsers, 60, function () use ($cutoff24, $clientId) {
+    return Location::with([
+        'user:id,first_name,last_name',
+        'user.employee:id,user_id,service_type',
+    ])
+        ->whereNotNull('latitude')
+        ->whereNotNull('longitude')
+        ->whereIn('id', function ($query) use ($cutoff24, $clientId) {
+            $query->select(DB::raw('MAX(l.id)'))
+                ->from('locations as l')
+                ->join('shift_dates as sd', 'sd.staff_id', '=', 'l.user_id')
+                ->join('shifts as sh', 'sh.id', '=', 'sd.shift_id')
+                ->join('sites as si', 'si.id', '=', 'sh.site_id')
+                ->where('si.client_id', $clientId)
+                ->whereNotNull('l.user_id')
+                ->where('l.created_at', '>=', $cutoff24)
+                ->groupBy('l.user_id');
+        })
+        ->get()
+        ->map(function ($l) {
+            return [
+                'id' => 'user-' . $l->user_id,
+                'latitude' => (float) $l->latitude,
+                'longitude' => (float) $l->longitude,
+                'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
+                'type' => 'user',
+                'service_type_id' => optional(optional($l->user)->employee)->service_type,
+                'accuracy' => $l->accuracy,
+                'on_duty' => (bool) $l->on_duty,
+                'timestamp' => optional($l->created_at)->toDateTimeString(),
+            ];
+        });
+});
 
-        $siteLocations = $sites->map(function ($site) {
+$sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
+$cacheKeySites = 'client_dashboard_site_locations_' . $clientId . '_' . now()->toDateString();
+
+$siteLocations = Cache::remember($cacheKeySites, 300, function () use ($clientId, $sevenDaysAgo) {
+    return Site::query()
+        ->select('sites.id', 'sites.site_name', 'sites.post_code', 'sites.address')
+        ->join('shifts', 'shifts.site_id', '=', 'sites.id')
+        ->join('shift_dates', 'shift_dates.shift_id', '=', 'shifts.id')
+        ->where('sites.client_id', $clientId)
+        ->whereNotNull('shift_dates.staff_id')
+        ->where('shift_dates.shift_date', '>=', $sevenDaysAgo)
+        ->distinct()
+        ->get()
+        ->map(function ($site) {
             return [
                 'id' => 'site-' . $site->id,
                 'name' => $site->site_name,
                 'postalcode' => $site->post_code,
+                'address' => $site->address,
                 'type' => 'site',
             ];
         });
+});
 
 
         $apiKey = env('GOOGLE_MAPS_API_KEY');

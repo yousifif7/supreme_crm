@@ -569,6 +569,23 @@
                     // ignore
                 }
             });
+
+            // Initialize Select2 for subcontractor selects (create / edit modals)
+            $(document).ready(function() {
+                if ($.fn.select2) {
+                    $('.sub-add-select2').each(function() {
+                        if (!$(this).hasClass('select2-hidden-accessible')) {
+                            $(this).select2({ dropdownParent: $('#add_employee'), width: '100%', placeholder: $(this).data('placeholder') || 'Select subcontractors', allowClear: true });
+                        }
+                    });
+
+                    $('.sub-edit-select2').each(function() {
+                        if (!$(this).hasClass('select2-hidden-accessible')) {
+                            $(this).select2({ dropdownParent: $('#edit_employee'), width: '100%', placeholder: $(this).data('placeholder') || 'Select subcontractors', allowClear: true });
+                        }
+                    });
+                }
+            });
         });
     </script>
     <script>
@@ -897,7 +914,18 @@
                     $('#settlement').val(data.employee.settlement);
                     $('#tags').val(data.employee.tags);
                     $('#department_id').val(data.employee.department_id);
-                    $('#subcontractor').val(data.employee.subcontractor);
+                    try {
+                        const subs = data.employee.subcontractor;
+                        if (Array.isArray(subs)) {
+                            $('#subcontractor').val(subs).trigger('change');
+                        } else if (subs !== null && typeof subs !== 'undefined') {
+                            $('#subcontractor').val([subs]).trigger('change');
+                        } else {
+                            $('#subcontractor').val(null).trigger('change');
+                        }
+                    } catch (e) {
+                        $('#subcontractor').val(data.employee.subcontractor).trigger('change');
+                    }
                     $('#additional_sia_number').val(data.employee.additional_sia_number);
                     $('#license_type').val(data.employee.license_type);
                     $('#license_expiry').val(formatDate(data.employee.license_expiry));
