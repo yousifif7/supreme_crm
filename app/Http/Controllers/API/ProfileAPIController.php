@@ -73,6 +73,19 @@ class ProfileAPIController extends Controller
 
         $profile = $request->user()->profile;
 
+        // Ensure a profile record exists for this user (API clients may hit update before getProfile)
+        if (! $profile) {
+            $profile = $request->user()->profile()->create([
+                'first_name' => $request->user()->first_name ?? '',
+                'last_name' => $request->user()->last_name ?? '',
+                'phone' => '',
+                'address' => '',
+                'emergency_contact' => [],
+                'bank_details' => [],
+                'face_data' => null,
+            ]);
+        }
+
         $user = $request->user();
 
         // If the request contains an email identical to current, proceed but suppress notifications
@@ -81,21 +94,24 @@ class ProfileAPIController extends Controller
             $suppressNotifications = true;
         }
 
-        // Handle email change requests specially: do not update directly
-        if ($request->filled('email') && $request->input('email') !== $user->email) {
+        // Detect email change robustly even when other fields are submitted together.
+        $newEmail = $request->input('email', null);
+        if (!is_null($newEmail) && trim($newEmail) !== '' && $newEmail !== $user->email) {
+            \Log::info('ProfileAPIController: detected email change request', ['user_id' => $user->id, 'new_email' => $newEmail, 'payload_keys' => array_keys($request->all())]);
+
             // ensure requested email is not already taken
-            if (User::where('email', $request->input('email'))->where('id', '<>', $user->id)->exists()) {
+            if (User::where('email', $newEmail)->where('id', '<>', $user->id)->exists()) {
                 return response()->json(['message' => 'Email already in use'], 422);
             }
 
-            // Ensure fillable is set in Profile model
+            // Ensure fillable is set in Profile model; save other profile fields as requested
             $profile->fill($request->only(['first_name', 'last_name', 'phone', 'address']));
             $profile->save();
 
             // create a profile change request
             $req = ProfileChangeRequest::create([
                 'user_id' => $user->id,
-                'requested_email' => $request->input('email'),
+                'requested_email' => $newEmail,
                 'old_email' => $user->email,
                 'status' => 'pending',
             ]);

@@ -580,37 +580,42 @@ $validator->after(function ($validator) use ($request) {
         if ($request->email || $request->password || $request->fore_name || $request->sur_name) {
             $employee = Employee::find($id);
             $user = User::role('security_staff')->where('id', $employee->user_id)->first();
-
-            if ($user) {
-                if($request->fore_name){
-                    $user->first_name = $request->fore_name;
-                }
-
-                if($request->sur_name){
-                    $user->last_name = $request->sur_name;
-                }
-
-                if ($request->email) {
-                    $user->email = $request->email;
-                    $employee->email = $request->email;
-                }
-                if (!$request->email) {
-                    $user->email = $user->email;
-                    $employee->email = $employee->email;
-                }
-
-                if ($request->password) {
-                    send_push_notification(
-                        $user->id,
-                        'Creds changed',
-                        'An admin has changed your account credintials! You have been logout from you account.',
-                        ['type' => 'profile'],
-                    );
-
-                    $user->plaintext_password = $request->password;
-                    $user->password = Hash::make($request->password);
-
-                    $user->tokens()->delete();
+                if ($user) {
+                    if($request->fore_name){
+                        $user->first_name = $request->fore_name;
+                    }
+                    if($request->sur_name){
+                        $user->last_name = $request->sur_name;
+                    }
+                    if ($request->email) {
+                        $user->email = $request->email;
+                        $employee->email = $request->email;
+                    }
+                    if ($request->filled('password') && $request->password !== ($user->plaintext_password ?? '')) {
+                        send_push_notification(
+                            $user->id,
+                            'Creds changed',
+                            'An admin has changed your account credentials! You have been logged out from other devices.',
+                            ['type' => 'profile']
+                        );
+                        $user->plaintext_password = $request->password;
+                        $user->password = Hash::make($request->password);
+                        try {
+                            if (method_exists($user, 'tokens')) {
+                                $user->tokens()->delete();
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('Failed to delete user tokens for user '.$user->id.': '.$e->getMessage());
+                        }
+                        try {
+                            if (\Schema::hasTable('sessions')) {
+                                \DB::table('sessions')->where('user_id', $user->id)->delete();
+                            }
+                        } catch (\Throwable $e) {
+                            Log::warning('Failed to clear sessions for user '.$user->id.': '.$e->getMessage());
+                        }
+                    }
+                    $user->save();
                 }
                 if (!$request->password) {
                     // Use Hash facade to hash the password
@@ -619,7 +624,7 @@ $validator->after(function ($validator) use ($request) {
 
                 $user->save();
             }
-        }
+        
         // Handle profile picture update
         if ($request->hasFile('profile_picture')) {
             $image = $request->file('profile_picture');

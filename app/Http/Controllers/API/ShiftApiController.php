@@ -53,7 +53,9 @@ class ShiftApiController extends Controller
         // category filter
         if ($category) {
             if ($category === 'past') {
-                $query->where('shift_date', '<', $today);
+                // Exclude very old historical shifts (2025 and earlier) from past results
+                $cutoff = '2025-12-15';
+                $query->where('shift_date', '<', $today)->where('shift_date', '>=', $cutoff);
             } elseif ($category === 'current') {
                 $query->where('shift_date', '=', $today);
             } elseif ($category === 'upcoming') {
@@ -137,8 +139,7 @@ class ShiftApiController extends Controller
                 'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
                 'category' => $category,
                 'trainings' => $trainings,
-                // ✅ Add note info here
-                'note' => ($note?->note_type === 'guard') ? [
+                'note' => (in_array($note?->note_type, ['guard', 'both'])) ? [
                     'id'        => $note->id,
                     'note_type' => $note->note_type,
                     'note'      => $note->note,

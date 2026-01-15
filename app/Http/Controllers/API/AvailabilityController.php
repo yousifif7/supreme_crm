@@ -15,10 +15,28 @@ class AvailabilityController extends Controller
     public function index(Request $request)
     {
         $guardId = Auth::id(); // or passed guard_id if admin
-
         $availability = Availability::where('user_id', $guardId)
             ->orderBy('day_of_week')
-            ->get(['day_of_week', 'start_time as start', 'end_time as end']);
+            ->get(['day_of_week', 'start_time', 'end_time'])
+            ->map(function ($a) {
+                $start = $a->start_time;
+                $end = $a->end_time;
+                $period = 'Custom';
+
+                // Map known ranges to Day / Night
+                if ($start === '07:00' && $end === '19:00') {
+                    $period = 'Day';
+                } elseif ($start === '19:00' && $end === '07:00') {
+                    $period = 'Night';
+                }
+
+                return [
+                    'day_of_week' => $a->day_of_week,
+                    'period' => $period,
+                    'start' => $start,
+                    'end' => $end,
+                ];
+            });
 
         return response()->json([
             'availability' => $availability
@@ -32,8 +50,8 @@ class AvailabilityController extends Controller
         $request->validate([
             'availability' => 'required|array|min:1|max:7',
             'availability.*.dayOfWeek' => 'required|integer|min:0|max:6',
-            'availability.*.start' => 'required|string|date_format:H:i',
-            'availability.*.end'   => 'required|string|date_format:H:i',
+            // period: Day | Night only — optional; if omitted the day will be left null
+            'availability.*.period' => 'nullable|string|in:Day,Night',
         ]);
 
         // Convert input to keyed array (dayOfWeek => data)
@@ -45,20 +63,19 @@ class AvailabilityController extends Controller
             if ($inputAvail->has($dayOfWeek)) {
                 // Use provided availability
                 $day = $inputAvail[$dayOfWeek];
-                $start = $day['start'];
-                $end   = $day['end'];
+                $period = $day['period'] ?? null;
 
-                // Special case: 00:00 - 00:00 → unavailable
-                if ($start === "00:00" && $end === "00:00") {
+                if ($period === 'Day') {
+                    $start = '07:00';
+                    $end = '19:00';
+                } elseif ($period === 'Night') {
+                    // Overnight: start 19:00 → end 07:00 (next day)
+                    $start = '19:00';
+                    $end = '07:00';
+                } else {
+                    // No period provided -> leave unavailable (null)
                     $start = null;
-                    $end   = null;
-                } elseif (
-                    Carbon::createFromFormat('H:i', $end)
-                    ->lessThanOrEqualTo(Carbon::createFromFormat('H:i', $start))
-                ) {
-                    return response()->json([
-                        'message' => "End time must be after start time for day {$dayOfWeek}"
-                    ], 422);
+                    $end = null;
                 }
             } else {
                 // Not provided → set default (unavailable)

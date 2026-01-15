@@ -2460,5 +2460,131 @@
             // Initial submit (without override)
             submitData(false);
         });
+
+           // --- Edit modal subcontractor wiring moved here to ensure script runs where modal is included ---
+        $(document).ready(function() { try {
+            // Initialize Select2 for staff inside edit modal (use existing customMatcher if present)
+            if ($.fn.select2) {
+                $('.selec2_assign_modal').each(function() {
+                    if (!$(this).hasClass('select2-hidden-accessible')) {
+                        var opts = { dropdownParent: $('#edit_shift'), width: '100%' };
+                        if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
+                        try { $(this).select2(opts); } catch (e) { console.warn('[edit_shift] select2 init failed', e); }
+                    }
+                });
+            }
+
+            function populateEditSubcontractorsAssign(staffId, preserveValue) {
+                var $modal = $('#edit_shift');
+                var $sub = $modal.find('#subcontractor');
+                $sub.prop('disabled', true).html('<option value="">Loading...</option>');
+
+                if (!staffId) {
+                    $sub.html('<option value="">--choose--</option>').prop('disabled', false).trigger('change');
+                    return;
+                }
+
+                $.ajax({
+                    url: `${baseUrl}/subcontractors/for-employee/${staffId}`,
+                    method: 'GET',
+                    dataType: 'json'
+                }).done(function(res) {
+                    $sub.empty().append('<option value="">--choose--</option>');
+                    if (res && res.data && res.data.length) {
+                        res.data.forEach(function(s) {
+                            var label = s.company_name || (s.first_name ? (s.first_name + ' ' + (s.last_name||'')) : ('Subcontractor ' + s.id));
+                            $sub.append(`<option value="${s.id}">${label}</option>`);
+                        });
+                    }
+
+                    if (typeof preserveValue !== 'undefined' && preserveValue) {
+                        try { $sub.val(preserveValue); } catch (e) {}
+                    }
+
+                    $sub.prop('disabled', false);
+                    if ($sub.hasClass('select2-hidden-accessible')) $sub.trigger('change.select2');
+                    else $sub.trigger('change');
+                }).fail(function() {
+                    $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+                });
+            }
+            // ensure existing delegated handlers removed to avoid duplicates
+            $('#edit_shift').off('change', '#staff_id');
+            $('#edit_shift').off('select2:select', '#staff_id');
+
+            // initialize subcontractor select2 inside modal
+            (function initSubSelect() {
+                var $modal = $('#edit_shift');
+                var $sub = $modal.find('#subcontractor');
+                try {
+                    if ($.fn.select2 && !$sub.hasClass('select2-hidden-accessible')) {
+                        $sub.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 });
+                    }
+                } catch (e) { console.warn('[edit_shift] subcontractor select2 init failed', e); }
+            })();
+
+            // debounce wrapper to collapse multiple rapid events
+            var _editSubDebounce = null;
+            function debouncedPopulate(staffId, preserve) {
+                clearTimeout(_editSubDebounce);
+                _editSubDebounce = setTimeout(function() { populateEditSubcontractorsAssign(staffId, preserve); }, 120);
+            }
+
+            // Delegated handlers inside modal
+            $('#edit_shift').on('change', '#staff_id', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+            $('#edit_shift').on('select2:select', '#staff_id', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+
+            // Scoped direct bindings (ensure only bound once)
+            $('#edit_shift').find('#staff_id').off('.editStaff').on('change.editStaff', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            }).on('select2:select.editStaff', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+
+            $('#edit_shift').on('shown.bs.modal', function() {
+                var $modal = $('#edit_shift');
+                var staffId = $modal.find('#staff_id').val();
+                var preserve = $modal.find('#subcontractor').val();
+
+                // Defer heavy work to idle time so modal shows immediately
+                var doInit = function() {
+                    if (staffId) debouncedPopulate(staffId, preserve);
+                };
+
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(doInit, {timeout: 200});
+                } else {
+                    setTimeout(doInit, 80);
+                }
+
+                // Lazy-init Select2 instances only on first interaction to reduce initial work
+                $modal.find('#staff_id').one('focus.editLazy click.editLazy', function() {
+                    var $el = $(this);
+                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                        try {
+                            var opts = { dropdownParent: $modal, width: '100%' };
+                            if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
+                            $el.select2(opts);
+                        } catch (e) { console.warn('[edit_shift] lazy select2 init failed', e); }
+                    }
+                });
+
+                $modal.find('#subcontractor').one('focus.editLazy click.editLazy', function() {
+                    var $el = $(this);
+                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                        try { $el.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 }); } catch (e) { console.warn('[edit_shift] lazy subcontractor select2 init failed', e); }
+                    }
+                });
+            });
+        } catch (e) { console.error('[edit_shift] ready failed', e); } });
+
     </script>
 @endsection

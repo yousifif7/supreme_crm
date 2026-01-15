@@ -2031,14 +2031,14 @@ public function getTodayShifts()
         $max = (int) $request->query('max_points', 2500);
         $max = max(50, min($max, 5000)); // enforce safe bounds
 
-        // Get total count first
-        $q = Location::where('shiftdate_id', $shiftDate->id)->orderBy('created_at');
+        // Use the GPS timestamp for ordering and display (created_at may reflect DB insert time)
+        $q = Location::where('shiftdate_id', $shiftDate->id)->orderBy('timestamp');
 
         $total = $q->count();
 
         // If total is small, return all rows
         if ($total <= $max) {
-            $rows = $q->get(['latitude', 'longitude', 'created_at'])->toArray();
+            $rows = $q->get(['latitude', 'longitude', 'timestamp', 'accuracy'])->toArray();
         } else {
             // Sample: pick roughly evenly-spaced indices to reduce payload
             // Calculate sampling step and select those rows by offset (efficient approach: use chunk but simpler here)
@@ -2051,7 +2051,8 @@ public function getTodayShifts()
                     $rows[] = [
                         'latitude'  => (string) $r->latitude,
                         'longitude' => (string) $r->longitude,
-                        'created_at'=> $r->created_at,
+                        'timestamp' => $r->timestamp,
+                        'accuracy'  => $r->accuracy ?? null,
                     ];
                     if (count($rows) >= $max) break;
                 }

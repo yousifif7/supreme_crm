@@ -25,7 +25,7 @@
                                             <div class="mb-3">
                                                 <label class="form-label">Staff <span
                                                         class="text-danger">*</span></label>
-                                                <select name="staff_id" class="form-select select2_modal select2" id="staff_id">
+                                                <select name="staff_id" class="form-select select2_modal select2 selec2_assign_modal" id="staff_id">
                                                     <option value="">--choose--</option>
                                                         @php
                                                             $sortedStaffs = $staffs->sortBy(function ($s) {
@@ -38,6 +38,17 @@
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error" id="error_client_id"></span>
+                                            </div>
+                                        </div>
+
+                                        
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Subcontractor</label>
+                                                <select name="subcontractor_id" id="subcontractor" class="form-select SubcontractorSelectEdit">
+                                                    <option value="">--choose--</option>
+                                                </select>
+                                                <span class="text-danger form-error" id="error_subcontractor_id"></span>
                                             </div>
                                         </div>
 
@@ -157,5 +168,8 @@
             minuteIncrement: 5,
             allowInput: true
         });
+
     });
+
+
 </script>

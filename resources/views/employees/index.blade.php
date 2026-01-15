@@ -374,120 +374,120 @@
                     <div class="container-fluid">
                         <div class="row g-3">
                             <div class="col-md-4">
-                                <div class="text-muted small">Full Name</div>
+                                <div class="text-muted">Full Name</div>
                                 <div id="full_name_detail" class="fw-bold"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Email</div>
+                                <div class="text-muted">Email</div>
                                 <div id="email_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Gender</div>
+                                <div class="text-muted">Gender</div>
                                 <div id="gender_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">NI Number</div>
+                                <div class="text-muted ">NI Number</div>
                                 <div id="ni_number_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">SIA Licence</div>
+                                <div class="text-muted ">SIA Licence</div>
                                 <div id="sia_licence_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">SIA Expiry</div>
+                                <div class="text-muted ">SIA Expiry</div>
                                 <div id="sia_expiry_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Licence Type</div>
+                                <div class="text-muted ">Licence Type</div>
                                 <div id="licence_type_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Entry Date</div>
+                                <div class="text-muted ">Entry Date</div>
                                 <div id="entry_date_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Date of Birth</div>
+                                <div class="text-muted ">Date of Birth</div>
                                 <div id="dob_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Service Type</div>
+                                <div class="text-muted ">Service Type</div>
                                 <div id="service_type_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Visa Type</div>
+                                <div class="text-muted ">Visa Type</div>
                                 <div id="visa_type_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Visa Expiry</div>
+                                <div class="text-muted ">Visa Expiry</div>
                                 <div id="visa_expiry_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Place of Work</div>
+                                <div class="text-muted ">Place of Work</div>
                                 <div id="place_work_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Contact Number</div>
+                                <div class="text-muted ">Contact Number</div>
                                 <div id="contact_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Emergency Contact</div>
+                                <div class="text-muted ">Emergency Contact</div>
                                 <div id="emergency_contact_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Job Title</div>
+                                <div class="text-muted ">Job Title</div>
                                 <div id="job_title_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Nationality</div>
+                                <div class="text-muted ">Nationality</div>
                                 <div id="nationality_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Passport No</div>
+                                <div class="text-muted ">Passport No</div>
                                 <div id="passport_no_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Passport Expiry</div>
+                                <div class="text-muted ">Passport Expiry</div>
                                 <div id="passport_expiry_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Driving Licence</div>
+                                <div class="text-muted ">Driving Licence</div>
                                 <div id="driving_licence_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Driving Licence Expiry</div>
+                                <div class="text-muted ">Driving Licence Expiry</div>
                                 <div id="driving_licence_expiry_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Address Group</div>
+                                <div class="text-muted ">Address Group</div>
                                 <div id="address_group_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Manager</div>
+                                <div class="text-muted ">Manager</div>
                                 <div id="manager_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Guard Rate</div>
+                                <div class="text-muted ">Guard Rate</div>
                                 <div id="guard_rate_detail"></div>
                             </div>
 
                             <div class="col-md-4">
-                                <div class="text-muted small">Bank Info</div>
+                                <div class="text-muted ">Bank Info</div>
                                 <div id="bank_info_detail"></div>
                             </div>
                             <div class="col-md-4">
-                                <div class="text-muted small">Other Info</div>
+                                <div class="text-muted ">Other Info</div>
                                 <div id="other_info_detail"></div>
                             </div>
 
                             <div class="col-12 mt-2">
-                                <div class="text-muted small">Documents</div>
+                                <div class="text-muted ">Documents</div>
                                 <div id="document_list_detail">
                                     <span class="text-muted">Loading...</span>
                                 </div>
@@ -1325,6 +1325,16 @@
         function viewEmployeeDetail(id) {
             $.get(`${baseUrl}/employees/${id}/view`, function(data) {
                 $('#employee_name_heading').text(`${data.fore_name} ${data.sur_name}`);
+                // Prevent flash of previous employee documents: clear and show loading placeholder immediately
+                try {
+                    $('#document_list_detail').html('<p class="text-muted">Loading documents...</p>');
+                    $('#document_list_detail').data('loading', true);
+                    // Ensure any previous approve/reject handlers are removed until new docs load
+                    $(document).off('click', '.approve-doc-btn');
+                    $(document).off('click', '.reject-doc-btn');
+                } catch (e) {
+                    // ignore if element not present
+                }
                 $('#full_name_detail').text(`${data.fore_name} ${data.sur_name}`);
                 $('#email_detail').text(data.email);
                 $('#gender_detail').text(data.gender);
@@ -1515,6 +1525,50 @@
                             mainHtml += `</ul></div>`;
                         }
 
+                        // Determine old documents: any DB document whose basename isn't one of the
+                        // current employee-stored files (main fields or additional_files).
+                        const currentBasenames = new Set();
+                        // Add mapped main files from employee record (may be stored as bare filename)
+                        Object.keys(documentTypes).forEach(k => {
+                            const v = data[k];
+                            if (v) currentBasenames.add((v || '').split('/').pop());
+                        });
+                        // Add additional_files basenames
+                        try {
+                            let addFiles = data.additional_files;
+                            if (typeof addFiles === 'string') {
+                                addFiles = JSON.parse(addFiles || '[]');
+                            }
+                            if (Array.isArray(addFiles)) {
+                                addFiles.forEach(it => {
+                                    let path = '';
+                                    if (typeof it === 'string') path = it;
+                                    else if (typeof it === 'object' && it !== null) path = it.path || it.file || it.file_path || '';
+                                    if (path) currentBasenames.add((path || '').split('/').pop());
+                                });
+                            }
+                        } catch (e) {
+                            // ignore parsing errors
+                        }
+
+                        const oldDocs = docs.filter(d => {
+                            const bn = (d.file_path || '').split('/').pop();
+                            return bn && !currentBasenames.has(bn);
+                        });
+
+                        let oldDocsHtml = '';
+                        if (oldDocs.length > 0) {
+                            oldDocsHtml = '<ul class="list-unstyled mb-0">';
+                            oldDocs.forEach(d => {
+                                const bn = (d.file_path || '').split('/').pop();
+                                const typeLabel = (d.document_type && documentTypes[d.document_type]) ? documentTypes[d.document_type] : (d.document_type || 'Other');
+                                oldDocsHtml += `<li class="mb-1"><span class="badge bg-secondary me-2">${typeLabel}</span><a href="${baseUrl}/${d.file_path}" target="_blank">${bn}</a> <span class="small text-muted">(${d.status || 'unknown'})</span></li>`;
+                            });
+                            oldDocsHtml += '</ul>';
+                        } else {
+                            oldDocsHtml = '<span class="text-muted">No older documents found.</span>';
+                        }
+
                         if (!anyMain) mainHtml = '<span class="text-muted">Employee didn\'t upload any approved main document.</span>';
 
                         // Build Pending Documents HTML
@@ -1566,6 +1620,10 @@
                             <hr>
                             <h6>Additional Documents</h6>
                             ${additionalHtmlRendered}
+                            <hr>
+                            <h6>Expired Documents</h6>
+                            <div id="old_docs_section">${oldDocsHtml}</div>
+                            <hr>
                         `);
                     }).fail(function() {
                         // If documents endpoint fails, still render the rest
@@ -1765,26 +1823,15 @@
           height: 3rem;
       }
       
-      /* Consistent text sizing for employee detail modal */
-      #viewEmployeeDetailModal .modal-body .col-md-4 > div:not(.text-muted),
-      #viewEmployeeDetailModal .modal-body .col-md-12 > div:not(.text-muted),
-      #viewEmployeeDetailModal .modal-body .col-12 > div:not(.text-muted) {
-          font-size: 0.9375rem;
-          line-height: 1.5;
+      /* Unified font-size for the employee detail modal */
+      #viewEmployeeDetailModal .modal-body,
+      #viewEmployeeDetailModal .modal-body * {
+          font-size: 1.125rem !important; /* uniform ~18px */
+          line-height: 1.6 !important;
       }
-      
-      #viewEmployeeDetailModal .text-muted.small {
-          font-size: 0.75rem;
-          margin-bottom: 0.25rem;
-      }
-      
-      #viewEmployeeDetailModal #document_list_detail,
-      #viewEmployeeDetailModal #document_list_detail * {
-          font-size: 0.9375rem;
-      }
-      
+
       #viewEmployeeDetailModal h6 {
-          font-size: 1rem;
-          font-weight: 600;
+          font-size: 1.125rem !important;
+          font-weight: 700;
       }
   </style>

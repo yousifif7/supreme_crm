@@ -850,6 +850,7 @@ document.addEventListener('click', () => {
             // Periodic polling
             setInterval(fetchNotifications, POLL_INTERVAL_MS);
         })();
+        
         // Expose manual trigger for SIA check (call from console or other scripts)
         window.triggerSiaCheck = async function ({ force = false } = {}) {
             const KEY = 'sia_check_last_v1';

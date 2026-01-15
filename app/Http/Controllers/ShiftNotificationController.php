@@ -231,7 +231,9 @@ foreach ($missedBookOffs as $mb) {
 
                     // Notify admin and guard (if assigned)
                     try {
-                        Notify::toDashboard(1, 'alert', 'Patrol missed', "Patrol '{$p->name}' (ID: {$p->id}) was not started within 15 minutes and has been marked missed.", '/shift-dates/' . ($p->shift?->id ?? $p->shift_id) . '/view');
+                        if($patrol->shift->shift->is_assign == 3){
+                            Notify::toDashboard(1, 'alert', 'Patrol missed', "Patrol '{$p->name}' (ID: {$p->id}) was not started within 15 minutes and has been marked missed.", '/shift-dates/' . ($p->shift?->id ?? $p->shift_id) . '/view');
+                        }
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for patrol_missed auto-mark: ' . $e->getMessage());
                     }

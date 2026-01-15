@@ -274,53 +274,31 @@ class InvoiceService
             throw new \InvalidArgumentException('dateFrom must be before or equal to dateTo');
         }
 
-        // Get all shifts managed by this subcontractor. Optionally filter to a specific staff member.
-        $shifts = Shift::with(['shiftDates' => function ($q) use ($dateFrom, $dateTo, $subcontractorId, $securityStaffId) {
-            // When a subcontractor filter is provided, include shiftDates that satisfy any of:
-            // - the shift_date has subcontractor_id set to the requested id
-            // - the parent Shift->subcontractor equals the requested id
-            // - the staff's Employee->subcontractor field contains the requested id (supports scalar, JSON array or CSV)
-            $q->when($subcontractorId, function ($query) use ($subcontractorId) {
-                $query->where(function ($wr) use ($subcontractorId) {
-                    $wr->where('subcontractor_id', $subcontractorId)
-                       ->orWhereHas('shift', function ($qs) use ($subcontractorId) {
-                            $qs->where('subcontractor_id', $subcontractorId);
-                       })
-                       ->orWhereHas('staff.employee', function ($qe) use ($subcontractorId) {
-                            $qe->where('subcontractor', $subcontractorId)
-                               ->orWhereRaw('JSON_CONTAINS(`subcontractor`, ?)', [json_encode($subcontractorId)])
-                               ->orWhere('subcontractor', 'like', '%'. $subcontractorId .'%');
-                       });
-                });
+        // Fetch all ShiftDate rows that belong to this subcontractor within the date range.
+        $shiftDatesQuery = ShiftDate::with('shift')
+            ->whereDate('shift_date', '>=', $dateFrom)
+            ->whereDate('shift_date', '<=', $dateTo);
+
+        // Filter by subcontractor via multiple possible storage locations
+        if ($subcontractorId) {
+            $shiftDatesQuery->where(function ($q) use ($subcontractorId) {
+                $q->where('subcontractor_id', $subcontractorId)
+                    ->orWhereHas('shift', function ($qs) use ($subcontractorId) {
+                        $qs->where('subcontractor_id', $subcontractorId);
+                    })
+                    ->orWhereHas('staff.employee', function ($qe) use ($subcontractorId) {
+                        $qe->where('subcontractor', $subcontractorId)
+                           ->orWhereRaw('JSON_CONTAINS(`subcontractor`, ?)', [json_encode($subcontractorId)])
+                           ->orWhere('subcontractor', 'like', '%'. $subcontractorId .'%');
+                    });
             });
-
-            // If a specific security staff is provided, limit shiftDates to that staff
-            $q->when($securityStaffId, function ($query) use ($securityStaffId) {
-                $query->where('staff_id', $securityStaffId);
-            });
-
-            $q->whereDate('shift_date', '>=', $dateFrom)->whereDate('shift_date', '<=', $dateTo);
-        }])->get();
-
-
-
-        $invoiceItems = [];
-        $totalHours = 0;
-        $totalAmount = 0;
-
-        foreach ($shifts as $shift) {
-            foreach ($shift->shiftDates as $shiftDate) {
-                // Prefer guard_rate on the shift date if present, otherwise fall back to PO rate
-                // Also, if guard_rate is zero or null, but the staff has a guard_rate, prefer staff's guard_rate for security staff payrolls
-                $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->employee_rate ?? 0);
-
-                $item = $this->processShiftDate($shiftDate, $hourlyRate);
-                $invoiceItems[] = $item;
-
-                $totalHours += $item['hours'];
-                $totalAmount += $item['amount'];
-            }
         }
+
+        if (!empty($securityStaffId)) {
+            $shiftDatesQuery->where('staff_id', $securityStaffId);
+        }
+
+        $shiftDates = $shiftDatesQuery->get();
 
         // Determine subcontractor commission percent (snapshot)
         $subcontractorRecord = Subcontractor::where('user_id', $subcontractorId)->first();
@@ -330,12 +308,32 @@ class InvoiceService
             $subcontractorRecord = Subcontractor::find($subcontractorId);
         }
 
+        // Subcontractor default rate if available
+        $subDefaultRate = $subcontractorRecord->rate ?? null;
+
+        $invoiceItems = [];
+        $totalHours = 0;
+        $totalAmount = 0;
+
+        foreach ($shiftDates as $shiftDate) {
+            // Resolve hourly rate for subcontractor invoice:
+            // prefer site rate -> shiftDate guard_rate -> shift employee_rate -> subcontractor default rate -> 0
+            $hourlyRate = $shiftDate->shift->site_rate ?? $shiftDate->guard_rate ?? $shiftDate->shift->employee_rate ?? $subDefaultRate ?? 0;
+
+            $item = $this->processShiftDate($shiftDate, $hourlyRate);
+            $invoiceItems[] = $item;
+
+            $totalHours += $item['hours'];
+            $totalAmount += $item['amount'];
+        }
         // Fallback: check if the User model has a subcontractor relation (user->subcontractor)
         if (! $subcontractorRecord && isset($subcontractor) && method_exists($subcontractor, 'subcontractor')) {
             try {
                 $rel = $subcontractor->subcontractor; // may be null
                 if ($rel) {
                     $subcontractorRecord = $rel;
+                    // update default rate if found
+                    $subDefaultRate = $subDefaultRate ?? ($subcontractorRecord->rate ?? null);
                 }
             } catch (\Throwable $e) {
                 // ignore

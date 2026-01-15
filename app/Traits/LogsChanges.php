@@ -109,16 +109,31 @@ trait LogsChanges
                 $labels .= " for shift at {$site} on {$date}";
             }
 
-            if (auth::user()) {
+            if (Auth::check()) {
                 $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
             } else {
                 $username = 'System';
             }
 
+            $actionTitle = "Updated {$modelType}";
+            $description = "{$username} updated {$fields}";
+
+            // Add shift/site context when available
+            if (isset($site) || isset($date)) {
+                $siteLabel = $site ?? 'Unknown Site';
+                $dateLabel = $date ?? 'N/A';
+                $description .= " at {$siteLabel} on {$dateLabel}";
+            }
+
+            // Append the detailed diff/labels to resemble notification messages
+            if (!empty($labels)) {
+                $description .= ": {$labels}";
+            }
+
             $model->logs()->create([
                 'user_name' => $username,
-                'action' => "Updated {$fields}",
-                'description' => $labels,
+                'action' => $actionTitle,
+                'description' => $description,
             ]);
         });
 
@@ -146,16 +161,24 @@ trait LogsChanges
                 }
             }
 
-            if (auth::user()) {
+            if (Auth::check()) {
                 $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
             } else {
                 $username = 'System';
             }
 
+            $actionTitle = "Created {$modelType}";
+            $description = "{$username} created {$modelType} {$label}";
+
+            // For ShiftDate provide clearer site/date context if available
+            if ($modelType == 'Shift' && isset($site) && isset($date)) {
+                $description .= " at {$site} on {$date}";
+            }
+
             $model->logs()->create([
                 'user_name' => $username,
-                'action' => "Created {$modelType} record",
-                'description' => "{$modelType} {$label} was added successfully.",
+                'action' => $actionTitle,
+                'description' => $description,
             ]);
         });
     }

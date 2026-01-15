@@ -1590,13 +1590,15 @@
             }
 
             shifts.forEach((shift) => {
-                const subcontractorMatch = shift.staff_name ? shift.staff_name
-                    .match(/\(([^)]+)\)/) : null;
-                const subcontractor = subcontractorMatch ? subcontractorMatch[
-                    0] : '';
-                const staffNameWithoutSub = subcontractorMatch ? shift
-                    .staff_name.replace(subcontractor, '').trim() : (shift
-                        .staff_name || '');
+                // Extract all parenthesised subcontractor tags (e.g. "(SPL)")
+                const subcontractorMatches = shift.staff_name ? shift.staff_name.match(/\([^)]*\)/g) : null;
+                let subcontractor = '';
+                if (subcontractorMatches && subcontractorMatches.length) {
+                    // Preserve parentheses and join multiple tags with a space
+                    subcontractor = subcontractorMatches.join(' ');
+                }
+                // Remove all parenthesised groups from the visible staff name
+                const staffNameWithoutSub = shift.staff_name ? shift.staff_name.replace(/\s*\([^)]*\)/g, '').trim() : (shift.staff_name || '');
 
                 // bar HTML: stacked rows (service, time, duration, staff)
                 const bar = $(`
