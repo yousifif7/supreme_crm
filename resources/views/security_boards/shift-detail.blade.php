@@ -421,6 +421,18 @@
                                                         id="site_address1">{{ $shiftDate->shift->site->address ?? '' }}</span>
                                                 </div>
                                             </div>
+                                                                                        @php
+                                                $bookOnMedia = App\Models\BookingMedia::where('shift_date_id', $shiftDate->id)
+                                                    ->where('type', 'book_on')
+                                                    ->get();
+                                            @endphp
+                                            @if($bookOnMedia->isNotEmpty())
+                                                <div class="mt-2 book-media-list">
+                                                    @foreach($bookOnMedia as $m)
+                                                        <a href="{{ asset($m->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">View file</a>
+                                                    @endforeach
+                                                </div>
+                                            @endif
 
                                         </div>
                                         <form id="bookonForm" action="{{ route('shift.bookon.store') }}" method="post">
@@ -457,6 +469,19 @@
                                                         id="site_address2">{{ $shiftDate->shift->site->address ?? '' }}</span>
                                                 </div>
                                             </div>
+                                            {{-- Booking media (book_on) --}}
+                                            @php
+                                                $bookOnMedia = App\Models\BookingMedia::where('shift_date_id', $shiftDate->id)
+                                                    ->where('type', 'book_off')
+                                                    ->get();
+                                            @endphp
+                                            @if($bookOnMedia->isNotEmpty())
+                                                <div class="mt-2 book-media-list">
+                                                    @foreach($bookOnMedia as $m)
+                                                        <a href="{{ asset($m->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">View file</a>
+                                                    @endforeach
+                                                </div>
+                                            @endif
                                         </div>
                                         <form id="bookoffForm" action="{{ route('shift.bookoff.store') }}"
                                             method="post">
@@ -1258,10 +1283,18 @@
         $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
             $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
             $('#assignShiftModal').modal('show');
-            $(".selec2_assign_modal").select2({
-                dropdownParent: $("#assignShiftModal")
-            });
+            // Guard Select2 init - some pages may not include the library
+            try {
+                if ($.fn && $.fn.select2) {
+                    $(".selec2_assign_modal").select2({ dropdownParent: $("#assignShiftModal") });
+                } else {
+                    console.warn('Select2 not available when opening assign modal');
+                }
+            } catch (e) {
+                console.warn('Error initializing select2 in assign modal:', e);
+            }
         });
+        
 
         $(document).ready(function() {
             const london = [51.5074, -0.1278];
@@ -1638,41 +1671,77 @@
                     // If we have guard locations, draw polyline + markers + heatmap
                     if (valid.length > 0) {
                         const coords = valid.map(loc => new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude)));
+                        
+                        // FILTER GPS NOISE & DUPLICATES
+                       const filteredCoords = filterGPSNoise(coords, 5); // 5 meter threshold
 
-                        routePolyline = new google.maps.Polyline({
-                            path: coords,
-                            geodesic: true,
-                            strokeColor: "#FF0000",
-                            strokeOpacity: 0.6,
-                            strokeWeight: 2,
-                            map: map
-                        });
+            // Only draw if we have meaningful movement
+            if (filteredCoords.length > 1) {
+                // Create smooth curved path
+                const smoothPath = createSmoothCurve(filteredCoords, 15);
 
-                        // start / end markers
-                        const first = coords[0];
-                        const last = coords[coords.length - 1];
-                        guardMarkers.push(new google.maps.Marker({ position: first, map, label: { text: 'START', color: '#FFF' }, icon: { url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', scaledSize: new google.maps.Size(45,45) } }));
-                        if (coords.length > 1) {
-                            guardMarkers.push(new google.maps.Marker({ position: last, map, label: { text: 'END', color: '#FFF' }, icon: { url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png', scaledSize: new google.maps.Size(45,45) } }));
-                        }
+                routePolyline = new google.maps.Polyline({
+                    path: smoothPath,
+                    geodesic: false,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 0.7,
+                    strokeWeight: 3,
+                    map: map
+                });
 
-                        // optional heatmap
-                        if (typeof google.maps.visualization !== 'undefined') {
-                            heatmap = new google.maps.visualization.HeatmapLayer({
-                                data: coords,
-                                radius: 20,
-                                opacity: 0.7,
-                                dissipating: true,
-                                maxIntensity: 5,
-                                map: map
-                            });
-                        }
+                // START marker
+                const first = filteredCoords[0];
+                guardMarkers.push(new google.maps.Marker({ 
+                    position: first, 
+                    map, 
+                    label: { text: 'START', color: '#FFF', fontWeight: 'bold' }, 
+                    icon: { 
+                        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', 
+                        scaledSize: new google.maps.Size(45,45) 
+                    },
+                    zIndex: 1000
+                }));
+                
+                // END marker (only if guard actually moved)
+                const last = filteredCoords[filteredCoords.length - 1];
+                guardMarkers.push(new google.maps.Marker({ 
+                    position: last, 
+                    map, 
+                    label: { text: 'END', color: '#FFF', fontWeight: 'bold' }, 
+                    icon: { 
+                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png', 
+                        scaledSize: new google.maps.Size(45,45) 
+                    },
+                    zIndex: 1000
+                }));
+            } else {
+                // Guard is standing still - just show single marker
+                const position = filteredCoords[0];
+                guardMarkers.push(new google.maps.Marker({ 
+                    position: position, 
+                    map, 
+                    label: {color: '#FFF', fontWeight: 'bold' }, 
+                    icon: { 
+                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', 
+                        scaledSize: new google.maps.Size(45,45) 
+                    },
+                    zIndex: 1000
+                }));
+            }
 
-                        coords.forEach(c => {
-                            // small circle markers along route (optional): commented out to reduce clutter
-                            // guardMarkers.push(new google.maps.Marker({ position: c, map }));
-                        });
-                    }
+            // Optional heatmap (use original coords, not filtered)
+            if (typeof google.maps.visualization !== 'undefined') {
+                heatmap = new google.maps.visualization.HeatmapLayer({
+                    data: coords,
+                    radius: 20,
+                    opacity: 0.7,
+                    dissipating: true,
+                    maxIntensity: 5,
+                    map: map
+                });
+            }
+        }
+
 
                     // Determine bounds - prioritize guard locations if they exist
                     const combinedBounds = new google.maps.LatLngBounds();
@@ -1718,6 +1787,89 @@
                     }
                 }
             }
+            
+            // Filter GPS noise and duplicates
+            function filterGPSNoise(coords, minDistanceMeters = 5) {
+    if (coords.length === 0) return [];
+    
+    const filtered = [coords[0]]; // Always keep first point
+    
+    for (let i = 1; i < coords.length; i++) {
+        const lastPoint = filtered[filtered.length - 1];
+        const currentPoint = coords[i];
+        
+        // Calculate distance using Haversine formula
+        const distance = haversineDistance(lastPoint, currentPoint);
+        
+        // Only add point if it's far enough from the last filtered point
+        if (distance >= minDistanceMeters) {
+            filtered.push(currentPoint);
+        }
+    }
+    
+    return filtered;
+}
+
+            function haversineDistance(p1, p2) {
+    const R = 6371000; // Earth's radius in meters
+    const lat1 = p1.lat() * Math.PI / 180;
+    const lat2 = p2.lat() * Math.PI / 180;
+    const dLat = (p2.lat() - p1.lat()) * Math.PI / 180;
+    const dLng = (p2.lng() - p1.lng()) * Math.PI / 180;
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+            // Catmull-Rom spline for smooth curves through points
+            function createSmoothCurve(points, segmentPoints = 20) {
+    if (points.length < 2) return points;
+    if (points.length === 2) return points; // Just a straight line
+    
+    const smoothPath = [];
+    
+    // Add first point
+    smoothPath.push(points[0]);
+    
+    // For each segment between points
+    for (let i = 0; i < points.length - 1; i++) {
+        // Get control points for Catmull-Rom spline
+        const p0 = i > 0 ? points[i - 1] : points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = i < points.length - 2 ? points[i + 2] : points[i + 1];
+        
+        // Generate interpolated points between p1 and p2
+        for (let t = 1; t <= segmentPoints; t++) {
+            const tt = t / segmentPoints;
+            const lat = catmullRomInterpolate(
+                p0.lat(), p1.lat(), p2.lat(), p3.lat(), tt
+            );
+            const lng = catmullRomInterpolate(
+                p0.lng(), p1.lng(), p2.lng(), p3.lng(), tt
+            );
+            smoothPath.push(new google.maps.LatLng(lat, lng));
+        }
+    }
+    
+    return smoothPath;
+}
+
+            // Catmull-Rom interpolation formula
+            function catmullRomInterpolate(p0, p1, p2, p3, t) {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        }
 
             // initial render
             if (checkpointMarkers.length > 0) {
@@ -2380,10 +2532,14 @@
                     $('#book_off').val(data.absentee_end_time ? data.absentee_end_time.substring(0, 5) : (data.end_time ? data.end_time.substring(0, 5) : ''));
                     $('#status_id').val(data.is_assign || data.status_id || '').trigger('change');
                     
-                    // Initialize Select2 in modal
-                    $('.select2_modal').select2({
-                        dropdownParent: $('#edit_shift')
-                    });
+                    // Initialize Select2 in modal (guarded)
+                    try {
+                        if ($.fn && $.fn.select2) {
+                            $('.select2_modal').select2({ dropdownParent: $('#edit_shift') });
+                        } else {
+                            console.warn('Select2 not available for edit modal');
+                        }
+                    } catch (e) { console.warn('select2 init error in editShift', e); }
                     
                     $('#edit_shift').modal('show');
                 },

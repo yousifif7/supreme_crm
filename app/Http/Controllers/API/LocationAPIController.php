@@ -10,6 +10,10 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
+use App\Models\Shift;
+use App\Models\ShiftDate;
+use App\Models\User;
+use App\Models\Site;
 
 
 class LocationAPIController extends Controller
@@ -51,6 +55,7 @@ class LocationAPIController extends Controller
 
         $locations = Location::where('user_id', Auth::id())
             ->whereBetween('timestamp', [$request->date_from, $request->date_to])
+            ->where('accuracy', '<=', 100)
             ->orderBy('timestamp', 'asc')
             ->get(['latitude', 'longitude', 'timestamp', 'accuracy']);
 
@@ -154,6 +159,172 @@ class LocationAPIController extends Controller
         return response()->json([
             'idle_minutes' => $diffMinutes,
             'alerts_sent' => $alerts
+        ]);
+    }
+
+    public function latestForSite(Request $request, $siteId)
+    {
+        $now = Carbon::now();
+
+        // 1) Find the most relevant shift_date for this site:
+        //    - active (start_time <= now <= end_time)
+        //    - else most recent past (end_time < now) by end_time desc
+        //    - else nearest future (start_time > now) by start_time asc
+        $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
+                $q->where('site_id', $siteId);
+            })
+            ->whereNotNull('start_time') // guard against missing data
+            ->whereNotNull('end_time')
+            ->whereColumn('start_time', '<=', 'end_time') // sanity
+            ->where(function ($q) use ($now) {
+                $q->where(function ($q2) use ($now) {
+                    // active
+                    $q2->where('start_time', '<=', $now)->where('end_time', '>=', $now);
+                });
+            })
+            ->orderByDesc('start_time')
+            ->first();
+
+        if (! $shiftDate) {
+            // most recent past
+            $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
+                    $q->where('site_id', $siteId);
+                })
+                ->whereNotNull('end_time')
+                ->where('end_time', '<', $now)
+                ->orderByDesc('end_time')
+                ->first();
+        }
+
+        if (! $shiftDate) {
+            // next future
+            $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
+                    $q->where('site_id', $siteId);
+                })
+                ->where('start_time', '>', $now)
+                ->orderBy('start_time')
+                ->first();
+        }
+
+        // If no shift_date found at all, fall back to original behavior (all staff assigned to site shifts)
+        if (! $shiftDate) {
+            // original behavior: find distinct staff_ids across shift_dates for the site
+            $staffIds = \DB::table('shift_dates')
+                ->join('shifts', 'shift_dates.shift_id', '=', 'shifts.id')
+                ->where('shifts.site_id', $siteId)
+                ->whereNotNull('shift_dates.staff_id')
+                ->distinct()
+                ->pluck('shift_dates.staff_id')
+                ->toArray();
+
+            $windowStart = null;
+            $windowEnd = null;
+        } else {
+            // Determine the staff IDs for the same shift occurrence.
+            // This assumes shift_dates for the same shift occurrence share the same shift_id and start_time date/time.
+            // Adjust logic if your model represents occurrences differently.
+            $sdStart = Carbon::parse($shiftDate->start_time);
+            $sdEnd = Carbon::parse($shiftDate->end_time);
+
+            // small buffer in seconds to allow for clock skew (optional)
+            $bufferSeconds = 60; // e.g. allow +/- 60s
+            $windowStart = $sdStart->copy()->subSeconds($bufferSeconds);
+            $windowEnd = $sdEnd->copy()->addSeconds($bufferSeconds);
+
+            // Get all staff assigned to the same shift occurrence
+            $staffIds = ShiftDate::where('shift_id', $shiftDate->shift_id)
+                ->whereDate('start_time', $sdStart->toDateString())
+                ->whereNotNull('staff_id')
+                ->pluck('staff_id')
+                ->unique()
+                ->filter()
+                ->values()
+                ->toArray();
+        }
+
+        $results = [];
+
+        foreach ($staffIds as $sid) {
+            // Prefer latest location inside the shift window (if window defined)
+            $query = Location::where('user_id', $sid)
+                ->whereNotNull('accuracy')
+                ->where('accuracy', '<=', 50);
+
+            if ($windowStart && $windowEnd) {
+                // if timestamps are stored as datetimes
+                $query->whereBetween('timestamp', [$windowStart->toDateTimeString(), $windowEnd->toDateTimeString()]);
+            }
+
+            $loc = (clone $query)->orderByDesc('timestamp')->first();
+
+            // If no location in the window, fallback to the latest location for the user (optional)
+            if (! $loc) {
+                $loc = Location::where('user_id', $sid)
+                    ->whereNotNull('accuracy')
+                    ->where('accuracy', '<=', 50)
+                    ->orderByDesc('timestamp')
+                    ->first();
+            }
+
+            if ($loc) {
+                $user = User::find($sid);
+                $results[] = [
+                    'user_id' => $sid,
+                    'name' => $user ? trim(($user->first_name ?? $user->name) . ' ' . ($user->last_name ?? '')) : null,
+                    'latitude' => (string) $loc->latitude,
+                    'longitude' => (string) $loc->longitude,
+                    'accuracy' => $loc->accuracy,
+                    'timestamp' => $loc->timestamp,
+                ];
+            }
+        }
+
+        // If still empty, optionally try a site-wide location (locations referencing shiftdate_id for site shifts)
+        if (empty($results)) {
+            $loc = Location::whereIn('shiftdate_id', function ($q) use ($siteId) {
+                    $q->select('shift_dates.id')
+                        ->from('shift_dates')
+                        ->join('shifts', 'shift_dates.shift_id', '=', 'shifts.id')
+                        ->where('shifts.site_id', $siteId);
+                })
+                ->whereNotNull('accuracy')
+                ->where('accuracy', '<=', 50)
+                ->orderByDesc('timestamp')
+                ->first();
+
+            if ($loc) {
+                $results[] = [
+                    'user_id' => $loc->user_id,
+                    'name' => null,
+                    'latitude' => (string) $loc->latitude,
+                    'longitude' => (string) $loc->longitude,
+                    'accuracy' => $loc->accuracy,
+                    'timestamp' => $loc->timestamp,
+                ];
+            }
+        }
+
+        // include site metadata so clients can geocode by address/postcode when needed
+        $site = Site::find($siteId);
+        $sitePayload = null;
+        if ($site) {
+            $sitePayload = [
+                'id' => $site->id,
+                'site_name' => $site->site_name ?? '',
+                'address' => $site->address ?? '',
+                'post_code' => $site->post_code ?? $site->postcode ?? '',
+            ];
+        }
+
+        return response()->json([
+            'site' => $sitePayload,
+            'shift_date' => $shiftDate ? [
+                'id' => $shiftDate->id,
+                'shift_id' => $shiftDate->shift_id,
+                'start_time' => $shiftDate->start_time,
+                'end_time' => $shiftDate->end_time,
+            ] : null,
+            'locations' => $results,
         ]);
     }
 

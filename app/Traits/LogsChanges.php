@@ -116,7 +116,8 @@ trait LogsChanges
             }
 
             $actionTitle = "Updated {$modelType}";
-            $description = "{$username} updated {$fields}";
+            // Do not include the username inside the description (we store it in the `user_name` column)
+            $description = "{$actionTitle} {$fields}";
 
             // Add shift/site context when available
             if (isset($site) || isset($date)) {
@@ -168,12 +169,8 @@ trait LogsChanges
             }
 
             $actionTitle = "Created {$modelType}";
-            $description = "{$username} created {$modelType} {$label}";
-
-            // For ShiftDate provide clearer site/date context if available
-            if ($modelType == 'Shift' && isset($site) && isset($date)) {
-                $description .= " at {$site} on {$date}";
-            }
+            // Do not include the username inside the description (we store it in the `user_name` column)
+            $description = "{$actionTitle} {$label}";
 
             $model->logs()->create([
                 'user_name' => $username,

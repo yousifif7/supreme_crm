@@ -169,7 +169,6 @@ class SiteController extends Controller
 
         // ✅ Update site
         $site->update($data);
-        Logger::log(Auth::user(), 'Update', 'Site '.$site->site_name.' Updated');
 
         // Handle QR generation or removal on update
         try {

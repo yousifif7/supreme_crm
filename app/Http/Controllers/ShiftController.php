@@ -88,6 +88,11 @@ class ShiftController extends Controller
             ['type' => 'shift', 'shiftId' => $shiftDate->id],
         );
 
+        $bookings = $shiftDate->bookings;
+        foreach ($bookings as $booking) {
+            $booking->delete();
+        }
+
         $shiftDate->staff_id = null; // Remove assigned staff
         $shiftDate->is_assign=0;
         $shiftDate->status="pending";
@@ -963,7 +968,7 @@ class ShiftController extends Controller
     {
         $shiftDate = ShiftDate::findOrFail($id);
 
-        Logger::log($shiftDate, 'Deleted', 'Shift #'.$shiftDate->id.' Deleted');
+        Logger::log($shiftDate, 'Deleted', 'Shift at '.$shiftDate->shift->site->site_name.' Deleted');
 
         $bookings = ShiftBooking::where('shift_id', $shiftDate->id)->get();
         if($bookings){
@@ -2018,6 +2023,21 @@ public function getTodayShifts()
         return view('map', compact('shift', 'userId'));
     }
 
+    /**
+     * Site tracking view. Shows latest locations for a single site when refreshed.
+     */
+    public function siteTracking($siteId)
+    {
+        $site = \App\Models\Site::find($siteId);
+        if (!$site) abort(404);
+
+        // Provide address/postcode to the view to allow client-side geocoding and centering
+        $siteAddress = $site->address ?? '';
+        $siteZip = $site->post_code ?? $site->postcode ?? '';
+
+        return view('tracking.site', compact('siteId', 'site', 'siteAddress', 'siteZip'));
+    }
+
     public function shiftLocations(Request $request, $shiftDateId)
     {
         $shiftDate = ShiftDate::findOrFail($shiftDateId);
@@ -2032,7 +2052,11 @@ public function getTodayShifts()
         $max = max(50, min($max, 5000)); // enforce safe bounds
 
         // Use the GPS timestamp for ordering and display (created_at may reflect DB insert time)
-        $q = Location::where('shiftdate_id', $shiftDate->id)->orderBy('timestamp');
+        // Only include locations with acceptable accuracy (<= 50 meters)
+        $q = Location::where('shiftdate_id', $shiftDate->id)
+            ->whereNotNull('accuracy')
+            ->where('accuracy', '<=', 100)
+            ->orderBy('timestamp');
 
         $total = $q->count();
 

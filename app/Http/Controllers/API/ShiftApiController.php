@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use App\Models\PatrolMedia;
+use App\Models\BookingMedia;
 use Illuminate\Support\Facades\Log;
 use App\Services\GeoService;
 use App\Models\Location;
@@ -569,6 +570,29 @@ if ($now->lt($bookingOpensAt)) {
 }
 
 
+        // If there are no patrols AND no checkcalls for this shift, require booking media upload
+        $hasPatrols = $shiftDate->patrols()->exists();
+        $hasCheckCalls = $shiftDate->checkCalls()->exists();
+
+        if (!$hasPatrols && !$hasCheckCalls) {
+            $mediaExists = BookingMedia::where('shift_date_id', $shiftDate->id)
+                ->where('type', 'book_on')
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if (!$mediaExists) {
+                return response()->json([
+                    'message' => 'This shift requires a media upload before booking on (no patrols or checkcalls).',
+                    'required_action' => 'upload_media',
+                    'upload_payload' => [
+                        'shift_date_id' => $shiftDate->id,
+                        'type' => 'book_on',
+                        'media_files' => 'array of files or base64 data URLs'
+                    ]
+                ], 422);
+            }
+        }
+
         // Update status
         $shiftDate->status = 'booked_on';
         $shiftDate->is_assign = 3; // shift started
@@ -637,6 +661,29 @@ if ($now->lt($bookingOpensAt)) {
             return response()->json([
                 'message' => 'You can only book off when the shift has ended (after ' . $shiftEnd->format('H:i') . ').',
             ], 422);
+        }
+
+        // If shift has no patrols AND no checkcalls, require booking media for book_off
+        $hasPatrols = $shiftDate->patrols()->exists();
+        $hasCheckCalls = $shiftDate->checkCalls()->exists();
+
+        if (!$hasPatrols && !$hasCheckCalls) {
+            $mediaExists = BookingMedia::where('shift_date_id', $shiftDate->id)
+                ->where('type', 'book_off')
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if (!$mediaExists) {
+                return response()->json([
+                    'message' => 'This shift requires a media upload before booking off (no patrols or checkcalls).',
+                    'required_action' => 'upload_media',
+                    'upload_payload' => [
+                        'shift_date_id' => $shiftDate->id,
+                        'type' => 'book_off',
+                        'media_files' => 'array of files or base64 data URLs'
+                    ]
+                ], 422);
+            }
         }
 
         if ($shiftDate) {

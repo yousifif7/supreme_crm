@@ -37,10 +37,10 @@ class NotificationsDataTable extends DataTable
                     : $notification->message;
             })
             ->addColumn('user_name', function ($notification) {
-                return $notification->user ? $notification->user->name : 'N/A';
+                return $notification->user ? $notification->user->first_name .' '. $notification->user->last_name : 'N/A';
             })
             ->addColumn('employee_name', function ($notification) {
-                return $notification->employee ? $notification->employee->fore_name : 'N/A';
+                return $notification->employee ? $notification->employee->fore_name .' '. $notification->employee->sur_name : 'N/A';
             })
             ->editColumn('read', function ($notification) {
                 return $notification->read ? '<span class="badge bg-success">Read</span>' : '<span class="badge bg-warning">Unread</span>';

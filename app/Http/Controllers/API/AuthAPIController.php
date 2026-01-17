@@ -31,9 +31,27 @@ class AuthAPIController extends Controller
             'device_info.app_version' => 'nullable|string',
         ]);
 
-        $user = User::where('email', $request->email)->first();
+        // Normalize inputs to avoid issues with leading/trailing spaces or case differences
+        $email = trim(mb_strtolower((string) $request->email));
+        $password = trim((string) $request->password);
 
-        if (! $user || ! Hash::check($request->password, $user->password)) {
+        // Find user case-insensitively
+        $user = User::whereRaw('LOWER(email) = ?', [$email])->first();
+
+        if (! $user || ! Hash::check($password, $user->password)) {
+            // Log failed attempt for debugging (do NOT log plaintext password)
+            try {
+                Log::warning('Login failed', [
+                    'email' => $request->email,
+                    'email_normalized' => $email,
+                    'device_id' => $request->input('device_info.device_id'),
+                    'ip' => $request->ip(),
+                    'user_found' => $user ? true : false,
+                ]);
+            } catch (\Exception $e) {
+                // ignore logging failures
+            }
+
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 

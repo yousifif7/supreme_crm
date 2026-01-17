@@ -26,28 +26,40 @@ class ShiftNotificationController extends BaseController
         $cutoff = $now->copy()->subDay()->toDateString();
 
         // --- Auto-complete in_progress patrols after 50 minutes ---
+        // Query patrols that are in_progress and have a related shift within the last 24 hours,
+        // then compute full start datetimes in PHP to decide completion (handles overnight correctly).
         $inProgressPatrols = Patrol::where('status', 'in_progress')
-            ->where('start_time', '<=', $now->copy()->subMinutes(50))
-            ->where('start_time', '>=', $cutoff)
-            ->get();
+            ->with('shift')
+            ->whereHas('shift', function ($q) use ($cutoff, $now) {
+                $q->whereBetween('shift_date', [$cutoff, $now->toDateString()]);
+            })->get();
 
         foreach ($inProgressPatrols as $patrol) {
             try {
-                $patrol->status = 'completed';
-                $patrol->completed_at = $now;
-                $patrol->save();
+                // compute full start datetime using parent shift date when available
+                if (!empty($patrol->shift) && !empty($patrol->shift->shift_date)) {
+                    $startDt = Carbon::parse($patrol->shift->shift_date . ' ' . $patrol->start_time);
+                } else {
+                    $startDt = Carbon::parse(now()->toDateString() . ' ' . $patrol->start_time);
+                }
 
-                Log::info("Auto-completed patrol {$patrol->id} after 50 minutes");
+                if ($startDt->lte($now->copy()->subMinutes(50))) {
+                    $patrol->status = 'completed';
+                    $patrol->completed_at = $now;
+                    $patrol->save();
 
-                // Notify the guard
-                $shiftDate = ShiftDate::find($patrol->shift_id);
-                if ($shiftDate && $shiftDate->staff_id) {
-                    send_push_notification(
-                        $shiftDate->staff_id,
-                        'Patrol Auto-Completed',
-                        "Your patrol '{$patrol->name}' has been automatically marked as completed.",
-                        ['type' => 'patrol', 'patrolId' => $patrol->id]
-                    );
+                    Log::info("Auto-completed patrol {$patrol->id} after 50 minutes");
+
+                    // Notify the guard
+                    $shiftDate = ShiftDate::find($patrol->shift_id);
+                    if ($shiftDate && $shiftDate->staff_id) {
+                        send_push_notification(
+                            $shiftDate->staff_id,
+                            'Patrol Auto-Completed',
+                            "Your patrol '{$patrol->name}' has been automatically marked as completed.",
+                            ['type' => 'patrol', 'patrolId' => $patrol->id]
+                        );
+                    }
                 }
             } catch (\Exception $e) {
                 Log::error('Failed to auto-complete patrol: ' . $e->getMessage());
@@ -65,16 +77,33 @@ class ShiftNotificationController extends BaseController
         // --- Auto Book Off (5 minutes after shift end) ---
         $threshold = now()->subMinutes(5)->format('Y-m-d H:i:s');
 
+// Select shifts where the scheduled end has passed the threshold AND
+// either `absentee_end_time` is NULL OR the recorded absentee time is earlier
+// than the scheduled end (admin may have accidentally set an early absentee time).
+// Handle overnight shifts by resolving times to proper datetimes via CASE.
 $missedBookOffs = ShiftDate::whereNotNull('staff_id')
-    ->whereNull('absentee_end_time')
     ->whereBetween('shift_date', [$cutoff, $now->toDateString()])
-    ->whereRaw("
+    ->whereRaw("(
+        -- scheduled end datetime <= threshold
         CASE
             WHEN end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), end_time)
             ELSE TIMESTAMP(shift_date, end_time)
         END <= ?
-    ", [$threshold])
-    ->select('id', 'staff_id', 'start_time', 'end_time', 'shift_date')
+    ) AND (
+        -- absentee_end_time is NULL OR absentee datetime < scheduled end datetime
+        absentee_end_time IS NULL OR (
+            CASE
+                WHEN absentee_end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), absentee_end_time)
+                ELSE TIMESTAMP(shift_date, absentee_end_time)
+            END < (
+                CASE
+                    WHEN end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), end_time)
+                    ELSE TIMESTAMP(shift_date, end_time)
+                END
+            )
+        )
+    )", [$threshold])
+    ->select('id', 'staff_id', 'start_time', 'end_time', 'shift_date', 'absentee_end_time', 'is_assign')
     ->get();
 
 Log::info('Missed Book Offs found: ' . $missedBookOffs->count());

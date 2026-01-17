@@ -31,6 +31,7 @@ use App\Http\Controllers\PermissionController;
 use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
 use App\Http\Controllers\API\CheckCallController;
+use App\Http\Controllers\API\BookingMediaController;
 use App\Http\Controllers\EmployeeLeaveController;
 use App\Http\Controllers\NotificationsController;
 use App\Http\Controllers\SubContractorController;
@@ -53,6 +54,11 @@ Route::get('/dashboard', function () {
 */
 
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
+
+// Site tracking view (public)
+Route::get('/track/site/{siteId}', [ShiftController::class, 'siteTracking'])->name('track.site');
+// Data endpoint used by the tracking view (returns latest acceptable locations for site) — public
+Route::get('/track/site/{siteId}/data', [\App\Http\Controllers\API\LocationAPIController::class, 'latestForSite']);
 
 Route::group(['middleware' => ['auth']], function () {
     // Chat routes
@@ -322,6 +328,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/shifts/filter', [ShiftController::class, 'filter'])->name('shifts.filter');
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
+
     
 
     Route::post('/shifts/multi-assign', [ShiftController::class, 'multiAssign'])

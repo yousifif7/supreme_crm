@@ -17,6 +17,7 @@ use App\Http\Controllers\API\ProfileAPIController;
 use App\Http\Controllers\API\DocumentAPIController;
 use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\API\AvailabilityController;
+use App\Http\Controllers\API\BookingMediaController;
 use App\Http\Controllers\API\NotificationController;
 use App\Http\Controllers\API\IncidentReportController;
 use App\Http\Controllers\API\EmergencyAlertAPIController;
@@ -146,6 +147,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/location/disabled', [LocationAPIController::class, 'disabled']);
     Route::get('/activity-check', [LocationAPIController::class, 'checkIdle']);
 });
+
+Route::post('/booking-media', [BookingMediaController::class, 'store'])->middleware('auth:sanctum');
+
 
 //Emergency/Panic Button api controller routes
 //Should be authenticated

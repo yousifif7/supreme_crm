@@ -10,7 +10,7 @@
 </style>
 
 <div id="gm-deck-wrapper" style="position:relative;">
-  <div id="gm-deck-map" style="width:100%;height:420px;border:1px solid #e6e6e6"></div>
+  <div id="gm-deck-map" style="width:100%;height:500px;border:1px solid #e6e6e6"></div>
 
   <div class="mt-2 d-flex gap-2 align-items-center">
     <select id="gm-map-type" class="form-select form-select-sm" style="width:auto">
@@ -30,52 +30,211 @@
     <label class="mb-0">Intensity
       <input id="gm-intensity" type="range" min="1" max="20" value="8" style="vertical-align:middle;margin-left:6px">
     </label>
+    
+    <label class="mb-0">GPS Filter (m)
+      <input id="gm-gps-filter" type="range" min="0" max="20" value="5" style="vertical-align:middle;margin-left:6px">
+      <span id="gm-filter-value" class="small">5m</span>
+    </label>
+    <label class="mb-0">Min Time (min)
+      <input id="gm-min-time" type="range" min="0" max="20" value="2" style="vertical-align:middle;margin-left:6px">
+      <span id="gm-min-time-value" class="small">2m</span>
+    </label>
 
     <div class="form-check form-check-inline ms-2">
       <input class="form-check-input" type="checkbox" id="gm-autorefresh" checked>
       <label class="form-check-label small" for="gm-autorefresh">Auto refresh</label>
     </div>
+    
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" id="gm-smooth-path" checked>
+      <label class="form-check-label small" for="gm-smooth-path">Smooth path</label>
+    </div>
 
     <div id="gm-deck-status" class="small text-muted ms-3">Initializing map…</div>
-    <div class="ms-3 small">
-      <label class="small">Gap (m): <span id="gm-gap-value">200</span></label>
-      <input id="gm-gap" type="range" min="20" max="2000" step="10" value="200" style="vertical-align:middle;">
-      <label class="small ms-2">Acc (m): <span id="gm-acc-value">50</span></label>
-      <input id="gm-acc-threshold" type="range" min="5" max="500" step="5" value="50" style="vertical-align:middle;">
-    </div>
   </div>
 </div>
 
 <script>
-/*
-  deck.gl + Google Maps overlay heatmap partial
-
-  Requirements:
-  - Your backend endpoint should return JSON:
-    { shift: {...}, user: {...}, locations: [{ latitude, longitude, created_at }, ...], meta: {...} }
-    (Your provided ShiftController::shiftLocations already does this.)
-  - Put your Google Maps API key in .env as GOOGLE_MAPS_API_KEY
-  - This partial uses the deck.gl UMD bundles from unpkg (no build step required)
-
-  Notes:
-  - deck.gl's HeatmapLayer expects coordinates as [lng, lat].
-  - We show a polyline & markers with Google Maps (so links remain simple).
-  - We use server-side sampling via ?max_points=... to avoid sending huge arrays.
-*/
-
 const DECK_LOCATIONS_URL = "{{ route('shift.locations', ['shiftDateId' => $shiftDate->id]) }}";
 const GM_API_KEY = "{{ env('GOOGLE_MAPS_API_KEY') }}";
+// Optional: server can provide site metadata for geocoding and zone display
+const SITE_QUERY = @json($shiftDate->shift->site->address ?? $shiftDate->shift->site->post_code ?? '');
+const SITE_TITLE = @json($shiftDate->shift->site->site_name ?? '');
 
-let gm_map, gm_deckOverlay, gm_pathPolylines = [], gm_singlePointMarkers = [], gm_startMarker, gm_endMarker;
+let gm_map, gm_deckOverlay, gm_pathPolyline, gm_startMarker, gm_endMarker;
 let deckLoaded = false;
 let deckOverlayActive = false;
 let pathVisible = true;
 const statusEl = document.getElementById('gm-deck-status');
 
+let siteMarker = null;
+let siteCircle = null;
+
+function geocodeAndCenterSite(query) {
+  return new Promise((resolve) => {
+    if (!query || !window.google || !google.maps) return resolve(null);
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: query }, (results, status) => {
+      if (status === 'OK' && results && results[0] && results[0].geometry && results[0].geometry.location) {
+        const loc = results[0].geometry.location;
+        try { gm_map.setCenter(loc); gm_map.setZoom(15); } catch (e) { console.warn('setCenter failed', e); }
+        return resolve(loc);
+      }
+      console.warn('Geocode failed for site query', status, query);
+      resolve(null);
+    });
+  });
+}
+
+function drawSiteZoneOnMap(latLng, opts = {}) {
+  const radius = opts.radiusMeters || 100;
+  const title = opts.title || SITE_TITLE || 'Site';
+
+  if (siteMarker) { siteMarker.setMap(null); siteMarker = null; }
+  if (siteCircle) { siteCircle.setMap(null); siteCircle = null; }
+
+  siteMarker = new google.maps.Marker({
+    position: latLng,
+    map: gm_map,
+    title: title,
+    icon: {
+      path: google.maps.SymbolPath.CIRCLE,
+      scale: 6,
+      fillColor: '#ff5722',
+      fillOpacity: 1,
+      strokeColor: '#fff',
+      strokeWeight: 1
+    }
+  });
+
+  siteCircle = new google.maps.Circle({
+    strokeColor: '#ff5722',
+    strokeOpacity: 0.6,
+    strokeWeight: 2,
+    fillColor: '#ffccbc',
+    fillOpacity: 0.25,
+    map: gm_map,
+    center: latLng,
+    radius: radius
+  });
+
+  const iw = new google.maps.InfoWindow({ content: `<div style="min-width:200px"><strong>${title}</strong><div style="font-size:0.9rem;color:#666">${opts.address||''}</div></div>` });
+  siteMarker.addListener('click', () => iw.open(gm_map, siteMarker));
+}
+
+// ===== GPS FILTERING & SMOOTHING UTILITIES =====
+
+// Haversine distance in meters
+function haversineDistance(lat1, lng1, lat2, lng2) {
+    const R = 6371000; // Earth's radius in meters
+    const φ1 = lat1 * Math.PI / 180;
+    const φ2 = lat2 * Math.PI / 180;
+    const Δφ = (lat2 - lat1) * Math.PI / 180;
+    const Δλ = (lng2 - lng1) * Math.PI / 180;
+    
+    const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+              Math.cos(φ1) * Math.cos(φ2) *
+              Math.sin(Δλ/2) * Math.sin(Δλ/2);
+    
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+// Filter GPS noise - remove points closer than threshold
+function filterGPSNoise(points, minDistanceMeters = 5) {
+  if (points.length === 0) return [];
+  const filtered = [points[0]];
+  for (let i = 1; i < points.length; i++) {
+    const last = filtered[filtered.length - 1];
+    const curr = points[i];
+    const distance = haversineDistance(last.latitude, last.longitude, curr.latitude, curr.longitude);
+    if (distance >= minDistanceMeters) {
+      filtered.push(curr);
+    }
+  }
+  return filtered;
+}
+
+// Filter by minimum time between points (in minutes)
+function filterMinTime(points, minMinutes = 2) {
+  if (points.length === 0 || minMinutes <= 0) return points;
+  const filtered = [points[0]];
+  let lastTime = parseTimestamp(points[0].raw);
+  for (let i = 1; i < points.length; i++) {
+    const currTime = parseTimestamp(points[i].raw);
+    if (isNaN(currTime) || isNaN(lastTime)) {
+      filtered.push(points[i]);
+      lastTime = currTime;
+      continue;
+    }
+    if ((currTime - lastTime) >= minMinutes * 60 * 1000) {
+      filtered.push(points[i]);
+      lastTime = currTime;
+    }
+  }
+  return filtered;
+}
+
+// Catmull-Rom interpolation
+function catmullRomInterpolate(p0, p1, p2, p3, t) {
+    const t2 = t * t;
+    const t3 = t2 * t;
+    
+    return 0.5 * (
+        (2 * p1) +
+        (-p0 + p2) * t +
+        (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+        (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+    );
+}
+
+// Create smooth curve through GPS points
+function createSmoothPath(points, segmentsPerPoint = 15) {
+    if (points.length < 2) return points;
+    if (points.length === 2) return points; // straight line
+    
+    const smoothed = [points[0]];
+    
+    for (let i = 0; i < points.length - 1; i++) {
+        const p0 = i > 0 ? points[i - 1] : points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = i < points.length - 2 ? points[i + 2] : points[i + 1];
+        
+        // Adjust segments based on distance
+        const distance = haversineDistance(p1.latitude, p1.longitude, p2.latitude, p2.longitude);
+        let segments = segmentsPerPoint;
+        
+        if (distance < 2) segments = 2;
+        else if (distance < 10) segments = 8;
+        else if (distance > 50) segments = Math.min(30, Math.floor(distance / 2));
+        
+        for (let t = 1; t <= segments; t++) {
+            const tt = t / segments;
+            const lat = catmullRomInterpolate(
+                p0.latitude, p1.latitude, p2.latitude, p3.latitude, tt
+            );
+            const lng = catmullRomInterpolate(
+                p0.longitude, p1.longitude, p2.longitude, p3.longitude, tt
+            );
+            smoothed.push({ latitude: lat, longitude: lng });
+        }
+    }
+    
+    return smoothed;
+}
+
+function computeCentroid(points) {
+  if (!points || points.length === 0) return null;
+  let sumLat = 0, sumLng = 0;
+  points.forEach(p => { sumLat += p.latitude; sumLng += p.longitude; });
+  return { latitude: sumLat / points.length, longitude: sumLng / points.length };
+}
+
+// ===== EXISTING FUNCTIONS (updated) =====
+
 function loadScriptOnce(src, id) {
   return new Promise((resolve, reject) => {
     if (document.getElementById(id)) {
-      // already injected — wait until global is available
       const check = () => {
         if (window.deck && window.deck.GoogleMapsOverlay) resolve();
         else if (window.deck && id.indexOf('google-maps') === -1) resolve();
@@ -95,8 +254,6 @@ function loadScriptOnce(src, id) {
 }
 
 async function ensureDeckAndMaps() {
-  // Load deck.gl UMD bundles (core + layers + google-maps integration)
-  // Versions chosen are stable in the 8.x line; update if you manage dependencies.
   if (!window.deck) {
     await loadScriptOnce('https://unpkg.com/deck.gl@8.9.0/dist.min.js', 'deck-core');
   }
@@ -107,14 +264,11 @@ async function ensureDeckAndMaps() {
   return deckLoaded;
 }
 
-// Load Google Maps with no visualization library (we're using deck.gl rendering)
 function loadGoogleMaps(callbackName = 'initDeckGmMap') {
   return new Promise((resolve, reject) => {
     if (window.google && window.google.maps) return resolve();
 
-    // Avoid duplicating script
     if (document.getElementById('gm-maps-script')) {
-      // the script will call window[callbackName]; we just resolve when google available
       const check = () => {
         if (window.google && window.google.maps) resolve();
         else setTimeout(check, 200);
@@ -122,7 +276,6 @@ function loadGoogleMaps(callbackName = 'initDeckGmMap') {
       return check();
     }
 
-    // create global callback to resolve
     window[callbackName] = () => resolve();
     const src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GM_API_KEY)}&callback=${callbackName}`;
     const s = document.createElement('script');
@@ -146,44 +299,51 @@ async function initMapAndDeck() {
     return;
   }
 
-  // create map immediately
   gm_map = new google.maps.Map(document.getElementById('gm-deck-map'), {
     center: { lat: 51.5074, lng: -0.1278 },
     zoom: 13,
-    mapTypeId: 'terrain',
+    mapTypeId: 'roadmap',
     gestureHandling: 'greedy'
   });
 
-  // path polylines will be created dynamically per-segment
-  gm_pathPolylines = [];
+  gm_pathPolyline = new google.maps.Polyline({
+    path: [],
+    strokeColor: '#FF5722',
+    strokeOpacity: 0.85,
+    strokeWeight: 4,
+    geodesic: false, // Important for smooth curves
+    map: null
+  });
 
-  // ensure deck.gl is loaded
+  // If the server provided a site address/postcode, geocode and draw the site zone
+  try {
+    if (SITE_QUERY && SITE_QUERY.length) {
+      const siteLoc = await geocodeAndCenterSite(SITE_QUERY);
+      if (siteLoc) {
+        drawSiteZoneOnMap(siteLoc, { title: SITE_TITLE || 'Site', address: SITE_QUERY, radiusMeters: 100 });
+      }
+    }
+  } catch (e) {
+    console.warn('Site geocode/draw failed', e);
+  }
+
   try {
     const loaded = await ensureDeckAndMaps();
     if (!loaded) throw new Error('deck.gl missing');
   } catch (err) {
     console.warn('deck.gl load failed, heatmap will not be shown:', err);
     statusEl.textContent = 'deck.gl failed to load; showing path only';
-    // Still fetch and show path & markers
     await refreshData({ useDeck: false });
     return;
   }
 
-  // create deck GoogleMaps overlay (initially with empty layers)
-  const { HeatmapLayer } = deck; // deck.gl exposes layers on the UMD bundle
-  // GoogleMapsOverlay is available via deck.GoogleMapsOverlay or deck.GoogleMapsOverlay (UMD)
   const GoogleMapsOverlay = deck.GoogleMapsOverlay || deck.GoogleMapsOverlay;
-  gm_deckOverlay = new GoogleMapsOverlay({
-    layers: []
-  });
-  // attach overlay to map
+  gm_deckOverlay = new GoogleMapsOverlay({ layers: [] });
   gm_deckOverlay.setMap(gm_map);
   deckOverlayActive = true;
 
-  // initial data load
   await refreshData({ useDeck: true });
 
-  // auto-refresh
   if (document.getElementById('gm-autorefresh').checked) {
     window._gm_deck_interval = setInterval(() => refreshData({ useDeck: true }), 30000);
   }
@@ -198,7 +358,8 @@ async function fetchLocations(maxPoints = 1500) {
     const res = await fetch(url.toString(), { cache: 'no-store' });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     const json = await res.json();
-    // Normalize into {lng, lat, weight?}
+          console.log('Raw point:', json.locations);
+
     const pts = (json.locations || []).map(p => {
       const lat = parseFloat(p.latitude ?? p.lat ?? p.latitud ?? p.lat_val ?? null);
       const lng = parseFloat(p.longitude ?? p.lng ?? p.long ?? p.lng_val ?? null);
@@ -213,8 +374,6 @@ async function fetchLocations(maxPoints = 1500) {
 }
 
 function buildDeckHeatLayer(points, radiusPixels = 30, intensity = 8) {
-  // deck.gl HeatmapLayer expects objects with position: [lng,lat] or accessor for getPosition
-  // instantiate using the deck.gl UMD global 'deck'
   const { HeatmapLayer } = deck;
   return new HeatmapLayer({
     id: 'deck-heat',
@@ -227,235 +386,230 @@ function buildDeckHeatLayer(points, radiusPixels = 30, intensity = 8) {
   });
 }
 
-async function refreshData({ useDeck = true } = {}) {
-  const statusEl = document.getElementById('gm-deck-status');
-  statusEl.textContent = 'Loading points…';
-  let { pts, meta } = await fetchLocations(2000);
-  statusEl.textContent = `${meta.returned ?? pts.length} points`;
-
-  // filter out low-quality GPS points (high accuracy value means low precision)
-  const accThreshold = parseInt(document.getElementById('gm-acc-threshold').value, 10) || 50; // meters
-  const originalCount = pts.length;
-  pts = pts.filter(p => {
-    const acc = p.raw && (p.raw.accuracy ?? p.accuracy ?? null);
-    if (acc === null || acc === undefined || acc === '') return true; // keep if no accuracy reported
-    return parseFloat(acc) <= accThreshold;
-  });
-  statusEl.textContent = `${pts.length} points (filtered ${originalCount - pts.length})`;
-
-  if (!pts.length) {
-    // clear visuals
-    if (gm_deckOverlay && deckOverlayActive) gm_deckOverlay.setProps({ layers: [] });
-    if (gm_pathPolylines && gm_pathPolylines.length) {
-      gm_pathPolylines.forEach(pl => pl.setMap(null));
-      gm_pathPolylines = [];
+function parseTimestamp(raw) {
+  if (!raw) return NaN;
+  const keys = ['created_at', 'timestamp', 'time', 'ts', 't'];
+  for (const k of keys) {
+    if (raw[k]) {
+      const v = raw[k];
+      const n = Date.parse(v);
+      if (!isNaN(n)) return n;
+      const num = Number(v);
+      if (!isNaN(num)) {
+        if (num > 1e12) return num;
+        if (num > 1e9) return num * 1000;
+      }
     }
+  }
+  return NaN;
+}
+
+function sortPointsByTime(points) {
+  const withIdx = points.map((p, i) => ({ p, i }));
+  withIdx.forEach(item => {
+    item.t = parseTimestamp(item.p.raw) || item.i;
+  });
+  withIdx.sort((a, b) => a.t - b.t);
+  return withIdx.map(x => x.p);
+}
+
+async function refreshData({ useDeck = true } = {}) {
+  statusEl.textContent = 'Loading points…';
+  const { pts, meta } = await fetchLocations(2000);
+  
+  if (!pts.length) {
+    statusEl.textContent = 'No points found';
+    if (gm_deckOverlay && deckOverlayActive) gm_deckOverlay.setProps({ layers: [] });
+    gm_pathPolyline.setPath([]);
     if (gm_startMarker) { gm_startMarker.setMap(null); gm_startMarker = null; }
     if (gm_endMarker) { gm_endMarker.setMap(null); gm_endMarker = null; }
     return;
   }
 
-  // show path on google map: split into segments to avoid long jumps
-  const distanceThresholdMeters = parseInt(document.getElementById('gm-gap').value, 10) || 200; // max distance to draw connecting lines
+  // Sort chronologically
+  const sorted = sortPointsByTime(pts);
+  
+  // Get GPS filter threshold
+  const filterThreshold = parseInt(document.getElementById('gm-gps-filter').value, 10) || 5;
+  
+  // Filter GPS noise
+  const filteredGPS = filterGPSNoise(sorted, filterThreshold);
+  // Filter by minimum time
+  const minTime = parseInt(document.getElementById('gm-min-time').value, 10) || 0;
+  const filtered = filterMinTime(filteredGPS, minTime);
 
-  // helper: haversine distance in meters
-  function haversineMeters(a, b) {
-    const toRad = v => v * Math.PI / 180;
-    const R = 6371000; // earth radius meters
-    const dLat = toRad(b.latitude - a.latitude);
-    const dLon = toRad(b.longitude - a.longitude);
-    const lat1 = toRad(a.latitude);
-    const lat2 = toRad(b.latitude);
-    const sinDLat = Math.sin(dLat/2), sinDLon = Math.sin(dLon/2);
-    const hav = sinDLat*sinDLat + Math.cos(lat1)*Math.cos(lat2)*sinDLon*sinDLon;
-    const c = 2 * Math.atan2(Math.sqrt(hav), Math.sqrt(1-hav));
-    return R * c;
+  console.log('Original points:', pts.length);
+  console.log('Sorted points:', sorted.length);
+  console.log('Filtered (GPS):', filteredGPS.length);
+  console.log('Filtered (Time):', filtered.length);
+
+  statusEl.textContent = `${pts.length} pts → ${filtered.length} filtered`;
+
+  // Check if smooth path is enabled
+  const smoothEnabled = document.getElementById('gm-smooth-path').checked;
+
+  // Create path (smooth or direct)
+  let pathPts = filtered;
+  if (smoothEnabled && filtered.length > 2) {
+    pathPts = createSmoothPath(filtered, 15);
+    console.log('Smoothed to:', pathPts.length, 'points');
   }
 
-  // build segments: consecutive points are connected only if within threshold
-  const segments = [];
-  let currentSeg = [];
-  for (let i = 0; i < pts.length; i++) {
-    const p = pts[i];
-    if (currentSeg.length === 0) {
-      currentSeg.push(p);
-      continue;
+  // Draw path
+  if (pathPts.length > 0) {
+    const path = pathPts.map(p => new google.maps.LatLng(p.latitude, p.longitude));
+    gm_pathPolyline.setPath(path);
+    if (pathVisible && !gm_pathPolyline.getMap()) {
+      gm_pathPolyline.setMap(gm_map);
     }
-    const last = currentSeg[currentSeg.length - 1];
-    const d = haversineMeters(last, p);
-    if (d <= distanceThresholdMeters) {
-      currentSeg.push(p);
-    } else {
-      // close current segment and start new one
-      if (currentSeg.length) segments.push(currentSeg);
-      currentSeg = [p];
-    }
-  }
-  if (currentSeg.length) segments.push(currentSeg);
-
-  // Debug: report segments composition
-  try {
-    const segSummary = segments.map(s => ({ len: s.length, first: s[0] && [s[0].latitude, s[0].longitude], last: s[s.length-1] && [s[s.length-1].latitude, s[s.length-1].longitude] }));
-    console.debug('refreshData: segments', segSummary);
-    // show on status element briefly
-    if (statusEl) statusEl.textContent = `${pts.length} pts — ${segments.length} segments (${segSummary.map(s=>s.len).join(',')})`;
-  } catch (e) {
-    console.warn('segment debug failed', e);
   }
 
-  // clear old polylines and single-point markers
-  if (gm_pathPolylines && gm_pathPolylines.length) {
-    gm_pathPolylines.forEach(pl => pl.setMap(null));
-    gm_pathPolylines = [];
-  }
-  if (gm_singlePointMarkers && gm_singlePointMarkers.length) {
-    gm_singlePointMarkers.forEach(m => m.setMap(null));
-    gm_singlePointMarkers = [];
-  }
-
-  // create a polyline for each segment; for single-point segments create a marker
-  segments.forEach(seg => {
-    if (seg.length < 2) {
-      // single isolated point: show a marker so user sees the isolated reading
-      const p = seg[0];
-      const m = new google.maps.Marker({
-        position: { lat: p.latitude, lng: p.longitude },
-        map: pathVisible ? gm_map : null,
-        title: 'Point',
-        icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#1976D2', fillOpacity: 0.9, strokeWeight: 0 }
-      });
-      gm_singlePointMarkers.push(m);
-      return;
-    }
-    const segPath = seg.map(p => new google.maps.LatLng(p.latitude, p.longitude));
-    const pl = new google.maps.Polyline({
-      path: segPath,
-      strokeColor: '#FF5722',
-      strokeOpacity: 0.85,
-      strokeWeight: 4,
-      map: pathVisible ? gm_map : null
-    });
-    gm_pathPolylines.push(pl);
-  });
-
-  // start / end markers
+  // Clear old markers
   if (gm_startMarker) { gm_startMarker.setMap(null); gm_startMarker = null; }
   if (gm_endMarker) { gm_endMarker.setMap(null); gm_endMarker = null; }
-  const first = pts[0], last = pts[pts.length - 1];
-  gm_startMarker = new google.maps.Marker({
-    position: { lat: first.latitude, lng: first.longitude },
-    map: gm_map,
-    title: 'Start',
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#28a745', fillOpacity: 1, strokeWeight: 0 }
-  });
-  gm_endMarker = new google.maps.Marker({
-    position: { lat: last.latitude, lng: last.longitude },
-    map: gm_map,
-    title: 'End',
-    icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#dc3545', fillOpacity: 1, strokeWeight: 0 }
-  });
 
-  // fit bounds
-  if (pts.length === 1) {
-    gm_map.setCenter({ lat: first.latitude, lng: first.longitude });
-    gm_map.setZoom(16);
-  } else {
-    const bounds = new google.maps.LatLngBounds();
-    pts.forEach(p => bounds.extend(new google.maps.LatLng(p.latitude, p.longitude)));
-    try { gm_map.fitBounds(bounds); } catch (e) { /* ignore */ }
+  // Add start/end markers (use filtered points, not smoothed)
+  if (filtered.length > 0) {
+    const first = filtered[0];
+    const last = filtered[filtered.length - 1];
+
+    gm_startMarker = new google.maps.Marker({
+      position: { lat: first.latitude, lng: first.longitude },
+      map: gm_map,
+      title: 'Start',
+      label: { text: 'START', color: '#FFF', fontWeight: 'bold', fontSize: '10px' },
+      icon: {
+        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png',
+        scaledSize: new google.maps.Size(40, 40)
+      },
+      zIndex: 1000
+    });
+    
+    if (filtered.length > 1) {
+      gm_endMarker = new google.maps.Marker({
+        position: { lat: last.latitude, lng: last.longitude },
+        map: gm_map,
+        title: 'End',
+        label: { text: 'END', color: '#FFF', fontWeight: 'bold', fontSize: '10px' },
+        icon: {
+          url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png',
+          scaledSize: new google.maps.Size(40, 40)
+        },
+        zIndex: 1000
+      });
+    }
   }
 
-  // If accuracy values are present, prefer centering on the most accurate recent point
-  try {
-    const hasAccuracy = pts.some(p => p.raw && (p.raw.accuracy !== undefined && p.raw.accuracy !== null));
-    if (hasAccuracy) {
-      // choose point with smallest accuracy (best precision); if tie prefer later point
-      let best = pts[pts.length - 1];
-      for (let i = pts.length - 1; i >= 0; i--) {
-        const cur = pts[i];
-        const curAcc = cur.raw && cur.raw.accuracy ? parseFloat(cur.raw.accuracy) : null;
-        const bestAcc = best.raw && best.raw.accuracy ? parseFloat(best.raw.accuracy) : null;
-        if (curAcc !== null && (bestAcc === null || curAcc <= bestAcc)) {
-          best = cur;
+  // Fit bounds
+  if (filtered.length === 0) {
+    gm_map.setCenter({ lat: 51.5074, lng: -0.1278 });
+    gm_map.setZoom(13);
+  } else if (filtered.length === 1) {
+    gm_map.setCenter({ lat: filtered[0].latitude, lng: filtered[0].longitude });
+    gm_map.setZoom(17);
+  } else {
+    const bounds = new google.maps.LatLngBounds();
+    filtered.forEach(p => bounds.extend(new google.maps.LatLng(p.latitude, p.longitude)));
+    try {
+      gm_map.fitBounds(bounds);
+      // Add slight zoom boost
+      google.maps.event.addListenerOnce(gm_map, 'bounds_changed', function() {
+        const currentZoom = gm_map.getZoom();
+        if (currentZoom < 18) {
+          gm_map.setZoom(Math.min(currentZoom + 1, 18));
         }
+      });
+    } catch (e) {
+      console.warn('fitBounds failed', e);
+    }
+  }
+
+  // Re-evaluate site zone: if the geocoded site is far from the tracked centroid,
+  // prefer the centroid so the zone matches where guards actually are.
+  try {
+    const centroid = computeCentroid(filtered);
+    if (centroid) {
+      const centroidLatLng = new google.maps.LatLng(centroid.latitude, centroid.longitude);
+
+      let useCentroid = false;
+      if (!siteMarker) {
+        useCentroid = true; // no geocoded site available
+      } else {
+        const sitePos = siteMarker.getPosition();
+        const dist = haversineDistance(sitePos.lat(), sitePos.lng(), centroid.latitude, centroid.longitude);
+        // If site geocode is more than 200m away from centroid, prefer centroid
+        if (dist > 200) useCentroid = true;
       }
 
-      const bestAcc = best.raw && best.raw.accuracy ? parseFloat(best.raw.accuracy) : null;
-      // If best accuracy is reasonable (<=50m), center the map on it for stationary accuracy
-      if (bestAcc !== null && bestAcc <= 50) {
-        gm_map.setCenter({ lat: best.latitude, lng: best.longitude });
-        gm_map.setZoom(16);
-        // move end marker to best (representing current best location)
-        if (gm_endMarker) {
-          gm_endMarker.setMap(null);
-          gm_endMarker = new google.maps.Marker({
-            position: { lat: best.latitude, lng: best.longitude },
-            map: gm_map,
-            title: 'Current',
-            icon: { path: google.maps.SymbolPath.CIRCLE, scale: 6, fillColor: '#dc3545', fillOpacity: 1, strokeWeight: 0 }
-          });
-        }
+      if (useCentroid) {
+        drawSiteZoneOnMap(centroidLatLng, { title: SITE_TITLE || 'Site', address: SITE_QUERY || '', radiusMeters: 100 });
       }
     }
   } catch (e) {
-    // non-fatal
-    console.warn('Accuracy centering fallback failed', e);
+    console.warn('Failed to compute/draw centroid site zone', e);
   }
 
-  // deck overlay heatmap
+  // Heatmap (use original points for intensity)
   if (useDeck && deckLoaded && gm_deckOverlay) {
-    // get UI values
     const radius = parseInt(document.getElementById('gm-radius').value, 10) || 30;
     const intensity = parseInt(document.getElementById('gm-intensity').value, 10) || 8;
-    // build heat layer
     const heatLayer = buildDeckHeatLayer(pts, radius, intensity);
     gm_deckOverlay.setProps({ layers: [heatLayer] });
   } else {
-    // fallback: clear deck layers
     if (gm_deckOverlay) gm_deckOverlay.setProps({ layers: [] });
   }
 }
 
-// Controls wiring
-document.getElementById('gm-map-type').addEventListener('change', (e) => gm_map.setMapTypeId(e.target.value));
+// ===== CONTROLS =====
+
+document.getElementById('gm-map-type').addEventListener('change', (e) => {
+  gm_map.setMapTypeId(e.target.value);
+});
+
 document.getElementById('gm-toggle-heat').addEventListener('click', function () {
   if (!gm_deckOverlay) return;
   const visible = !!(gm_deckOverlay.props && gm_deckOverlay.props.layers && gm_deckOverlay.props.layers.length);
-  if (visible) gm_deckOverlay.setProps({ layers: [] });
-  else refreshData({ useDeck: true });
-  this.textContent = visible ? 'Show Heat' : 'Hide Heat';
+  if (visible) {
+    gm_deckOverlay.setProps({ layers: [] });
+    this.textContent = 'Show Heat';
+  } else {
+    refreshData({ useDeck: true });
+    this.textContent = 'Hide Heat';
+  }
 });
+
 document.getElementById('gm-toggle-path').addEventListener('click', function () {
   pathVisible = !pathVisible;
-  if (gm_pathPolylines && gm_pathPolylines.length) {
-    gm_pathPolylines.forEach(pl => pl.setMap(pathVisible ? gm_map : null));
+  if (pathVisible) {
+    gm_pathPolyline.setMap(gm_map);
+    this.textContent = 'Hide Path';
+  } else {
+    gm_pathPolyline.setMap(null);
+    this.textContent = 'Show Path';
   }
-  if (gm_singlePointMarkers && gm_singlePointMarkers.length) {
-    gm_singlePointMarkers.forEach(m => m.setMap(pathVisible ? gm_map : null));
-  }
-  this.textContent = pathVisible ? 'Hide Path' : 'Show Path';
 });
-document.getElementById('gm-radius').addEventListener('input', () => refreshData({ useDeck: deckLoaded }));
-document.getElementById('gm-intensity').addEventListener('input', () => refreshData({ useDeck: deckLoaded }));
 
-// Wire gap/accuracy sliders and display
-try {
-  const gapEl = document.getElementById('gm-gap');
-  const gapValEl = document.getElementById('gm-gap-value');
-  const accEl = document.getElementById('gm-acc-threshold');
-  const accValEl = document.getElementById('gm-acc-value');
-  const updateSliderDisplays = () => {
-    if (gapValEl) gapValEl.textContent = gapEl.value;
-    if (accValEl) accValEl.textContent = accEl.value;
-  };
-  gapEl.addEventListener('input', () => { updateSliderDisplays(); refreshData({ useDeck: deckLoaded }); });
-  accEl.addEventListener('input', () => { updateSliderDisplays(); refreshData({ useDeck: deckLoaded }); });
-  updateSliderDisplays();
-} catch (e) {
-  console.warn('Gap/acc slider wiring failed', e);
-}
+document.getElementById('gm-radius').addEventListener('input', () => {
+  refreshData({ useDeck: deckLoaded });
+});
 
-// auto refresh toggle
+document.getElementById('gm-intensity').addEventListener('input', () => {
+  refreshData({ useDeck: deckLoaded });
+});
+
+document.getElementById('gm-gps-filter').addEventListener('input', function() {
+  document.getElementById('gm-filter-value').textContent = this.value + 'm';
+  refreshData({ useDeck: deckLoaded });
+});
+document.getElementById('gm-min-time').addEventListener('input', function() {
+  document.getElementById('gm-min-time-value').textContent = this.value + 'm';
+  refreshData({ useDeck: deckLoaded });
+});
+
+document.getElementById('gm-smooth-path').addEventListener('change', () => {
+  refreshData({ useDeck: deckLoaded });
+});
+
 document.getElementById('gm-autorefresh').addEventListener('change', function () {
   if (this.checked) {
     window._gm_deck_interval = setInterval(() => refreshData({ useDeck: deckLoaded }), 30000);
@@ -464,6 +618,6 @@ document.getElementById('gm-autorefresh').addEventListener('change', function ()
   }
 });
 
-// initialize
+// Initialize
 initMapAndDeck();
 </script>

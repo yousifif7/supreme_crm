@@ -67,21 +67,29 @@
         return null;
     }
 
-    // Initialize Select2 with matcher
+    // Initialize Select2 with matcher (guarded)
     $(document).ready(function() {
-        $('.selec2_assign_modal').select2({
-            dropdownParent: $('#assignShiftModal'),
-            matcher: customMatcher,
-            width: '100%'
-        });
+        if ($.fn && $.fn.select2) {
+            try {
+                $('.selec2_assign_modal').select2({
+                    dropdownParent: $('#assignShiftModal'),
+                    matcher: customMatcher,
+                    width: '100%'
+                });
 
-        // init subcontractor select with Select2
-        if (!$('#assign_subcontractor_id').hasClass('select2-hidden-accessible')) {
-            $('#assign_subcontractor_id').select2({
-                dropdownParent: $('#assignShiftModal'),
-                width: '100%',
-                minimumResultsForSearch: 0
-            });
+                // init subcontractor select with Select2
+                if (!$('#assign_subcontractor_id').hasClass('select2-hidden-accessible')) {
+                    $('#assign_subcontractor_id').select2({
+                        dropdownParent: $('#assignShiftModal'),
+                        width: '100%',
+                        minimumResultsForSearch: 0
+                    });
+                }
+            } catch (e) {
+                console.warn('Select2 init failed in assign-shift-modal:', e);
+            }
+        } else {
+            console.warn('Select2 library not loaded; assign-shift modal will use native selects.');
         }
     });
 </script>
