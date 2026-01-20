@@ -956,6 +956,39 @@
                 $(this).closest('.checkcall-row').remove();
             });
         });
+
+        let patrolIndex = 0;
+
+        function addPatrolRow($parentRow) {
+            patrolIndex++;
+            const row = `
+                <div class="row patrol-row mb-3 align-items-center" data-index="${patrolIndex}">
+                    <div class="col-md-3">
+                        <label>Patrol Name</label>
+                        <input type="text" name="patrols[${patrolIndex}][name]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Scheduled Time</label>
+                        <input type="time" name="patrols[${patrolIndex}][start_time]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removePatrolRow">Remove</button>
+                    </div>
+                </div>
+            `;
+            $parentRow.append(row);
+        }
+
+        $(document).ready(function() {
+            $(document).on('click', '.addPatrolRow', function() {
+                var $parentRow = $(this).closest('.patrol-section').find('.patrol-rows');
+                addPatrolRow($parentRow);
+            });
+
+            $(document).on('click', '.removePatrolRow', function() {
+                $(this).closest('.patrol-row').remove();
+            });
+        });
     </script>
     <script>
         $(document).ready(function() {

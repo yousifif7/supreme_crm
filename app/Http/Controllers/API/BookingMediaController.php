@@ -9,6 +9,7 @@ use App\Models\BookingMedia;
 use App\Models\ShiftDate;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use App\Services\GeoService;
 
 class BookingMediaController extends Controller
 {
@@ -18,6 +19,8 @@ class BookingMediaController extends Controller
             'shift_date_id' => 'required|integer',
             'type' => 'required|in:book_on,book_off',
             'media_files' => 'nullable|array',
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
         ]);
 
         $user = Auth::user();
@@ -25,6 +28,26 @@ class BookingMediaController extends Controller
         $shiftDate = ShiftDate::find($data['shift_date_id']);
         if (!$shiftDate) {
             return response()->json(['message' => 'Shift not found'], 404);
+        }
+
+        // Resolve provided coordinates to a human-readable address (cached by GeoService).
+        $lat = $request->input('location.latitude');
+        $lng = $request->input('location.longitude');
+        $resolvedLocation = null;
+        if (!empty($lat) && !empty($lng)) {
+            try {
+                $geoService = new GeoService();
+                $geoResult = $geoService->getAddressFromCoordinates($lat, $lng);
+                if ($geoResult) {
+                    $resolvedLocation = $geoResult;
+                }
+            } catch (\Exception $e) {
+                Log::warning('GeoService failed in BookingMediaController: ' . $e->getMessage());
+            }
+        }
+        // Fallback to site address or lat/lng string
+        if (!$resolvedLocation) {
+            $resolvedLocation = $shiftDate->shift->site->address ?? (is_numeric($lat) && is_numeric($lng) ? trim($lat . "," . $lng) : null);
         }
 
         // Save each file (supports UploadedFile instances and base64 data URLs)
@@ -66,10 +89,10 @@ class BookingMediaController extends Controller
                 $timestampData = [
                     'time' => Carbon::now()->format('Y-m-d H:i:s'),
                     'employee' => ($user->first_name ?? null) || ($user->name ?? null) ? trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? $user->name ?? '')) : null,
-                    'latitude' => $request->input('location.latitude') ?? null,
-                    'longitude' => $request->input('location.longitude') ?? null,
+                    'latitude' => is_numeric($lat) ? (float) $lat : ($request->input('location.latitude') ?? null),
+                    'longitude' => is_numeric($lng) ? (float) $lng : ($request->input('location.longitude') ?? null),
                     'site' => $shiftDate->shift->site->site_name ?? null,
-                    'location' => $shiftDate->shift->site->address ?? null,
+                    'location' => $resolvedLocation,
                 ];
 
                 // Compress file if necessary

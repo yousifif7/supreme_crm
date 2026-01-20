@@ -358,6 +358,18 @@
                                                     </button>
                                                 </div>
                                                 <div class="clear-fix"></div>
+
+                                                <div class="patrol-section" id="patrol-section0">
+                                                    <h5>Patrols</h5>
+                                                    <div class="patrol-rows"><!-- rows go here --></div>
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-primary my-3 addPatrolRow">
+                                                        + Add Patrol
+                                                    </button>
+                                                </div>
+                                                
+                                                <div class="clear-fix"></div>
+
                                                 <div class="col-md-12 text-end">
                                                     <button type="button"
                                                         class="btn btn-danger btn-sm remove-shift">Remove</button>

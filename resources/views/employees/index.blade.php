@@ -637,12 +637,20 @@
                                 $('#error_' + key).text(value[0]).removeClass('d-none');
                             });
 
-                            // scroll to the first error visible
-                            $('#add_employee .modal-body').scrollTop(
-                                $('#add_employee .form-error:visible').first().siblings(
-                                    'label').offset().top - $('#add_employee .modal-body')
-                                .offset().top + $('#add_employee .modal-body').scrollTop()
-                            );
+                            // scroll to the first error visible (guarded)
+                            try {
+                                const $firstVisible = $('#add_employee .form-error:visible').first();
+                                if ($firstVisible.length) {
+                                    const $label = $firstVisible.siblings('label').first();
+                                    if ($label.length && $label.offset() && $('#add_employee .modal-body').offset()) {
+                                        $('#add_employee .modal-body').scrollTop(
+                                            $label.offset().top - $('#add_employee .modal-body').offset().top + $('#add_employee .modal-body').scrollTop()
+                                        );
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error scrolling to first validation error', e);
+                            }
                             
                             // Get the first error message for toast
                             let firstError = Object.values(errors)[0][0];
@@ -724,12 +732,20 @@
                                     'd-none');
                             });
 
-                            // scroll to the first error visible
-                            $('#edit_employee .modal-body').scrollTop(
-                                $('#edit_employee .form-error:visible').first().siblings(
-                                    'label').offset().top - $('#edit_employee .modal-body')
-                                .offset().top + $('#edit_employee .modal-body').scrollTop()
-                            );
+                            // scroll to the first error visible (guarded)
+                            try {
+                                const $firstVisible = $('#edit_employee .form-error:visible').first();
+                                if ($firstVisible.length) {
+                                    const $label = $firstVisible.siblings('label').first();
+                                    if ($label.length && $label.offset() && $('#edit_employee .modal-body').offset()) {
+                                        $('#edit_employee .modal-body').scrollTop(
+                                            $label.offset().top - $('#edit_employee .modal-body').offset().top + $('#edit_employee .modal-body').scrollTop()
+                                        );
+                                    }
+                                }
+                            } catch (e) {
+                                console.error('Error scrolling to first validation error', e);
+                            }
                             
                             // Get the first error message for toast
                             let firstError = Object.values(errors)[0][0];

@@ -248,17 +248,7 @@ class ShiftController extends Controller
     public function store(Request $request)
     {
         try {
-        // Debug: log incoming payload to inspect toggle serialization
-        try {
-            \Log::debug('ShiftController@store incoming', [
-                'client_id_count' => is_array($request->client_id) ? count($request->client_id) : null,
-                'auto_checkcall_enabled' => $request->auto_checkcall_enabled ?? null,
-                'raw' => array_intersect_key($request->all(), array_flip(['client_id','site_id','auto_checkcall_enabled','require_media_upload','checkcalls']))
-            ]);
-        } catch (\Throwable $e) {
-            // swallow logging errors to avoid breaking the request flow
-            \Log::debug('ShiftController@store logging failed: '.$e->getMessage());
-        }
+
 
         $shiftCount = count($request->client_id);
 
@@ -669,6 +659,33 @@ class ShiftController extends Controller
                                         'require_media'  => $shiftDate->require_media ?? 0,
                                     ]);
                                 }
+                            }
+                        }
+
+                        // Custom patrols — mirror checkcalls logic (flat or keyed arrays are OK)
+                        if ($request->has('patrols') && is_array($request->patrols)) {
+                            foreach ($request->patrols as $patrol) {
+                                if (!is_array($patrol)) continue;
+                                if (empty($patrol['name']) || empty($patrol['start_time'])) continue;
+
+                                // Combine date with posted time (handles H:i or H:i:s)
+                                try {
+                                    $startDateTime = $this->combineDateTime($shiftDate->shift_date, $patrol['start_time']);
+                                } catch (\Exception $e) {
+                                    $startDateTime = Carbon::parse($shiftDate->shift_date . ' ' . $patrol['start_time']);
+                                }
+
+                                Patrol::create([
+                                    'shift_id'              => $shiftDate->id,
+                                    'name'                  => $patrol['name'],
+                                    'summary'               => 'Custom patrol scheduled at ' . $startDateTime->format('H:i'),
+                                    'start_time'            => $startDateTime->format('Y-m-d H:i:s'),
+                                    'status'                => 'pending',
+                                    'total_checkpoints'     => $totalCheckpoints,
+                                    'completed_checkpoints' => 0,
+                                    'issues_reported'       => 0,
+                                    'completed_at'          => null,
+                                ]);
                             }
                         }
                     } // end quantity loop
@@ -2145,7 +2162,7 @@ public function patrolUpdate(Request $request, $id)
         'status' => $status,
     ];
 
-    if ($status === 'pending') {
+    if ($status === 'pending' && $patrol->status !== 'pending') {
         // Use patrol date + current time
         $timeNow = Carbon::now()->format('H:i:s');
         $updateData['start_time'] = $patrolDate . ' ' . $timeNow;

@@ -39,7 +39,8 @@ class ShiftApiController extends Controller
         $category = $request->query('category'); // "past", "current", "upcoming"
         $today    = now()->toDateString();
 
-        // Eager-load trainings and only the current user's acknowledgements for those trainings
+        $orderParam = strtolower($request->query('order', 'desc')) === 'asc' ? 'asc' : 'desc';
+
         $query = ShiftDate::with([
             'shift.site',
             'trainings' => function ($q) use ($userId) {
@@ -47,9 +48,10 @@ class ShiftApiController extends Controller
                     $q2->where('user_id', $userId);
                 }]);
             },
-        ])
+            ])
             ->where('staff_id', $userId)
-            ->orderBy('shift_date', 'desc');
+            ->orderBy('shift_date', $orderParam)
+            ->orderBy('start_time', $orderParam);
 
         // category filter — make time-aware so "current" excludes future shifts later today
         if ($category) {
@@ -224,6 +226,56 @@ class ShiftApiController extends Controller
                 'total_pages'  => $shifts->lastPage(),
                 'total'        => $shifts->total(),
             ],
+        ]);
+    }
+
+    /**
+     * Return a count of shifts for the authenticated user matching an optional category.
+     * Query params: ?category=past|current|upcoming
+     */
+    public function countShifts(Request $request)
+    {
+        $userId = Auth::id();
+        $category = $request->query('category');
+        $today = now()->toDateString();
+        $nowStr = Carbon::now()->format('Y-m-d H:i:s');
+
+        $query = ShiftDate::where('staff_id', $userId);
+
+        if ($category) {
+            if ($category === 'past') {
+                $cutoff = '2025-12-15';
+                $query->where(function($q) use ($today, $cutoff) {
+                    $q->where(function($q2) use ($today, $cutoff) {
+                        $q2->where('shift_date', '<', $today)->where('shift_date', '>=', $cutoff);
+                    })->orWhere('is_assign', 4);
+                });
+            } elseif ($category === 'current') {
+                $query->where(function ($q) use ($today, $nowStr) {
+                    $q->where('is_assign', 3)
+                      ->orWhere(function ($q2) use ($today, $nowStr) {
+                          $q2->where('shift_date', $today)
+                             ->whereRaw("CONCAT(shift_date,' ',start_time) <= ?", [$nowStr])
+                             ->where('is_assign', '!=', 4);
+                      });
+                });
+            } elseif ($category === 'upcoming') {
+                $query->where(function ($q) use ($today, $nowStr) {
+                    $q->where('shift_date', '>', $today)
+                      ->orWhere(function ($q2) use ($today, $nowStr) {
+                          $q2->where('shift_date', $today)
+                             ->whereRaw("CONCAT(shift_date,' ',start_time) > ?", [$nowStr])
+                             ->where('is_assign', '!=', 4);
+                      });
+                });
+            }
+        }
+
+        $count = $query->count();
+
+        return response()->json([
+            'category' => $category ?? 'all',
+            'count' => $count,
         ]);
     }
 

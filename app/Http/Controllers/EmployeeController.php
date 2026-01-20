@@ -297,44 +297,48 @@ $validator->after(function ($validator) use ($request) {
             $data['additional_files'] = $savedPaths;
         }
 
-        // Create user with hashed password
-        $user = User::create([
-            'name' => $data['fore_name'],
-            'first_name' => $data['fore_name'],
-            'last_name' => $data['sur_name'],
-            'username' => $data['email'],
-            'email' => $data['email'],
-            'plaintext_password' => $data['password'],
-            'password' => Hash::make($data['password']),
-        ]);
-
-        // Check if 'client' role exists, if not create it
-        $role = Role::firstOrCreate(['name' => 'security_staff']);
-
-        // Assign role to user
-        $user->assignRole($role);
-        $data['user_id'] = $user->id;
-
-        // Prepare employee data by excluding user-related fields
-        $employeeData = $data;
-        unset($employeeData['password']);
-        unset($employeeData['reference_number']);
-
-        // Save employee
-        $employee = Employee::create($employeeData);
-        Logger::log(Auth::user(), 'Create', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Created.');
-
-        // Create Document records for files uploaded via admin UI so other parts
-        // of the app (which rely on the documents table) see these uploads.
+        // Wrap DB writes in a transaction so if anything fails we don't leave a
+        // partially-created user without an employee record.
         try {
+            \DB::beginTransaction();
+
+            // Create user with hashed password
+            $user = User::create([
+                'name' => $data['fore_name'],
+                'first_name' => $data['fore_name'],
+                'last_name' => $data['sur_name'],
+                'username' => $data['email'],
+                'email' => $data['email'],
+                'plaintext_password' => $data['password'],
+                'password' => Hash::make($data['password']),
+            ]);
+
+            // Check if 'security_staff' role exists, if not create it
+            $role = Role::firstOrCreate(['name' => 'security_staff']);
+
+            // Assign role to user (DB pivot will be inside same transaction)
+            $user->assignRole($role);
+            $data['user_id'] = $user->id;
+
+            // Prepare employee data by excluding user-related fields
+            $employeeData = $data;
+            unset($employeeData['password']);
+            unset($employeeData['reference_number']);
+
+            // Save employee
+            $employee = Employee::create($employeeData);
+            Logger::log(Auth::user(), 'Create', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Created.');
+
+            // Create Document records for files uploaded via admin UI so other parts
+            // of the app (which rely on the documents table) see these uploads.
+            try {
             $docExpiryMap = [
                 'sia_licence_file' => 'sia_expiry',
                 'passport_file' => 'passport_expiry',
                 'act_certificate_file' => 'license_expiry',
                 'driving_licence_file' => 'driving_licence_expiry',
             ];
-
-            foreach ($documents as $document => $label) {
+                foreach ($documents as $document => $label) {
                 if (empty($data[$document])) continue;
 
                 $fileVal = $data[$document];
@@ -399,11 +403,12 @@ $validator->after(function ($validator) use ($request) {
                     }
                 }
             }
-        } catch (\Throwable $e) {
-            Log::error('Failed to create Document records for employee upload: ' . $e->getMessage());
-        }
+            } catch (\Throwable $e) {
+                Log::error('Failed to create Document records for employee upload: ' . $e->getMessage());
+                throw $e; // bubble up to outer transaction handler
+            }
 
-        if ($request->has('holidays')) {
+            if ($request->has('holidays')) {
             foreach ($request->holidays as $holiday) {
                 Holiday::create([
                     'employee_id' => $employee->id,
@@ -413,8 +418,7 @@ $validator->after(function ($validator) use ($request) {
                 ]);
             }
         }
-
-        if ($request->has('terms')) {
+            if ($request->has('terms')) {
             foreach ($request->terms as $term) {
                 EmployeeTerm::create([
                     'employee_id' => $employee->id,
@@ -424,8 +428,32 @@ $validator->after(function ($validator) use ($request) {
                 ]);
             }
         }
+            \DB::commit();
 
-        return response()->json(['message' => 'Employee created successfully']);
+            return response()->json(['message' => 'Employee created successfully']);
+
+        } catch (\Throwable $e) {
+            // rollback DB changes and remove any partially created user if present
+            try {
+                \DB::rollBack();
+            } catch (\Throwable $__) {
+                // ignore
+            }
+
+            Log::error('EmployeeController@store failed, rolling back: ' . $e->getMessage());
+
+            if (!empty($user) && isset($user->id)) {
+                try {
+                    // Attempt to remove user record to avoid duplicate email issues
+                    User::where('id', $user->id)->delete();
+                } catch (\Throwable $__) {
+                    Log::warning('Failed to delete partially created user: ' . ($user->id ?? 'unknown'));
+                }
+            }
+
+            return response()->json(['error' => 'Failed to create employee: ' . $e->getMessage()], 500);
+        }
+
     }
 
     public function update(Request $request, $id)

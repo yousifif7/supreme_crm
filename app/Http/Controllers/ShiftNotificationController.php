@@ -423,7 +423,7 @@ foreach ($missedBookOffs as $mb) {
                             $alert['_first_shown'] = true;
                             try {
                                 // Send push notification to guard
-                                $minutesOverdue = abs((int)$diff);
+                                $minutesOverdue = abs((int)$minutesUntilStart);
                                 send_push_notification($user->id, 'Patrol Overdue', "Your patrol is {$minutesOverdue} minutes overdue and not completed: {$patrol->name}. Please complete it now.", ['type' => 'patrol', 'patrolId' => $patrol->id]);
                                 
                                 $emp = $user->employee;

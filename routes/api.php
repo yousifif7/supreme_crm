@@ -83,6 +83,7 @@ Route::get('/alerts/count', [DocumentAPIController::class, 'alertsCount'])->midd
 //Should be authenticated
 Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/all', [ShiftApiController::class, 'getShifts']);
+    Route::get('/shifts/count', [ShiftApiController::class, 'countShifts']);
     Route::get('/shifts/calendar', [ShiftApiController::class, 'calendar']);
     Route::get('/shifts/{id}', [ShiftApiController::class, 'shiftDetails']);
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
