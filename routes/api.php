@@ -24,6 +24,20 @@ use App\Http\Controllers\API\EmergencyAlertAPIController;
 
 // Define your API routes here
 
+// Debug route: echoes request method, headers and payload (unauthenticated)
+Route::any('/debug-request', function (Request $request) {
+    return response()->json([
+        'method' => $request->method(),
+        'headers' => $request->header(),
+        'body' => $request->all(),
+        'query' => $request->query(),
+        'server' => [
+            'remote_addr' => $request->server('REMOTE_ADDR'),
+            'server_protocol' => $request->server('SERVER_PROTOCOL'),
+        ],
+    ]);
+});
+
 Route::get('/shifts', [ShiftController::class, 'getShifts']);
 Route::get('/shifts-with-staff', [ShiftController::class, 'getShiftsWithStaff']);
 Route::get('/shifts-by-site', [ShiftController::class, 'getShiftsBySite']);

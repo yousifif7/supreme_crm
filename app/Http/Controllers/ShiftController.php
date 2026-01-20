@@ -1109,13 +1109,17 @@ class ShiftController extends Controller
                 $shiftDate->save();
 
                 // Create shift booking
-                ShiftBooking::create([
-                    'user_id' => $shiftDate->staff_id,
-                    'shift_id' => $shiftDate->id,
-                    'type' => 'book_off',
-                    'timestamp' => now(),
-                    'face_verification_result' => 'not_required',
-                ]);
+                $latestBooking = ShiftBooking::where('user_id', $shiftDate->staff_id)
+                ->where('type', 'book_on')
+                ->latest('created_at')
+                ->first();
+
+            if ($latestBooking) {
+                $latestBooking->type = 'book_off';
+                $latestBooking->timestamp = now();
+                $latestBooking->save();
+            }
+
                 // Notify staff
                 send_push_notification(
                     $shiftDate->staff_id,
@@ -2121,49 +2125,58 @@ public function getTodayShifts()
         return view('security_boards.shift-detail', compact('shiftDate','subcontractors'));
     }
 
+public function patrolUpdate(Request $request, $id)
+{
+    $patrol = Patrol::findOrFail($id);
 
-    public function patrolUpdate(Request $request, $id)
-    {
-        $patrol = Patrol::findOrFail($id);
+    $request->validate([
+        'name' => 'required|string|max:255',
+        'start_time' => 'required_unless:status,pending|nullable|regex:/^\d{1,2}:\d{2}(:\d{2})?$/',
+        'status' => 'required|in:pending,in_progress,completed,missed',
+        'approval_status' => 'nullable|in:pending,approved,rejected',
+    ]);
 
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'start_time' => 'required',
-            'status' => 'required|in:pending,in_progress,completed,missed',
-            'approval_status' => 'nullable|in:pending,approved,rejected',
-        ]);
+    $status = $request->input('status');
 
-        // Fix start_time formatting
-        $startTime = $request->input('start_time'); // e.g. "05:00"
-        $patrolDate = $patrol->date ?? now()->toDateString(); // if you store date separately
-        $fixedStartTime = $patrolDate . ' ' . $startTime . ':00';
+    $patrolDate = $patrol->date ?? Carbon::now()->toDateString();
 
-        $updateData = [
-            'name' => $request->input('name'),
-            'start_time' => $fixedStartTime,
-            'status' => $request->input('status'),
-        ];
+    $updateData = [
+        'name' => $request->input('name'),
+        'status' => $status,
+    ];
 
-        // Only update approval_status if provided
-        if ($request->has('approval_status')) {
-            $updateData['approval_status'] = $request->input('approval_status');
+    if ($status === 'pending') {
+        // Use patrol date + current time
+        $timeNow = Carbon::now()->format('H:i:s');
+        $updateData['start_time'] = $patrolDate . ' ' . $timeNow;
+    } else {
+        $raw = $request->input('start_time'); // e.g. "05:00" or "05:00:00"
+        if ($raw !== null) {
+            $timePart = (strlen($raw) === 5) ? $raw . ':00' : $raw;
+            $updateData['start_time'] = $patrolDate . ' ' . $timePart;
         }
-
-        $patrol->update($updateData);
-
-        $shift = ShiftDate::find($patrol->shift_id);
-        send_push_notification(
-            $shift?->user_id,
-            'Patrol updated',
-            'An admin has updated your patrol! check on your app now.',
-            ['patrol' => $patrol],
-        );
-
-        return response()->json([
-            'success' => true,
-            'patrol' => $patrol
-        ]);
     }
+
+    if ($request->has('approval_status')) {
+        $updateData['approval_status'] = $request->input('approval_status');
+    }
+
+    $patrol->update($updateData);
+    $patrol->refresh();
+
+    $shift = ShiftDate::find($patrol->shift_id);
+    send_push_notification(
+        $shift?->user_id,
+        'Patrol updated',
+        'An admin has updated your patrol! check on your app now.',
+        ['patrol' => $patrol],
+    );
+
+    return response()->json([
+        'success' => true,
+        'patrol' => $patrol
+    ]);
+}
 
     public function patrolDestroy($id)
     {

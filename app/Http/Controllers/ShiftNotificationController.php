@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller as BaseController;
-use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Models\User;
@@ -18,7 +17,7 @@ class ShiftNotificationController extends BaseController
 {
     public function process(Request $request)
     {
-        Log::info('ShiftNotificationController: web trigger started', ['by' => $request->user()?->id ?? null]);
+        
 
         // Run missed/unassigned checks every minute (no hourly guard) so reminders and auto book-off fire promptly.
         $now = now();
@@ -36,19 +35,31 @@ class ShiftNotificationController extends BaseController
 
         foreach ($inProgressPatrols as $patrol) {
             try {
-                // compute full start datetime using parent shift date when available
-                if (!empty($patrol->shift) && !empty($patrol->shift->shift_date)) {
-                    $startDt = Carbon::parse($patrol->shift->shift_date . ' ' . $patrol->start_time);
-                } else {
-                    $startDt = Carbon::parse(now()->toDateString() . ' ' . $patrol->start_time);
+                // Parse patrol start_time. If it already contains a date, parse directly.
+                try {
+                    $rawStart = trim((string)$patrol->start_time);
+                    if (preg_match('/^\d{4}-\d{2}-\d{2}[ T]/', $rawStart)) {
+                        $startDt = Carbon::parse($rawStart);
+                    } elseif (!empty($patrol->shift) && !empty($patrol->shift->shift_date)) {
+                        $startDt = Carbon::parse($patrol->shift->shift_date . ' ' . $rawStart);
+                    } else {
+                        $startDt = Carbon::parse(now()->toDateString() . ' ' . $rawStart);
+                    }
+                } catch (\Exception $e) {
+                    continue;
                 }
 
-                if ($startDt->lte($now->copy()->subMinutes(50))) {
+                // minutes since patrol start (positive if start in past)
+                $minutesSinceStart = $startDt->diffInMinutes($now, false);
+
+                
+
+                if ($minutesSinceStart >= 50) {
                     $patrol->status = 'completed';
                     $patrol->completed_at = $now;
                     $patrol->save();
 
-                    Log::info("Auto-completed patrol {$patrol->id} after 50 minutes");
+                    
 
                     // Notify the guard
                     $shiftDate = ShiftDate::find($patrol->shift_id);
@@ -62,7 +73,6 @@ class ShiftNotificationController extends BaseController
                     }
                 }
             } catch (\Exception $e) {
-                Log::error('Failed to auto-complete patrol: ' . $e->getMessage());
             }
         }
 
@@ -106,7 +116,7 @@ $missedBookOffs = ShiftDate::whereNotNull('staff_id')
     ->select('id', 'staff_id', 'start_time', 'end_time', 'shift_date', 'absentee_end_time', 'is_assign')
     ->get();
 
-Log::info('Missed Book Offs found: ' . $missedBookOffs->count());
+ 
 
 // --- Auto book-off: apply admin-like book_off for eligible shifts ---
 foreach ($missedBookOffs as $mb) {
@@ -131,7 +141,6 @@ foreach ($missedBookOffs as $mb) {
                 $latestBooking->timestamp = now();
                 $latestBooking->save();
             } else {
-                Log::warning('Auto book-off: no latest book_on found for user', ['user_id' => $sd->staff_id, 'shift_date_id' => $sd->id]);
             }
 
             // Notify staff
@@ -142,10 +151,9 @@ foreach ($missedBookOffs as $mb) {
                 ['type' => 'shift', 'shiftId' => $sd->id]
             );
 
-            Log::info("Auto-booked off shift {$sd->id} for staff {$sd->staff_id}");
+            
         }
-    } catch (\Exception $e) {
-        Log::error('Auto book-off failed for shift ' . ($mb->id ?? 'unknown') . ': ' . $e->getMessage());
+        } catch (\Exception $e) {
     }
 }
 
@@ -204,7 +212,7 @@ foreach ($missedBookOffs as $mb) {
                         ['type' => 'shift', 'shiftId' => $sd->id]
                     );
                 } catch (\Exception $e) {
-                    Log::warning('Push notification failed for 5-min before reminder: ' . $e->getMessage());
+                    
                 }
             }
 
@@ -227,7 +235,7 @@ foreach ($missedBookOffs as $mb) {
                         ['type' => 'shift', 'shiftId' => $sd->id]
                     );
                 } catch (\Exception $e) {
-                    Log::warning('Push notification failed for 5-min after reminder: ' . $e->getMessage());
+                    
                 }
             }
 
@@ -235,7 +243,7 @@ foreach ($missedBookOffs as $mb) {
         }
 
         $users = User::role('security_staff')->get();
-        Log::info('ProcessShiftNotifications (web): found users count', ['count' => $users->count()]);
+        
         $alerts = [];
         $cooldownMinutes = 15; // show alerts for 15 minutes after first shown
         $patrolMarkDelay = 10; // minutes after detection before marking patrol as missed
@@ -264,19 +272,19 @@ foreach ($missedBookOffs as $mb) {
                             Notify::toDashboard(1, 'alert', 'Patrol missed', "Patrol '{$p->name}' (ID: {$p->id}) was not started within 15 minutes and has been marked missed.", '/shift-dates/' . ($p->shift?->id ?? $p->shift_id) . '/view');
                         }
                     } catch (\Exception $e) {
-                        Log::warning('Dashboard notify failed for patrol_missed auto-mark: ' . $e->getMessage());
+                        
                     }
 
                     if ($p->shift && $p->shift->staff_id) {
                         try {
                             send_push_notification($p->shift->staff_id, 'Patrol Missed', "Your patrol '{$p->name}' was marked as missed.", ['type' => 'patrol', 'patrolId' => $p->id]);
                         } catch (\Exception $e) {
-                            Log::warning('Push notify failed for auto patrol_missed: ' . $e->getMessage());
+                        
                         }
                     }
                 }
             } catch (\Exception $e) {
-                Log::warning('Failed to auto-mark patrol missed: ' . $e->getMessage());
+                
             }
         }
         $allCheckCalls = CheckCall::where('status', 'pending')
@@ -284,7 +292,7 @@ foreach ($missedBookOffs as $mb) {
             ->with('shiftDate')
             ->whereHas('shiftDate') // Only get checkcalls with existing shifts
             ->get();
-        Log::info('All pending patrols/checkcalls loaded (last 24h)', ['patrols' => $allPatrols->count(), 'checkcalls' => $allCheckCalls->count()]);
+        
 
         $processed = 0;
 
@@ -355,7 +363,7 @@ foreach ($missedBookOffs as $mb) {
                                 $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
                                 Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for patrol_warning: ' . $e->getMessage());
+                                
                             }
                         } else {
                             $alert['_first_shown'] = false;
@@ -389,7 +397,7 @@ foreach ($missedBookOffs as $mb) {
                                 $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
                                 Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for patrol_due: ' . $e->getMessage());
+                                
                             }
                         } else {
                             $alert['_first_shown'] = false;
@@ -425,7 +433,7 @@ foreach ($missedBookOffs as $mb) {
                                 $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
                                 Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for patrol_overdue: ' . $e->getMessage());
+                                
                             }
                         } else {
                             $alert['_first_shown'] = false;
@@ -461,7 +469,7 @@ foreach ($missedBookOffs as $mb) {
                             $actionUrl = '/shift-dates/' . ($patrol->shift->id ?? $patrol->shift_id) . '/view';
                             Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                         } catch (\Exception $e) {
-                            Log::warning('Dashboard notify failed for patrol_missed: ' . $e->getMessage());
+                            
                         }
                     } else {
                         $alert['_first_shown'] = false;
@@ -521,7 +529,7 @@ foreach ($missedBookOffs as $mb) {
                                 $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
                                 Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for checkcall_warning: ' . $e->getMessage());
+                                
                             }
                         } else {
                             $alert['_first_shown'] = false;
@@ -555,7 +563,7 @@ foreach ($missedBookOffs as $mb) {
                                 $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
                                 Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for checkcall_completion_reminder: ' . $e->getMessage());
+                                
                             }
                         } else {
                             $alert['_first_shown'] = false;
@@ -573,7 +581,7 @@ foreach ($missedBookOffs as $mb) {
                             try {
                                 $checkCall->update(['status' => 'missed']);
                             } catch (\Exception $e) {
-                                Log::error('Failed to mark checkcall missed', ['checkcall_id' => $checkCall->id, 'error' => $e->getMessage()]);
+                                
                             }
                             Cache::forget($markerKey);
 
@@ -615,7 +623,7 @@ foreach ($missedBookOffs as $mb) {
                                 $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
                                 Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
-                                Log::warning('Dashboard notify failed for checkcall_missed: ' . $e->getMessage());
+                                
                             }
                         } else {
                             $alert['_first_shown'] = false;
@@ -664,7 +672,7 @@ foreach ($missedBookOffs as $mb) {
             }
         }
 
-        Log::info('ShiftNotificationController: web trigger ended', ['processed' => $processed]);
+        
 
         return response()->json(['success' => true, 'processed' => $processed]);
     }

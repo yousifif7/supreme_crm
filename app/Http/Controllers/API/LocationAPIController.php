@@ -226,10 +226,43 @@ class LocationAPIController extends Controller
             $sdStart = Carbon::parse($shiftDate->start_time);
             $sdEnd = Carbon::parse($shiftDate->end_time);
 
+            // Normalize end time for overnight shifts (end <= start -> add one day to end)
+            $sdEndNormalized = $sdEnd->copy();
+            if ($sdEndNormalized->lte($sdStart)) {
+                $sdEndNormalized->addDay();
+            }
+
+            // Only return guard locations when the shift is currently active (between start and end)
+            $nowCheck = Carbon::now();
+            if (!($nowCheck->between($sdStart, $sdEndNormalized) || $nowCheck->equalTo($sdStart))) {
+                // Shift is not in progress (either past or future) — don't expose staff locations
+                $site = Site::find($siteId);
+                $sitePayload = null;
+                if ($site) {
+                    $sitePayload = [
+                        'id' => $site->id,
+                        'site_name' => $site->site_name ?? '',
+                        'address' => $site->address ?? '',
+                        'post_code' => $site->post_code ?? $site->postcode ?? '',
+                    ];
+                }
+
+                return response()->json([
+                    'site' => $sitePayload,
+                    'shift_date' => [
+                        'id' => $shiftDate->id,
+                        'shift_id' => $shiftDate->shift_id,
+                        'start_time' => $shiftDate->start_time,
+                        'end_time' => $shiftDate->end_time,
+                    ],
+                    'locations' => [],
+                ]);
+            }
+
             // small buffer in seconds to allow for clock skew (optional)
             $bufferSeconds = 60; // e.g. allow +/- 60s
             $windowStart = $sdStart->copy()->subSeconds($bufferSeconds);
-            $windowEnd = $sdEnd->copy()->addSeconds($bufferSeconds);
+            $windowEnd = $sdEndNormalized->copy()->addSeconds($bufferSeconds);
 
             // Get all staff assigned to the same shift occurrence
             $staffIds = ShiftDate::where('shift_id', $shiftDate->shift_id)
@@ -248,7 +281,7 @@ class LocationAPIController extends Controller
             // Prefer latest location inside the shift window (if window defined)
             $query = Location::where('user_id', $sid)
                 ->whereNotNull('accuracy')
-                ->where('accuracy', '<=', 50);
+                ->where('accuracy', '<=', 100);
 
             if ($windowStart && $windowEnd) {
                 // if timestamps are stored as datetimes
@@ -261,7 +294,7 @@ class LocationAPIController extends Controller
             if (! $loc) {
                 $loc = Location::where('user_id', $sid)
                     ->whereNotNull('accuracy')
-                    ->where('accuracy', '<=', 50)
+                    ->where('accuracy', '<=', 100)
                     ->orderByDesc('timestamp')
                     ->first();
             }
@@ -288,7 +321,7 @@ class LocationAPIController extends Controller
                         ->where('shifts.site_id', $siteId);
                 })
                 ->whereNotNull('accuracy')
-                ->where('accuracy', '<=', 50)
+                ->where('accuracy', '<=', 100)
                 ->orderByDesc('timestamp')
                 ->first();
 

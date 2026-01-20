@@ -51,16 +51,40 @@ class ShiftApiController extends Controller
             ->where('staff_id', $userId)
             ->orderBy('shift_date', 'desc');
 
-        // category filter
+        // category filter — make time-aware so "current" excludes future shifts later today
         if ($category) {
             if ($category === 'past') {
                 // Exclude very old historical shifts (2025 and earlier) from past results
+                // Also include any shifts explicitly marked as ended/booked-off (is_assign == 4)
                 $cutoff = '2025-12-15';
-                $query->where('shift_date', '<', $today)->where('shift_date', '>=', $cutoff);
+                $query->where(function($q) use ($today, $cutoff) {
+                    $q->where(function($q2) use ($today, $cutoff) {
+                        $q2->where('shift_date', '<', $today)->where('shift_date', '>=', $cutoff);
+                    })->orWhere('is_assign', 4);
+                });
             } elseif ($category === 'current') {
-                $query->where('shift_date', '=', $today);
+                $nowStr = Carbon::now()->format('Y-m-d H:i:s');
+                $query->where(function ($q) use ($today, $nowStr) {
+                    // include explicitly booked-on shifts OR shifts that have already started (today)
+                    $q->where('is_assign', 3)
+                      ->orWhere(function ($q2) use ($today, $nowStr) {
+                          // only include shifts that have started and are not already marked ended (is_assign != 4)
+                          $q2->where('shift_date', $today)
+                             ->whereRaw("CONCAT(shift_date,' ',start_time) <= ?", [$nowStr])
+                             ->where('is_assign', '!=', 4);
+                      });
+                });
             } elseif ($category === 'upcoming') {
-                $query->where('shift_date', '>', $today);
+                $nowStr = Carbon::now()->format('Y-m-d H:i:s');
+                $query->where(function ($q) use ($today, $nowStr) {
+                    // future-dated shifts or later-today shifts whose start time is still in the future
+                    $q->where('shift_date', '>', $today)
+                      ->orWhere(function ($q2) use ($today, $nowStr) {
+                          $q2->where('shift_date', $today)
+                             ->whereRaw("CONCAT(shift_date,' ',start_time) > ?", [$nowStr])
+                             ->where('is_assign', '!=', 4);
+                      });
+                });
             }
         }
 
@@ -70,11 +94,28 @@ class ShiftApiController extends Controller
             $shift = $shiftDate->shift;
             $site  = $shift?->site;
 
-            if ($shiftDate->shift_date < $today || $shiftDate->is_assign == 4) {
+            // Determine category using precise datetimes so overnight shifts and booked-on state are handled.
+            $nowDt = Carbon::now();
+            $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+            $shiftEnd = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+            if ($shiftEnd->lte($shiftStart)) {
+                // Overnight shift, end on following day
+                $shiftEnd->addDay();
+            }
+
+            // Determine if the shift is currently in progress (handles overnight)
+            $inProgress = $shiftStart->lte($nowDt) && $shiftEnd->gt($nowDt);
+
+            // Ended shifts (explicitly booked off or scheduled end passed)
+            if ($shiftDate->is_assign == 4 || $shiftEnd->lte($nowDt)) {
                 $category = 'past';
-            } elseif ($shiftDate->shift_date == $today && $shiftDate->is_assign !== 4) {
+            }
+            // Current when explicitly booked-on OR when the shift is in progress
+            elseif ($shiftDate->is_assign == 3 || $inProgress) {
                 $category = 'current';
-            } else {
+            }
+            // All other cases (not booked on and not started yet) are upcoming
+            else {
                 $category = 'upcoming';
             }
 
@@ -145,6 +186,34 @@ class ShiftApiController extends Controller
                     'note_type' => $note->note_type,
                     'note'      => $note->note,
                 ] : null,
+
+                'requires_booking_media_for_book_on' => (function() use ($shiftDate, $userId) {
+                    try {
+                        $hasPatrols = $shiftDate->patrols()->exists();
+                        $hasCheckCalls = $shiftDate->checkCalls()->exists();
+                        if ($hasPatrols || $hasCheckCalls) return false;
+                        return !\App\Models\BookingMedia::where('shift_date_id', $shiftDate->id)
+                            ->where('user_id', $userId)
+                            ->where('type', 'book_on')
+                            ->exists();
+                    } catch (\Exception $e) {
+                        // On error default to false to avoid forcing uploads unexpectedly
+                        return false;
+                    }
+                })(),
+                'requires_booking_media_for_book_off' => (function() use ($shiftDate, $userId) {
+                    try {
+                        $hasPatrols = $shiftDate->patrols()->exists();
+                        $hasCheckCalls = $shiftDate->checkCalls()->exists();
+                        if ($hasPatrols || $hasCheckCalls) return false;
+                        return !\App\Models\BookingMedia::where('shift_date_id', $shiftDate->id)
+                            ->where('user_id', $userId)
+                            ->where('type', 'book_off')
+                            ->exists();
+                    } catch (\Exception $e) {
+                        return false;
+                    }
+                })(),
             ];
         });
 
@@ -227,9 +296,22 @@ class ShiftApiController extends Controller
             ]);
         }
 
+        // Provide clearer reasons when respond is not allowed
+        if ($shift->is_assign == 2) {
+            return response()->json(['message' => 'Shift already accepted.'], 409);
+        }
+
+        if ($shift->is_assign == 3) {
+            return response()->json(['message' => 'Cannot accept/decline: shift already booked on.'], 409);
+        }
+
+        if ($shift->is_assign == 4) {
+            return response()->json(['message' => 'Cannot accept/decline: shift has already ended.'], 409);
+        }
+
         return response()->json([
-            'message' => 'Could not submit a respond, current shift status ' . $shift->status,
-        ]);
+            'message' => 'Could not submit a respond, current shift state (is_assign=' . $shift->is_assign . ', status=' . $shift->status . ')'
+        ], 422);
     }
 
     public function submitLeaveRequest(Request $request)
@@ -437,6 +519,22 @@ class ShiftApiController extends Controller
 
     public function bookOnOff(Request $request, $shiftDate_id, $type)
     {
+
+        // If a booking already exists for this user+shift+type, return it (avoid duplicates)
+        $user = Auth::user();
+        $existing = ShiftBooking::where('user_id', $user->id)
+            ->where('shift_id', $shiftDate_id)
+            ->where('type', $type)
+            ->first();
+
+        if ($existing) {
+            return response()->json([
+                'success' => true,
+                'booking_id' => $existing->id,
+                'message' => 'Booking already exists.'
+            ]);
+        }
+
         $request->validate([
             'face_verification_result' => 'required|string',
             'location.latitude' => 'required|numeric',
@@ -445,7 +543,6 @@ class ShiftApiController extends Controller
             'timestamp' => 'date',
         ]);
 
-        $user = Auth::user();
         $formattedTimestamp = Carbon::now()->format('Y-m-d H:i:s');
 
         // Correct: fetch by shiftdate primary key
@@ -515,21 +612,21 @@ class ShiftApiController extends Controller
             return response()->json(['message' => 'No employee record linked to this user.'], 404);
         }
 
-        // ✅ Check if user already booked on
+        // Check if user already has an active book_on (not yet booked off)
         $existingBooking = ShiftBooking::where('user_id', $user->id)
             ->where('type', 'book_on')
-            ->first();
+            // only consider bookings whose ShiftDate is not marked as ended (is_assign != 4)
+            ->whereIn('shift_id', function ($q) {
+                $q->select('id')->from('shift_dates')->where('is_assign', '!=', 4);
+            })->first();
 
         if ($existingBooking) {
-            $shift = ShiftDate::find($existingBooking->shift_id);
-            if ($shift?->is_assign != 4) {
-                return response()->json([
-                    'message' => 'You already have a booked on shift (ShiftDate ID: ' . $existingBooking->shift_id . ').'
-                ], 409);
-            }
+            return response()->json([
+                'message' => 'You already have an active booked on shift (ShiftDate ID: ' . $existingBooking->shift_id . ').'
+            ], 409);
         }
 
-        // ✅ Correct: find by ShiftDate ID
+        //  Correct: find by ShiftDate ID
         $shiftDate = ShiftDate::with('trainings.acknowledgedUsers')->find($shiftDate_id);
 
         if (!$shiftDate) {
@@ -539,6 +636,25 @@ class ShiftApiController extends Controller
         }
 
         if ($shiftDate->is_assign !== 2) {
+            // Provide more detailed guidance to the client about why booking on is blocked
+            if ($shiftDate->is_assign == 1) {
+                return response()->json([
+                    'message' => 'Shift is dispatched; you must accept the shift before booking on.'
+                ], 422);
+            }
+
+            if ($shiftDate->is_assign == 3) {
+                return response()->json([
+                    'message' => 'Shift already booked on.'
+                ], 409);
+            }
+
+            if ($shiftDate->is_assign == 4) {
+                return response()->json([
+                    'message' => 'Shift has already ended; you cannot book on.'
+                ], 422);
+            }
+
             return response()->json([
                 'message' => 'Shift date (ID: ' . $shiftDate_id . ') not accepted. You cannot book on/off until it is accepted!',
             ], 422);
@@ -593,6 +709,30 @@ if ($now->lt($bookingOpensAt)) {
             }
         }
 
+        // Defensive state checks: prevent booking on if shift already started/ended
+        if ($shiftDate->is_assign === 3) {
+            $already = ShiftBooking::where('shift_id', $shiftDate->id)
+                ->where('type', 'book_on')
+                ->where('user_id', $user->id)
+                ->exists();
+
+            if ($already) {
+                return response()->json([
+                    'message' => 'You have already booked on for this shift (ShiftDate ID: ' . $shiftDate->id . ').'
+                ], 409);
+            }
+
+            return response()->json([
+                'message' => 'This shift has already been booked on.'
+            ], 409);
+        }
+
+        if ($shiftDate->is_assign === 4) {
+            return response()->json([
+                'message' => 'This shift has already ended; you cannot book on.'
+            ], 422);
+        }
+
         // Update status
         $shiftDate->status = 'booked_on';
         $shiftDate->is_assign = 3; // shift started
@@ -610,10 +750,27 @@ if ($now->lt($bookingOpensAt)) {
             'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
 
-        Logger::log($shiftDate, 'Booked On', ' booked on shift (ID: ' . $shiftDate->id . ') starting at ' . $shiftDate->start_time);
+        Logger::log($shiftDate, 'Booked On', ' booked on shift at ' . $shiftDate->shift->site->site_name . ' starting at ' . $shiftDate->start_time);
 
+        // If request includes face/location data, delegate to bookOnOff to record booking with full metadata.
+        if ($request->has('face_verification_result') && $request->has('location') && is_array($request->input('location'))) {
+            return $this->bookOnOff($request, $shiftDate_id, 'book_on');
+        }
 
-        return $this->bookOnOff($request, $shiftDate_id, 'book_on');
+        // Otherwise create a minimal booking record so DB accurately reflects booked_on state
+        $created = ShiftBooking::create([
+            'user_id' => $user->id,
+            'shift_id' => $shiftDate_id,
+            'type' => 'book_on',
+            'timestamp' => now(),
+            'face_verification_result' => 'not_required',
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'booking_id' => $created->id,
+            'message' => 'Successfully booked on.'
+        ]);
     }
 
 
@@ -643,6 +800,31 @@ if ($now->lt($bookingOpensAt)) {
             return response()->json([
                 'message' => 'You have not booked on for this shift, so you cannot book off.'
             ], 400);
+        }
+
+        // Prevent booking off if the shift is not in a started state or already ended
+        if ($shiftDate->is_assign === 4) {
+            return response()->json([
+                'message' => 'This shift has already been booked off.'
+            ], 409);
+        }
+
+        if ($shiftDate->is_assign !== 3) {
+            return response()->json([
+                'message' => 'This shift is not in a started state; you cannot book off.'
+            ], 422);
+        }
+
+        // Prevent duplicate book_off entries for this user and shift
+        $alreadyOff = ShiftBooking::where('user_id', $user->id)
+            ->where('shift_id', $shiftDate_id)
+            ->where('type', 'book_off')
+            ->exists();
+
+        if ($alreadyOff) {
+            return response()->json([
+                'message' => 'You have already booked off for this shift.'
+            ], 409);
         }
 
         //  Correct: update ShiftDate by ID
@@ -714,11 +896,14 @@ if ($now->lt($bookingOpensAt)) {
             'action_url' => "/shift-dates/$shiftDate_id/view"
         ]);
 
-        // Remove the "book_on" record
-        $existingBooking->delete();
+        // Remove any lingering "book_on" records for this user and shift
+        ShiftBooking::where('user_id', $user->id)
+            ->where('shift_id', $shiftDate_id)
+            ->where('type', 'book_on')
+            ->delete();
 
         try {
-            Logger::log($shiftDate, 'Booked Off', 'Booked off via API');
+            Logger::log($shiftDate, 'Booked Off', 'Booked off at ' . $shiftDate->shift->site->site_name . ' ending at ' . $shiftDate->end_time);
         } catch (\Exception $e) {
             Log::error('Logger failed for bookOff: ' . $e->getMessage());
         }
@@ -1873,6 +2058,32 @@ if ($now->lt($bookingOpensAt)) {
                 'note_type' => $note->note_type,
                 'note' => $note->note,
             ] : null,
+            'requires_booking_media_for_book_on' => (function() use ($shiftDate, $userId) {
+                try {
+                    $hasPatrols = $shiftDate->patrols()->exists();
+                    $hasCheckCalls = $shiftDate->checkCalls()->exists();
+                    if ($hasPatrols || $hasCheckCalls) return false;
+                    return !BookingMedia::where('shift_date_id', $shiftDate->id)
+                        ->where('user_id', $userId)
+                        ->where('type', 'book_on')
+                        ->exists();
+                } catch (\Exception $e) {
+                    return false;
+                }
+            })(),
+            'requires_booking_media_for_book_off' => (function() use ($shiftDate, $userId) {
+                try {
+                    $hasPatrols = $shiftDate->patrols()->exists();
+                    $hasCheckCalls = $shiftDate->checkCalls()->exists();
+                    if ($hasPatrols || $hasCheckCalls) return false;
+                    return !BookingMedia::where('shift_date_id', $shiftDate->id)
+                        ->where('user_id', $userId)
+                        ->where('type', 'book_off')
+                        ->exists();
+                } catch (\Exception $e) {
+                    return false;
+                }
+            })(),
         ];
 
         return response()->json([
@@ -1986,6 +2197,32 @@ if ($now->lt($bookingOpensAt)) {
                 'note_type' => $note->note_type,
                 'note' => $note->note,
             ] : null,
+            'requires_booking_media_for_book_on' => (function() use ($shiftDate, $userId) {
+                try {
+                    $hasPatrols = $shiftDate->patrols()->exists();
+                    $hasCheckCalls = $shiftDate->checkCalls()->exists();
+                    if ($hasPatrols || $hasCheckCalls) return false;
+                    return !BookingMedia::where('shift_date_id', $shiftDate->id)
+                        ->where('user_id', $userId)
+                        ->where('type', 'book_on')
+                        ->exists();
+                } catch (\Exception $e) {
+                    return false;
+                }
+            })(),
+            'requires_booking_media_for_book_off' => (function() use ($shiftDate, $userId) {
+                try {
+                    $hasPatrols = $shiftDate->patrols()->exists();
+                    $hasCheckCalls = $shiftDate->checkCalls()->exists();
+                    if ($hasPatrols || $hasCheckCalls) return false;
+                    return !BookingMedia::where('shift_date_id', $shiftDate->id)
+                        ->where('user_id', $userId)
+                        ->where('type', 'book_off')
+                        ->exists();
+                } catch (\Exception $e) {
+                    return false;
+                }
+            })(),
         ];
 
         return response()->json([

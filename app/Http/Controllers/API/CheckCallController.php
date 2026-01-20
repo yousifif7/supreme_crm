@@ -842,6 +842,7 @@ class CheckCallController extends Controller
             'active_alarms' => $alarms
         ]);
     }
+    
 
     public function update(Request $request, $id)
     {
@@ -849,28 +850,40 @@ class CheckCallController extends Controller
 
         $validated = $request->validate([
             'name' => 'nullable|string',
-            'scheduled_time' => 'nullable|date',
+            // If client sends time-only, use date_format:H:i. If they send full datetime, use 'date' or date_format:Y-m-d H:i'
+            'scheduled_time' => 'nullable|date_format:H:i',
             'status' => 'nullable|in:pending,completed,missed',
             'approval_status' => 'nullable|in:pending,approved,rejected',
         ]);
 
-        // Only update fields that are actually provided in the request
         $updateData = [];
+
         if ($request->has('name')) {
             $updateData['name'] = $validated['name'];
-        }
-        if ($request->has('status')) {
-            $updateData['status'] = $validated['status'];
         }
         if ($request->has('approval_status')) {
             $updateData['approval_status'] = $validated['approval_status'];
         }
-        // Allow scheduled_time update regardless of status
         if ($request->has('scheduled_time')) {
-            $updateData['scheduled_time'] = $validated['scheduled_time'];
+            // combine with existing date on the record or use today if no date present
+            $date = $checkcall->date ?? Carbon::today()->toDateString();
+            $time = strlen($validated['scheduled_time']) === 5 ? $validated['scheduled_time'] . ':00' : $validated['scheduled_time'];
+            $updateData['scheduled_time'] = $date . ' ' . $time; // MySQL DATETIME string
+        }
+
+        if ($request->has('status')) {
+            $newStatus = $validated['status'];
+            $updateData['status'] = $newStatus;
+
+            // Only set when transitioning to pending
+            if ($newStatus === 'pending' && $checkcall->status !== 'pending') {
+                $date = $checkcall->date ?? Carbon::today()->toDateString();
+                $updateData['scheduled_time'] = $date . ' ' . Carbon::now()->format('H:i:s');
+            }
         }
 
         $checkcall->update($updateData);
+        $checkcall->refresh();
 
         send_push_notification(
             $checkcall->employee_id,
@@ -879,8 +892,9 @@ class CheckCallController extends Controller
             ['type' => 'shift', 'shiftId' => $checkcall->shift_date_id],
         );
 
-        return response()->json(['message' => 'Check call updated successfully']);
+        return response()->json(['message' => 'Check call updated successfully', 'checkcall' => $checkcall]);
     }
+        
 
     public function destroy($id)
     {
