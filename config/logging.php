@@ -127,6 +127,14 @@ return [
             'path' => storage_path('logs/laravel.log'),
         ],
 
+        // Dedicated auth attempts log file
+        'auth_attempts' => [
+            'driver' => 'single',
+            'path' => storage_path('logs/auth_attempts.log'),
+            'level' => env('LOG_LEVEL', 'warning'),
+            'replace_placeholders' => true,
+        ],
+
     ],
 
 ];

@@ -10,7 +10,7 @@ class ShiftDate extends Model
 {
     use SoftDeletes, LogsChanges;
     protected $table = 'shift_dates';
-    protected  $fillable = ['staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', 'status', 'invoiced', 'invoice_id', 'require_media', 'guard_rate'];
+    protected  $fillable = ['staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', 'status', 'invoiced', 'invoice_id', 'require_media', 'guard_rate', 'subcontractor_id'];
 
 
     const STATUS_PENDING       = 0;
@@ -102,6 +102,11 @@ class ShiftDate extends Model
     public function locations()
     {
         return $this->hasMany(Location::class, 'shiftdate_id');
+    }
+
+    public function subcontractor()
+    {
+        return $this->belongsTo(User::class, 'subcontractor_id');
     }
 
     public function logs()

@@ -55,7 +55,7 @@ class LocationAPIController extends Controller
 
         $locations = Location::where('user_id', Auth::id())
             ->whereBetween('timestamp', [$request->date_from, $request->date_to])
-            ->where('accuracy', '<=', 100)
+            ->where('accuracy', '<=', 200)
             ->orderBy('timestamp', 'asc')
             ->get(['latitude', 'longitude', 'timestamp', 'accuracy']);
 

@@ -503,12 +503,6 @@
                                             ->first();
                                     @endphp
                                     <div class="col-12">
-                                        {{-- <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
-                                            <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"
-                                                class="btn btn-primary" target="_blank">
-                                                View Heatmap
-                                            </a>
-                                        </div> --}}
                                         <div>
                                             @include('map')
                                         </div>

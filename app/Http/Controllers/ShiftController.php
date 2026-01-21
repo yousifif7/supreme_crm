@@ -493,7 +493,7 @@ class ShiftController extends Controller
                 'end_shift'   => $request->end_shift[$i],
                 'service_type_1'   => $serviceType1?->name,
                 'service_type_2'   => $serviceType2?->name,
-                'subcontractor'   => $request->subcontractor_id[$i] ?? null,
+                'subcontractor_id'   => $request->subcontractor_id[$i] ?? null,
                 // Persist site-level rate on the parent Shift record so it is
                 // available for later edits and reports.
                 'site_rate'        => $request->site_rate[$i] ?? null,
@@ -954,7 +954,7 @@ class ShiftController extends Controller
             try {
                 $parent = $shift->shift;
                 if ($parent) {
-                    $parent->subcontractor = $data['subcontractor_id'];
+                    $parent->subcontractor_id = $data['subcontractor_id'];
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -970,7 +970,7 @@ class ShiftController extends Controller
             try {
                 $parent = $shift->shift;
                 if ($parent) {
-                    $parent->subcontractor = $request->subcontractor_id ?: null;
+                    $parent->subcontractor_id = $request->subcontractor_id ?: null;
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -1197,6 +1197,14 @@ public function getShifts(Request $request)
             'users.first_name',
             'users.last_name',
 
+            // subcontractor fields (may be stored on the shift_date or parent shift)
+            'shift_dates.subcontractor_id',
+            'shifts.subcontractor_id as parent_subcontractor',
+            'sub_users.first_name as subcontractor_first_name',
+            'sub_users.last_name as subcontractor_last_name',
+            'parent_sub_users.first_name as parent_sub_first_name',
+            'parent_sub_users.last_name as parent_sub_last_name',
+
             'shift_notes.note',
             'shift_notes.note_type',
         ])
@@ -1204,6 +1212,10 @@ public function getShifts(Request $request)
         ->leftJoin('clients', 'clients.user_id', '=', 'shifts.client_id')
         ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
         ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
+        // left join to resolve subcontractor user if subcontractor_id references users table
+        ->leftJoin('users as sub_users', 'sub_users.id', '=', 'shift_dates.subcontractor_id')
+        // left join to resolve parent-shift subcontractor (if stored on parent shift)
+        ->leftJoin('users as parent_sub_users', 'parent_sub_users.id', '=', 'shifts.subcontractor_id')
         ->leftJoin('shift_notes', 'shift_notes.shift_date_id', '=', 'shift_dates.id');
 
     /* ---------- FILTERS ---------- */
@@ -1279,6 +1291,19 @@ private function formatGanttData($shiftDates)
         $durationHours   = $startDate->diffInHours($endDate);
         $durationMinutes = $startDate->diffInMinutes($endDate) % 60;
 
+        // prefer explicit subcontractor name columns (from JOIN aliases) -> relation -> parent shift subcontractor
+        $resolvedSubcontractorName = trim((($sd->subcontractor_first_name ?? '') . ' ' . ($sd->subcontractor_last_name ?? '')));
+        if (!$resolvedSubcontractorName) {
+            if (isset($sd->subcontractor) && $sd->subcontractor) {
+                $resolvedSubcontractorName = trim(($sd->subcontractor->name ?? '') ?: trim((($sd->subcontractor->first_name ?? '') . ' ' . ($sd->subcontractor->last_name ?? ''))));
+            }
+        }
+        if (!$resolvedSubcontractorName) {
+            $resolvedSubcontractorName = trim((($sd->parent_sub_first_name ?? '') . ' ' . ($sd->parent_sub_last_name ?? '')));
+        }
+
+        $resolvedSubcontractorId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
+
         $ganttData[] = [
             'id' => $sd->id,
             'site_id' => $sd->site_id,
@@ -1303,6 +1328,9 @@ private function formatGanttData($shiftDates)
             'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
             'note' => $sd->note,
             'note_type' => $sd->note_type,
+            // Subcontractor data: prefer joined alias columns -> relation -> parent shift subcontractor
+            'subcontractor_id' => $resolvedSubcontractorId,
+            'subcontractor_name' => $resolvedSubcontractorName ?: '',
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
         ];
     }
@@ -1800,7 +1828,7 @@ public function getTodayShifts()
             try {
                 $parent = $shiftDate->shift;
                 if ($parent) {
-                    $parent->subcontractor = $request->subcontractor_id;
+                    $parent->subcontractor_id = $request->subcontractor_id;
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -2569,7 +2597,7 @@ public function patrolUpdate(Request $request, $id)
             try {
                 $parent = $shiftDate->shift;
                 if ($parent) {
-                    $parent->subcontractor = $request->subcontractor_id;
+                    $parent->subcontractor_id = $request->subcontractor_id;
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -2675,7 +2703,7 @@ public function patrolUpdate(Request $request, $id)
                 try {
                     $parent = $shiftDate->shift;
                     if ($parent) {
-                        $parent->subcontractor = $request->subcontractor_id ?: null;
+                        $parent->subcontractor_id = $request->subcontractor_id ?: null;
                         $parent->save();
                     }
                 } catch (\Throwable $e) {
@@ -2846,6 +2874,7 @@ public function patrolUpdate(Request $request, $id)
                 'end_shift'   => $request->end_shift[$i],
                 'service_type_1' => $serviceType1?->name,
                 'service_type_2' => $serviceType2?->name,
+                'subcontractor_id' => $request->subcontractor_id[$i] ?? null,
             ]);
 
             // Expand to ShiftDates

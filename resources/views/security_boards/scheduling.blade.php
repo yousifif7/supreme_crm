@@ -825,6 +825,13 @@
     <script>
         window.isSuperAdmin = @json(auth()->check() && auth()->user()->getRoleNames()->contains('superadmin'));
     </script>
+    <script>
+        // Prepopulate subcontractor id->name map from server-provided list (if available)
+        window._subcontractorMap = window._subcontractorMap || {};
+        @if(isset($subcontractors) && $subcontractors)
+            window._subcontractorMap = @json($subcontractors->mapWithKeys(function($u){ return [$u->id => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))]; }));
+        @endif
+    </script>
 
     <script>
         let container = document.getElementById('custom-toast-container');
@@ -1623,37 +1630,60 @@
             }
 
             shifts.forEach((shift) => {
-                // Extract all parenthesised subcontractor tags (e.g. "(SPL)")
-                const subcontractorMatches = shift.staff_name ? shift.staff_name.match(/\([^)]*\)/g) : null;
-                let subcontractor = '';
-                if (subcontractorMatches && subcontractorMatches.length) {
-                    // Preserve parentheses and join multiple tags with a space
-                    subcontractor = subcontractorMatches.join(' ');
+                // Extract parenthesised groups (e.g. "(SPL)") and compute a cleaned staff name
+                const staffNameRaw = shift.staff_name || '';
+                const parenthesisedMatches = staffNameRaw ? staffNameRaw.match(/\([^)]*\)/g) : null;
+                const parenthesisedTag = (parenthesisedMatches && parenthesisedMatches.length) ? parenthesisedMatches[0] : '';
+                // Remove ALL parenthesised groups (handles nested/double parentheses) and normalise spaces
+                let staffNameWithoutSub = staffNameRaw;
+                while (/\([^()]*\)/.test(staffNameWithoutSub)) {
+                    staffNameWithoutSub = staffNameWithoutSub.replace(/\s*\([^()]*\)/g, '');
                 }
-                // Remove all parenthesised groups from the visible staff name
-                const staffNameWithoutSub = shift.staff_name ? shift.staff_name.replace(/\s*\([^)]*\)/g, '').trim() : (shift.staff_name || '');
+                staffNameWithoutSub = staffNameWithoutSub.replace(/\s+/g, ' ').trim();
+
+                // Resolve subcontractor name: prefer explicit fields, then subcontractor_id via client map, then parenthesised tag
+                const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
+                let explicitName = shift.subcontractor_name || (shift.subcontractor_first_name ? (shift.subcontractor_first_name + ' ' + (shift.subcontractor_last_name||'')) : null) || shift.subcontractor || null;
+                if (explicitName && /^\d+$/.test(String(explicitName)) && window._subcontractorMap && window._subcontractorMap[explicitName]) {
+                    explicitName = window._subcontractorMap[explicitName];
+                }
+                const subcontractorName = explicitName || (subcontractorId ? (window._subcontractorMap && window._subcontractorMap[subcontractorId] ? window._subcontractorMap[subcontractorId] : null) : null) || parenthesisedTag;
+
+                // Primary display should be the cleaned staff name; subcontractor remains toggleable
+                const displayStaff = staffNameWithoutSub;
 
                 // bar HTML: stacked rows (service, time, duration, staff)
                 const bar = $(`
-<div class="gantt-bar shift-${shift.color_class}" data-shift-id="${shift.id}"
-     title="${escapeHtml(shift.title || '')} (${escapeHtml(shift.formatted_time || '')}) - ${escapeHtml(shift.staff_name || '')}">
-    <input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" aria-label="Select shift ${shift.id}">
-    <div class="bar-content">
-        ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
-        <div class="time-text">${escapeHtml(shift.formatted_time || '')}</div>
-        <div class="staff-name">${escapeHtml(staffNameWithoutSub)}</div>
-        ${subcontractor ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${escapeHtml(subcontractor)}</div>` : ''}
-    </div>
-${shift.note 
-    ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
-    : `<i class="fa-solid note-icon  " data-shift-id="${shift.id}" style="color:#ffffff">📝</i>`
-}
+                    <div class="gantt-bar shift-${shift.color_class}" data-shift-id="${shift.id}"
+                        title="${escapeHtml(shift.title || '')} (${escapeHtml(shift.formatted_time || '')}) - ${escapeHtml(displayStaff || '')}">
+                        <input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" aria-label="Select shift ${shift.id}">
+                        <div class="bar-content">
+                            ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
+                            <div class="time-text">${escapeHtml(shift.formatted_time || '')}</div>
+                            <div class="staff-name">${escapeHtml(displayStaff)}</div>
+                            ${subcontractorName ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${escapeHtml(subcontractorName)}</div>` : ''}
+                        </div>
+                    ${shift.note 
+                        ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
+                        : `<i class="fa-solid note-icon  " data-shift-id="${shift.id}" style="color:#ffffff">📝</i>`
+                    }
                 `);
 
                 const idStr = String(shift.id);
                 if (selectedShiftIds.has(idStr)) bar.addClass('selected');
 
+                // persist original staff and resolved subcontractor on the bar
+                try {
+                    bar.attr('data-orig-staff', staffNameWithoutSub);
+                    bar.attr('data-sub-name', subcontractorName || '');
+                } catch (e) {}
+
                 cell.append(bar);
+                // store original staff name and resolved subcontractor name for toggle
+                try {
+                    bar.attr('data-orig-staff', staffNameWithoutSub);
+                    bar.attr('data-sub-name', subcontractorName || '');
+                } catch (e) {}
 
                 // Ensure bar fills the grid cell and can shrink if needed
                 bar.css({
@@ -2694,21 +2724,33 @@ ${shift.note
                 });
             }
             const idStr = String(shift.id || shift.shift_id || shift.shiftId);
-            const subcontractorMatch = shift.staff_name ? shift.staff_name.match(/\(([^)]+)\)/) : null;
-            const subcontractor = subcontractorMatch ? subcontractorMatch[0] : '';
-            const staffNameWithoutSub = subcontractorMatch ? shift.staff_name.replace(subcontractor, '').trim() : (shift
-                .staff_name || '');
+            const staffNameRaw = shift.staff_name || '';
+            const parenthesisedMatches2 = staffNameRaw ? staffNameRaw.match(/\([^)]*\)/g) : null;
+            const parenthesisedTag2 = (parenthesisedMatches2 && parenthesisedMatches2.length) ? parenthesisedMatches2[0] : '';
+            let staffNameWithoutSub = staffNameRaw;
+            while (/\([^()]*\)/.test(staffNameWithoutSub)) {
+                staffNameWithoutSub = staffNameWithoutSub.replace(/\s*\([^()]*\)/g, '');
+            }
+            staffNameWithoutSub = staffNameWithoutSub.replace(/\s+/g, ' ').trim();
+            const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
+            let explicitName2 = shift.subcontractor_name || (shift.subcontractor_first_name ? (shift.subcontractor_first_name + ' ' + (shift.subcontractor_last_name||'')) : null) || shift.subcontractor || null;
+            if (explicitName2 && /^\d+$/.test(String(explicitName2)) && window._subcontractorMap && window._subcontractorMap[explicitName2]) {
+                explicitName2 = window._subcontractorMap[explicitName2];
+            }
+            const subcontractorName2 = explicitName2 || (subcontractorId ? (window._subcontractorMap && window._subcontractorMap[subcontractorId] ? window._subcontractorMap[subcontractorId] : null) : null) || parenthesisedTag2;
             const hasNote = !!(shift.note || (shift.note && shift.note.note));
 
+            const displayStaff2 = staffNameWithoutSub;
+
             const $bar = $(`
-<div class="gantt-bar shift-${shift.color_class || ''}" data-shift-id="${idStr}" title="${(shift.title || '')} - ${shift.staff_name || ''}">
+            <div class="gantt-bar shift-${shift.color_class || ''}" data-shift-id="${idStr}" title="${(shift.title || '')} - ${safeEscape(displayStaff2 || '')}">
     <input type="checkbox" class="multi-shift-checkbox" data-id="${idStr}" aria-label="Select shift ${idStr}">
     <div class="bar-content">
         ${shift.service_type ? `<div class="service-type">${safeEscape(shift.service_type)}</div>` : ''}
         <div class="time-text">${safeEscape(shift.formatted_time || shift.start_time || '')}</div>
         <div class="duration-text">${safeEscape(shift.duration || '')}</div>
-        <div class="staff-name">${safeEscape(staffNameWithoutSub)}</div>
-        ${subcontractor ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${escapeHtml(subcontractor)}</div>` : ''}
+        <div class="staff-name">${safeEscape(displayStaff2)}</div>
+        ${subcontractorName2 ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${safeEscape(subcontractorName2)}</div>` : ''}
     </div>
     ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" style="color:#0d6efd">📝</span>` : `<span class="note-icon" data-shift-id="${idStr}" style="color:#555">📝</span>`}
 </div>
@@ -2743,6 +2785,14 @@ ${shift.note
                     }
                 });
             });
+
+            // persist original staff and resolved subcontractor on the bar for toggling
+            try {
+                $bar.attr('data-orig-staff', staffNameWithoutSub || '');
+                $bar.attr('data-sub-name', subcontractorName2 || '');
+            } catch (err) {
+                // ignore
+            }
 
             return $bar;
         }

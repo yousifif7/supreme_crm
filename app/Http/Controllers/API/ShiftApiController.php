@@ -2244,7 +2244,7 @@ if ($now->lt($bookingOpensAt)) {
             'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
             'category' => $category,
             'trainings' => $trainings,
-            'note' => ($note?->note_type === 'guard') ? [
+            'note' => ($note?->note_type === 'guard' ?? $note?->note_type === 'both' ) ? [
                 'id' => $note->id,
                 'note_type' => $note->note_type,
                 'note' => $note->note,

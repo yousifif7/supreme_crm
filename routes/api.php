@@ -55,11 +55,12 @@ Route::get('/dashboard-alerts', [AdminAPIController::class, 'dashboardAlerts']);
 Route::prefix('auth')->group(function () {
     //Auth controller routes
     Route::post('/login', [AuthAPIController::class, 'login']);
+    Route::post('/logout', [AuthAPIController::class, 'logout']);
     Route::post('/forgot-password', [AuthAPIController::class, 'forgotPassword']);
     Route::post('/verify-reset-code', [AuthAPIController::class, 'verifyResetCode']);
     Route::post('/reset-password', [AuthAPIController::class, 'resetPassword']);
-    Route::post('/face-verify', [AuthApiController::class, 'faceVerify'])->middleware('auth:sanctum');
-    Route::post('/refresh-token', [AuthApiController::class, 'refreshToken']);
+    Route::post('/face-verify', [AuthAPIController::class, 'faceVerify'])->middleware('auth:sanctum');
+    Route::post('/refresh-token', [AuthAPIController::class, 'refreshToken']);
 });
 
 //Profile controller routes

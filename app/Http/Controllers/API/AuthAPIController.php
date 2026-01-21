@@ -4,6 +4,7 @@ namespace App\Http\Controllers\API;
 
 use Carbon\Carbon;
 use App\Models\User;
+use App\Models\DeviceLog;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -41,7 +42,7 @@ class AuthAPIController extends Controller
         if (! $user || ! Hash::check($password, $user->password)) {
             // Log failed attempt for debugging (do NOT log plaintext password)
             try {
-                Log::warning('Login failed', [
+                Log::channel('auth_attempts')->warning('Login failed', [
                     'email' => $request->email,
                     'email_normalized' => $email,
                     'device_id' => $request->input('device_info.device_id'),
@@ -244,5 +245,48 @@ class AuthAPIController extends Controller
             'access_token' => $accessToken,
             'refresh_token' => $newRefreshToken,
         ]);
+    }
+
+    public function logout(Request $request)
+    {
+        $user = $request->user();
+
+        $request->validate([
+            'device_info.device_id' => 'nullable|string',
+            'refresh_token' => 'nullable|string',
+        ]);
+
+        $deviceId = $request->input('device_info.device_id');
+        $refreshToken = $request->input('refresh_token');
+
+        // Delete current access token (sanctum)
+        try {
+            if ($request->user() && method_exists($request->user(), 'currentAccessToken')) {
+                $token = $request->user()->currentAccessToken();
+                if ($token) $token->delete();
+            }
+        } catch (\Exception $e) {
+            try { Log::channel('auth_attempts')->error('Failed to delete access token on logout', ['user_id' => $user->id, 'error' => $e->getMessage()]); } catch (\Exception $_) {}
+        }
+
+        // Remove refresh token from cache if provided
+        if ($refreshToken) {
+            try { Cache::forget('refresh_token_' . $refreshToken); } catch (\Exception $e) {}
+        }
+
+        // Remove device log entry for this device to stop pushes for this device
+        if ($deviceId) {
+            try {
+                DeviceLog::where('user_id', $user->id)->where('device_id', $deviceId)->delete();
+            } catch (\Exception $e) {
+                try { Log::channel('auth_attempts')->error('Failed to remove device log on logout', ['user_id' => $user->id, 'device_id' => $deviceId, 'error' => $e->getMessage()]); } catch (\Exception $_) {}
+            }
+        }
+
+        try {
+            Log::channel('auth_attempts')->info('User logged out', ['user_id' => $user->id, 'device_id' => $deviceId ?? null]);
+        } catch (\Exception $e) {}
+
+        return response()->json(['message' => 'Logged out successfully'], 200);
     }
 }
