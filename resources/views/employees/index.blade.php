@@ -32,6 +32,7 @@
                 <div class="me-2">
                     <div class="dropdown">
                         <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
+                        <button class="btn btn-outline-secondary ms-2" id="viewPendingDeletesBtn">Pending Deletes</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -320,6 +321,23 @@
         </div>
     </div>
     <!-- Logs Modal -->
+    <!-- Pending Deletes Modal -->
+    <div class="modal fade" id="pendingDeletesModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pending Deletes</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="pendingDeletesList">Loading...</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
     <div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered modal-xl">
             <div class="modal-content shadow rounded-3">
@@ -1151,6 +1169,74 @@
                 error: function() {
                     toast_danger('Something went wrong during bulk delete.');
                 }
+            });
+        });
+
+        // Pending deletes modal
+        $('#viewPendingDeletesBtn').on('click', function() {
+            $('#pendingDeletesModal').modal('show');
+            loadPendingDeletes();
+        });
+
+        function loadPendingDeletes() {
+            $('#pendingDeletesList').html('Loading...');
+            $.get(`${baseUrl}/employees/pending-deletes`, function(resp) {
+                const escHtml = function(s){ if (s === null || s === undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;'); };
+                const data = resp.data || [];
+
+                // Only show items whose status is explicitly "pending".
+                const pending = data.filter(function(item){
+                    return (item.status || '').toString().toLowerCase() === 'pending';
+                });
+
+                if (pending.length === 0) {
+                    $('#pendingDeletesList').html('<p class="text-muted">No pending deletes.</p>');
+                    return;
+                }
+
+                let html = '<div class="table-responsive"><table class="table table-bordered"><thead><tr><th>Requested By</th><th>Target</th><th>Type</th><th>When</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+                pending.forEach(function(item) {
+                    const requester = item.requester ? (item.requester.first_name + ' ' + (item.requester.last_name||'')) : (item.requester_id || 'Unknown');
+                    const targetLabel = item.target_label || `${item.target_type.split('\\').pop()} #${item.target_id}`;
+                    html += `<tr>
+                        <td>${escHtml(requester)}</td>
+                        <td>${escHtml(targetLabel)}</td>
+                        <td>${item.target_type.split('\\').pop()}</td>
+                        <td>${new Date(item.created_at).toLocaleString()}</td>
+                        <td>${item.status}</td>
+                        <td>`;
+                    // Only show approve/reject for pending items. Server enforces permissions.
+                    html += `<button class="btn btn-sm btn-success me-1 approve-pending" data-id="${item.id}">Approve</button>`;
+                    html += `<button class="btn btn-sm btn-danger reject-pending" data-id="${item.id}">Reject</button>`;
+                    html += `</td></tr>`;
+                });
+                html += '</tbody></table></div>';
+                $('#pendingDeletesList').html(html);
+            }).fail(function() {
+                $('#pendingDeletesList').html('<p class="text-danger">Failed to load pending deletes.</p>');
+            });
+        }
+
+        $(document).on('click', '.approve-pending', function() {
+            const id = $(this).data('id');
+            if (!confirm('Approve and delete this record?')) return;
+            $.post(`${baseUrl}/employees/pending-deletes/${id}/approve`, {_token: '{{ csrf_token() }}'}, function() {
+                toast_success('Approved');
+                loadPendingDeletes();
+                reloadDatatable('#employees-table');
+            }).fail(function(xhr){
+                toast_danger(xhr.responseJSON?.message || 'Failed');
+            });
+        });
+
+        $(document).on('click', '.reject-pending', function() {
+            const id = $(this).data('id');
+            if (!confirm('Reject this pending delete?')) return;
+            $.post(`${baseUrl}/employees/pending-deletes/${id}/reject`, {_token: '{{ csrf_token() }}'}, function() {
+                toast_success('Rejected');
+                loadPendingDeletes();
+            }).fail(function(xhr){
+                toast_danger(xhr.responseJSON?.message || 'Failed');
             });
         });
     </script>

@@ -444,7 +444,7 @@
                                                 placeholder="HH:MM" class="form-control mb-2"
                                                 value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}">
 
-                                            <button type="submit" class="btn btn-primary">Set book on time</button>
+                                            <button type="submit" class="btn btn-primary">Manually book on the guard</button>
                                         </form>
                                     </div>
                                     <div class="book-off_box">
@@ -491,7 +491,7 @@
                                             <input type="text" id="absentee_end_time" name="absentee_end_time"
                                                 placeholder="HH:MM" class="form-control mb-2"
                                                 value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}">
-                                            <button type="submit" class="btn btn-danger">Set book off time</button>
+                                            <button type="submit" class="btn btn-danger">Manually book off the guard</button>
                                         </form>
                                     </div>
                                 </div>
@@ -503,6 +503,12 @@
                                             ->first();
                                     @endphp
                                     <div class="col-12">
+                                        {{-- <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
+                                            <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"
+                                                class="btn btn-primary" target="_blank">
+                                                View Heatmap
+                                            </a>
+                                        </div> --}}
                                         <div>
                                             @include('map')
                                         </div>
@@ -794,7 +800,7 @@
                     </div>
                     <div class="tab-pane fade" id="patrols" role="tabpanel" aria-labelledby="patrols-tab2">
                         @php
-                            $patrols = App\Models\Patrol::where('shift_id', $shiftDate->id)->get();
+                            $patrols = App\Models\Patrol::where('shift_id', $shiftDate->id)->orderBy('start_time', 'asc')->get();
                             $site = \App\Models\Site::with('checkpoints')->find($shiftDate->shift->site_id);
                             $checkpoints = \App\Models\PatrolCheckPoint::where('site_id', $site->id) // adjust if necessary
                                 ->get(['id', 'name', 'latitude', 'longitude']);                               
@@ -1714,7 +1720,7 @@
                 guardMarkers.push(new google.maps.Marker({ 
                     position: position, 
                     map, 
-                    label: {color: '#FFF', fontWeight: 'bold' }, 
+                    label: { color: '#FFF', fontWeight: 'bold' }, 
                     icon: { 
                         url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', 
                         scaledSize: new google.maps.Size(45,45) 

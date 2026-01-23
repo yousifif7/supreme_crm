@@ -850,8 +850,8 @@ class CheckCallController extends Controller
 
         $validated = $request->validate([
             'name' => 'nullable|string',
-            // If client sends time-only, use date_format:H:i. If they send full datetime, use 'date' or date_format:Y-m-d H:i'
-            'scheduled_time' => 'nullable|date_format:H:i',
+            // Accept either a time-only string (H:i or H:i:s) or a full datetime in common formats
+            'scheduled_time' => 'nullable|string',
             'status' => 'nullable|in:pending,completed,missed',
             'approval_status' => 'nullable|in:pending,approved,rejected',
         ]);
@@ -865,10 +865,41 @@ class CheckCallController extends Controller
             $updateData['approval_status'] = $validated['approval_status'];
         }
         if ($request->has('scheduled_time')) {
-            // combine with existing date on the record or use today if no date present
-            $date = $checkcall->date ?? Carbon::today()->toDateString();
-            $time = strlen($validated['scheduled_time']) === 5 ? $validated['scheduled_time'] . ':00' : $validated['scheduled_time'];
-            $updateData['scheduled_time'] = $date . ' ' . $time; // MySQL DATETIME string
+            $raw = $request->input('scheduled_time');
+
+            // Try a set of common input formats. If a time-only format is provided,
+            // combine with the existing checkcall date or today.
+            $formats = [
+                'H:i', 'H:i:s',
+                'Y-m-d H:i:s', 'Y-m-d H:i',
+                'd-m-Y H:i:s', 'd-m-Y H:i',
+                'd/m/Y H:i:s', 'd/m/Y H:i'
+            ];
+
+            $parsed = null;
+            foreach ($formats as $fmt) {
+                try {
+                    $dt = Carbon::createFromFormat($fmt, $raw);
+                    // ensure parsing consumed the whole string by re-formatting
+                    if ($dt) { $parsed = $dt; break; }
+                } catch (\Exception $e) {
+                    // continue trying other formats
+                }
+            }
+
+            if (! $parsed) {
+                return response()->json(['message' => 'The scheduled time field must match H:i or a valid datetime format.'], 422);
+            }
+
+            // If input was time-only, detected formats 'H:i' or 'H:i:s', combine with date
+            if (preg_match('/^\d{1,2}:\d{2}(:\d{2})?$/', trim($raw))) {
+                $date = $checkcall->date ?? Carbon::today()->toDateString();
+                $timePart = $parsed->format('H:i:s');
+                $updateData['scheduled_time'] = $date . ' ' . $timePart;
+            } else {
+                // Full datetime given — normalize to Y-m-d H:i:s
+                $updateData['scheduled_time'] = $parsed->format('Y-m-d H:i:s');
+            }
         }
 
         if ($request->has('status')) {

@@ -25,6 +25,8 @@ use Illuminate\Support\Facades\Log;
 use App\Models\Log as ActivityLog;
 use App\Services\FileCompressor;
 use App\Models\Subcontractor;
+use App\Models\PendingDelete;
+use Illuminate\Support\Arr;
 
 class EmployeeController extends Controller
 {
@@ -839,12 +841,25 @@ $validator->after(function ($validator) use ($request) {
         $employee = Employee::findOrFail($id);
         $empUser = User::role('security_staff')->find($employee->user_id);
 
-        Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+        // If current user is superadmin, perform immediate delete
+        if (Auth::user() && Auth::user()->hasRole('superadmin')) {
+            Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+            if ($empUser) $empUser->delete();
+            $employee->forceDelete();
+            return response()->json(['success' => true]);
+        }
 
-        $empUser->delete();
-        $employee->forceDelete();
+        // Otherwise create a pending delete request
+        PendingDelete::create([
+            'requester_id' => Auth::id(),
+            'target_type' => Employee::class,
+            'target_id' => $employee->id,
+            'target_user_id' => $employee->user_id,
+            'reason' => request()->input('reason') ?? null,
+            'status' => 'pending',
+        ]);
 
-        return response()->json(['success' => true]);
+        return response()->json(['message' => 'Deletion request submitted and is pending approval.']);
     }
 
     public function bulkDelete(Request $request)
@@ -854,22 +869,97 @@ $validator->after(function ($validator) use ($request) {
             'ids.*' => 'exists:employees,id',
         ]);
 
-        // Get the employees
         $employees = Employee::whereIn('id', $request->ids)->get();
 
-        // Collect related user IDs
-        $userIds = $employees->pluck('user_id')->toArray();
-
-        // Delete related users (only security_staff role)
-        User::role('security_staff')->whereIn('id', $userIds)->delete();
-
-        foreach ($employees as $employee) {
-            Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+        // If superadmin: delete directly
+        if (Auth::user() && Auth::user()->hasRole('superadmin')) {
+            $userIds = $employees->pluck('user_id')->toArray();
+            User::role('security_staff')->whereIn('id', $userIds)->delete();
+            foreach ($employees as $employee) {
+                Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+            }
+            Employee::whereIn('id', $request->ids)->delete();
+            return response()->json(['message' => 'Selected employees deleted.']);
         }
-        // Delete employees
-        Employee::whereIn('id', $request->ids)->delete();
 
-        return response()->json(['message' => 'Selected employees deleted.']);
+        // Otherwise create pending requests for each employee
+        foreach ($employees as $employee) {
+            PendingDelete::create([
+                'requester_id' => Auth::id(),
+                'target_type' => Employee::class,
+                'target_id' => $employee->id,
+                'target_user_id' => $employee->user_id,
+                'status' => 'pending',
+            ]);
+        }
+
+        return response()->json(['message' => 'Deletion requests submitted and are pending approval.']);
+    }
+
+    /** List pending delete requests (admins) */
+    public function pendingDeletes()
+    {
+
+        $list = PendingDelete::with(['requester'])->orderBy('created_at', 'desc')->get();
+
+        // Enrich with a human-readable target label when possible
+        $payload = $list->map(function ($item) {
+            $targetLabel = null;
+            if ($item->target_type === Employee::class) {
+                $emp = Employee::find($item->target_id);
+                if ($emp) {
+                    $targetLabel = trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) ?: "Employee #{$item->target_id}";
+                }
+            }
+
+            if (! $targetLabel) {
+                // fallback to generic label
+                $targetLabel = class_basename($item->target_type) . " #{$item->target_id}";
+            }
+
+            return array_merge($item->toArray(), ['target_label' => $targetLabel]);
+        });
+
+        return response()->json(['data' => $payload]);
+    }
+
+    /** Approve a pending delete (superadmin only) */
+    public function approvePendingDelete($id)
+    {
+        $pd = PendingDelete::findOrFail($id);
+        if (! (Auth::user() && Auth::user()->hasRole('superadmin'))) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        // perform deletion depending on target_type
+        if ($pd->target_type === Employee::class) {
+            $employee = Employee::find($pd->target_id);
+            if ($employee) {
+                $empUser = User::role('security_staff')->find($employee->user_id);
+                if ($empUser) $empUser->delete();
+                $employee->forceDelete();
+                Logger::log(Auth::user(), 'Delete', 'Approved delete: Staff ' . ($employee->fore_name ?? '') . ' ' . ($employee->sur_name ?? ''));
+            }
+        }
+
+        $pd->status = 'approved';
+        $pd->approved_by = Auth::id();
+        $pd->save();
+
+        return response()->json(['message' => 'Pending delete approved and processed.']);
+    }
+
+    /** Reject a pending delete (superadmin only) */
+    public function rejectPendingDelete($id)
+    {
+        $pd = PendingDelete::findOrFail($id);
+        if (! (Auth::user() && Auth::user()->hasRole('superadmin'))) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+        $pd->status = 'rejected';
+        $pd->approved_by = Auth::id();
+        $pd->save();
+        return response()->json(['message' => 'Pending delete rejected.']);
     }
     public function getLogs($id)
     {

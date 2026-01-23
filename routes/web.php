@@ -167,6 +167,9 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/employees', [EmployeeController::class, 'store'])->name('employees.store');
     Route::get('/editemployee/{id}', [EmployeeController::class, 'edit'])->name('employees.edit');
     Route::delete('/deleteemployee/{id}', [EmployeeController::class, 'delete'])->name('employees.delete');
+    Route::get('/employees/pending-deletes', [EmployeeController::class, 'pendingDeletes'])->name('employees.pendingDeletes');
+    Route::post('/employees/pending-deletes/{id}/approve', [EmployeeController::class, 'approvePendingDelete'])->name('employees.pendingDeletes.approve');
+    Route::post('/employees/pending-deletes/{id}/reject', [EmployeeController::class, 'rejectPendingDelete'])->name('employees.pendingDeletes.reject');
     Route::post('/updateemployee/{id}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::post('/employees/bulk-delete', [EmployeeController::class, 'bulkDelete'])->name('employee.bulkDelete');
     Route::get('/employees/{id}/logs/ajax', [EmployeeController::class, 'getLogs'])->name('employees.logs.ajax');

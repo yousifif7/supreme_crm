@@ -331,34 +331,33 @@
                                             <div class="row">
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
-                                                        name="restrict_start_time" value="1">
+                                                        name="restrict_start_time[]" value="1">
                                                     <label class="form-label mb-0">Restrict shift start time
                                                     </label>
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
-                                                        name="enforce_picture_check" value="1">
+                                                        name="enforce_picture_check[]" value="1">
                                                     <label class="form-label mb-0">Enforce picture check </label>
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
-                                                        name="restrict_location_check" value="1">
+                                                        name="restrict_location_check[]" value="1">
                                                     <label class="form-label mb-0">Restrict start shift
                                                         location check </label>
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
-                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox"
-                                                            name="auto_checkcall_enabled" checked>
-                                                        <label class="form-check-label form-label"
-                                                            >Enable Auto Checkcalls</label>
+                                                        <!-- Always send a value: hidden input for 0, checkbox for 1 -->
+                                                        {{-- <input type="hidden" name="auto_checkcall_enabled[]" value="0"> --}}
+                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox" name="auto_checkcall_enabled[]" value="1">
+                                                        <label class="form-check-label form-label">Enable Auto Checkcalls</label>
                                                     </div>
                                                 </div>
 
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
-                                                        <input class="form-check-input autoPatrolToggle" type="checkbox"
-                                                            name="auto_patrol_enabled">
+                                                        <input class="form-check-input autoPatrolToggle" type="checkbox" name="auto_patrol_enabled[]" value="1">
                                                         <label class="form-check-label form-label">Enable Auto Patrols</label>
                                                     </div>
                                                 </div>
@@ -366,12 +365,11 @@
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center requireMediaToggleWrapper">
                                                     <div class="form-check form-switch mb-3">
                                                             <input class="form-check-input requireMediaToggle" type="checkbox"
-                                                                name="require_media_upload" checked>
+                                                                name="require_media_upload[]" >
                                                             <label class="form-check-label form-label"
                                                                 >Require Media Upload for checkcalls</label>
                                                     </div>
                                                 </div>
-
                                                 <div class="checkcall-section" id="checkcall-section0">
                                                     <h5>Check Calls</h5>
                                                     <div class="checkcall-rows"><!-- rows go here --></div>
@@ -380,6 +378,17 @@
                                                         + Add Check Call
                                                     </button>
                                                 </div>
+                                                <div class="clear-fix"></div>
+
+                                                <div class="patrol-section" id="patrol-section0">
+                                                    <h5>Patrols</h5>
+                                                    <div class="patrol-rows"><!-- rows go here --></div>
+                                                    <button type="button"
+                                                        class="btn btn-sm btn-primary my-3 addPatrolRow">
+                                                        + Add Patrol
+                                                    </button>
+                                                </div>
+                                                
                                                 <div class="clear-fix"></div>
                                                 <div class="col-md-12 text-end">
                                                     <button type="button"
@@ -738,5 +747,39 @@
             $(this).closest('.checkcall-row').remove();
         });
     });
+
+
+        let patrolIndex = 0;
+
+        function addPatrolRow($parentRow) {
+            patrolIndex++;
+            const row = `
+                <div class="row patrol-row mb-3 align-items-center" data-index="${patrolIndex}">
+                    <div class="col-md-3">
+                        <label>Patrol Name</label>
+                        <input type="text" name="patrols[${patrolIndex}][name]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <label>Scheduled Time</label>
+                        <input type="time" name="patrols[${patrolIndex}][start_time]" class="form-control">
+                    </div>
+                    <div class="col-md-3">
+                        <button type="button" class="btn btn-danger btn-sm removePatrolRow">Remove</button>
+                    </div>
+                </div>
+            `;
+            $parentRow.append(row);
+        }
+
+        $(document).ready(function() {
+            $(document).on('click', '.addPatrolRow', function() {
+                var $parentRow = $(this).closest('.patrol-section').find('.patrol-rows');
+                addPatrolRow($parentRow);
+            });
+
+            $(document).on('click', '.removePatrolRow', function() {
+                $(this).closest('.patrol-row').remove();
+            });
+        });
     
 </script>

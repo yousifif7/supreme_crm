@@ -179,6 +179,14 @@
             font-weight: 600;
         }
 
+        /* subcontractor inline when appended to staff-name should be normal weight */
+        .gantt-bar .staff-name .subcontractor-inline {
+            font-weight: 400;
+            font-size: 14px;
+            color: inherit;
+            margin-left: 4px;
+        }
+
         /* small duration text */
         .gantt-bar small {
             font-size: 12px;
@@ -1373,7 +1381,9 @@
                                 client_name: p.client_name,
                                 start_datetime: p.start_datetime,
                                 start_date: p.start_date,
-                                start_time: p.start_time
+                                start_time: p.start_time,
+                                subcontractor_id: p.subcontractor_id ?? null,
+                                subcontractor_name: p.subcontractor_name ?? null
                             })));
                         } catch (e) {
                             console.debug('GANTT payload debug failed', e);
@@ -1607,9 +1617,41 @@
     $('.gantt-container').toggleClass('selection-mode', selectionMode);
 
     $('#toggle-subcontractors-all').off('click').on('click', function() {
-        const subs = $('.subcontractor-name');
-        subs.toggle();
-        $(this).text(subs.is(':visible') ? 'Hide Subcontractors' : 'Show Subcontractors');
+        // Toggle subcontractor display idempotently: always restore original staff name,
+        // then append the shift-level subcontractor once when showing. Show the name
+        // only inside the `staff-name` element wrapped in brackets; keep the separate
+        // `.subcontractor-name` div hidden to avoid duplication.
+        const $btn = $(this);
+        const currentlyVisible = $btn.data('subs-visible') === true;
+        $('.gantt-bar').each(function() {
+            const $bar = $(this);
+            const orig = $bar.attr('data-orig-staff') || '';
+            let sub = $bar.attr('data-sub-name') || '';
+            const $staff = $bar.find('.staff-name').first();
+            if (!sub) {
+                // try id->name map
+                const sid = $bar.attr('data-sub-id');
+                if (sid && window._subcontractorMap && window._subcontractorMap[sid]) sub = window._subcontractorMap[sid];
+            }
+            if (!sub) return; // nothing to do
+
+            const cleanSub = String(sub).replace(/^\(|\)$/g, '').trim();
+            // Always restore the original (clean) staff name first to avoid cumulative appends
+            if (currentlyVisible) {
+                // Currently visible -> hide subcontractors (restore original text)
+                $staff.html(escapeHtml(orig || ''));
+                $bar.find('.subcontractor-name').hide();
+            } else {
+                // Showing subcontractors: place name in brackets on the staff line
+                if (cleanSub) {
+                    $staff.html(escapeHtml(orig || '') + ' <span class="subcontractor-inline">(' + escapeHtml(cleanSub) + ')</span>');
+                }
+                // ensure separate div is hidden to avoid duplication
+                $bar.find('.subcontractor-name').hide();
+            }
+        });
+        $btn.data('subs-visible', !currentlyVisible);
+        $btn.text(!currentlyVisible ? 'Hide Subcontractors' : 'Show Subcontractors');
     });
 
     // Place shifts only for sites that were rendered (those with shifts in range)
@@ -1630,27 +1672,30 @@
             }
 
             shifts.forEach((shift) => {
-                // Extract parenthesised groups (e.g. "(SPL)") and compute a cleaned staff name
-                const staffNameRaw = shift.staff_name || '';
-                const parenthesisedMatches = staffNameRaw ? staffNameRaw.match(/\([^)]*\)/g) : null;
+                // Prefer backend-provided cleaned/raw staff name when available, otherwise fall back to client-side cleaning
+                const backendStaffRaw = shift.staff_name_raw || shift.staff_name || '';
+                const backendStaffClean = shift.staff_name_clean || shift.staff_name || '';
+                // compute parenthesised fallback only if needed
+                const parenthesisedMatches = (shift.staff_name || backendStaffRaw) ? ( (shift.staff_name || backendStaffRaw).match(/\([^)]*\)/g) ) : null;
                 const parenthesisedTag = (parenthesisedMatches && parenthesisedMatches.length) ? parenthesisedMatches[0] : '';
-                // Remove ALL parenthesised groups (handles nested/double parentheses) and normalise spaces
-                let staffNameWithoutSub = staffNameRaw;
-                while (/\([^()]*\)/.test(staffNameWithoutSub)) {
-                    staffNameWithoutSub = staffNameWithoutSub.replace(/\s*\([^()]*\)/g, '');
-                }
-                staffNameWithoutSub = staffNameWithoutSub.replace(/\s+/g, ' ').trim();
 
-                // Resolve subcontractor name: prefer explicit fields, then subcontractor_id via client map, then parenthesised tag
+                let displayStaff = backendStaffClean || '';
+                if (!displayStaff) {
+                    // client-side cleaning as fallback
+                    let tmp = backendStaffRaw || '';
+                    while (/\([^()]*\)/.test(tmp)) {
+                        tmp = tmp.replace(/\s*\([^()]*\)/g, '');
+                    }
+                    displayStaff = tmp.replace(/\s+/g, ' ').trim();
+                }
+
+                // Resolve subcontractor name: prefer backend-provided subcontractor_name, then subcontractor_id map, then parenthesised tag
                 const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
-                let explicitName = shift.subcontractor_name || (shift.subcontractor_first_name ? (shift.subcontractor_first_name + ' ' + (shift.subcontractor_last_name||'')) : null) || shift.subcontractor || null;
-                if (explicitName && /^\d+$/.test(String(explicitName)) && window._subcontractorMap && window._subcontractorMap[explicitName]) {
-                    explicitName = window._subcontractorMap[explicitName];
+                let subcontractorName = shift.subcontractor_name || shift.subcontractor || null;
+                if (!subcontractorName && subcontractorId && window._subcontractorMap && window._subcontractorMap[subcontractorId]) {
+                    subcontractorName = window._subcontractorMap[subcontractorId];
                 }
-                const subcontractorName = explicitName || (subcontractorId ? (window._subcontractorMap && window._subcontractorMap[subcontractorId] ? window._subcontractorMap[subcontractorId] : null) : null) || parenthesisedTag;
-
-                // Primary display should be the cleaned staff name; subcontractor remains toggleable
-                const displayStaff = staffNameWithoutSub;
+                subcontractorName = subcontractorName || parenthesisedTag || '';
 
                 // bar HTML: stacked rows (service, time, duration, staff)
                 const bar = $(`
@@ -1661,7 +1706,7 @@
                             ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
                             <div class="time-text">${escapeHtml(shift.formatted_time || '')}</div>
                             <div class="staff-name">${escapeHtml(displayStaff)}</div>
-                            ${subcontractorName ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${escapeHtml(subcontractorName)}</div>` : ''}
+                            ${subcontractorName ? `<div class="subcontractor-name" style="display:none;">${escapeHtml(subcontractorName)}</div>` : ''}
                         </div>
                     ${shift.note 
                         ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
@@ -1674,16 +1719,18 @@
 
                 // persist original staff and resolved subcontractor on the bar
                 try {
-                    bar.attr('data-orig-staff', staffNameWithoutSub);
+                    bar.attr('data-orig-staff', displayStaff || '');
                     bar.attr('data-sub-name', subcontractorName || '');
+                    // keep subcontractor id too so client-side map lookup can work when name is missing
+                    if (subcontractorId) bar.attr('data-sub-id', subcontractorId);
                 } catch (e) {}
 
                 cell.append(bar);
-                // store original staff name and resolved subcontractor name for toggle
-                try {
-                    bar.attr('data-orig-staff', staffNameWithoutSub);
-                    bar.attr('data-sub-name', subcontractorName || '');
-                } catch (e) {}
+                // DEBUG: surface subcontractor attributes for troubleshooting
+                    try {
+                        const debugId = shift.id || shift.shift_id || shift.sd_id || shift.id;
+                        console.debug('GANTT BAR SUBCHECK ADDED', { shiftId: debugId, subId: subcontractorId || null, subName: subcontractorName || null });
+                    } catch (e) {}
 
                 // Ensure bar fills the grid cell and can shrink if needed
                 bar.css({
@@ -1881,9 +1928,14 @@
         
         // Show/hide individual shift bars based on search
         shiftBars.each(function() {
-            const bar = $(this);
-            const barText = bar.text().toLowerCase();
-            const barTitle = bar.attr('title') || '';
+            const $bar = $(this);
+            const orig = $bar.attr('data-orig-staff') || '';
+            let sub = $bar.attr('data-sub-name') || '';
+            // if name missing but id present, try client-side map
+            if (!sub) {
+                const sid = $bar.attr('data-sub-id');
+                if (sid && window._subcontractorMap && window._subcontractorMap[sid]) sub = window._subcontractorMap[sid];
+            }
             const staffMatch = barText.includes(term) || barTitle.toLowerCase().includes(term);
             
             if (siteMatches || staffMatch) {
@@ -2724,23 +2776,27 @@
                 });
             }
             const idStr = String(shift.id || shift.shift_id || shift.shiftId);
-            const staffNameRaw = shift.staff_name || '';
-            const parenthesisedMatches2 = staffNameRaw ? staffNameRaw.match(/\([^)]*\)/g) : null;
+            const backendStaffRaw2 = shift.staff_name_raw || shift.staff_name || '';
+            const backendStaffClean2 = shift.staff_name_clean || shift.staff_name || '';
+            const parenthesisedMatches2 = (shift.staff_name || backendStaffRaw2) ? ( (shift.staff_name || backendStaffRaw2).match(/\([^)]*\)/g) ) : null;
             const parenthesisedTag2 = (parenthesisedMatches2 && parenthesisedMatches2.length) ? parenthesisedMatches2[0] : '';
-            let staffNameWithoutSub = staffNameRaw;
-            while (/\([^()]*\)/.test(staffNameWithoutSub)) {
-                staffNameWithoutSub = staffNameWithoutSub.replace(/\s*\([^()]*\)/g, '');
-            }
-            staffNameWithoutSub = staffNameWithoutSub.replace(/\s+/g, ' ').trim();
-            const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
-            let explicitName2 = shift.subcontractor_name || (shift.subcontractor_first_name ? (shift.subcontractor_first_name + ' ' + (shift.subcontractor_last_name||'')) : null) || shift.subcontractor || null;
-            if (explicitName2 && /^\d+$/.test(String(explicitName2)) && window._subcontractorMap && window._subcontractorMap[explicitName2]) {
-                explicitName2 = window._subcontractorMap[explicitName2];
-            }
-            const subcontractorName2 = explicitName2 || (subcontractorId ? (window._subcontractorMap && window._subcontractorMap[subcontractorId] ? window._subcontractorMap[subcontractorId] : null) : null) || parenthesisedTag2;
-            const hasNote = !!(shift.note || (shift.note && shift.note.note));
 
-            const displayStaff2 = staffNameWithoutSub;
+            let displayStaff2 = backendStaffClean2 || '';
+            if (!displayStaff2) {
+                let tmp = backendStaffRaw2 || '';
+                while (/\([^()]*\)/.test(tmp)) {
+                    tmp = tmp.replace(/\s*\([^()]*\)/g, '');
+                }
+                displayStaff2 = tmp.replace(/\s+/g, ' ').trim();
+            }
+
+            const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
+            let subcontractorName2 = shift.subcontractor_name || shift.subcontractor || null;
+            if (!subcontractorName2 && subcontractorId && window._subcontractorMap && window._subcontractorMap[subcontractorId]) {
+                subcontractorName2 = window._subcontractorMap[subcontractorId];
+            }
+            subcontractorName2 = subcontractorName2 || parenthesisedTag2 || '';
+            const hasNote = !!(shift.note || (shift.note && shift.note.note));
 
             const $bar = $(`
             <div class="gantt-bar shift-${shift.color_class || ''}" data-shift-id="${idStr}" title="${(shift.title || '')} - ${safeEscape(displayStaff2 || '')}">
@@ -2786,9 +2842,12 @@
                 });
             });
 
-            // persist original staff and resolved subcontractor on the bar for toggling
+            // persist cleaned display name (orig), raw staff and resolved subcontractor on the bar for toggling
             try {
-                $bar.attr('data-orig-staff', staffNameWithoutSub || '');
+                // `data-orig-staff` should be the cleaned display name (what toggle restores to)
+                $bar.attr('data-orig-staff', displayStaff2 || backendStaffRaw2 || shift.staff_name || '');
+                // keep a raw backup if needed
+                $bar.attr('data-staff-raw', backendStaffRaw2 || shift.staff_name || '');
                 $bar.attr('data-sub-name', subcontractorName2 || '');
             } catch (err) {
                 // ignore

@@ -333,8 +333,6 @@
 
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
-                                                        <!-- Always send a value: hidden input for 0, checkbox for 1 -->
-                                                        {{-- <input type="hidden" name="auto_patrol_enabled[]" value="0"> --}}
                                                         <input class="form-check-input autoPatrolToggle" type="checkbox" name="auto_patrol_enabled[]" value="1">
                                                         <label class="form-check-label form-label">Enable Auto Patrols</label>
                                                     </div>

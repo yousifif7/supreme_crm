@@ -352,7 +352,7 @@ class PayrollController extends Controller
         Logger::log(
             Auth::user(),
             'Create',
-            'Subcontractor Payroll NO. ' . ($invoice->invoice_number ?? $invoice->id) . ' generated for subcontractor id ' . $id
+            'Subcontractor Payroll NO. ' . ($invoice->invoice_number ?? $invoice->id) . ' generated for subcontractor ' . $user->name
         );
 
         return response()->json(['message' => 'Subcontractor payroll generated', 'invoice' => $invoice]);

@@ -265,7 +265,13 @@ class InvoiceService
 
     public function generateSubcontractorInvoice($subcontractorId, $dateFrom, $dateTo, $dueDate, $notes = null, $securityStaffId = null)
     {
-        $subcontractor = User::findOrFail($subcontractorId);
+        // Attempt to resolve the requested subcontractor id/record without throwing early
+        $subcontractor = null; // may be a User model if the caller passed a user id
+        $requestedId = $subcontractorId;
+        if ($requestedId) {
+            // Try to find a User first (common case: caller passed user id)
+            $subcontractor = User::find($requestedId);
+        }
 
         // Normalize dates
         $dateFrom = $dateFrom ? Carbon::parse($dateFrom)->toDateString() : Carbon::today()->toDateString();
@@ -299,6 +305,51 @@ class InvoiceService
         }
 
         $shiftDates = $shiftDatesQuery->get();
+
+        // Ensure we only include shift dates that actually belong to the requested subcontractor
+        if ($requestedId) {
+            $shiftDates = $shiftDates->filter(function ($sd) use ($requestedId) {
+                // Resolve subcontractor identifier(s) present on the shift date/shift/staff
+                $candidates = [];
+
+                if (! empty($sd->subcontractor_id)) $candidates[] = $sd->subcontractor_id;
+                if (! empty($sd->shift) && ! empty($sd->shift->subcontractor_id)) $candidates[] = $sd->shift->subcontractor_id;
+
+                // staff -> employee -> subcontractor may be stored in various formats
+                try {
+                    if (! empty($sd->staff) && ! empty($sd->staff->employee)) {
+                        $emp = $sd->staff->employee;
+                        if (! empty($emp->subcontractor)) {
+                            // numeric or JSON array or comma list
+                            if (is_numeric($emp->subcontractor)) {
+                                $candidates[] = $emp->subcontractor;
+                            } else {
+                                $as = $emp->subcontractor;
+                                // try JSON
+                                $decoded = null;
+                                try { $decoded = json_decode($as, true); } catch (\Throwable $_) { $decoded = null; }
+                                if (is_array($decoded)) {
+                                    foreach ($decoded as $d) { $candidates[] = $d; }
+                                } else {
+                                    // parse comma-separated
+                                    foreach (preg_split('/[,;\\s]+/', (string)$as) as $part) {
+                                        if (strlen(trim($part))) $candidates[] = trim($part);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } catch (\Throwable $_) {
+                    // ignore
+                }
+
+                // Normalize all candidates to strings for comparison
+                $candidates = array_filter(array_map(function ($v) { return $v === null ? null : (string) $v; }, $candidates));
+                $requested = (string) $requestedId;
+
+                return in_array($requested, $candidates, true);
+            })->values();
+        }
 
         // Determine subcontractor commission percent (snapshot)
         $subcontractorRecord = Subcontractor::where('user_id', $subcontractorId)->first();
@@ -348,6 +399,11 @@ class InvoiceService
         $commissionAmount = round($totalAmount * ($commissionPercent / 100), 2);
         $staffAmount = round($totalAmount - $commissionAmount, 2);
         
+        // Determine a sensible payment note: prefer subcontractor model, then user, otherwise null
+        $paymentNote = null;
+        if (! empty($subcontractor) && isset($subcontractor->payment_terms)) $paymentNote = $subcontractor->payment_terms;
+        if (empty($paymentNote) && isset($subcontractorRecord) && isset($subcontractorRecord->payment_terms)) $paymentNote = $subcontractorRecord->payment_terms;
+
         $invoiceData = [
             'type' => 'subcontractor',
             'subcontractor_id' => $subcontractorId,
@@ -361,7 +417,7 @@ class InvoiceService
             'staff_amount' => $staffAmount,
             'status' => 'draft',
             'notes' => $notes,
-            'payment_note' => $subcontractor->payment_terms,
+            'payment_note' => $paymentNote,
             'rate_per_hour' => $totalHours > 0 ? $totalAmount / $totalHours : 0,
             'total_shift_hours' => $totalHours,
         ];
