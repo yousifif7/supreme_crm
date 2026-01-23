@@ -540,6 +540,205 @@
 @endsection
 @section('scripts')
     <script>
+        // Employee ban modal functions
+        function openBanModal(employeeId, employeeName) {
+            // create modal if not present
+            if (!document.getElementById('employeeBanModal')) {
+                $('body').append(`
+                <div class="modal fade" id="employeeBanModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered" style="max-width:80vw; width:80vw;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Ban Employee: <span id="banEmployeeName"></span></h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Add Ban</h6>
+                                        <div class="mb-2">
+                                            <label>Client</label>
+                                            <select id="banClient" class="form-select client-select2">
+                                                <option value="">-- none --</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label>Site</label>
+                                            <select id="banSite" class="form-select site-select2">
+                                                <option value="">-- none --</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label>Reason</label>
+                                            <textarea id="banReason" class="form-control" rows="3"></textarea>
+                                        </div>
+                                        <div class="text-end">
+                                            <button class="btn btn-primary" id="banSaveBtn">Confirm Ban</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Existing Bans</h6>
+                                        <div id="banListContainer">Loading...</div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `);
+
+                // append confirmation modals (once)
+                $('body').append(`
+                <div class="modal fade" id="banCreateConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header"><h5 class="modal-title">Confirm Ban</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                            <div class="modal-body"><p id="banConfirmDetails">Are you sure you want to create this ban?</p></div>
+                            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="button" id="banCreateConfirmBtn" class="btn btn-danger">Confirm Ban</button></div>
+                        </div>
+                    </div>
+                </div>
+                `);
+
+                $('body').append(`
+                <div class="modal fade" id="banRemoveConfirmModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header"><h5 class="modal-title">Remove Ban</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                            <div class="modal-body"><p id="banRemoveConfirmDetails">Are you sure you want to remove this ban?</p></div>
+                            <div class="modal-footer"><button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button><button type="button" id="banRemoveConfirmBtn" class="btn btn-danger">Remove</button></div>
+                        </div>
+                    </div>
+                </div>
+                `);
+
+                // initialize Select2 for selects inside the newly appended modal
+                var $modal = $('#employeeBanModal');
+                $modal.find('.site-select2, .client-select2').each(function() {
+                    if (!$(this).hasClass('select2-hidden-accessible') && $.fn.select2) {
+                        $(this).select2({
+                            placeholder: "--choose--",
+                            allowClear: true,
+                            width: '100%',
+                            dropdownParent: $modal,
+                            minimumResultsForSearch: 0
+                        });
+                    }
+                });
+            }
+
+            $('#banEmployeeName').text(employeeName);
+            $('#banClient').empty().append('<option value="">-- none --</option>');
+            $('#banSite').empty().append('<option value="">-- none --</option>');
+            $('#banReason').val('');
+
+            // load form data (clients/sites)
+            $.get(`${baseUrl}/employees/ban-form-data`, function(data){
+                data.clients.forEach(function(c){
+                    $('#banClient').append(`<option value="${c.id}">${c.first_name} ${c.last_name}</option>`);
+                });
+                data.sites.forEach(function(s){
+                    $('#banSite').append(`<option value="${s.id}">${s.site_name}</option>`);
+                });
+                // trigger update for Select2 in case options were added after init
+                try { $('#banClient, #banSite').trigger('change'); } catch(e){}
+            });
+
+            // load existing bans
+            loadBanList(employeeId);
+
+            // bind save -> show confirmation modal
+            $('#banSaveBtn').off('click').on('click', function(){
+                const clientId = $('#banClient').val() || null;
+                const siteId = $('#banSite').val() || null;
+                const reason = $('#banReason').val() || null;
+                let parts = [];
+                if (clientId) parts.push('Client: ' + $('#banClient option:selected').text());
+                if (siteId) parts.push('Site: ' + $('#banSite option:selected').text());
+                if (reason) parts.push('Reason: ' + $('<div/>').text(reason).html());
+                const details = parts.length ? parts.join('<br>') : 'This will ban the employee globally.';
+                $('#banConfirmDetails').html(details);
+                $('#banCreateConfirmModal').data('banPayload', { employeeId: employeeId, clientId: clientId, siteId: siteId, reason: reason });
+                try { $('#banCreateConfirmModal').modal('show'); } catch(e){}
+            });
+
+            // handle create after confirmation
+            $(document).off('click', '#banCreateConfirmBtn').on('click', '#banCreateConfirmBtn', function(){
+                const payload = $('#banCreateConfirmModal').data('banPayload') || {};
+                $.ajax({
+                    url: `${baseUrl}/employees/bans`,
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+                    data: { employee_id: payload.employeeId, client_id: payload.clientId, site_id: payload.siteId, reason: payload.reason },
+                    success: function(res){
+                        toast_success('Ban created');
+                        $('#banCreateConfirmModal').modal('hide');
+                        loadBanList(payload.employeeId);
+                    },
+                    error: function(xhr){
+                        const resp = xhr.responseJSON || {};
+                        const first = resp.errors ? Object.values(resp.errors)[0][0] : (resp.message || 'Failed');
+                        toast_danger(first);
+                    }
+                });
+            });
+
+            // show modal
+            try { $('#employeeBanModal').modal('show'); } catch(e){}
+        }
+
+        function loadBanList(employeeId){
+            $('#banListContainer').html('Loading...');
+            $.get(`${baseUrl}/employees/${employeeId}/bans`, function(resp){
+                const bans = resp.bans || [];
+                if (!bans.length) {
+                    $('#banListContainer').html('<p class="text-muted">No bans.</p>');
+                    return;
+                }
+                let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Type</th><th>Client</th><th>Name</th><th>Reason</th><th>When</th><th></th></tr></thead><tbody>';
+                bans.forEach(function(b){
+                    const label = b.client ? 'Client' : (b.site ? 'Site' : 'Global');
+                    const clientName = b.client ? (b.client.first_name + ' ' + (b.client.last_name||'')) : '';
+                    const name = b.site ? b.site.site_name : (clientName ? clientName : '—');
+                    html += `<tr><td>${label}</td><td>${esc(clientName)}</td><td>${esc(name)}</td><td>${esc(b.reason||'')}</td><td>${b.created_at}</td><td><button class="btn btn-sm btn-danger" data-id="${b.id}" onclick="removeBan(${b.id}, ${employeeId})">Remove</button></td></tr>`;
+                });
+                html += '</tbody></table></div>';
+                $('#banListContainer').html(html);
+            }).fail(function(){
+                $('#banListContainer').html('<p class="text-danger">Failed to load bans.</p>');
+            });
+        }
+
+        function removeBan(banId, employeeId){
+            $('#banRemoveConfirmModal').data('banPayload', { banId: banId, employeeId: employeeId });
+            $('#banRemoveConfirmDetails').text('Are you sure you want to remove this ban?');
+            try { $('#banRemoveConfirmModal').modal('show'); } catch(e){}
+        }
+
+        // handle removal after confirmation
+        $(document).off('click', '#banRemoveConfirmBtn').on('click', '#banRemoveConfirmBtn', function(){
+            const payload = $('#banRemoveConfirmModal').data('banPayload') || {};
+            if(!payload.banId) return;
+            $.ajax({
+                url: `${baseUrl}/employees/bans/${payload.banId}`,
+                method: 'DELETE',
+                headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+                success: function(){
+                    toast_success('Removed');
+                    $('#banRemoveConfirmModal').modal('hide');
+                    loadBanList(payload.employeeId);
+                },
+                error: function(){
+                    toast_danger('Failed to remove');
+                }
+            });
+        });
+
+        function esc(s){ if (s===null||s===undefined) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
         $('#openAddModal').on('click', function() {
             $('#add_worker-form1')[0].reset();
             // $('#add_employee-form')[0].reset();
@@ -603,6 +802,21 @@
                         }
                     });
                 }
+
+                $('.site-select2').select2({
+                    placeholder: "--choose--",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#employeeBanModal'), // make sure this matches your modal ID
+                    minimumResultsForSearch: 0 // force search bar for single select
+                })
+                $('.client-select2').select2({
+                    placeholder: "--choose--",
+                    allowClear: true,
+                    width: '100%',
+                    dropdownParent: $('#employeeBanModal'), // make sure this matches your modal ID
+                    minimumResultsForSearch: 0 // force search bar for single select
+                })
             });
         });
     </script>

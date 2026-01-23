@@ -481,10 +481,12 @@
                             'X-CSRF-TOKEN': $('input[name="_token"]').val()
                         },
                         success: function(response) {
-                            closeBsModal('#add_site');
-                            toast_success(response.message ||
-                                'Site created successfully');
-                            reloadDatatable('#sites-table');
+                                    // Reset modal form and map state before closing
+                                    resetCreateModal();
+                                    closeBsModal('#add_site');
+                                    toast_success(response.message ||
+                                        'Site created successfully');
+                                    reloadDatatable('#sites-table');
                         },
                 error: function (xhr) {
                     if (xhr.status === 422) {
@@ -514,6 +516,41 @@
                     if (existingAddress) {
                         updateMapFromAddress(existingAddress);
                     }
+                });
+
+                // Clear modal state when hidden (also used after successful submit)
+                function resetCreateModal() {
+                    try {
+                        const form = document.getElementById('add_site-form');
+                        if (form) form.reset();
+                    } catch (e) {
+                        // ignore
+                    }
+
+                    // Clear checkpoint rows and remove markers from map
+                    try {
+                        if (Array.isArray(createCheckpointMarkers)) {
+                            createCheckpointMarkers.forEach(cp => {
+                                try { if (cp && cp.marker && createMap) createMap.removeLayer(cp.marker); } catch (e) {}
+                            });
+                        }
+                    } catch (e) {}
+                    createCheckpointMarkers = [];
+                    $('#create_checkpointList').empty();
+
+                    // Reset main site marker to default and clear hidden coords
+                    if (createSiteMarker && createMap) {
+                        try { createSiteMarker.setLatLng([51.505, -0.09]); } catch (e) {}
+                    }
+                    $('#latitude').val('');
+                    $('#longitude').val('');
+
+                    // Reset select2/selects
+                    try { $('#clientSelect').val('').trigger('change'); } catch (e) {}
+                }
+
+                $('#add_site').on('hidden.bs.modal', function() {
+                    resetCreateModal();
                 });
             });
 

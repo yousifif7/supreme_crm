@@ -1102,7 +1102,14 @@
                         } else if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             let errors = xhr.responseJSON.errors;
                             let responseIndex = xhr.responseJSON.index ?? 0;
+
+                            // If ban restriction present, show in toast (non-overridable)
+                            if (errors.ban_forbidden) {
+                                showToast(errors.ban_forbidden[0], 'error', 7000);
+                            }
+
                             $.each(errors, function(key, value) {
+                                if (key === 'ban_forbidden') return; // already handled
                                 if ($('#error_' + key).length)
                                     $('#error_' + key).text(value[0]);
 
@@ -1916,16 +1923,16 @@
         return;
     }
     
-    const term = searchTerm.toLowerCase();
+    const term = String(searchTerm).toLowerCase();
     $('.gantt-row').each(function() {
         const row = $(this);
         const siteText = row.find('.gantt-row-sidebar').text().toLowerCase();
         const shiftBars = row.find('.gantt-bar');
         let anyVisible = false;
-        
+
         // Check if site/client name matches
         const siteMatches = siteText.includes(term);
-        
+
         // Show/hide individual shift bars based on search
         shiftBars.each(function() {
             const $bar = $(this);
@@ -1936,13 +1943,19 @@
                 const sid = $bar.attr('data-sub-id');
                 if (sid && window._subcontractorMap && window._subcontractorMap[sid]) sub = window._subcontractorMap[sid];
             }
-            const staffMatch = barText.includes(term) || barTitle.toLowerCase().includes(term);
-            
+
+            // Build searchable text from bar contents and attributes
+            const barContentText = ($bar.find('.bar-content').text() || '').trim();
+            const barTitle = ($bar.attr('title') || '').trim();
+            const combined = (orig + ' ' + sub + ' ' + barContentText + ' ' + barTitle).toLowerCase();
+
+            const staffMatch = combined.includes(term);
+
             if (siteMatches || staffMatch) {
-                bar.show();
+                $bar.show();
                 anyVisible = true;
             } else {
-                bar.hide();
+                $bar.hide();
             }
         });
         

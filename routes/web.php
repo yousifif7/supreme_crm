@@ -61,6 +61,11 @@ Route::get('/track/site/{siteId}', [ShiftController::class, 'siteTracking'])->na
 Route::get('/track/site/{siteId}/data', [\App\Http\Controllers\API\LocationAPIController::class, 'latestForSite']);
 
 Route::group(['middleware' => ['auth']], function () {
+    // Employee ban management
+    Route::get('/employees/{employee}/bans', [\App\Http\Controllers\EmployeeBanController::class, 'indexForEmployee']);
+    Route::post('/employees/bans', [\App\Http\Controllers\EmployeeBanController::class, 'store']);
+    Route::delete('/employees/bans/{id}', [\App\Http\Controllers\EmployeeBanController::class, 'destroy']);
+    Route::get('/employees/ban-form-data', [\App\Http\Controllers\EmployeeBanController::class, 'formData']);
     // Chat routes
     Route::post('/api/conversations/{id}/pin', [ChatController::class, 'togglePin']);
 

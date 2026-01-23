@@ -27,6 +27,33 @@
                                 </select>
                             </div>
 
+                            <!-- Subcontractor -->
+                            <div class="col-md-3">
+                                <label for="subcontractor_id" class="form-label">Subcontractor</label>
+                                <select name="subcontractor_id" id="subcontractor_id" class="form-select select2">
+                                    <option value="">All Subcontractors</option>
+                                    @if(!empty($subcontractors))
+                                        @foreach ($subcontractors as $id => $name)
+                                            <option value="{{ $id }}" {{ $selectedSubcontractor == $id ? 'selected' : '' }}>
+                                                {{ $name }}</option>
+                                        @endforeach
+                                    @endif
+                                </select>
+                            </div>
+
+                            <!-- Site -->
+                            <div class="col-md-3">
+                                <label for="site_id" class="form-label">Site</label>
+                                <select name="site_id" id="site_id" class="form-select select2">
+                                    <option value="">All Sites</option>
+                                    @foreach (($sites ?? []) as $id => $name)
+                                        <option value="{{ $id }}" {{ (isset($selectedSite) && $selectedSite == $id) ? 'selected' : '' }}>
+                                            {{ $name }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                            </div>
+
                             <!-- Employee -->
                             <div class="col-md-3">
                                 <label for="employee_id" class="form-label">Employee</label>
@@ -101,6 +128,7 @@
                                         <th>Client</th>
                                         <th>Site</th>
                                         <th>Employee</th>
+                                        <th>Notes</th>
                                         <th>Shift Date</th>
                                         <th>Start Time</th>
                                         <th>End Time</th>
@@ -115,6 +143,7 @@
                                             <td>{{ $shiftDate->shift->site->site_name ?? 'N/A' }}</td>
                                             <td>{{ $shiftDate->staff->first_name ?? 'N/A' }}
                                                 {{ $shiftDate->staff->last_name ?? '' }}</td>
+                                            <td>{{ $shiftDate->note?->note ?? '-' }}</td>
                                             <td>{{ format_date($shiftDate->shift_date) }}</td>
                                             <td>{{ $shiftDate->start_time ?? '-' }}</td>
                                             <td>{{ $shiftDate->end_time ?? '-' }}</td>

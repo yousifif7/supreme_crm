@@ -71,7 +71,7 @@ class ShiftDate extends Model
 
     public function note()
     {
-        return $this->belongsTo(ShiftNote::class, 'shift_date_id');
+        return $this->hasMany(ShiftNote::class, 'shift_date_id');
     }
 
     public function checkCalls()

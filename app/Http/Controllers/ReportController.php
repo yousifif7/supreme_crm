@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Client;
@@ -148,7 +149,14 @@ class ReportController extends Controller
 
     public function shiftReport(Request $request)
     {
-        $query = ShiftDate::query()->with(['shift.client', 'shift.site', 'shift.staff']);
+        // Build a joined query to keep filtering in the database and avoid expensive whereHas/orWhereExists
+        $query = ShiftDate::query()
+            ->select('shift_dates.*')
+            ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
+            // join subcontractors table as aliases so we can match either a direct user id or a subcontractor record
+            ->leftJoin('sub_contractors as sd_sub', 'sd_sub.id', '=', 'shift_dates.subcontractor_id')
+            ->leftJoin('sub_contractors as p_sub', 'p_sub.id', '=', 'shifts.subcontractor_id')
+            ->with(['shift.client', 'shift.site', 'shift.staff', 'note']);
 
         // Filter by client
         if ($request->filled('client_id')) {
@@ -161,6 +169,17 @@ class ReportController extends Controller
         if ($request->filled('employee_id')) {
             $query->whereHas('staff', function ($q) use ($request) {
                 $q->where('id', $request->input('employee_id'));
+            });
+        }
+
+        // Filter by subcontractor (match user-based subcontractors or sub_contractors.user_id via joins)
+        if ($request->filled('subcontractor_id')) {
+            $subId = (int) $request->input('subcontractor_id');
+            $query->where(function ($q) use ($subId) {
+                $q->where('shift_dates.subcontractor_id', $subId)
+                    ->orWhere('shifts.subcontractor_id', $subId)
+                    ->orWhere('sd_sub.user_id', $subId)
+                    ->orWhere('p_sub.user_id', $subId);
             });
         }
 
@@ -180,6 +199,13 @@ class ReportController extends Controller
             $query->whereIn('is_assign', (array) $request->status);
         }
 
+        // Filter by site
+        if ($request->filled('site_id')) {
+            $siteId = (int) $request->input('site_id');
+            // shifts table joined; filter directly
+            $query->where('shifts.site_id', $siteId);
+        }
+
         $shifts = $query->get();
 
         $statusOptions = [
@@ -197,6 +223,16 @@ class ReportController extends Controller
         // Dropdowns
         $clients = User::role('client')->pluck('name', 'id');
         $employees = User::role('security_staff')->orderBy('first_name')->get();
+        // Subcontractors list: only use users with role 'subcontractor' to avoid mixing models
+        $subcontractors = User::role('subcontractor')
+            ->orderBy('first_name')
+            ->get()
+            ->mapWithKeys(function ($u) {
+                return [$u->id => trim($u->first_name . ' ' . $u->last_name)];
+            });
+
+        // Sites for filter dropdown
+        $sites = Site::pluck('site_name', 'id');
 
         if ($request->has('export') && $request->export === 'pdf') {
             $pdf = Pdf::loadView('reports.pdf.shift-pdf', [
@@ -217,8 +253,12 @@ class ReportController extends Controller
             'shifts' => $shifts,
             'clients' => $clients,
             'employees' => $employees,
+            'subcontractors' => $subcontractors,
+            'sites' => $sites,
             'selectedClient' => $request->input('client_id'),
             'selectedEmployee' => $request->input('employee_id'),
+            'selectedSubcontractor' => $request->input('subcontractor_id'),
+            'selectedSite' => $request->input('site_id'),
             'selectedStatus' => $request->status ?? [],
             'statusOptions' => $statusOptions,
             'filterDate' => $request->input('shift_date'),

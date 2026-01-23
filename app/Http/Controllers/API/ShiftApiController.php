@@ -23,6 +23,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 use App\Models\PatrolMedia;
 use App\Models\BookingMedia;
 use Illuminate\Support\Facades\Log;
@@ -183,7 +184,7 @@ class ShiftApiController extends Controller
                 'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
                 'category' => $category,
                 'trainings' => $trainings,
-                'note' => (in_array($note?->note_type, ['guard', 'both'])) ? [
+                'note' => (in_array(strtolower(trim((string)($note?->note_type ?? ''))), ['guard', 'both'])) ? [
                     'id'        => $note->id,
                     'note_type' => $note->note_type,
                     'note'      => $note->note,
@@ -276,6 +277,115 @@ class ShiftApiController extends Controller
         return response()->json([
             'category' => $category ?? 'all',
             'count' => $count,
+        ]);
+    }
+
+    /**
+     * GET /api/shifts/monthly-hours
+     * Returns aggregated monthly hours for the authenticated guard.
+     */
+    public function monthlyHours(Request $request)
+    {
+        $userId = Auth::id();
+        $tz = 'Europe/London';
+        $now = Carbon::now($tz);
+
+        $startMonth = $request->query('start_month'); // YYYY-MM
+        $endMonth = $request->query('end_month');     // YYYY-MM
+        $year = $request->query('year');
+
+        try {
+            if ($startMonth && $endMonth) {
+                $start = Carbon::createFromFormat('Y-m', $startMonth, $tz)->startOfMonth();
+                $end = Carbon::createFromFormat('Y-m', $endMonth, $tz)->endOfMonth();
+            } elseif ($year) {
+                $start = Carbon::createFromFormat('Y', $year, $tz)->startOfYear();
+                $end = Carbon::createFromFormat('Y', $year, $tz)->endOfYear();
+            } else {
+                $start = $now->copy()->startOfYear();
+                $end = $now->copy()->endOfYear();
+            }
+        } catch (\Exception $e) {
+            return response()->json(['success' => false, 'message' => 'Invalid date format'], 400);
+        }
+
+        // Enforce max range: last 5 years
+        $earliest = $now->copy()->subYears(5)->startOfYear();
+        if ($start->lt($earliest)) $start = $earliest;
+
+        if ($end->lt($start)) {
+            return response()->json(['success' => false, 'message' => 'Invalid date range: end_month must be after start_month'], 400);
+        }
+
+        // Build month list (oldest first)
+        $months = [];
+        $cursor = $start->copy()->startOfMonth();
+        while ($cursor->lte($end)) {
+            $months[] = ['month_key' => $cursor->format('Y-m'), 'month' => $cursor->format('F Y')];
+            $cursor->addMonth();
+        }
+
+        // Aggregate in DB: sum minutes and count shifts grouped by shift_date month
+        // Note: this assumes shift_date/start_time/end_time are stored in local (Europe/London) values.
+        $agg = DB::table('shift_dates')
+            ->selectRaw("DATE_FORMAT(shift_date,'%Y-%m') as month_key, DATE_FORMAT(shift_date,'%M %Y') as month_name, SUM(TIMESTAMPDIFF(MINUTE, CONCAT(shift_date,' ',start_time), CONCAT(CASE WHEN end_time <= start_time THEN DATE_ADD(shift_date, INTERVAL 1 DAY) ELSE shift_date END, ' ', end_time))) as minutes, COUNT(*) as shifts_count")
+            ->where('staff_id', $userId)
+            ->whereIn('status', ['completed', 'booked_off'])
+            ->whereBetween('shift_date', [$start->toDateString(), $end->toDateString()])
+            ->groupBy('month_key', 'month_name')
+            ->orderBy('month_key', 'asc')
+            ->get();
+
+        $map = $agg->keyBy('month_key');
+
+        $monthly_breakdown = [];
+        $totalMinutes = 0;
+        foreach ($months as $m) {
+            $r = $map->get($m['month_key']);
+            $minutes = $r ? (int) $r->minutes : 0;
+            $shifts_count = $r ? (int) $r->shifts_count : 0;
+            $hours = round($minutes / 60, 1);
+            $monthly_breakdown[] = [
+                'month_key' => $m['month_key'],
+                'month' => $m['month'],
+                'total_hours' => $hours,
+                'shifts_count' => $shifts_count,
+            ];
+            $totalMinutes += $minutes;
+        }
+
+        $total_hours = round($totalMinutes / 60, 1);
+
+        // Current month based on server UK time
+        $currentMonthKey = $now->format('Y-m');
+        $currentAgg = $map->get($currentMonthKey);
+        $current_minutes = $currentAgg ? (int) $currentAgg->minutes : 0;
+        $current_hours = round($current_minutes / 60, 1);
+        $current_shifts = $currentAgg ? (int) $currentAgg->shifts_count : 0;
+
+        // Determine reported year value when appropriate
+        $yearField = null;
+        if (!($startMonth && $endMonth)) {
+            $yearField = (int) $start->format('Y');
+        } else {
+            if ($start->format('Y') === $end->format('Y')) $yearField = (int) $start->format('Y');
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'current_month' => [
+                    'month_key' => $currentMonthKey,
+                    'month' => $now->format('F Y'),
+                    'total_hours' => $current_hours,
+                    'shifts_count' => $current_shifts,
+                ],
+                'year_to_date' => [
+                    'year' => $yearField,
+                    'total_hours' => $total_hours,
+                    'monthly_breakdown' => $monthly_breakdown,
+                ],
+            ],
         ]);
     }
 

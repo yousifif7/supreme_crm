@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\Patrol;
 use App\Helpers\Logger;
 use App\Models\Employee;
+use App\Models\EmployeeBan;
 use App\Models\Location;
 use Carbon\CarbonPeriod;
 use App\Models\CheckCall;
@@ -298,8 +299,9 @@ class ShiftController extends Controller
                 'site_id' => 'required|integer',
                 'company_id' => 'nullable',
                 'staff_id' => 'nullable|integer',
-                'start_shift' => 'required|date_format:H:i',
-                'end_shift' => 'required|date_format:H:i',
+                // Accept either HH:MM or HH:MM:SS from client (some browsers/input types include seconds)
+                'start_shift' => ['required', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+                'end_shift' => ['required', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
                 'break-mins_shift' => 'nullable',
                 'number_shift' => 'nullable|integer|min:0',
                 'site_rate' => 'nullable|numeric',
@@ -311,8 +313,8 @@ class ShiftController extends Controller
                 'comments' => 'nullable|string|max:1000',
                 'days' => 'nullable|string',
                 'employee_rate' => 'nullable|numeric',
-                'start' => 'nullable|date_format:H:i',
-                'end' => 'nullable|date_format:H:i',
+                'start' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
+                'end' => ['nullable', 'regex:/^\d{2}:\d{2}(:\d{2})?$/'],
                 'po_number' => 'nullable',
                 'lost_time' => 'nullable',
                 'po_rate' => 'nullable|numeric',
@@ -334,10 +336,20 @@ class ShiftController extends Controller
                 $breakMinutes = $request->{'break-mins_shift'}[$i] ?? null;
                 $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
 
-                // ✅ Validate time logic only if both times are present and correctly formatted
-                if ($start && $end && preg_match('/^\d{2}:\d{2}$/', $start) && preg_match('/^\d{2}:\d{2}$/', $end)) {
-                    $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
-                    $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
+                // ✅ Validate time logic only if both times are present and in an acceptable format
+                if ($start && $end && preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $start) && preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $end)) {
+                    // Accept either H:i or H:i:s
+                    try {
+                        $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
+                    } catch (\Exception $e) {
+                        $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $start);
+                    }
+
+                    try {
+                        $endTime = \Carbon\Carbon::createFromFormat('H:i', $end);
+                    } catch (\Exception $e) {
+                        $endTime = \Carbon\Carbon::createFromFormat('H:i:s', $end);
+                    }
 
                     if ($startTime->eq($endTime)) {
                         $validator->errors()->add("end_shift", "End time must not be the same as start time.");
@@ -432,14 +444,21 @@ class ShiftController extends Controller
                         if (!$staff) {
                             $validator->errors()->add('staff_id', 'Selected staff does not exist.');
                         } else {
-                            applyRestrictions(
-                                $staff,
-                                $validator,
-                                'staff_id',
-                                $newShiftHours,
-                                $shiftDateCarbon,
-                                $newShiftStart
-                            );
+                            // Ban restriction: cannot assign banned staff to site/client
+                            $siteId = $request->site_id[$i] ?? null;
+                            $clientId = $request->client_id[$i] ?? null;
+                            if (EmployeeBan::isBannedFor($staff->id, $siteId, $clientId)) {
+                                $validator->errors()->add('ban_forbidden', 'Selected staff is banned for the chosen site/client and cannot be assigned.');
+                            } else {
+                                applyRestrictions(
+                                    $staff,
+                                    $validator,
+                                    'staff_id',
+                                    $newShiftHours,
+                                    $shiftDateCarbon,
+                                    $newShiftStart
+                                );
+                            }
                         }
                     } else {
                         $validator->errors()->add('staff_id', 'Invalid shift date or start time for restriction check.');
@@ -459,9 +478,12 @@ class ShiftController extends Controller
                     if ($user && method_exists($user, 'getRoleNames')) {
                         $roles = $user->getRoleNames();
                         if ($roles->contains('superadmin') || $roles->contains('admin')) {
-                            // Prefer staff-specific restriction message if present, otherwise first message
-                            $firstMsg = $errors->has('staff_id') ? $errors->first('staff_id') : $errors->first();
-                            if ($firstMsg) $response['override_message'] = $firstMsg;
+                            // Do not provide an override message when the failure is due to a ban.
+                            if (!$errors->has('ban_forbidden')) {
+                                // Prefer staff-specific restriction message if present, otherwise first message
+                                $firstMsg = $errors->has('staff_id') ? $errors->first('staff_id') : $errors->first();
+                                if ($firstMsg) $response['override_message'] = $firstMsg;
+                            }
                         }
                     }
                 } catch (\Exception $e) {
@@ -471,7 +493,47 @@ class ShiftController extends Controller
                 return response()->json($response, 422);
             }
 
+            // Normalize time inputs: strip optional seconds (HH:MM:SS -> HH:MM)
+            $startArr = $request->input('start_shift', []);
+            $endArr = $request->input('end_shift', []);
+            if (isset($startArr[$i]) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $startArr[$i])) {
+                $startArr[$i] = substr($startArr[$i], 0, 5);
+            }
+            if (isset($endArr[$i]) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $endArr[$i])) {
+                $endArr[$i] = substr($endArr[$i], 0, 5);
+            }
+            // Also normalize lightweight start/end inputs if present
+            $startArr2 = $request->input('start', []);
+            $endArr2 = $request->input('end', []);
+            if (isset($startArr2[$i]) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $startArr2[$i])) {
+                $startArr2[$i] = substr($startArr2[$i], 0, 5);
+            }
+            if (isset($endArr2[$i]) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $endArr2[$i])) {
+                $endArr2[$i] = substr($endArr2[$i], 0, 5);
+            }
+
+            $request->merge([
+                'start_shift' => $startArr,
+                'end_shift' => $endArr,
+                'start' => $startArr2,
+                'end' => $endArr2,
+            ]);
+
             $data = $validator->validated();
+
+            // Ensure validated times are normalized to HH:MM (strip seconds if present)
+            if (!empty($data['start_shift']) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $data['start_shift'])) {
+                $data['start_shift'] = substr($data['start_shift'], 0, 5);
+            }
+            if (!empty($data['end_shift']) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $data['end_shift'])) {
+                $data['end_shift'] = substr($data['end_shift'], 0, 5);
+            }
+            if (!empty($data['start']) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $data['start'])) {
+                $data['start'] = substr($data['start'], 0, 5);
+            }
+            if (!empty($data['end']) && preg_match('/^\d{2}:\d{2}:\d{2}$/', $data['end'])) {
+                $data['end'] = substr($data['end'], 0, 5);
+            }
 
             $data['restrict_start_time'] = $data['restrict_start_time'] ? 1 : 0;
             $data['enforce_picture_check'] = $data['enforce_picture_check'] ? 1 : 0;
@@ -842,6 +904,15 @@ class ShiftController extends Controller
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
             if ($staffUser) {
                 $staff = Employee::findOrFail($staffUser->id);
+
+                // Ban restriction: do not allow assigning banned staff. Check site first,
+                // then client if site not present. This cannot be overridden.
+                $parentShift = $shift->shift ?? null;
+                $parentSiteId = $parentShift->site_id ?? null;
+                $parentClientId = $parentShift->client_id ?? null;
+                if (EmployeeBan::isBannedFor($staff->id, $parentSiteId, $parentClientId)) {
+                    return response()->json(['errors' => ['ban_forbidden' => 'Selected staff is banned for the shift site/client and cannot be assigned.']], 422);
+                }
 
 
                 $shiftDateValue = $data['shift_date'] ?? $shift->shift_date;
@@ -1732,9 +1803,9 @@ public function getTodayShifts()
 
             $combinedMinutes = $existingMinutes + $newShiftMinutesPerDay;
 
-            if ($combinedMinutes > 960) {
-                throw new \Exception("Shift on " . $date->format('Y-m-d') . " exceeds 16 hours including existing shifts.");
-            }
+            // if ($combinedMinutes > 960) {
+            //     throw new \Exception("Shift on " . $date->format('Y-m-d') . " exceeds 16 hours including existing shifts.");
+            // }
 
             if (in_array(strtolower($date->format('D')), $validDays)) {
                 $totalMinutes += $dailyMinutes;
@@ -1782,6 +1853,16 @@ public function getTodayShifts()
         $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift     = Shift::findOrFail($shiftDate->shift_id);
+
+        // Ban restriction: always enforce, cannot be overridden
+        if (EmployeeBan::isBannedFor($staffUser->id, $shift->site_id ?? null, $shift->client_id ?? null)) {
+            return response()->json(['errors' => ['ban_forbidden' => 'Selected staff is banned for the shift site/client and cannot be assigned.']], 422);
+        }
+
+        // Ban restriction: always enforce, cannot be overridden
+        if (EmployeeBan::isBannedFor($staffUser->id, $shift->site_id ?? null, $shift->client_id ?? null)) {
+            return response()->json(['errors' => ['ban_forbidden' => 'Selected staff is banned for the shift site/client and cannot be assigned.']], 422);
+        }
 
         // ====== 1️⃣ Check for approved leave ======
         if (!$override) {
@@ -3091,6 +3172,12 @@ public function patrolUpdate(Request $request, $id)
             
             if ($newStaffId && $newStaffId != $oldStaffId) {
                 // Staff is being changed to a new person - set to dispatched
+                // Check ban: cannot assign banned staff
+                $employee = \App\Models\Employee::where('user_id', $newStaffId)->first();
+                if ($employee && EmployeeBan::isBannedFor($employee->id, $parentShift->site_id ?? null, $parentShift->client_id ?? null)) {
+                    return response()->json(['errors' => ['ban_forbidden' => 'Selected staff is banned for the shift site/client and cannot be assigned.']], 422);
+                }
+
                 $shiftDate->staff_id = $newStaffId;
                 $shiftDate->is_assign = 1;
                 $shiftDate->status = 'pending';

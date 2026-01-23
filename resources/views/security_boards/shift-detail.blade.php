@@ -1189,13 +1189,13 @@
             const toast = document.createElement('div');
             toast.className = 'custom-toast';
 
+            const actionsHtml = (typeof onOverride === 'function') ? '<div class="toast-actions"><button class="override-btn">Override Restriction</button></div>' : '<div class="toast-actions"></div>';
+
             toast.innerHTML = `
         <div class="toast-icon">⚠</div>
         <div class="toast-content">
             <p>${message}</p>
-            <div class="toast-actions">
-                <button class="override-btn">Override Restriction</button>
-            </div>
+            ${actionsHtml}
         </div>
     `;
 
@@ -1203,28 +1203,31 @@
 
             setTimeout(() => toast.classList.add('show'), 50);
 
-            // Step 1: Override clicked
-            toast.querySelector('.override-btn').addEventListener('click', function() {
-                // Replace actions with confirmation buttons
-                const actions = toast.querySelector('.toast-actions');
-                actions.innerHTML = `
-            <button class="confirm-btn">Yes, Override</button>
-            <button class="cancel-btn">Cancel</button>
-        `;
+            // Step 1: Override clicked (only if override is allowed)
+            if (typeof onOverride === 'function') {
+                const overrideBtn = toast.querySelector('.override-btn');
+                if (overrideBtn) {
+                    overrideBtn.addEventListener('click', function() {
+                        // Replace actions with confirmation buttons
+                        const actions = toast.querySelector('.toast-actions');
+                        actions.innerHTML = `
+                    <button class="confirm-btn">Yes, Override</button>
+                    <button class="cancel-btn">Cancel</button>
+                `;
 
-                // Step 2: Confirm override
-                actions.querySelector('.confirm-btn').addEventListener('click', function() {
-                    if (typeof onOverride === 'function') {
-                        onOverride();
-                    }
-                    closeToast();
-                });
+                        // Step 2: Confirm override
+                        actions.querySelector('.confirm-btn').addEventListener('click', function() {
+                            try { onOverride(); } catch (e) { console.error(e); }
+                            closeToast();
+                        });
 
-                // Step 2: Cancel override
-                actions.querySelector('.cancel-btn').addEventListener('click', function() {
-                    closeToast();
-                });
-            });
+                        // Step 2: Cancel override
+                        actions.querySelector('.cancel-btn').addEventListener('click', function() {
+                            closeToast();
+                        });
+                    });
+                }
+            }
 
             function closeToast() {
                 toast.classList.remove('show');

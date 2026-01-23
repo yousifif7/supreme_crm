@@ -86,7 +86,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('/shifts/all', [ShiftApiController::class, 'getShifts']);
     Route::get('/shifts/count', [ShiftApiController::class, 'countShifts']);
     Route::get('/shifts/calendar', [ShiftApiController::class, 'calendar']);
-    Route::get('/shifts/{id}', [ShiftApiController::class, 'shiftDetails']);
+    Route::get('/shifts/{id}', [ShiftApiController::class, 'shiftDetails'])->where('id', '[0-9]+');
     Route::post('/shifts/{shift_id}/respond', [ShiftApiController::class, 'respondToShift']);
     Route::post('/leave-requests', [ShiftApiController::class, 'submitLeaveRequest']);
     Route::get('/leave-requests', [ShiftApiController::class, 'showLeaves']);
@@ -102,6 +102,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
     Route::get('/shift-status', [ShiftApiController::class, 'checkDutyStatus']);
     Route::get('/work-hours', [ShiftApiController::class, 'workHours']);
+    Route::get('/shifts/monthly-hours', [ShiftApiController::class, 'monthlyHours']);
 });
 
 //Shifts api controller routes
