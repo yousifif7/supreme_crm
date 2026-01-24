@@ -3,7 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Log;
-use App\Helpers\Logger;
+use Illuminate\Support\Facades\Auth;
 
 trait LogsChanges
 {
@@ -35,12 +35,24 @@ trait LogsChanges
                 $oldValue = $model->getOriginal($field);
 
                 if ($field == 'staff_id') {
-                    $oldStaff = \App\Models\User::find($oldValue);
-                    $newStaff = \App\Models\User::find($newValue);
-                    
-                    $oldStaffName = $oldStaff ? ($oldStaff->first_name . ' ' . $oldStaff->last_name) : null;
-                    $newStaffName = $newStaff ? ($newStaff->first_name . ' ' . $newStaff->last_name) : null;
-                    
+                    // Staff are stored as a user_id on shifts, but the human-readable
+                    // name is maintained on the Employee record. Prefer Employee
+                    // (by user_id) and fall back to the User record if needed.
+                    $oldEmployee = \App\Models\Employee::where('user_id', $oldValue)->first();
+                    $newEmployee = \App\Models\Employee::where('user_id', $newValue)->first();
+
+                    $oldStaffName = $oldEmployee ? ($oldEmployee->fore_name . ' ' . $oldEmployee->sur_name) : null;
+                    $newStaffName = $newEmployee ? ($newEmployee->fore_name . ' ' . $newEmployee->sur_name) : null;
+
+                    if (!$oldStaffName && $oldValue) {
+                        $oldUser = \App\Models\User::find($oldValue);
+                        $oldStaffName = $oldUser ? ($oldUser->first_name . ' ' . $oldUser->last_name) : null;
+                    }
+                    if (!$newStaffName && $newValue) {
+                        $newUser = \App\Models\User::find($newValue);
+                        $newStaffName = $newUser ? ($newUser->first_name . ' ' . $newUser->last_name) : null;
+                    }
+
                     // Determine if it's assign/unassign/reassign
                     if (!$oldValue && $newValue) {
                         $label = "Assigned to {$newStaffName}";
@@ -51,9 +63,29 @@ trait LogsChanges
                     } else {
                         $label = "Staff";
                     }
-                    
+
                     $oldValue = $oldStaffName;
                     $newValue = $newStaffName;
+                } elseif ($field == 'employee_id') {
+                    // CheckCall.employee_id references an Employee record directly
+                    $oldEmployee = $oldValue ? \App\Models\Employee::find($oldValue) : null;
+                    $newEmployee = $newValue ? \App\Models\Employee::find($newValue) : null;
+
+                    $oldEmployeeName = $oldEmployee ? ($oldEmployee->fore_name . ' ' . $oldEmployee->sur_name) : null;
+                    $newEmployeeName = $newEmployee ? ($newEmployee->fore_name . ' ' . $newEmployee->sur_name) : null;
+
+                    if (!$oldValue && $newValue) {
+                        $label = "Assigned to {$newEmployeeName}";
+                    } elseif ($oldValue && !$newValue) {
+                        $label = "Unassigned from {$oldEmployeeName}";
+                    } elseif ($oldValue && $newValue) {
+                        $label = "Reassigned from {$oldEmployeeName} to {$newEmployeeName}";
+                    } else {
+                        $label = "Employee";
+                    }
+
+                    $oldValue = $oldEmployeeName;
+                    $newValue = $newEmployeeName;
                 } else {
                     $label = isset($arrayValues[$field]) ? $arrayValues[$field] : $field;
                 }
@@ -109,6 +141,12 @@ trait LogsChanges
                 $labels .= " for shift at {$site} on {$date}";
             }
 
+            if (Auth::check()) {
+                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            } else {
+                $username = 'System';
+            }
+
             $actionTitle = "Updated {$modelType}";
             // Do not include the username inside the description (we store it in the `user_name` column)
             $description = "{$actionTitle} {$fields}";
@@ -125,12 +163,23 @@ trait LogsChanges
                 $description .= ": {$labels}";
             }
 
-            // Use centralized Logger helper so it can prefer request()->user() and accept an explicit user
-            try {
-                Logger::log($model, $actionTitle, $description);
-            } catch (\Throwable $e) {
-                try { \Log::warning('LogsChanges::updating logger failed: ' . $e->getMessage()); } catch (\Throwable $_) {}
+            // If this is a Patrol, include the patrol name for clearer context
+            if ($modelType === 'Patrol') {
+                $patrolName = $model->name ?? ($model->title ?? 'Unnamed Patrol');
+                $description .= " (Patrol: {$patrolName})";
             }
+
+            // If this is a CheckCall, include the checkcall name or scheduled time
+            if ($modelType === 'CheckCall') {
+                $ccName = $model->name ?? ($model->scheduled_time ?? 'Unnamed CheckCall');
+                $description .= " (CheckCall: {$ccName})";
+            }
+
+            $model->logs()->create([
+                'user_name' => $username,
+                'action' => $actionTitle,
+                'description' => $description,
+            ]);
         });
 
         static::created(function ($model) {
@@ -140,16 +189,25 @@ trait LogsChanges
             $label = $model->client_name ?? $model->site_name ?? $model->fore_name ?? $model->shift->fore_name ?? $model->company_name ?? $model->first_name ?? $model->name ?? $model->id;
 
             // create shift logs description
-            if ($modelType == 'ShiftDate') {
+                if ($modelType == 'ShiftDate') {
                 $modelType = 'Shift';
-                $staff = isset($model->staff->first_name) ? $model->staff->first_name . ' ' . $model->staff->last_name : 'Unassigned';
+                // Prefer Employee name (fore_name/sur_name) by user_id, fall back to User
+                $staff = 'Unassigned';
+                if (!empty($model->staff_id)) {
+                    $emp = \App\Models\Employee::where('user_id', $model->staff_id)->first();
+                    if ($emp) {
+                        $staff = $emp->fore_name . ' ' . $emp->sur_name;
+                    } elseif (isset($model->staff->first_name)) {
+                        $staff = $model->staff->first_name . ' ' . $model->staff->last_name;
+                    }
+                }
+
                 $site = $model->shift->site->site_name ?? 'Unknown Site';
                 $date = $model->shift_date ?? 'N/A';
                 $start = $model->start_time ?? 'N/A';
                 $end = $model->end_time ?? 'N/A';
 
                 $label = "at {$site} on {$date}";
-                
                 if ($model->staff_id) {
                     $label .= " (Assigned to {$staff})";
                 } else {
@@ -157,15 +215,33 @@ trait LogsChanges
                 }
             }
 
+            if (Auth::check()) {
+                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            } else {
+                $username = 'System';
+            }
+
             $actionTitle = "Created {$modelType}";
             // Do not include the username inside the description (we store it in the `user_name` column)
             $description = "{$actionTitle} {$label}";
 
-            try {
-                Logger::log($model, $actionTitle, $description);
-            } catch (\Throwable $e) {
-                try { \Log::warning('LogsChanges::created logger failed: ' . $e->getMessage()); } catch (\Throwable $_) {}
+            // If this is a Patrol, include the patrol name for clearer context
+            if ($modelType === 'Patrol') {
+                $patrolName = $model->name ?? ($model->title ?? 'Unnamed Patrol');
+                $description .= " (Patrol: {$patrolName})";
             }
+
+            // If this is a CheckCall, include the checkcall name or scheduled time
+            if ($modelType === 'CheckCall') {
+                $ccName = $model->name ?? ($model->scheduled_time ?? 'Unnamed CheckCall');
+                $description .= " (CheckCall: {$ccName})";
+            }
+
+            $model->logs()->create([
+                'user_name' => $username,
+                'action' => $actionTitle,
+                'description' => $description,
+            ]);
         });
     }
 

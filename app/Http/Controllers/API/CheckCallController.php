@@ -3,20 +3,21 @@
 namespace App\Http\Controllers\API;
 
 use Carbon\Carbon;
+use App\Helpers\Logger;
 use App\Models\Employee;
 use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\Notification;
+use App\Models\ShiftBooking;
 use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\Models\CheckCallMedia;
+use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Auth\Events\Validated;
 use Illuminate\Support\Facades\Storage;
-use App\Models\ShiftBooking;
-use Illuminate\Support\Facades\Log;
 
 class CheckCallController extends Controller
 {
@@ -929,7 +930,10 @@ class CheckCallController extends Controller
 
     public function destroy($id)
     {
-        CheckCall::findOrFail($id)->delete();
+        $checkCall = CheckCall::findOrFail($id);
+        Logger::log($checkCall, 'Deleted', 'CheckCall deleted for shift at ' . $checkCall->shiftDate->shift->site->site_name);
+         
+        $checkCall->delete(); 
         return response()->json(['success' => true]);
     }
 

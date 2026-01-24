@@ -2362,6 +2362,8 @@ public function patrolUpdate(Request $request, $id)
     public function patrolDestroy($id)
     {
         $patrol = Patrol::findOrFail($id);
+        Logger::log($patrol, 'Deleted', 'CheckCall deleted for shift at ' . $patrol->shift->shift->site->site_name);
+
         $patrol->delete();
 
         return response()->json(['success' => true]);
