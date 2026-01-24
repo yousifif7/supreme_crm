@@ -1257,46 +1257,30 @@ public function getShifts(Request $request)
             'shift_dates.end_time',
             'shift_dates.is_assign',
             'shift_dates.staff_id',
-            'shift_dates.created_at',
-
-            'shifts.id as shift_id',
-            'shifts.site_id',
-            'shifts.service_type_1',
-            'shifts.service_type_2',
-
-            'clients.id as client_id',
-            'clients.client_name',
-
-            'sites.site_name',
-
-            'users.first_name',
-            'users.last_name',
-
-            // subcontractor fields (may be stored on the shift_date or parent shift)
             'shift_dates.subcontractor_id',
-            'shifts.subcontractor_id as parent_subcontractor',
-            'sub_users.first_name as subcontractor_first_name',
-            'sub_users.last_name as subcontractor_last_name',
-            'parent_sub_users.first_name as parent_sub_first_name',
-            'parent_sub_users.last_name as parent_sub_last_name',
-
-            'shift_notes.note',
-            'shift_notes.note_type',
+            'shift_dates.created_at',
+            'shift_dates.shift_id',
         ])
-        ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
-        ->leftJoin('clients', 'clients.user_id', '=', 'shifts.client_id')
-        ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
-        ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
-        // left join to resolve subcontractor user if subcontractor_id references users table
-        ->leftJoin('users as sub_users', 'sub_users.id', '=', 'shift_dates.subcontractor_id')
-        // left join to resolve parent-shift subcontractor (if stored on parent shift)
-        ->leftJoin('users as parent_sub_users', 'parent_sub_users.id', '=', 'shifts.subcontractor_id')
-        ->leftJoin('shift_notes', 'shift_notes.shift_date_id', '=', 'shift_dates.id');
+        // ✅ EAGER LOAD relationships to avoid N+1 queries
+        ->with([
+            'shift:id,site_id,client_id,service_type_1,service_type_2,subcontractor_id',
+            'shift.site:id,site_name',
+            'shift.client:id,first_name,last_name', // client is a User
+            'staff:id,first_name,last_name',
+            'note:id,shift_date_id,note,note_type',
+            // Eager load subcontractors (nested: subcontractor -> user)
+            'subcontractor:id,user_id,company_name,contact_person',
+            'subcontractor.user:id,first_name,last_name',
+            'shift.subcontractor:id,user_id,company_name,contact_person',
+            'shift.subcontractor.user:id,first_name,last_name',
+        ]);
 
     /* ---------- FILTERS ---------- */
 
     if ($request->filled('site')) {
-        $query->where('shifts.site_id', $request->site);
+        $query->whereHas('shift', function($q) use ($request) {
+            $q->where('site_id', $request->site);
+        });
     }
 
     if ($request->filled('staff')) {
@@ -1304,14 +1288,15 @@ public function getShifts(Request $request)
     }
 
     if ($request->filled('client_id')) {
-        $query->where('shifts.client_id', $request->client_id);
+        $query->whereHas('shift', function($q) use ($request) {
+            $q->where('client_id', $request->client_id);
+        });
     }
 
     if ($request->filled('status')) {
         $query->where('shift_dates.is_assign', $request->status);
     }
 
-    // ❌ whereTime kills indexes → FIX
     if ($request->filled('start_time')) {
         $query->where('shift_dates.start_time', '>=', $request->start_time);
     }
@@ -1324,15 +1309,16 @@ public function getShifts(Request $request)
         $query->whereDate('shift_dates.created_at', $request->created_at);
     }
 
+    // ✅ Main date filter using index
     $query->whereBetween('shift_dates.shift_date', [
         $request->from_shift ?? now()->subMonths(2),
         $request->to_shift   ?? now()->addMonths(3),
     ]);
 
-    /**
-     * 🔥 STREAM RESULTS (NO MEMORY BLOAT)
-     */
-    return $this->formatGanttData($query->cursor());
+    // ✅ Get all data at once (indexes make this fast now)
+    $shiftDates = $query->get();
+
+    return $this->formatGanttData($shiftDates);
 }
 
 private function formatGanttData($shiftDates)
@@ -1352,6 +1338,12 @@ private function formatGanttData($shiftDates)
     $ganttData = [];
 
     foreach ($shiftDates as $sd) {
+        // ✅ Access eager-loaded relationships (no extra queries!)
+        $shift = $sd->shift;
+        $site = $shift->site ?? null;
+        $client = $shift->client ?? null; // This is a User object
+        $staff = $sd->staff;
+        $note = $sd->note?->first(); // Get first note if exists
 
         $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
         $endTime   = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
@@ -1366,104 +1358,85 @@ private function formatGanttData($shiftDates)
         $durationHours   = $startDate->diffInHours($endDate);
         $durationMinutes = $startDate->diffInMinutes($endDate) % 60;
 
-        // Clean staff name by removing all parenthesised tags (server-side canonical cleaning)
-        $staffRaw = trim((($sd->first_name ?? '') . ' ' . ($sd->last_name ?? '')));
+        // ✅ Clean staff name (no database calls in loop!)
+        $staffRaw = $staff ? trim("{$staff->first_name} {$staff->last_name}") : '';
         $staffNameWithoutSub = $staffRaw;
-        // remove nested parenthesis groups defensively
+        
         while (preg_match('/\([^()]*\)/', $staffNameWithoutSub)) {
             $staffNameWithoutSub = preg_replace('/\s*\([^()]*\)/', '', $staffNameWithoutSub);
         }
         $staffNameClean = preg_replace('/\s+/', ' ', trim($staffNameWithoutSub));
 
-        // prefer subcontractor attached to the shift date (subcontractor_id) -> joined alias columns -> relation -> parent shift subcontractor
+        // ✅ Resolve subcontractor (prefer shift_date level, fallback to parent shift)
         $resolvedSubcontractorName = '';
-        $resolvedSubcontractorId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
+        $resolvedSubcontractorId = null;
 
-        if (!empty($sd->subcontractor_id)) {
-            // try relation first
-            if (isset($sd->subcontractor) && $sd->subcontractor) {
-                $resolvedSubcontractorName = trim(($sd->subcontractor->name ?? '') ?: trim((($sd->subcontractor->first_name ?? '') . ' ' . ($sd->subcontractor->last_name ?? ''))));
-            } else {
-                // fallback to Subcontractor model (may be either subcontractor.id or user id)
-                try {
-                    $u = \App\Models\User::find($sd->subcontractor_id);
-                    if ($u) $resolvedSubcontractorName = trim((($u->first_name ?? '') . ' ' . ($u->last_name ?? '')));    
-                } catch (\Throwable $_) {
-                    // ignore and fallthrough
-                }
+        // Try shift_date subcontractor first (nested: ShiftDate -> Subcontractor -> User)
+        if ($sd->subcontractor_id && $sd->subcontractor) {
+            $resolvedSubcontractorId = $sd->subcontractor_id;
+            
+            // Prefer company_name if available
+            if (!empty($sd->subcontractor->company_name)) {
+                $resolvedSubcontractorName = $sd->subcontractor->company_name;
+            }
+            // Otherwise use contact_person
+            elseif (!empty($sd->subcontractor->contact_person)) {
+                $resolvedSubcontractorName = $sd->subcontractor->contact_person;
+            }
+            // Finally, try the linked user's name
+            elseif ($sd->subcontractor->user) {
+                $resolvedSubcontractorName = trim("{$sd->subcontractor->user->first_name} {$sd->subcontractor->user->last_name}");
             }
         }
-
-        if (!$resolvedSubcontractorName) {
-            // joined alias columns (if available)
-            $resolvedSubcontractorName = trim((($sd->subcontractor_first_name ?? '') . ' ' . ($sd->subcontractor_last_name ?? '')));
-        }
-        if (!$resolvedSubcontractorName) {
-            if (isset($sd->subcontractor) && $sd->subcontractor) {
-                $resolvedSubcontractorName = trim(($sd->subcontractor->name ?? '') ?: trim((($sd->subcontractor->first_name ?? '') . ' ' . ($sd->subcontractor->last_name ?? ''))));
+        // Fallback to parent shift subcontractor
+        elseif ($shift && $shift->subcontractor_id && $shift->subcontractor) {
+            $resolvedSubcontractorId = $shift->subcontractor_id;
+            
+            if (!empty($shift->subcontractor->company_name)) {
+                $resolvedSubcontractorName = $shift->subcontractor->company_name;
             }
-        }
-        if (!$resolvedSubcontractorName) {
-            $resolvedSubcontractorName = trim((($sd->parent_sub_first_name ?? '') . ' ' . ($sd->parent_sub_last_name ?? '')));
-        }
-
-        // If still not resolved, subcontractor_id may reference the sub_contractors table
-        // Try resolving via the Subcontractor model (company_name or linked user)
-        if (!$resolvedSubcontractorName && !empty($resolvedSubcontractorId)) {
-            try {
-                $subModel = \App\Models\Subcontractor::find($resolvedSubcontractorId);
-                if ($subModel) {
-                    // Prefer company_name where present (common for subcontractor records)
-                    $resolvedSubcontractorName = trim($subModel->company_name ?? '');
-                    if (!$resolvedSubcontractorName) {
-                        // fall back to contact person or linked user name
-                        $resolvedSubcontractorName = trim($subModel->contact_person ?? '');
-                    }
-                    if (!$resolvedSubcontractorName && method_exists($subModel, 'user') && $subModel->user) {
-                        $resolvedSubcontractorName = trim((($subModel->user->first_name ?? '') . ' ' . ($subModel->user->last_name ?? '')));
-                    }
-                }
-            } catch (\Throwable $_) {
-                // ignore
+            elseif (!empty($shift->subcontractor->contact_person)) {
+                $resolvedSubcontractorName = $shift->subcontractor->contact_person;
+            }
+            elseif ($shift->subcontractor->user) {
+                $resolvedSubcontractorName = trim("{$shift->subcontractor->user->first_name} {$shift->subcontractor->user->last_name}");
             }
         }
 
         $ganttData[] = [
             'id' => $sd->id,
-            'site_id' => $sd->site_id,
-            'site_name' => $sd->site_name ?? 'Unknown Site',
-            'title' => $sd->title ?? 'Shift',
+            'site_id' => $shift->site_id ?? null,
+            'site_name' => $site->site_name ?? 'Unknown Site',
+            'title' => 'Shift',
             'start_date' => $sd->shift_date,
             'end_date' => $sd->shift_date,
             'start_time' => $sd->start_time,
             'end_time' => $sd->end_time,
-            'service_type' => $sd->service_type_2 ?? $sd->service_type_1,
+            'service_type' => $shift->service_type_2 ?? $shift->service_type_1 ?? null,
             'formatted_time' => "{$startTime->format('H:i')} - {$endTime->format('H:i')}",
             'duration' => "({$durationHours} hr {$durationMinutes} min)",
             'staff_name' => $staffNameClean ?: 'Not Assigned',
-            'staff_name_raw' => $staffRaw ?: '',
-            'staff_name_clean' => $staffNameClean ?: '',
+            'staff_name_raw' => $staffRaw,
+            'staff_name_clean' => $staffNameClean,
             'staff_id' => $sd->staff_id,
-            'client_id' => $sd->client_id,
-            'client_name' => $sd->client_name ?? 'Unknown Client',
+            'client_id' => $shift->client_id ?? null,
+            'client_name' => $client ? trim("{$client->first_name} {$client->last_name}") : 'Unknown Client',
             'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
             'status' => $sd->is_assign,
             'is_assigned' => $sd->is_assign != 0,
             'duration_hours' => $durationHours + ($durationMinutes / 60),
             'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
             'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
-            'note' => $sd->note,
-            'note_type' => $sd->note_type,
-            // Subcontractor data: prefer joined alias columns -> relation -> parent shift subcontractor
+            'note' => $note->note ?? null,
+            'note_type' => $note->note_type ?? null,
             'subcontractor_id' => $resolvedSubcontractorId,
-            'subcontractor_name' => $resolvedSubcontractorName ?: '',
-            'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
+            'subcontractor_name' => $resolvedSubcontractorName,
+            'created_at' => $sd->created_at?->format('Y-m-d\TH:i:s'),
         ];
     }
 
     return response()->json(['data' => $ganttData]);
 }
-
 
 
 
@@ -1485,7 +1458,7 @@ public function getShiftsWithStaff()
     ];
 
     /**
-     * 🔥 SINGLE FAST QUERY
+     * SINGLE FAST QUERY
      */
     $shiftDates = ShiftDate::query()
         ->select([

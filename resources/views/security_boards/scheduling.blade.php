@@ -1380,21 +1380,7 @@
                     success: function(response) {
                         // normalize payload: some endpoints return { data: [...] } others return array directly
                         const payload = response.data || response.shift_dates || response || [];
-                        // TEMP LOG: inspect incoming payload shape to debug client ordering
-                        try {
-                            console.debug('GANTT PAYLOAD SAMPLE', payload.slice(0, 10).map(p => ({
-                                id: p.id,
-                                client_id: p.client_id,
-                                client_name: p.client_name,
-                                start_datetime: p.start_datetime,
-                                start_date: p.start_date,
-                                start_time: p.start_time,
-                                subcontractor_id: p.subcontractor_id ?? null,
-                                subcontractor_name: p.subcontractor_name ?? null
-                            })));
-                        } catch (e) {
-                            console.debug('GANTT payload debug failed', e);
-                        }
+
                         allShiftsData = payload;
                         // keep global copy in sync
                         window.allShiftsData = allShiftsData;

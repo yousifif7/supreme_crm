@@ -106,7 +106,7 @@ class ShiftDate extends Model
 
     public function subcontractor()
     {
-        return $this->belongsTo(User::class, 'subcontractor_id');
+        return $this->belongsTo(Subcontractor::class, 'subcontractor_id');
     }
 
     public function logs()
