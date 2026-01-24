@@ -3,7 +3,7 @@
 namespace App\Traits;
 
 use App\Models\Log;
-use Illuminate\Support\Facades\Auth;
+use App\Helpers\Logger;
 
 trait LogsChanges
 {
@@ -109,12 +109,6 @@ trait LogsChanges
                 $labels .= " for shift at {$site} on {$date}";
             }
 
-            if (Auth::check()) {
-                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
-            } else {
-                $username = 'System';
-            }
-
             $actionTitle = "Updated {$modelType}";
             // Do not include the username inside the description (we store it in the `user_name` column)
             $description = "{$actionTitle} {$fields}";
@@ -131,11 +125,12 @@ trait LogsChanges
                 $description .= ": {$labels}";
             }
 
-            $model->logs()->create([
-                'user_name' => $username,
-                'action' => $actionTitle,
-                'description' => $description,
-            ]);
+            // Use centralized Logger helper so it can prefer request()->user() and accept an explicit user
+            try {
+                Logger::log($model, $actionTitle, $description);
+            } catch (\Throwable $e) {
+                try { \Log::warning('LogsChanges::updating logger failed: ' . $e->getMessage()); } catch (\Throwable $_) {}
+            }
         });
 
         static::created(function ($model) {
@@ -162,21 +157,15 @@ trait LogsChanges
                 }
             }
 
-            if (Auth::check()) {
-                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
-            } else {
-                $username = 'System';
-            }
-
             $actionTitle = "Created {$modelType}";
             // Do not include the username inside the description (we store it in the `user_name` column)
             $description = "{$actionTitle} {$label}";
 
-            $model->logs()->create([
-                'user_name' => $username,
-                'action' => $actionTitle,
-                'description' => $description,
-            ]);
+            try {
+                Logger::log($model, $actionTitle, $description);
+            } catch (\Throwable $e) {
+                try { \Log::warning('LogsChanges::created logger failed: ' . $e->getMessage()); } catch (\Throwable $_) {}
+            }
         });
     }
 

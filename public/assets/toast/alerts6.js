@@ -29,7 +29,7 @@ function showDashboardAlert(type, message, route = null, alertId = null) {
     toast.addEventListener('click', e => {
         if (e.target.classList.contains('alert-close')) {
             e.stopPropagation();
-            stopAlertSound();
+            stopAlertSpeech();
             toast.remove();
             return;
         }
@@ -45,7 +45,7 @@ function showDashboardAlert(type, message, route = null, alertId = null) {
                 success: function (response) {
                     if (response.success) {
                         toast_success('Emergency alert acknowledged');
-                        stopAlertSound();
+                        stopAlertSpeech();
                         toast.remove();
                     } else {
                         toast_danger(response.message || 'Error acknowledging alert.');
@@ -65,6 +65,7 @@ function showDashboardAlert(type, message, route = null, alertId = null) {
     // Close button
     toast.querySelector('.alert-close').addEventListener('click', e => {
         e.stopPropagation();
+        stopAlertSpeech();
         toast.remove();
     });
 
@@ -127,8 +128,8 @@ async function fetchDashboardAlerts() {
                 // Show toast alert
                 showDashboardAlert(alert.type, alert.message, route, alert.alert_id || null);
 
-                // Play sound automatically
-                playAlertSound();
+                // Speak alert text (Text-to-Speech) instead of playing a chime
+                speakAlertText(alert.message);
             });
         }
     } catch (err) {
@@ -150,6 +151,60 @@ function playAlertSound() {
             console.warn('Alert sound blocked:', err);
         });
     }
+}
+
+// Text-to-Speech: speak the alert message using the Web Speech API
+function speakAlertText(text) {
+    try {
+        if (!text) return;
+
+        // If a speech is already in progress, cancel it first
+        if (window.speechSynthesis && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+
+        if (!('speechSynthesis' in window)) {
+            // Fallback: do nothing (or optionally play a sound)
+            return;
+        }
+
+        const utterance = new SpeechSynthesisUtterance(text);
+        // Basic voice config — tweak as needed
+        utterance.lang = 'en-US';
+        utterance.rate = 1.0;
+        utterance.pitch = 1.0;
+
+        // Optionally prefer a voice that matches language
+        const voices = window.speechSynthesis.getVoices();
+        if (voices && voices.length) {
+            // try to pick a default English voice
+            const preferred = voices.find(v => /en|english/i.test(v.lang)) || voices[0];
+            if (preferred) utterance.voice = preferred;
+        }
+
+        window.speechSynthesis.speak(utterance);
+    } catch (err) {
+        console.warn('TTS failed:', err);
+    }
+}
+
+// Stop any playing alert sound or speech
+function stopAlertSpeech() {
+    try {
+        if (window.speechSynthesis && window.speechSynthesis.speaking) {
+            window.speechSynthesis.cancel();
+        }
+    } catch (e) {
+        // ignore
+    }
+
+    try {
+        const sound = document.getElementById('alert-sound');
+        if (sound && !sound.paused) {
+            sound.pause();
+            sound.currentTime = 0;
+        }
+    } catch (e) {}
 }
 
 // Fetch immediately, then repeat every 60 seconds
@@ -178,7 +233,7 @@ $(document).on('click', '.dashboard-alert', function (e) {
         success: function (response) {
             if (response.success) {
                 toast_success('Emergency alert acknowledged');
-                stopAlertSound();
+                stopAlertSpeech();
                 $(`#alert-${alertId}`).remove();
             } else {
                 toast_danger(response.message || 'Error acknowledging alert.');

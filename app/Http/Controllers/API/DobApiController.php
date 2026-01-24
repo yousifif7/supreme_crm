@@ -20,17 +20,8 @@ class DobApiController extends Controller
 {
     public function store(Request $request)
     {
-        $data = $request->validate([
-            'shift_id' => 'required|exists:shift_dates,id',
-            'entry_type' => 'required|in:incident,observation,maintenance,visitor,other',
-            'title' => 'required|string',
-            'description' => 'required|string',
-            'media_files' => 'nullable|array',
-            'media_files.*' => 'nullable', // file upload or base64
-            'location.latitude' => 'required|numeric',
-            'location.longitude' => 'required|numeric',
-            'timestamp' => 'date',
-        ]);
+        // Support bulk submissions: { dobs: [ { shift_id, entry_type, title, description, media_files, location, timestamp }, ... ] }
+        $payload = $request->all();
 
         $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
@@ -39,19 +30,66 @@ class DobApiController extends Controller
             return response()->json(['message' => 'No employee linked to this user.'], 404);
         }
 
-        // Create DOB entry
-        $entry = DobEntry::create([
-            'user_id' => $user->id,
-            'shift_id' => $data['shift_id'],
-            'entry_type' => $data['entry_type'],
-            'title' => $data['title'],
-            'description' => $data['description'],
-            'location' => json_encode($data['location']),
-            'timestamp' => Carbon::now(),
+        // Bulk path
+        if (!empty($payload['dobs']) && is_array($payload['dobs'])) {
+            $rules = [
+                'dobs' => 'nullable|array|min:1',
+                'dobs.*.shift_id' => 'required|exists:shift_dates,id',
+                'dobs.*.entry_type' => 'required|in:incident,observation,maintenance,visitor,other',
+                'dobs.*.title' => 'required|string',
+                'dobs.*.description' => 'required|string',
+                'dobs.*.media_files' => 'nullable|array',
+                'dobs.*.media_files.*' => 'nullable',
+                'dobs.*.location.latitude' => 'required|numeric',
+                'dobs.*.location.longitude' => 'required|numeric',
+                'dobs.*.timestamp' => 'nullable|date',
+            ];
+
+            $request->validate($rules);
+
+            $created = [];
+            foreach ($payload['dobs'] as $item) {
+                $created[] = $this->createApiDobEntryFromPayload($item, $user, $employee);
+            }
+
+            return response()->json(['message' => 'DOB entries created', 'created' => $created], 201);
+        }
+
+        // Single entry (legacy) behavior — validate and create
+        $data = $request->validate([
+            'shift_id' => 'nullable|exists:shift_dates,id',
+            'entry_type' => 'required|in:incident,observation,maintenance,visitor,other',
+            'title' => 'required|string',
+            'description' => 'required|string',
+            'media_files' => 'nullable|array',
+            'media_files.*' => 'nullable', // file upload or base64
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
+            'timestamp' => 'nullable|date',
         ]);
 
-        // Handle media files (like completeCheckCall)
-        foreach ($data['media_files'] ?? [] as $file) {
+        $created = $this->createApiDobEntryFromPayload($data, $user, $employee);
+
+        return response()->json(['entry_id' => $created['id'], 'message' => 'DOB entry created successfully'], 201);
+    }
+
+    /**
+     * Create an API DOB entry and handle media, notifications, logging.
+     * Returns basic created info.
+     */
+    private function createApiDobEntryFromPayload(array $payload, $user, $employee)
+    {
+        $entry = DobEntry::create([
+            'user_id' => $user->id,
+            'shift_id' => $payload['shift_id'],
+            'entry_type' => $payload['entry_type'],
+            'title' => $payload['title'],
+            'description' => $payload['description'],
+            'location' => json_encode($payload['location']),
+            'timestamp' => $payload['timestamp'] ?? Carbon::now(),
+        ]);
+
+        foreach ($payload['media_files'] ?? [] as $file) {
             $filePath = null;
 
             if ($file instanceof \Illuminate\Http\UploadedFile) {
@@ -102,23 +140,25 @@ class DobApiController extends Controller
             ]);
         }
 
-        Notify::toDashboard(
-            null,
-            'alert',
-            'DOB uploaded',
-            'DOB uploaded by guard ' . $employee->fore_name . ' ' . $employee->sur_name,
-            '/dobs'
-        );
+        try {
+            Notify::toDashboard(
+                null,
+                'alert',
+                'DOB uploaded',
+                'DOB uploaded by guard ' . $employee->fore_name . ' ' . $employee->sur_name,
+                '/dobs'
+            );
+        } catch (\Throwable $e) {
+            Log::error('DobApiController: dashboard notify failed: ' . $e->getMessage());
+        }
 
         try {
-            Logger::log($entry, 'Created', 'DOB entry created via API');
+            Logger::log($entry, 'Created', 'DOB entry created via API', $user);
         } catch (\Exception $e) {
             Log::error('Logger failed for DOB store: ' . $e->getMessage());
         }
-        return response()->json([
-            'entry_id' => $entry->id,
-            'message' => 'DOB entry created successfully',
-        ], 201);
+
+        return ['id' => $entry->id, 'shift_id' => $entry->shift_id];
     }
 
     public function index(Request $req)

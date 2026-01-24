@@ -1326,7 +1326,7 @@ public function getShifts(Request $request)
 
     $query->whereBetween('shift_dates.shift_date', [
         $request->from_shift ?? now()->subMonths(2),
-        $request->to_shift   ?? now()->addMonths(1),
+        $request->to_shift   ?? now()->addMonths(3),
     ]);
 
     /**

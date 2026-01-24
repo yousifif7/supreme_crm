@@ -1573,11 +1573,6 @@
         });
     });
 
-    // Debug: log what sites will be rendered (id, name, shift count)
-    try {
-        console.debug('renderGanttChart: filteredOrderedSites', filteredOrderedSites.map(s => ({ id: s.id, name: s.name, shifts: s.shifts.length })));
-    } catch (e) { /* ignore */ }
-
     // Header
     let headerHtml = `<div class="gantt-header">
         <div class="gantt-sidebar-header">Client Name</div>
@@ -1733,11 +1728,6 @@
                 } catch (e) {}
 
                 cell.append(bar);
-                // DEBUG: surface subcontractor attributes for troubleshooting
-                    try {
-                        const debugId = shift.id || shift.shift_id || shift.sd_id || shift.id;
-                        console.debug('GANTT BAR SUBCHECK ADDED', { shiftId: debugId, subId: subcontractorId || null, subName: subcontractorName || null });
-                    } catch (e) {}
 
                 // Ensure bar fills the grid cell and can shrink if needed
                 bar.css({

@@ -725,7 +725,7 @@
     @endphp
 
     @if ($currentUser->hasAnyRole('controller|staff_leader|control_room'))
-        <script src="{{ asset('assets/toast/alerts6.js') }}" defer></script>
+        <script src="{{ asset('assets/toast/alerts.js') }}" defer></script>
     @endif
 
     <script>

@@ -93,7 +93,7 @@ class UserController extends Controller
         
         // --- Users (latest locations) ---
         // Cache this expensive lookup for a short period (60s) to improve dashboard response
-        $cutoff24 = Carbon::now()->subDay();
+        $cutoff24 = Carbon::now()->subMinutes(60);
         $cacheKeyUsers = 'dashboard_user_locations_' . $cutoff24->toDateString();
         $userLocations = Cache::remember($cacheKeyUsers, 60, function () use ($cutoff24) {
             return Location::with([
@@ -127,7 +127,7 @@ class UserController extends Controller
 
         // --- Sites (pass postal codes only, no server-side geocoding) ---
         // Only include sites which have shifts with assigned staff in the last 7 days
-        $sevenDaysAgo = Carbon::now()->subDays(7)->startOfDay();
+        $sevenDaysAgo = Carbon::now()->subDays(1)->startOfDay();
         $sites = Site::query()
             ->select('sites.id', 'sites.site_name', 'sites.post_code', 'sites.address')
             ->join('shifts', 'shifts.site_id', '=', 'sites.id')
