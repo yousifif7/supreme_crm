@@ -16,15 +16,14 @@ class Logger
         try {
             $userObj = null;
 
-            // Prefer explicit user passed in, then request()->user(), then auth()->user()
-            if ($userParam instanceof \App\Models\User) {
+             if ($userParam instanceof \App\Models\User) {
                 $userObj = $userParam;
             } elseif (is_numeric($userParam)) {
                 $userObj = \App\Models\User::find($userParam);
             } elseif (function_exists('request') && request() && request()->user()) {
                 $userObj = request()->user();
             } else {
-                $userObj = auth()->user();
+                $userObj = null; // prefer System when no request user is available
             }
 
             if ($userObj) {

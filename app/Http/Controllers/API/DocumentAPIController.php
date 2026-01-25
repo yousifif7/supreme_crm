@@ -165,11 +165,16 @@ class DocumentAPIController extends Controller
             'driving_licence_file',
         ];
 
+        // Prefetch latest documents for all types in a single query to avoid
+        // issuing one query per document type in the loop.
+        $userDocs = $user->documents()
+            ->whereIn('document_type', $documentTypes)
+            ->orderByDesc('expiry_date')
+            ->get()
+            ->groupBy('document_type');
+
         foreach ($documentTypes as $type) {
-            $doc = $user->documents()
-                ->where('document_type', $type)
-                ->orderByDesc('expiry_date')
-                ->first();
+            $doc = $userDocs->get($type)?->first() ?? null;
 
             $expiryDate = null;
             // Prefer expiry date from the document row

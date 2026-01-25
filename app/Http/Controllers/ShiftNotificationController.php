@@ -61,8 +61,8 @@ class ShiftNotificationController extends BaseController
 
                     
 
-                    // Notify the guard
-                    $shiftDate = ShiftDate::find($patrol->shift_id);
+                    // Notify the guard (use eager-loaded relation when available)
+                    $shiftDate = $patrol->shift ?? null;
                     if ($shiftDate && $shiftDate->staff_id) {
                         send_push_notification(
                             $shiftDate->staff_id,
@@ -121,7 +121,8 @@ $missedBookOffs = ShiftDate::whereNotNull('staff_id')
 // --- Auto book-off: apply admin-like book_off for eligible shifts ---
 foreach ($missedBookOffs as $mb) {
     try {
-        $sd = ShiftDate::find($mb->id);
+        // $mb already contains selected ShiftDate fields; avoid extra lookup
+        $sd = $mb;
         if (!$sd) continue;
 
         // Only auto book-off if currently booked ON (is_assign == 3)
@@ -202,7 +203,8 @@ foreach ($missedBookOffs as $mb) {
                 continue;
             }
 
-            $employee = $staffMap[$sd->staff_id] ?? User::find($sd->staff_id);
+            // Use prefetched staff map; skip per-row lookup to avoid extra DB queries
+            $employee = $staffMap[$sd->staff_id] ?? null;
             if ($employee) {
                 try {
                     send_push_notification(
@@ -225,7 +227,8 @@ foreach ($missedBookOffs as $mb) {
                 continue;
             }
 
-            $employee = $staffMap[$sd->staff_id] ?? User::find($sd->staff_id);
+            // Use prefetched staff map; skip per-row lookup to avoid extra DB queries
+            $employee = $staffMap[$sd->staff_id] ?? null;
             if ($employee) {
                 try {
                     send_push_notification(
@@ -633,9 +636,6 @@ foreach ($missedBookOffs as $mb) {
                 }
             }
 
-            // Recent alerts handling (same as console command)
-            // Note: Push notifications are already sent in the individual alert type logic above
-            // This section only tracks alerts for visibility, not for sending notifications
             $recentKey = "recent_alerts:user:{$user->id}";
             $recent = Cache::get($recentKey, []);
 

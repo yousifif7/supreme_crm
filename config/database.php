@@ -60,11 +60,12 @@ return [
             'sticky' => true,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 PDO::MYSQL_ATTR_SSL_CA => env('MYSQL_ATTR_SSL_CA'),
-                PDO::ATTR_PERSISTENT => false,
+                // Allow controlling persistent connections via .env (default false)
+                PDO::ATTR_PERSISTENT => env('DB_PERSISTENT', false),
                 PDO::ATTR_EMULATE_PREPARES => true,
                 PDO::ATTR_TIMEOUT => 3,
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET SESSION wait_timeout=20, interactive_timeout=20",
+                PDO::MYSQL_ATTR_INIT_COMMAND => "SET SESSION wait_timeout=10, interactive_timeout=10",
             ]) : [],
         ],
 

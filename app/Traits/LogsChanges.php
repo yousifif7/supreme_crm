@@ -2,11 +2,44 @@
 
 namespace App\Traits;
 
+use App\Helpers\Logger;
 use App\Models\Log;
 use Illuminate\Support\Facades\Auth;
 
 trait LogsChanges
 {
+    /**
+     * Resolve the current actor performing the change.
+     * Prefer `request()->user()` (prevents stale Auth from long-running processes),
+     * then fall back to `Auth::user()`. Returns null when action is system/console.
+     *
+     * @return \Illuminate\Contracts\Auth\Authenticatable|null
+     */
+    private static function resolveActor()
+    {
+        try {
+            if (function_exists('request')) {
+                $req = request();
+                if ($req && method_exists($req, 'user')) {
+                    $u = $req->user();
+                    if ($u) return $u;
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
+
+        try {
+            if (\Illuminate\Support\Facades\Auth::check()) {
+                return \Illuminate\Support\Facades\Auth::user();
+            }
+        } catch (\Throwable $_) {
+            // ignore
+        }
+
+        return null;
+    }
+
     public static function bootLogsChanges()
     {
         $arrayValues = [
@@ -141,8 +174,9 @@ trait LogsChanges
                 $labels .= " for shift at {$site} on {$date}";
             }
 
-            if (Auth::check()) {
-                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            $actor = self::resolveActor();
+            if ($actor) {
+                $username = trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')) ?: ($actor->name ?? 'Unknown');
             } else {
                 $username = 'System';
             }
@@ -175,11 +209,21 @@ trait LogsChanges
                 $description .= " (CheckCall: {$ccName})";
             }
 
-            $model->logs()->create([
-                'user_name' => $username,
-                'action' => $actionTitle,
-                'description' => $description,
-            ]);
+            // Use central Logger helper so all logs follow the same format/resolution
+            try {
+                Logger::log($model, $actionTitle, $description);
+            } catch (\Throwable $_) {
+                // fallback: create directly if Logger fails
+                try {
+                    $model->logs()->create([
+                        'user_name' => $username,
+                        'action' => $actionTitle,
+                        'description' => $description,
+                    ]);
+                } catch (\Throwable $__) {
+                    // swallow to avoid breaking save
+                }
+            }
         });
 
         static::created(function ($model) {
@@ -215,8 +259,9 @@ trait LogsChanges
                 }
             }
 
-            if (Auth::check()) {
-                $username = Auth::user()->first_name . ' ' . Auth::user()->last_name;
+            $actor = self::resolveActor();
+            if ($actor) {
+                $username = trim(($actor->first_name ?? '') . ' ' . ($actor->last_name ?? '')) ?: ($actor->name ?? 'Unknown');
             } else {
                 $username = 'System';
             }
@@ -237,11 +282,20 @@ trait LogsChanges
                 $description .= " (CheckCall: {$ccName})";
             }
 
-            $model->logs()->create([
-                'user_name' => $username,
-                'action' => $actionTitle,
-                'description' => $description,
-            ]);
+            // Use central Logger helper so all logs follow the same format/resolution
+            try {
+                Logger::log($model, $actionTitle, $description);
+            } catch (\Throwable $_) {
+                try {
+                    $model->logs()->create([
+                        'user_name' => $username,
+                        'action' => $actionTitle,
+                        'description' => $description,
+                    ]);
+                } catch (\Throwable $__) {
+                    // swallow
+                }
+            }
         });
     }
 

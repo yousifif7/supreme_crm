@@ -41,6 +41,7 @@ class UserController extends Controller
         }
 
         $this->pruneOldNotifications();
+        $this->pruneOldLogs();
 
         
         // Today's shift dates: select only needed columns to reduce payload
@@ -425,7 +426,7 @@ class UserController extends Controller
         }
 
         try {
-            $old = \App\Models\Notification::where('created_at', '<', now()->subDays(15))->get();
+            $old = \App\Models\Notification::where('created_at', '<', now()->subDays(7))->get();
             $count = $old->count();
             if ($count > 0) {
                 foreach ($old as $n) {
@@ -440,6 +441,56 @@ class UserController extends Controller
         } catch (\Exception $e) {
             // swallow — pruning is best-effort; log for visibility
             \Log::error('Notification pruning failed: ' . $e->getMessage());
+        }
+
+        // create the lock file to mark pruning done for today (best-effort)
+        try {
+            $dir = dirname($lockFile);
+            if (!file_exists($dir)) {
+                \Illuminate\Support\Facades\File::makeDirectory($dir, 0755, true);
+            }
+            @file_put_contents($lockFile, now()->toDateTimeString());
+        } catch (\Exception $e) {
+            \Log::warning('Failed to create prune lock file: ' . $e->getMessage());
+        }
+    }
+
+    private function pruneOldLogs()
+    {
+        // Use a file-based lock in storage to avoid dependency on Cache driver availability
+        $lockFile = storage_path('app/pruned_logs_' . now()->format('Ymd') . '.lock');
+        if (file_exists($lockFile)) {
+            return; // already pruned today
+        }
+
+        $cutoff = now()->subDays(14)->toDateTimeString();
+        $batchSize = 1000; // delete in batches to avoid long locks / large transactions
+        $totalDeleted = 0;
+
+        try {
+            // Use direct table deletes (avoid Eloquent events and memory pressure)
+            do {
+                $ids = \DB::table('logs')
+                    ->where('created_at', '<', $cutoff)
+                    ->limit($batchSize)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (empty($ids)) {
+                    break;
+                }
+
+                $deleted = \DB::table('logs')->whereIn('id', $ids)->delete();
+                $totalDeleted += (int)$deleted;
+
+                // small pause to reduce IO pressure on very busy servers
+                usleep(150000); // 150ms
+            } while (count($ids) === $batchSize);
+
+            \Log::info("Pruned {$totalDeleted} log rows older than 14 days.");
+        } catch (\Exception $e) {
+            // best-effort
+            \Log::error('Prune old logs failed: ' . $e->getMessage());
         }
 
         // create the lock file to mark pruning done for today (best-effort)
