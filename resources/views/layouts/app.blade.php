@@ -380,12 +380,11 @@
 document.addEventListener('click', () => {
     if (!soundUnlocked) {
         const sound = document.getElementById('alert-sound');
-        sound.play().then(() => {
-            sound.pause();
-            sound.currentTime = 0;
-            soundUnlocked = true;
-            console.log('Alert sound unlocked for autoplay.');
-        }).catch(e => console.warn('Sound still blocked:', e));
+            sound.play().then(() => {
+                sound.pause();
+                sound.currentTime = 0;
+                soundUnlocked = true;
+            }).catch(e => {});
     }
 }, { once: true });
 
@@ -523,41 +522,8 @@ document.addEventListener('click', () => {
         // Handling notifications
         // Fetch unread notifications count & list (limit to 5 for dropdown)
         document.addEventListener('DOMContentLoaded', function() {
-            // 1. Mark a single notification as read when clicked
-            document.querySelectorAll('.notification-link').forEach(link => {
-                link.addEventListener('click', async function(e) {
-                    e.preventDefault();
-                    const id = this.dataset.id;
-                    const href = this.href || '';
-                    const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
-
-                    try {
-                        await fetch(`/notifications/${id}/read`, {
-                            method: 'POST',
-                            headers: {
-                                'Accept': 'application/json',
-                                'Content-Type': 'application/json',
-                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                            },
-                            credentials: 'same-origin'
-                        });
-
-                        if (m) {
-                            // open modal instead of navigating to a web route
-                            openProfileChangeModal(m[1]);
-                        } else {
-                            window.location.href = this.href;
-                        }
-                    } catch (err) {
-                        console.error('Failed to mark as read:', err);
-                        if (m) {
-                            openProfileChangeModal(m[1]);
-                        } else {
-                            window.location.href = this.href;
-                        }
-                    }
-                });
-            });
+            // Use event delegation to avoid duplicate listeners and improve performance
+            // This handles dynamically added notification links too
 
             // 2. Mark all as read
             document.addEventListener('DOMContentLoaded', function() {
@@ -653,11 +619,16 @@ document.addEventListener('click', () => {
             });
         });
 
-        // Poll notifications API every 1 minute and update bell + dropdown without reloading
+        // Poll notifications API every 2 minutes and update bell + dropdown without reloading
         (function setupNotificationPoller() {
-            const POLL_INTERVAL_MS = 5000; // 1 minute
+            const POLL_INTERVAL_MS = 120000; // 2 minutes (120 seconds)
 
             async function fetchNotifications() {
+                // Skip polling if page is hidden/minimized to save resources
+                if (document.hidden) {
+                    return;
+                }
+                
                 try {
                     const res = await fetch('/notifications/json?limit=25', {
                         credentials: 'same-origin',
@@ -773,12 +744,21 @@ document.addEventListener('click', () => {
                         }
                     }
 
-                    // Update dropdown list (replace contents of #notif-list)
+                    // Update dropdown list (replace contents of #notif-list) - only if dropdown is visible
                     const list = document.getElementById('notif-list');
-                    if (list) {
-                        list.innerHTML = '';
+                    const dropdown = document.querySelector('.notification-dropdown');
+                    
+                    // Only update DOM if dropdown is visible or about to be shown
+                    if (list && (!dropdown || dropdown.classList.contains('show') || window._forceNotificationUpdate)) {
+                        window._forceNotificationUpdate = false;
+                        
+                        const fragment = document.createDocumentFragment();
+                        
                         if (notifications.length === 0) {
-                            list.innerHTML = '<p class="text-muted">No new notifications</p>';
+                            const p = document.createElement('p');
+                            p.className = 'text-muted';
+                            p.textContent = 'No new notifications';
+                            fragment.appendChild(p);
                         } else {
                             notifications.forEach(n => {
                                     const item = document.createElement('div');
@@ -828,9 +808,13 @@ document.addEventListener('click', () => {
                                 });
 
                                 item.appendChild(a);
-                                list.appendChild(item);
+                                fragment.appendChild(item);
                             });
                         }
+                        
+                        // Use fragment to minimize reflows
+                        list.innerHTML = '';
+                        list.appendChild(fragment);
                     }
 
                     // Update notif count in header
@@ -846,9 +830,18 @@ document.addEventListener('click', () => {
             window.fetchNotifications = fetchNotifications;
 
             // Initial fetch shortly after load
-            setTimeout(fetchNotifications, 2000);
+            setTimeout(fetchNotifications, 3000);
             // Periodic polling
             setInterval(fetchNotifications, POLL_INTERVAL_MS);
+            
+            // When user opens notification dropdown, force update
+            const notifBell = document.getElementById('notificationBell');
+            if (notifBell) {
+                notifBell.addEventListener('click', function() {
+                    window._forceNotificationUpdate = true;
+                    setTimeout(() => fetchNotifications(), 100);
+                });
+            }
         })();
         
         // Expose manual trigger for SIA check (call from console or other scripts)
@@ -1017,75 +1010,30 @@ document.addEventListener('click', () => {
             }
         });
 
-        document.querySelectorAll('.notification-link').forEach(link => {
-            link.addEventListener('click', async function(e) {
-                e.preventDefault();
-                const id = this.dataset.id;
-                const href = this.href || '';
-                const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
-
-                try {
-                    const res = await fetch(`/notifications/${id}/read`, {
-                        method: 'POST',
-                        headers: {
-                            'Accept': 'application/json',
-                            'Content-Type': 'application/json',
-                            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
-                        },
-                        credentials: 'same-origin'
-                    });
-
-                    if (!res.ok) throw new Error('Failed to mark as read');
-
-                    // ✅ Update UI instantly
-                    const notifItem = this.closest('.notif-item');
-                    if (notifItem) {
-                        notifItem.classList.remove('unread');
-                        notifItem.classList.add('read');
-                    }
-
-                    const countElement = document.getElementById('notif-count');
-                    if (countElement) {
-                        countElement.textContent = Math.max(0, parseInt(countElement.textContent) - 1);
-                    }
-
-                    // ✅ Open modal for admin requests or redirect
-                    if (m) {
-                        openProfileChangeModal(m[1]);
-                    } else {
-                        window.location.href = this.href;
-                    }
-                } catch (err) {
-                    console.error('❌ Failed to mark as read:', err);
-                    if (m) {
-                        openProfileChangeModal(m[1]);
-                    } else {
-                        window.location.href = this.href; // fallback redirect
-                    }
-                }
-            });
-        });
+        // Removed duplicate event listeners - handled by delegated listener below
     </script>
     <script>
         (function setupShiftNotificationsTrigger() {
             const ENDPOINT = `${baseUrl}/process-shift-notifications`;
             const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const INTERVAL_MS = 1 * 60 * 1000; // 1 minute
-            const LOCK_TTL_MS = 50 * 1000; // avoid re-running within 50 seconds from another tab
+            const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
+            const LOCK_TTL_MS = 4 * 60 * 1000; // avoid re-running within 4 minutes from another tab
 
             async function triggerOnce(reason = 'manual') {
                 try {
+                    // Skip if page is hidden/minimized to save resources
+                    if (reason !== 'manual' && document.hidden) {
+                        return;
+                    }
+                    
                     const now = Date.now();
                     const lock = localStorage.getItem('processShiftNotifications:lock');
                     if (lock && (now - parseInt(lock, 10) < LOCK_TTL_MS)) {
-                        console.debug('shift-notifications: skipped due to recent lock');
                         return;
                     }
 
                     // Acquire lock
                     try { localStorage.setItem('processShiftNotifications:lock', now.toString()); } catch (e) { /* ignore */ }
-
-                    console.debug('shift-notifications: triggering (reason=' + reason + ')');
 
                     const res = await fetch(ENDPOINT, {
                         method: 'POST',
@@ -1100,13 +1048,10 @@ document.addEventListener('click', () => {
                     });
 
                     if (!res.ok) {
-                        const txt = await res.text().catch(() => null);
-                        console.error('shift-notifications: server error', res.status, txt);
                         return;
                     }
 
                     const json = await res.json().catch(() => ({}));
-                    console.debug('shift-notifications: response', json);
 
                     try { localStorage.setItem('processShiftNotifications:lastRun', Date.now().toString()); } catch (e) { /* ignore */ }
                 } catch (err) {
@@ -1115,7 +1060,7 @@ document.addEventListener('click', () => {
             }
 
             // Initial trigger shortly after load (give page a moment)
-            setTimeout(() => triggerOnce('initial'), 3000);
+            setTimeout(() => triggerOnce('initial'), 5000);
 
             // Periodic trigger every INTERVAL_MS
             setInterval(() => triggerOnce('interval'), INTERVAL_MS);
@@ -1126,7 +1071,7 @@ document.addEventListener('click', () => {
             // If another tab triggers, we can optionally react (not strictly necessary here)
             window.addEventListener('storage', (e) => {
                 if (e.key === 'processShiftNotifications:lastRun') {
-                    console.debug('shift-notifications: detected lastRun from other tab');
+                    // Tab synchronization
                 }
             });
         })();

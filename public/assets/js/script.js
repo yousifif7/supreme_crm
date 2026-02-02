@@ -12,12 +12,16 @@ Template Name: Smarthr - Bootstrap Admin Template
 	var $pageWrapper = $('.page-wrapper');
 	feather.replace();
 
-	// Page Content Height Resize
+	// Page Content Height Resize with debounce to reduce CPU usage
+	let resizeTimer;
 	$(window).resize(function () {
-		if ($('.page-wrapper').length > 0) {
-			var height = $(window).height();
-			$(".page-wrapper").css("min-height", height);
-		}
+		clearTimeout(resizeTimer);
+		resizeTimer = setTimeout(function() {
+			if ($('.page-wrapper').length > 0) {
+				var height = $(window).height();
+				$(".page-wrapper").css("min-height", height);
+			}
+		}, 150); // Debounce for 150ms
 	});
 
 	// Mobile menu sidebar overlay
@@ -194,10 +198,14 @@ Template Name: Smarthr - Bootstrap Admin Template
 		var wHeight = $(window).height() - 60;
 		$slimScrolls.height(wHeight);
 		$('.sidebar .slimScrollDiv').height(wHeight);
+		let slimScrollResizeTimer;
 		$(window).resize(function() {
-			var rHeight = $(window).height() - 60;
-			$slimScrolls.height(rHeight);
-			$('.sidebar .slimScrollDiv').height(rHeight);
+			clearTimeout(slimScrollResizeTimer);
+			slimScrollResizeTimer = setTimeout(function() {
+				var rHeight = $(window).height() - 60;
+				$slimScrolls.height(rHeight);
+				$('.sidebar .slimScrollDiv').height(rHeight);
+			}, 150); // Debounce for 150ms
 		});
 	}
 
@@ -228,7 +236,14 @@ Template Name: Smarthr - Bootstrap Admin Template
 
 	// Sidebar Initiate
 	init();
+	// Optimized mouseover with throttling to reduce CPU usage
+	let lastSidebarCheck = 0;
+	const sidebarCheckInterval = 100; // Check at most every 100ms
 	$(document).on('mouseover', function(e) {
+        const now = Date.now();
+        if (now - lastSidebarCheck < sidebarCheckInterval) return;
+        lastSidebarCheck = now;
+        
         e.stopPropagation();
         if ($('body').hasClass('mini-sidebar') && $('#toggle_btn').is(':visible')) {
             var targ = $(e.target).closest('.sidebar, .header-left').length;
@@ -253,18 +268,15 @@ Template Name: Smarthr - Bootstrap Admin Template
 		$('.sidebar-right ul a').on('click', function(e) {
 			if($(this).parent().hasClass('submenu')) {
 				e.preventDefault();
-				console.log("1");
 			}
 			if(!$(this).hasClass('subdrop')) {
 				$('ul', $(this).parents('ul:first')).slideUp(250);
 				$('a', $(this).parents('ul:first')).removeClass('subdrop');
 				$(this).next('ul').slideDown(350);
 				$(this).addClass('subdrop');
-				console.log("0");
 			} else if($(this).hasClass('subdrop')) {
 				$(this).removeClass('subdrop');
 				$(this).next('ul').slideUp(350);
-				console.log("3");
 			}
 		});
 		$('.sidebar-right ul li.submenu a.active').parents('li:last').children('a:first').addClass('active').trigger('click');
@@ -426,7 +438,6 @@ Template Name: Smarthr - Bootstrap Admin Template
 	$('ul.tabs li').on('click', function(){
 		var $this = $(this);
 		var $theTab = $(this).attr('id');
-		console.log($theTab);
 		if($this.hasClass('active')){
 		  // do nothing
 		} else{
@@ -737,6 +748,11 @@ function showDashboardAlert(type, message, route) {
 
 async function fetchDashboardAlerts() {
     try {
+        // Skip polling if page is hidden/minimized to save resources
+        if (document.hidden) {
+            return;
+        }
+        
         const response = await fetch(`${baseUrl}/api/dashboard-alerts`, {
             headers: {
                 'Accept': 'application/json',
@@ -826,6 +842,6 @@ function playAlertSound() {
     }
 }
 
-// Run immediately, then repeat every 60 seconds
-fetchDashboardAlerts();
-setInterval(fetchDashboardAlerts, 60000);
+// Run after initial load, then repeat every 3 minutes
+setTimeout(fetchDashboardAlerts, 8000);
+setInterval(fetchDashboardAlerts, 180000); // 3 minutes
