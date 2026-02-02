@@ -1630,6 +1630,7 @@ if ($now->lt($bookingOpensAt)) {
             }
         }
 
+        $username = $user->first_name . ' ' . $user->last_name;
         // Notify admin and the guard
         try {
             Notification::create([
@@ -1637,7 +1638,7 @@ if ($now->lt($bookingOpensAt)) {
                 'employee_id' => null,
                 'type' => 'alert',
                 'title' => 'Patrol media uploaded',
-                'message' => 'Media uploaded for patrol ID ' . $patrol->id,
+                'message' => $username . ' uploaded media for patrol (' . $patrol->name . ' )',
                 'read' => false,
                 'action_url' => "/shift-dates/{$patrol->shift_id}/view"
             ]);
