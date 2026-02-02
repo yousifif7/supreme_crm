@@ -93,37 +93,42 @@ class UserController extends Controller
 
         
         // --- Users (latest locations) ---
-        // Cache this expensive lookup for a short period (60s) to improve dashboard response
+        // Cache this expensive lookup for a short period (5m) to improve dashboard response
+        // Use a derived-table JOIN to let the database compute MAX(id) per user efficiently.
         $cutoff24 = Carbon::now()->subMinutes(60);
         $cacheKeyUsers = 'dashboard_user_locations_' . $cutoff24->toDateString();
-        $userLocations = Cache::remember($cacheKeyUsers, 60, function () use ($cutoff24) {
-            return Location::with([
-                'user:id,first_name,last_name',
-                'user.employee:id,user_id,service_type',
-            ])
+        $userLocations = Cache::remember($cacheKeyUsers, 300, function () use ($cutoff24) {
+            $latest = DB::table('locations')
+                ->selectRaw('user_id, MAX(id) as max_id')
+                ->whereNotNull('user_id')
+                ->where('created_at', '>=', $cutoff24)
+                ->groupBy('user_id');
+
+            $locations = Location::select('locations.id', 'locations.user_id', 'locations.latitude', 'locations.longitude', 'locations.accuracy', 'locations.on_duty', 'locations.created_at')
+                ->joinSub($latest, 'latest', function ($join) {
+                    $join->on('locations.id', '=', 'latest.max_id');
+                })
+                ->with([
+                    'user:id,first_name,last_name',
+                    'user.employee:id,user_id,service_type',
+                ])
                 ->whereNotNull('latitude')
                 ->whereNotNull('longitude')
-                ->whereIn('id', function ($query) use ($cutoff24) {
-                    $query->select(DB::raw('MAX(id)'))
-                        ->from('locations')
-                        ->whereNotNull('user_id')
-                        ->where('created_at', '>=', $cutoff24)
-                        ->groupBy('user_id');
-                })
-                ->get()
-                ->map(function ($l) {
-                    return [
-                        'id' => 'user-' . $l->user_id,
-                        'latitude' => (float) $l->latitude,
-                        'longitude' => (float) $l->longitude,
-                        'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
-                        'type' => 'user',
-                        'service_type_id' => optional(optional($l->user)->employee)->service_type,
-                        'accuracy' => $l->accuracy,
-                        'on_duty' => (bool) $l->on_duty,
-                        'timestamp' => optional($l->created_at)->toDateTimeString(),
-                    ];
-                });
+                ->get();
+
+            return $locations->map(function ($l) {
+                return [
+                    'id' => 'user-' . $l->user_id,
+                    'latitude' => (float) $l->latitude,
+                    'longitude' => (float) $l->longitude,
+                    'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
+                    'type' => 'user',
+                    'service_type_id' => optional(optional($l->user)->employee)->service_type,
+                    'accuracy' => $l->accuracy,
+                    'on_duty' => (bool) $l->on_duty,
+                    'timestamp' => optional($l->created_at)->toDateTimeString(),
+                ];
+            });
         });
 
         // --- Sites (pass postal codes only, no server-side geocoding) ---

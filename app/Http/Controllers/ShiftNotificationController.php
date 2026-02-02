@@ -7,6 +7,7 @@ use Illuminate\Routing\Controller as BaseController;
 use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
 use App\Models\User;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Patrol;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
@@ -17,7 +18,26 @@ class ShiftNotificationController extends BaseController
 {
     public function process(Request $request)
     {
-        
+        // Treat all actions here as executed by the system account (avoid attributing to an interactive user)
+        // Use `onceUsingId` so this applies only for the current request and does not persist session state.
+        try {
+            Auth::onceUsingId(1);
+        } catch (\Throwable $e) {
+            // If setting system user fails, continue without altering auth (best-effort)
+        }
+        // Ensure any logging or helpers that read the authenticated user's name
+        // will see a human-friendly "System" label (only in-memory, not persisted).
+        try {
+            $sys = Auth::user();
+            if ($sys) {
+                // set common name props used across the app
+                $sys->first_name = 'System';
+                $sys->last_name = '';
+                if (property_exists($sys, 'name')) $sys->name = 'System';
+            }
+        } catch (\Throwable $e) {
+            // ignore
+        }
 
         // Run missed/unassigned checks every minute (no hourly guard) so reminders and auto book-off fire promptly.
         $now = now();
@@ -364,7 +384,7 @@ foreach ($missedBookOffs as $mb) {
                                 $adminTitle = "Upcoming patrol for {$empName}";
                                 $adminMessage = "{$empName} has an upcoming patrol '{$patrol->name}' scheduled at {$patrol->start_time}.";
                                 $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
                                 
                             }
@@ -398,7 +418,7 @@ foreach ($missedBookOffs as $mb) {
                                 $adminTitle = "Patrol due for {$empName}";
                                 $adminMessage = "{$empName}'s patrol '{$patrol->name}' is due now at {$patrol->start_time}.";
                                 $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
                                 
                             }
@@ -434,7 +454,7 @@ foreach ($missedBookOffs as $mb) {
                                 $adminTitle = "Overdue patrol for {$empName}";
                                 $adminMessage = "{$empName}'s patrol '{$patrol->name}' is {$minutesOverdue} minutes overdue and not completed.";
                                 $actionUrl = '/shift-dates/' . $patrol->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
                                 
                             }
@@ -530,7 +550,7 @@ foreach ($missedBookOffs as $mb) {
                                 $adminTitle = "Upcoming check call for {$empName}";
                                 $adminMessage = "{$empName} has an upcoming check call '{$checkCall->name}' scheduled at {$checkCall->scheduled_time}.";
                                 $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
                                 
                             }
@@ -564,7 +584,7 @@ foreach ($missedBookOffs as $mb) {
                                 $adminTitle = "Check call completion reminder for {$empName}";
                                 $adminMessage = "{$empName} has 5 minutes to complete check call '{$checkCall->name}'.";
                                 $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                             } catch (\Exception $e) {
                                 
                             }

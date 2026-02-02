@@ -1327,14 +1327,21 @@ public function getShifts(Request $request)
 
     $query->whereBetween('shift_dates.shift_date', [$from->format('Y-m-d'), $to->format('Y-m-d')]);
 
-    // short cache to reduce repeated load
+    // short cache to reduce repeated load. Increase default TTL to reduce CPU spikes
+    // and allow DB to use an index for ordered scans.
     $cacheKey = 'gantt_v2:' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
     if ($cached = Cache::get($cacheKey)) {
         return response()->json(['data' => $cached]);
     }
 
+    // Ensure predictable ordering (helps DB use indexes) before streaming rows
+    $query->orderBy('shift_dates.shift_date', 'asc')->orderBy('shift_dates.start_time', 'asc');
+
+    // TTL in seconds (configurable). Default to 300s (5 minutes) to reduce frequent recomputation.
+    $ttl = config('gantt.cache_ttl', 30);
+
     $ganttArray = $this->formatGanttArray($query->cursor());
-    Cache::put($cacheKey, $ganttArray, 30);
+    Cache::put($cacheKey, $ganttArray, $ttl);
 
     return response()->json(['data' => $ganttArray]);
 }

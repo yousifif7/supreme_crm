@@ -526,7 +526,7 @@ document.addEventListener('click', () => {
             // This handles dynamically added notification links too
 
             // 2. Mark all as read
-            document.addEventListener('DOMContentLoaded', function() {
+            (function() {
                 const markAllBtn = document.getElementById('mark-all-read');
                 const form = document.getElementById('markAllForm');
 
@@ -561,8 +561,7 @@ document.addEventListener('click', () => {
                         }
                     });
                 }
-            });
-
+            })();
 
             // 3. Mark selected as read
             document.getElementById('mark-selected-read')?.addEventListener('click', async function(
@@ -621,7 +620,7 @@ document.addEventListener('click', () => {
 
         // Poll notifications API every 2 minutes and update bell + dropdown without reloading
         (function setupNotificationPoller() {
-            const POLL_INTERVAL_MS = 120000; // 2 minutes (120 seconds)
+            const POLL_INTERVAL_MS = 15000; // 15 seconds
 
             async function fetchNotifications() {
                 // Skip polling if page is hidden/minimized to save resources
@@ -781,31 +780,7 @@ document.addEventListener('click', () => {
 
                                 a.innerHTML = '<div class="d-flex"><div><p class="mb-1"><span class="fw-semibold"><b>' + (n.title || '') + ':</b></span> ' + (n.message || '') + '</p><span class="text-muted small">' + (new Date(n.created_at).toLocaleString()) + '</span></div></div>';
 
-                                // clicking should mark read and navigate — attach handler
-                                a.addEventListener('click', async function (e) {
-                                    e.preventDefault();
-                                    const id = this.dataset.id;
-                                    const href = this.href || '';
-                                    const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
-                                    try {
-                                        await fetch(`/notifications/${id}/read`, {
-                                            method: 'POST',
-                                            headers: {
-                                                'Accept': 'application/json',
-                                                'Content-Type': 'application/json',
-                                                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
-                                            },
-                                            credentials: 'same-origin'
-                                        });
-                                    } catch (err) {
-                                        console.warn('Failed to mark notif read', err);
-                                    }
-                                    if (m) {
-                                        openProfileChangeModal(m[1]);
-                                    } else {
-                                        window.location.href = this.href;
-                                    }
-                                });
+                                // click handling is delegated globally to avoid per-item listeners
 
                                 item.appendChild(a);
                                 fragment.appendChild(item);
@@ -921,20 +896,56 @@ document.addEventListener('click', () => {
             }
         }
 
-        // Delegated click handler for notification links that point to profile-change requests
-        document.addEventListener('click', function(e) {
-            const target = e.target.closest && e.target.closest('.notification-link');
-            if (!target) return;
-            const href = target.getAttribute('href') || '';
-            const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
-            if (m) {
-                // prevent default behavior and open modal
-                e.preventDefault();
-                e.stopImmediatePropagation();
-                const id = m[1];
-                openProfileChangeModal(id);
-            }
-        });
+                // Delegated click handler for notification links (marks read, then navigates or opens modal)
+                document.addEventListener('click', async function(e) {
+                    const target = e.target.closest && e.target.closest('.notification-link');
+                    if (!target) return;
+
+                    const href = target.getAttribute('href') || '';
+                    const id = target.dataset?.id;
+                    const m = href.match(/\/admin\/profile-change-requests\/(\d+)/);
+
+                    // prevent default navigation; we'll handle it after marking read
+                    e.preventDefault();
+                    e.stopImmediatePropagation();
+
+                    // mark notification as read (best-effort)
+                    try {
+                        if (id) {
+                            await fetch(`/notifications/${id}/read`, {
+                                method: 'POST',
+                                headers: {
+                                    'Accept': 'application/json',
+                                    'Content-Type': 'application/json',
+                                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                                },
+                                credentials: 'same-origin'
+                            });
+                        }
+                    } catch (err) {
+                        console.warn('Failed to mark notif read', err);
+                    }
+
+                    // Update UI immediately
+                    const row = target.closest('.notif-item');
+                    const wasUnread = row && row.classList.contains('unread');
+                    if (row) {
+                        row.classList.remove('unread');
+                        row.classList.add('read');
+                    }
+                    const countSpan = document.getElementById('notif-count');
+                    if (countSpan && wasUnread) {
+                        const cur = parseInt(countSpan.textContent) || 0;
+                        countSpan.textContent = Math.max(0, cur - 1);
+                    }
+
+                    if (m) {
+                        openProfileChangeModal(m[1]);
+                    } else {
+                        // navigate to target href
+                        try { window.location.href = href; } catch (e) { console.warn('Navigation failed', e); }
+                    }
+                });
 
         // Approve / Deny flow
         let pendingAction = null; // {type: 'approve'|'deny', id}
@@ -1016,8 +1027,8 @@ document.addEventListener('click', () => {
         (function setupShiftNotificationsTrigger() {
             const ENDPOINT = `${baseUrl}/process-shift-notifications`;
             const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-            const INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-            const LOCK_TTL_MS = 4 * 60 * 1000; // avoid re-running within 4 minutes from another tab
+            const INTERVAL_MS = 2 * 60 * 1000; // 2 minutes
+            const LOCK_TTL_MS = 1 * 60 * 1000; // avoid re-running within 1 minute from another tab
 
             async function triggerOnce(reason = 'manual') {
                 try {
