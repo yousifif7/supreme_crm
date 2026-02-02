@@ -488,7 +488,7 @@ foreach ($missedBookOffs as $mb) {
                             $emp = $user->employee;
                             $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                             $adminTitle = "Overdue patrol for {$empName}";
-                            $adminMessage = "{$empName}'s patrol '{$patrol->name}' is overdue and not completed.";
+                            $adminMessage = "{$empName}'s patrol '{$patrol->name}' is overdue and Marked as missed.";
                             $actionUrl = '/shift-dates/' . ($patrol->shift->id ?? $patrol->shift_id) . '/view';
                             Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                         } catch (\Exception $e) {
