@@ -40,6 +40,9 @@ class UserController extends Controller
             return redirect()->route('client.dashboard');
         }
 
+        // Lightweight instrumentation: measure dashboard duration
+        $dashboardStart = microtime(true);
+
         $this->pruneOldNotifications();
         $this->pruneOldLogs();
 
@@ -158,6 +161,8 @@ class UserController extends Controller
         });
 
         $this->weeklyHoursNotification();
+
+        \Log::info('dashboard total duration: ' . round(microtime(true) - $dashboardStart, 3) . 's');
 
         // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
@@ -390,26 +395,30 @@ class UserController extends Controller
         $weekStart = $today->copy()->startOfWeek(\Carbon\Carbon::MONDAY)->format('Y-m-d');
         $weekEnd   = $today->copy()->endOfWeek(\Carbon\Carbon::SUNDAY)->format('Y-m-d');
 
-        $guards = \App\Models\Employee::where('sia_status', 'Active')
-            ->orWhere('sia_status', 'valid')
-            ->get();
+        // Fetch guards (with entity) and aggregated hours in two queries (avoid N+1)
+        $guards = \App\Models\Employee::where(function ($q) {
+            $q->where('sia_status', 'Active')->orWhere('sia_status', 'valid');
+        })->with('entity')->get()->keyBy('user_id');
 
-        foreach ($guards as $staff) {
+        $hoursAgg = \DB::table('shift_dates')
+            ->select('staff_id', \DB::raw('SUM(total_hours) as total_week'))
+            ->whereBetween('shift_date', [$weekStart, $weekEnd])
+            ->groupBy('staff_id')
+            ->get()
+            ->keyBy('staff_id');
+
+        foreach ($guards as $userId => $staff) {
             $entity = $staff->entity;
             $minWeeklyHours = $entity->hour_per_week ?? 40;
 
-            $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staff->user_id)
-                ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                ->sum('total_hours');
+            $totalWeekHours = isset($hoursAgg[$userId]) ? (float)$hoursAgg[$userId]->total_week : 0;
 
             if ($totalWeekHours < $minWeeklyHours) {
-                $expectedHours = $totalWeekHours;
-
                 Notify::toDashboard(
                     null,
                     'alert',
                     'Worked Hours',
-                    "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                    "Guard {$staff->fore_name} {$staff->sur_name} has only {$totalWeekHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
                     "#"
                 );
             }
@@ -431,18 +440,41 @@ class UserController extends Controller
         }
 
         try {
-            $old = \App\Models\Notification::where('created_at', '<', now()->subDays(7))->get();
-            $count = $old->count();
-            if ($count > 0) {
-                foreach ($old as $n) {
-                    try {
-                        $n->forceDelete();
-                    } catch (\Exception $ex) {
-                        \Log::warning('Failed to forceDelete notification id ' . $n->id . ': ' . $ex->getMessage());
-                    }
-                }
-                \Log::info("Pruned {$count} notifications older than 15 days.");
+            $cutoff = now()->subDays(7)->toDateTimeString();
+
+            // If there are too many rows, avoid doing heavy deletes inside request
+            $estimate = \DB::table('notifications')->where('created_at', '<', $cutoff)->count();
+            if ($estimate === 0) {
+                // nothing to do
+                return;
             }
+
+            if ($estimate > 5000) {
+                \Log::warning('Skipping notifications prune in-request: too many rows (' . $estimate . ').');
+                return;
+            }
+
+            $batchSize = 1000;
+            $totalDeleted = 0;
+            do {
+                $ids = \DB::table('notifications')
+                    ->where('created_at', '<', $cutoff)
+                    ->limit($batchSize)
+                    ->pluck('id')
+                    ->toArray();
+
+                if (empty($ids)) {
+                    break;
+                }
+
+                $deleted = \DB::table('notifications')->whereIn('id', $ids)->delete();
+                $totalDeleted += (int)$deleted;
+
+                // small pause to reduce IO pressure on very busy servers
+                usleep(100000); // 100ms
+            } while (count($ids) === $batchSize);
+
+            \Log::info("Pruned {$totalDeleted} notifications older than 7 days.");
         } catch (\Exception $e) {
             // swallow — pruning is best-effort; log for visibility
             \Log::error('Notification pruning failed: ' . $e->getMessage());

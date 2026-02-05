@@ -249,7 +249,34 @@ function send_push_notification($userId, $title, $message, $data = [])
         return false;
     }
 
+    // Limit number of tokens processed per request to avoid long-running web requests
+    $maxPerRequest = 50;
+    $processed = 0;
+
     foreach ($devices as $token) {
+        if ($processed >= $maxPerRequest) {
+            \Log::warning('Push Notification: Reached per-request processing limit', [
+                'user_id' => $userId,
+                'requested' => count($devices),
+                'processed' => $processed,
+                'max' => $maxPerRequest,
+            ]);
+            break;
+        }
+
+        // Basic token validation: only send Expo-format tokens via Expo endpoint
+        if (!is_string($token) || trim($token) === '') {
+            continue;
+        }
+
+        if (!\Illuminate\Support\Str::startsWith($token, 'ExponentPushToken[')) {
+            \Log::info('Push Notification: Skipping non-Expo token (store for other providers)', [
+                'user_id' => $userId,
+                'token' => $token,
+            ]);
+            continue;
+        }
+
         $payload = [
             "to" => $token,
             "sound" => "default",
@@ -265,6 +292,7 @@ function send_push_notification($userId, $title, $message, $data = [])
         ]);
 
         try {
+            $start = microtime(true);
             $ch = curl_init("https://exp.host/--/api/v2/push/send");
             curl_setopt($ch, CURLOPT_POST, true);
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -274,32 +302,47 @@ function send_push_notification($userId, $title, $message, $data = [])
                 "Authorization: Bearer " . env("EXPO_ACCESS_TOKEN"),
             ]);
             curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
+            // Small timeouts to avoid blocking for long
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
 
             $response = curl_exec($ch);
             $status   = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
             curl_close($ch);
+            $duration = round(microtime(true) - $start, 3);
 
             if ($status !== 200) {
                 \Log::error("Push Notification: Expo returned error", [
                     "user_id" => $userId,
                     "token"   => $token,
                     "status"  => $status,
-                    "body"    => $response
+                    "duration" => $duration,
+                    "body"    => $response,
+                    'curl_error' => $curlErr,
                 ]);
             } else {
-                $responseData = json_decode($response, true);
-                
+                $responseData = json_decode($response, true) ?: [];
+
                 \Log::info("Push Notification: Successfully sent", [
                     "user_id" => $userId,
                     "token"   => $token,
+                    "duration" => $duration,
                     "response" => $responseData
                 ]);
-                
-                // Check if Expo reports this token as invalid
+
+                // Handle different response shapes: array-of-results or single data object
+                $errorType = null;
+
                 if (isset($responseData['data'][0]['status']) && $responseData['data'][0]['status'] === 'error') {
                     $errorDetails = $responseData['data'][0]['details'] ?? [];
-                    $errorType = $errorDetails['error'] ?? '';
-                    
+                    $errorType = $errorDetails['error'] ?? null;
+                } elseif (isset($responseData['data']['status']) && $responseData['data']['status'] === 'error') {
+                    $errorDetails = $responseData['data']['details'] ?? [];
+                    $errorType = $errorDetails['error'] ?? null;
+                }
+
+                if ($errorType) {
                     // Remove invalid tokens (DeviceNotRegistered means token expired or app uninstalled)
                     if (in_array($errorType, ['DeviceNotRegistered', 'InvalidCredentials', 'MessageTooBig', 'MessageRateExceeded'])) {
                         \Log::warning("Push Notification: Removing invalid token", [
@@ -307,7 +350,7 @@ function send_push_notification($userId, $title, $message, $data = [])
                             "token"   => $token,
                             "error"   => $errorType
                         ]);
-                        
+
                         \App\Models\DeviceToken::where('push_token', $token)->delete();
                     }
                 }
@@ -319,6 +362,8 @@ function send_push_notification($userId, $title, $message, $data = [])
                 "error"   => $e->getMessage()
             ]);
         }
+
+        $processed++;
     }
 
     // Save notification in DB once, outside the loop

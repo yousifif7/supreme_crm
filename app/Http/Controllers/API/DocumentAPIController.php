@@ -145,6 +145,11 @@ class DocumentAPIController extends Controller
     {
         $user = $request->user();
         Log::info("Alerts endpoint called", ['user_id' => $user->id, 'user_name' => $user->name ?? $user->first_name]);
+        // Fast-response cache: avoid recomputing alerts for frequent polling
+        $cacheResponseKey = "alerts:response:user:{$user->id}";
+        if (Cache::has($cacheResponseKey)) {
+            return response()->json(['alerts' => Cache::get($cacheResponseKey)]);
+        }
         
         $alerts = [];
         $cooldownMinutes = 15; // show alerts for 15 minutes after first shown
@@ -562,6 +567,13 @@ class DocumentAPIController extends Controller
             if (isset($r['_uid'])) unset($r['_uid']);
             if (isset($r['_first_shown'])) unset($r['_first_shown']);
             $result[] = $r;
+        }
+
+        // Cache the computed result for a short time to smooth frequent polling
+        try {
+            Cache::put($cacheResponseKey, $result, now()->addSeconds(8));
+        } catch (\Throwable $e) {
+            Log::warning('Failed to cache alerts response: ' . $e->getMessage());
         }
 
         return response()->json(['alerts' => $result]);
