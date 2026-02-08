@@ -1381,7 +1381,25 @@
                         // normalize payload: some endpoints return { data: [...] } others return array directly
                         const payload = response.data || response.shift_dates || response || [];
 
-                        allShiftsData = payload;
+                        // Normalize payload so frontend filtering can rely on stable top-level keys.
+                        allShiftsData = (payload || []).map(s => {
+                            const out = Object.assign({}, s);
+
+                            // client id: prefer top-level, then embedded shift.client_id, then shift.site.client_id
+                            out.client_id = out.client_id || out.clientId || (out.shift && out.shift.client_id) || (out.shift && out.shift.client && out.shift.client.id) || (out.shift && out.shift.site && out.shift.site.client_id) || (out.client && out.client.id) || out.client || null;
+
+                            // site id/name: prefer top-level, then embedded shift.site_id / shift.site
+                            out.site_id = out.site_id || out.siteId || (out.shift && out.shift.site_id) || (out.shift && out.shift.site && out.shift.site.id) || (out.site && out.site.id) || out.site || null;
+                            out.site_name = out.site_name || out.siteName || (out.shift && out.shift.site && (out.shift.site.site_name || out.shift.site.name)) || out.site_name || out.siteName || null;
+
+                            // start date: prefer several possible names
+                            out.start_date = out.start_date || out.shift_date || out.shiftStart || out.startDate || (out.shift && out.shift.shift_date) || (out.shift && out.shift.start_date) || null;
+
+                            // client display name
+                            out.client_name = out.client_name || out.clientName || (out.shift && out.shift.client_name) || out.client_name || null;
+
+                            return out;
+                        });
                         // keep global copy in sync
                         window.allShiftsData = allShiftsData;
                         renderCurrentView();
@@ -1998,23 +2016,36 @@
                     window._ganttCurrentFilters = filters;
 
                     const filteredShifts = allShiftsData.filter(shift => {
-                        if (filters.staff && parseInt(shift.staff_id) !== parseInt(filters.staff))
+                        // Normalize possible field name variations (backend may return different keys)
+                        const shiftStaffId = shift.staff_id || shift.staffId || shift.staff || null;
+                        const shiftClientId = shift.client_id || shift.clientId || shift.client || null;
+                        const shiftSiteId = shift.site_id || shift.siteId || shift.site || null;
+                        const shiftStatus = (typeof shift.status !== 'undefined') ? shift.status : (shift.state || null);
+                        const shiftStartRaw = shift.start_date || shift.shift_date || shift.startDate || shift.start || null;
+
+                        if (filters.staff && parseInt(shiftStaffId) !== parseInt(filters.staff))
                             return false;
-                        // Check both client_id and clientId field names
+
                         if (filters.client_id) {
-                            const shiftClientId = shift.client_id ?? shift.clientId;
-                            if (parseInt(shiftClientId) !== parseInt(filters.client_id)) 
+                            if (shiftClientId === null || parseInt(shiftClientId) !== parseInt(filters.client_id))
                                 return false;
                         }
-                        if (filters.site && parseInt(shift.site_id) !== parseInt(filters.site))
+
+                        if (filters.site) {
+                            if (shiftSiteId === null || parseInt(shiftSiteId) !== parseInt(filters.site))
+                                return false;
+                        }
+
+                        if (filters.status && (shiftStatus === null || parseInt(shiftStatus) !== parseInt(filters.status)))
                             return false;
-                        if (filters.status && parseInt(shift.status) !== parseInt(filters.status))
+
+                        // Date comparisons: coerce to Date using normalized possible fields
+                        const shiftStart = shiftStartRaw ? new Date(shiftStartRaw) : null;
+                        if (filters.from_shift && shiftStart && shiftStart < new Date(filters.from_shift))
                             return false;
-                        const shiftStart = new Date(shift.start_date);
-                        if (filters.from_shift && shiftStart < new Date(filters.from_shift))
+                        if (filters.to_shift && shiftStart && shiftStart > new Date(filters.to_shift))
                             return false;
-                        if (filters.to_shift && shiftStart > new Date(filters.to_shift))
-                            return false;
+
                         return true;
                     });
 

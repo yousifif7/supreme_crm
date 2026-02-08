@@ -74,7 +74,8 @@ class InvoiceService
                     $hourlyRate = $sd->guard_rate ?? $siteRate;
                     $computed = [];
                     try {
-                        $computed = $this->processShiftDate($sd, $hourlyRate);
+                        // For client-facing debug we compute using scheduled shift hours
+                        $computed = $this->processShiftDate($sd, $hourlyRate, true);
                     } catch (\Throwable $e) {
                         $computed = ['error' => $e->getMessage()];
                     }
@@ -113,7 +114,8 @@ class InvoiceService
         foreach ($shiftDates as $shiftDate) {
             $hourlyRate = $shiftDate->shift->site_rate ?? $shiftDate->guard_rate ;
             
-            $item = $this->processShiftDate($shiftDate, $hourlyRate);
+            // For client invoices, bill based on scheduled shift times (ignore book on/off)
+            $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
             $invoiceItems[] = $item;
 
             $totalHours += $item['hours'] + $item['break_hours'] + $item['book_on_hours'] + $item['book_off_hours'];
@@ -212,7 +214,8 @@ class InvoiceService
         foreach ($grouped as $siteId => $datesForSite) {
             foreach ($datesForSite as $shiftDate) {
                 $hourlyRate = ($shiftDate->shift->site_rate ?? $client->office_rate) ?? $shiftDate->guard_rate;
-                $item = $this->processShiftDate($shiftDate, $hourlyRate);
+                // For client invoices across sites, bill based on scheduled shift times
+                $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
                 $invoiceItems[] = $item;
 
                 $totalHours += $item['hours'] + $item['break_hours'] + $item['book_on_hours'] + $item['book_off_hours'];
@@ -500,7 +503,7 @@ class InvoiceService
         return $invoice;
     }
 
-    protected function processShiftDate($shiftDate, $hourlyRate)
+    protected function processShiftDate($shiftDate, $hourlyRate, $useScheduledHours = false)
     {
         // Normalize shift_date string defensively — handle malformed day/month ordering
         $rawDate = (string) ($shiftDate->shift_date ?? '');
@@ -541,32 +544,36 @@ class InvoiceService
         $bookOnHours = 0;
         $bookOffHours = 0;
 
-        // Compute absentee (book on) hours if within the shift
-if (! empty($shiftDate->absentee_start_time)) {
-    $absStart = Carbon::createFromFormat(
-        'Y-m-d H:i:s',
-        $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time
-    );
+        // Compute absentee (book on/off) hours only when we are billing using actual attendance.
+        // For client invoices we want to bill based on the scheduled shift times, so callers
+        // can pass $useScheduledHours = true to ignore these deductions.
+        if (! $useScheduledHours) {
+            // Compute absentee (book on) hours if within the shift
+            if (! empty($shiftDate->absentee_start_time)) {
+                $absStart = Carbon::createFromFormat(
+                    'Y-m-d H:i:s',
+                    $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time
+                );
 
-    $graceStart = $start->copy()->subMinutes(15);
+                $graceStart = $start->copy()->subMinutes(15);
 
-    if ($absStart->between($graceStart, $end)) {
-        if ($absStart->lt($start)) {
-            // Early but within grace → no deduction
-            $bookOnHours = 0;
-        } elseif ($absStart->gt($start)) {
-            // Late → deduct from scheduled start
-            $bookOnHours = $start->diffInMinutes($absStart) / 60;
-        }
-    }
-}
+                if ($absStart->between($graceStart, $end)) {
+                    if ($absStart->lt($start)) {
+                        // Early but within grace → no deduction
+                        $bookOnHours = 0;
+                    } elseif ($absStart->gt($start)) {
+                        // Late → deduct from scheduled start
+                        $bookOnHours = $start->diffInMinutes($absStart) / 60;
+                    }
+                }
+            }
 
-
-        // Compute absentee (book off) hours if within the shift
-        if (! empty($shiftDate->absentee_end_time)) {
-            $absEnd = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
-            if ($absEnd->between($start, $end)) {
-                $bookOffHours = $absEnd->diffInMinutes($end) / 60;
+            // Compute absentee (book off) hours if within the shift
+            if (! empty($shiftDate->absentee_end_time)) {
+                $absEnd = Carbon::createFromFormat('Y-m-d H:i:s', $date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
+                if ($absEnd->between($start, $end)) {
+                    $bookOffHours = $absEnd->diffInMinutes($end) / 60;
+                }
             }
         }
 

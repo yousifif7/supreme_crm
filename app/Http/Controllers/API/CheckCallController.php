@@ -129,6 +129,8 @@ class CheckCallController extends Controller
             'location' => $resolvedAddress ?? ($shiftdate->shift->site->address ?? 'N/A')
         ];
         // Handle media files
+        // Collect processed file full paths so we can optionally return them as a download
+        $processedFiles = [];
         foreach ($data['media_files'] ?? [] as $file) {
             $filePath = null;
             $originalName = null;
@@ -217,6 +219,15 @@ class CheckCallController extends Controller
                 'original_name' => $originalName,
                 'file_size' => filesize($fullPath), // Store compressed file size
             ]);
+
+            // After processing, include the main file and any metadata created by timestamping
+            if (file_exists($fullPath)) {
+                $processedFiles[] = $fullPath;
+            }
+            $metaPath = $fullPath . '.metadata.txt';
+            if (file_exists($metaPath)) {
+                $processedFiles[] = $metaPath;
+            }
         }
 
         // Update check call - explicitly preserve scheduled_time
@@ -251,6 +262,34 @@ class CheckCallController extends Controller
 
         } catch (\Exception $e) {
             Log::error('Notification failed: ' . $e->getMessage());
+        }
+
+        // If any media was processed, return it directly so mobile downloads automatically.
+        if (count($processedFiles) > 0) {
+            // Single file -> return file directly
+            if (count($processedFiles) === 1) {
+                $single = $processedFiles[0];
+                if (file_exists($single)) {
+                    $name = basename($single);
+                    return response()->download($single, $name);
+                }
+            }
+
+            // Multiple files -> create ZIP and return
+            $zipName = 'checkcall_' . $checkCall->id . '_' . time() . '.zip';
+            $zipPath = public_path('check_calls/' . $zipName);
+
+            $zip = new \ZipArchive();
+            if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
+                foreach ($processedFiles as $p) {
+                    if (file_exists($p)) {
+                        $zip->addFile($p, basename($p));
+                    }
+                }
+                $zip->close();
+
+                return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
+            }
         }
 
         return response()->json([

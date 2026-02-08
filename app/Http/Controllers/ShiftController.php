@@ -1264,7 +1264,8 @@ public function getShifts(Request $request)
             'shifts.service_type_1',
             'shifts.service_type_2',
 
-            'clients.id as client_id',
+            // Return the parent shift's client identifier (this is the user's id stored on shifts.client_id)
+            'shifts.client_id as client_id',
             'clients.client_name',
 
             'sites.site_name',
