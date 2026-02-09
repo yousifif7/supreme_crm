@@ -851,6 +851,71 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
+
+
+                                    // bind specifically to the Multi-Edit modal's controls to avoid
+                                    // collisions with other modals that reuse the same IDs
+                                    const modal = document.getElementById('multiEditModal');
+                        if (!modal) return;
+
+                        const staffSelect = modal.querySelector('#staff_id');
+                        const subSelect = modal.querySelector('#subcontractor');
+
+                        // global helper so delegated listeners work even if elements are initialised later
+                        window.fetchSubcontractorsForModal = window.fetchSubcontractorsForModal || function(modalEl, userId) {
+                            try {
+                                console.log('multi-edit: fetchSubcontractorsForModal', userId);
+                                if (!modalEl) return;
+                                const sub = modalEl.querySelector('#subcontractor');
+                                if (!sub) return;
+                                // reset
+                                sub.innerHTML = '<option value="">--choose--</option>';
+                                if (!userId) return;
+
+                                fetch(`/subcontractors/for-employee/${userId}`)
+                                    .then(function (res) { return res.json(); })
+                                    .then(function (json) {
+                                        const rows = (json && json.data) ? json.data : [];
+                                        rows.forEach(function (r) {
+                                            const opt = document.createElement('option');
+                                            opt.value = r.id ?? r.user_id ?? '';
+                                            const name = (r.first_name ?? r.company_name ?? '') + (r.last_name ? ' ' + r.last_name : '');
+                                            opt.textContent = name || (r.email ?? '');
+                                            sub.appendChild(opt);
+                                        });
+
+                                        if (window.jQuery && jQuery(sub).data('select2')) {
+                                            jQuery(sub).trigger('change');
+                                        }
+                                    })
+                                    .catch(function (err) {
+                                        console.error('Failed to load subcontractors for employee', err);
+                                    });
+                            } catch (e) {
+                                console.error('fetchSubcontractorsForModal error', e);
+                            }
+                        };
+
+                        // Delegated native change listener (catches dynamic elements)
+                        document.addEventListener('change', function(e) {
+                            const el = e.target;
+                            if (!el) return;
+                            if (el.id === 'staff_id') {
+                                const m = el.closest('#multiEditModal');
+                                if (m) window.fetchSubcontractorsForModal(m, el.value);
+                            }
+                        });
+
+                        // Delegated Select2 listener via jQuery
+                        try {
+                            if (window.jQuery) {
+                                jQuery(document).on('select2:select', '#multiEditModal #staff_id', function() {
+                                    const m = jQuery(this).closest('#multiEditModal')[0];
+                                    window.fetchSubcontractorsForModal(m, jQuery(this).val());
+                                });
+                            }
+                        } catch (e) {}
+
             // Persist current filters so background refreshes don't reset user's view
             window._ganttCurrentFilters = window._ganttCurrentFilters || {};
 

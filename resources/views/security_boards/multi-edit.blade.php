@@ -41,6 +41,16 @@
                                             </div>
                                         </div>
 
+                                        <div class="col-md-4">
+                                            <div class="mb-3">
+                                                <label class="form-label">Subcontractor</label>
+                                                <select name="subcontractor_id" id="subcontractor" class="form-select SubcontractorSelectEdit">
+                                                    <option value="">--choose--</option>
+                                                </select>
+                                                <span class="text-danger form-error" id="error_subcontractor_id"></span>
+                                            </div>
+                                        </div>
+
                                         <!-- Shift Date -->
                                         <div class="col-md-4">
                                             <div class="mb-3">
@@ -103,8 +113,8 @@
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
                             <button type="submit" class="btn btn-primary">Assign</button>
                         </div>
+                        </div>
                     </div>
-                </div>
             </form>
         </div>
     </div>

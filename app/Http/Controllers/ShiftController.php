@@ -2114,38 +2114,82 @@ public function getTodayShifts()
         $employee = \App\Models\Employee::where('user_id', $id)->first();
 
         $subs = collect();
-        if ($employee) {
-            $raw = $employee->subcontractor;
+        if (! $employee) {
+            return response()->json(['data' => $subs]);
+        }
 
-            if (is_array($raw)) {
-                $ids = array_filter($raw);
-            } elseif (is_null($raw) || $raw === '') {
-                $ids = [];
+        $raw = $employee->subcontractor;
+
+        // Normalize possible formats: array, Collection, JSON string, CSV string, single value
+        if (is_null($raw) || $raw === '') {
+            $ids = [];
+        } elseif (is_array($raw)) {
+            $ids = array_filter($raw);
+        } elseif ($raw instanceof \Illuminate\Support\Collection || $raw instanceof \Illuminate\Database\Eloquent\Collection) {
+            $ids = array_filter($raw->all());
+        } elseif (is_object($raw) && method_exists($raw, 'toArray')) {
+            $ids = array_filter($raw->toArray());
+        } else {
+            // Attempt JSON decode first (handles '[]' formatted strings)
+            $decoded = @json_decode($raw, true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $ids = array_filter($decoded);
             } else {
-                $decoded = json_decode($raw, true);
-                if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
-                    $ids = array_filter($decoded);
-                } else {
-                    $ids = array_filter(array_map('trim', explode(',', (string) $raw)));
-                }
-            }
-
-            $ids = array_map('intval', $ids);
-
-            if (!empty($ids)) {
-                $subs = \App\Models\Subcontractor::whereIn('id', $ids)
-                    ->select('id', 'company_name', 'user_id', 'email')
-                    ->orderBy('company_name')
-                    ->get();
-
-                if ($subs->isEmpty()) {
-                    $subs = \App\Models\Subcontractor::whereIn('user_id', $ids)
-                        ->select('id', 'company_name', 'user_id', 'email')
-                        ->orderBy('company_name')
-                        ->get();
-                }
+                // Fallback: comma-separated list or single scalar
+                $ids = array_filter(array_map('trim', explode(',', (string) $raw)));
             }
         }
+
+        $ids = array_map('intval', $ids);
+
+        if (empty($ids)) {
+            return response()->json(['data' => $subs]);
+        }
+
+        // 1) Prefer resolving the stored ids as Subcontractor.user_id (employee stores user ids)
+        $found = \App\Models\Subcontractor::whereIn('user_id', $ids)
+            ->select('id', 'company_name', 'user_id', 'email')
+            ->orderBy('company_name')
+            ->get();
+
+        // 2) Fallback: maybe the stored ids are Subcontractor model ids
+        if ($found->isEmpty()) {
+            $found = \App\Models\Subcontractor::whereIn('id', $ids)
+                ->select('id', 'company_name', 'user_id', 'email')
+                ->orderBy('company_name')
+                ->get();
+        }
+
+        // 3) Final fallback: maybe the stored ids are user ids (users with subcontractor role)
+        if ($found->isEmpty()) {
+            $users = User::role('subcontractor')
+                ->whereIn('id', $ids)
+                ->select('id', 'first_name', 'last_name', 'email')
+                ->orderBy('first_name')
+                ->get();
+
+            $subs = $users->map(function ($u) {
+                return [
+                    'id' => $u->id,
+                    'first_name' => $u->first_name,
+                    'last_name' => $u->last_name,
+                    'email' => $u->email,
+                ];
+            });
+
+            return response()->json(['data' => $subs]);
+        }
+
+        // Map Subcontractor model to frontend shape: company_name => first_name, last_name => null
+        $subs = $found->map(function ($s) {
+            return [
+                'id' => $s->id,
+                'first_name' => $s->company_name,
+                'last_name' => null,
+                'email' => $s->email,
+                'user_id' => $s->user_id,
+            ];
+        });
 
         return response()->json(['data' => $subs]);
     }
@@ -2708,6 +2752,7 @@ public function patrolUpdate(Request $request, $id)
                 'end_time' => $shift->end_time,
                 'staff_id' => $shift->staff_id,
                 'site_id' => $shift->site_id,
+                'subcontractor_id' => $shift->subcontractor_id ?? ($shift->shift->subcontractor_id ?? null),
                 'shift_name' => $shift->shift->title ?? '',
             ];
         });
