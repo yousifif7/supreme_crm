@@ -42,4 +42,9 @@ return [
         'key' => env('GOOGLE_MAPS_API_KEY'),
     ],
 
+    'site_geofence' => [
+        'radius_meters' => env('SITE_GEOFENCE_RADIUS_METERS', 200),
+        'margin_meters' => env('SITE_GEOFENCE_MARGIN_METERS', 75),
+    ],
+
 ];

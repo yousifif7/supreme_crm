@@ -149,64 +149,84 @@ class ReportController extends Controller
 
     public function shiftReport(Request $request)
     {
-        // Build a joined query to keep filtering in the database and avoid expensive whereHas/orWhereExists
-        $query = ShiftDate::query()
-            ->select('shift_dates.*')
-            ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
-            // join subcontractors table as aliases so we can match either a direct user id or a subcontractor record
-            ->leftJoin('sub_contractors as sd_sub', 'sd_sub.id', '=', 'shift_dates.subcontractor_id')
-            ->leftJoin('sub_contractors as p_sub', 'p_sub.id', '=', 'shifts.subcontractor_id')
-            ->with(['shift.client', 'shift.site', 'shift.staff', 'note']);
+        $hasFilters = $request->filled('client_id')
+            || $request->filled('employee_id')
+            || $request->filled('subcontractor_id')
+            || $request->filled('site_id')
+            || $request->filled('status')
+            || $request->filled('from_date')
+            || $request->filled('to_date');
 
-        // Filter by client
-        if ($request->filled('client_id')) {
-            $query->whereHas('shift.client', function ($q) use ($request) {
-                $q->where('id', $request->input('client_id'));
-            });
-        }
+        // Avoid loading the entire history when page first opens.
+        $shifts = collect();
 
-        // Filter by employee
-        if ($request->filled('employee_id')) {
-            $query->whereHas('staff', function ($q) use ($request) {
-                $q->where('id', $request->input('employee_id'));
-            });
-        }
-
-        // Filter by subcontractor (match user-based subcontractors or sub_contractors.user_id via joins)
-        if ($request->filled('subcontractor_id')) {
-            $subId = (int) $request->input('subcontractor_id');
-            $query->where(function ($q) use ($subId) {
-                $q->where('shift_dates.subcontractor_id', $subId)
-                    ->orWhere('shifts.subcontractor_id', $subId)
-                    ->orWhere('sd_sub.user_id', $subId)
-                    ->orWhere('p_sub.user_id', $subId);
-            });
-        }
-
-        // Filter by date range (shift_date between from_date and to_date)
-        if ($request->filled('from_date') && $request->filled('to_date')) {
-            try {
-                $from = Carbon::parse($request->input('from_date'))->toDateString();
-                $to = Carbon::parse($request->input('to_date'))->toDateString();
-                $query->whereDate('shift_date', '>=', $from)->whereDate('shift_date', '<=', $to);
-            } catch (\Exception $e) {
-                // If parsing fails, fall back to raw inputs (best-effort)
-                $query->whereDate('shift_date', '>=', $request->input('from_date'))
-                      ->whereDate('shift_date', '<=', $request->input('to_date'));
+        if ($hasFilters || $request->filled('export')) {
+            if ($request->filled('export') && !$hasFilters) {
+                return redirect()->route('reports.shift')
+                    ->with('error', 'Please apply at least one filter before exporting the shift report.');
             }
-        }
-        if ($request->filled('status')) {
-            $query->whereIn('is_assign', (array) $request->status);
-        }
 
-        // Filter by site
-        if ($request->filled('site_id')) {
-            $siteId = (int) $request->input('site_id');
-            // shifts table joined; filter directly
-            $query->where('shifts.site_id', $siteId);
-        }
+            // Build a joined query to keep filtering in the database and avoid expensive whereHas/orWhereExists
+            $query = ShiftDate::query()
+                ->select('shift_dates.*')
+                ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
+                // join subcontractors table as aliases so we can match either a direct user id or a subcontractor record
+                ->leftJoin('sub_contractors as sd_sub', 'sd_sub.id', '=', 'shift_dates.subcontractor_id')
+                ->leftJoin('sub_contractors as p_sub', 'p_sub.id', '=', 'shifts.subcontractor_id')
+                ->with(['shift.client', 'shift.site', 'shift.staff', 'note']);
 
-        $shifts = $query->get();
+            // Filter by client (directly on joined shifts table)
+            if ($request->filled('client_id')) {
+                $query->where('shifts.client_id', (int) $request->input('client_id'));
+            }
+
+            // Filter by employee (support either shift_dates.staff_id or shifts.staff_id)
+            if ($request->filled('employee_id')) {
+                $employeeId = (int) $request->input('employee_id');
+                $query->where(function ($q) use ($employeeId) {
+                    $q->where('shift_dates.staff_id', $employeeId)
+                        ->orWhere('shifts.staff_id', $employeeId);
+                });
+            }
+
+            // Filter by subcontractor (match user-based subcontractors or sub_contractors.user_id via joins)
+            if ($request->filled('subcontractor_id')) {
+                $subId = (int) $request->input('subcontractor_id');
+                $query->where(function ($q) use ($subId) {
+                    $q->where('shift_dates.subcontractor_id', $subId)
+                        ->orWhere('shifts.subcontractor_id', $subId)
+                        ->orWhere('sd_sub.user_id', $subId)
+                        ->orWhere('p_sub.user_id', $subId);
+                });
+            }
+
+            // Filter by date range (shift_date between from_date and to_date)
+            if ($request->filled('from_date') && $request->filled('to_date')) {
+                try {
+                    $from = Carbon::parse($request->input('from_date'))->toDateString();
+                    $to = Carbon::parse($request->input('to_date'))->toDateString();
+                    $query->whereDate('shift_dates.shift_date', '>=', $from)
+                        ->whereDate('shift_dates.shift_date', '<=', $to);
+                } catch (\Exception $e) {
+                    // If parsing fails, fall back to raw inputs (best-effort)
+                    $query->whereDate('shift_dates.shift_date', '>=', $request->input('from_date'))
+                        ->whereDate('shift_dates.shift_date', '<=', $request->input('to_date'));
+                }
+            }
+
+            if ($request->filled('status')) {
+                $query->whereIn('shift_dates.is_assign', (array) $request->status);
+            }
+
+            // Filter by site
+            if ($request->filled('site_id')) {
+                $query->where('shifts.site_id', (int) $request->input('site_id'));
+            }
+
+            $shifts = $query
+                ->orderByDesc('shift_dates.shift_date')
+                ->get();
+        }
 
         $statusOptions = [
             0 => 'Pending',
@@ -261,7 +281,9 @@ class ReportController extends Controller
             'selectedSite' => $request->input('site_id'),
             'selectedStatus' => $request->status ?? [],
             'statusOptions' => $statusOptions,
-            'filterDate' => $request->input('shift_date'),
+            'filterDate' => $request->input('from_date'),
+            'fromDate' => $request->input('from_date'),
+            'toDate' => $request->input('to_date'),
         ]);
     }
 

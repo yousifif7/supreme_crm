@@ -7,6 +7,68 @@ use Illuminate\Support\Facades\Cache;
 
 class GeoService
 {
+    public function getCoordinatesFromAddress(?string $address, ?string $postalCode = null): ?array
+    {
+        $query = trim((string) ($address ?? ''));
+        $postal = trim((string) ($postalCode ?? ''));
+
+        if ($postal !== '') {
+            $query = trim($query . ' ' . $postal);
+        }
+
+        if ($query === '') {
+            return null;
+        }
+
+        $cacheKey = 'geo_coords_' . md5(strtolower($query));
+
+        return Cache::remember($cacheKey, 86400, function () use ($query) {
+            $apiKey = config('services.google_maps.key');
+            if (!$apiKey) {
+                return null;
+            }
+
+            $url = 'https://maps.googleapis.com/maps/api/geocode/json';
+            $response = Http::get($url, [
+                'address' => $query,
+                'key' => $apiKey,
+            ]);
+
+            if (!$response->successful()) {
+                return null;
+            }
+
+            $data = $response->json();
+            if (($data['status'] ?? null) !== 'OK' || empty($data['results'][0]['geometry']['location'])) {
+                return null;
+            }
+
+            $location = $data['results'][0]['geometry']['location'];
+
+            return [
+                'lat' => (float) ($location['lat'] ?? 0),
+                'lng' => (float) ($location['lng'] ?? 0),
+                'formatted_address' => $data['results'][0]['formatted_address'] ?? null,
+            ];
+        });
+    }
+
+    public function distanceInMeters($lat1, $lng1, $lat2, $lng2): float
+    {
+        $earthRadius = 6371000; // meters
+
+        $dLat = deg2rad((float) $lat2 - (float) $lat1);
+        $dLng = deg2rad((float) $lng2 - (float) $lng1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2)
+            + cos(deg2rad((float) $lat1)) * cos(deg2rad((float) $lat2))
+            * sin($dLng / 2) * sin($dLng / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c;
+    }
+
     public function getAddressFromCoordinates($lat, $lng): ?array
     {
         return Cache::remember("geo_address_{$lat}_{$lng}", 86400, function () use ($lat, $lng) {

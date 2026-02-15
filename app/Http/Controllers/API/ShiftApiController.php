@@ -715,6 +715,16 @@ class ShiftApiController extends Controller
             ]);
         }
 
+        $geoFenceError = $this->ensureWithinShiftSiteRadius(
+            $shiftDate,
+            $request->input('location.latitude'),
+            $request->input('location.longitude'),
+            'book ' . str_replace('_', ' ', $type)
+        );
+        if ($geoFenceError) {
+            return $geoFenceError;
+        }
+
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
             'shift_id' => $shiftDate->id, // store shift_date_id, not main shift_id
@@ -767,6 +777,11 @@ class ShiftApiController extends Controller
 
     public function bookOn(Request $request, $shiftDate_id)
     {
+        $validated = $request->validate([
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
+        ]);
+
         $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
 
@@ -795,6 +810,16 @@ class ShiftApiController extends Controller
             return response()->json([
                 'message' => 'Trying to book on unavailable shift (ShiftDate ID: ' . $shiftDate_id . ').'
             ], 409);
+        }
+
+        $geoFenceError = $this->ensureWithinShiftSiteRadius(
+            $shiftDate,
+            $validated['location']['latitude'],
+            $validated['location']['longitude'],
+            'book on'
+        );
+        if ($geoFenceError) {
+            return $geoFenceError;
         }
 
         if ($shiftDate->is_assign !== 2) {
@@ -938,6 +963,11 @@ if ($now->lt($bookingOpensAt)) {
 
     public function bookOff(Request $request, $shiftDate_id)
     {
+        $validated = $request->validate([
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
+        ]);
+
         $user = Auth::user();
         $employee = Employee::where('user_id', $user->id)->first();
 
@@ -962,6 +992,16 @@ if ($now->lt($bookingOpensAt)) {
             return response()->json([
                 'message' => 'You have not booked on for this shift, so you cannot book off.'
             ], 400);
+        }
+
+        $geoFenceError = $this->ensureWithinShiftSiteRadius(
+            $shiftDate,
+            $validated['location']['latitude'],
+            $validated['location']['longitude'],
+            'book off'
+        );
+        if ($geoFenceError) {
+            return $geoFenceError;
         }
 
         // Prevent booking off if the shift is not in a started state or already ended
@@ -1429,8 +1469,8 @@ if ($now->lt($bookingOpensAt)) {
     {
         $request->validate([
             'media_files' => 'nullable|array',
-            'location.latitude' => 'nullable|numeric',
-            'location.longitude' => 'nullable|numeric',
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
             'notes' => 'nullable|string',
         ]);
 
@@ -1464,6 +1504,11 @@ if ($now->lt($bookingOpensAt)) {
                 $lat = $lat ?? ($all['location.latitude'] ?? $all['latitude'] ?? $all['lat'] ?? null);
                 $lng = $lng ?? ($all['location.longitude'] ?? $all['longitude'] ?? $all['lng'] ?? null);
             }
+        }
+
+        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
+        if ($geoFenceError) {
+            return $geoFenceError;
         }
 
         $geoService = new GeoService();
@@ -2615,5 +2660,55 @@ public function workHours(Request $request)
         $holidayDays = (28 / 365) * $daysWorked;
 
         return ['holiday_hours' => round($holidayDays * 8, 2)];
+    }
+
+    private function ensureWithinShiftSiteRadius(ShiftDate $shiftDate, $guardLat, $guardLng, string $activity)
+    {
+        if (!(bool) ($shiftDate->shift?->restrict_location_check ?? false)) {
+            return null;
+        }
+
+        $site = $shiftDate->shift?->site;
+
+        if (!$site) {
+            return response()->json([
+                'message' => 'Site information is missing for this shift. Cannot verify your location.',
+            ], 422);
+        }
+
+        $geoService = app(GeoService::class);
+        $siteCoords = $geoService->getCoordinatesFromAddress($site->address ?? null, $site->post_code ?? null);
+
+        if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
+            Log::warning('Could not resolve site coordinates for geofence', [
+                'shift_date_id' => $shiftDate->id,
+                'site_id' => $site->id,
+                'site_address' => $site->address,
+                'site_post_code' => $site->post_code,
+            ]);
+
+            return response()->json([
+                'message' => 'Unable to verify site location right now. Please try again shortly.',
+            ], 422);
+        }
+
+        $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
+        $baseRadius = (float) config('services.site_geofence.radius_meters', 200);
+        $margin = (float) config('services.site_geofence.margin_meters', 75);
+        $allowedMeters = $baseRadius + $margin;
+
+        if ($distanceMeters > $allowedMeters) {
+            return response()->json([
+                'message' => 'You are outside the allowed site radius and cannot ' . $activity . '.',
+                'distance_meters' => round($distanceMeters, 1),
+                'allowed_radius_meters' => round($allowedMeters, 1),
+                'site' => [
+                    'id' => $site->id,
+                    'name' => $site->site_name,
+                ],
+            ], 422);
+        }
+
+        return null;
     }
 }

@@ -85,13 +85,13 @@
                             <div class="col-md-3">
                                 <label for="shift_date" class="form-label">From Date</label>
                                 <input type="date" name="from_date" id="from_date" class="form-control"
-                                    value="{{ $filterDate }}">
+                                    value="{{ $fromDate ?? '' }}">
                             </div>
 
                             <div class="col-md-3">
                                 <label for="shift_date" class="form-label">To Date</label>
                                 <input type="date" name="to_date" id="to_date" class="form-control"
-                                    value="{{ $filterDate }}">
+                                    value="{{ $toDate ?? '' }}">
                             </div>
 
                             <div class="col-md-2 d-flex align-items-end">
@@ -113,7 +113,7 @@
                 </div>
             </div>
 
-            @if(request()->hasAny(['client_id','employee_id','status','to_date','from_date']))
+            @if(request()->hasAny(['client_id','employee_id','subcontractor_id','site_id','status','to_date','from_date']))
             <!-- Results -->
             <div class="card">
                 <div class="card-body p-0">

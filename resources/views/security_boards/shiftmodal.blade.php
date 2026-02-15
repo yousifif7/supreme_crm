@@ -307,18 +307,18 @@
                                             <div class="row">
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
-                                                        name="restrict_start_time[]" value="1">
+                                                        name="restrict_start_time[]" value="1" checked>
                                                     <label class="form-label mb-0">Restrict shift start time
                                                     </label>
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
-                                                        name="enforce_picture_check[]" value="1">
+                                                        name="enforce_picture_check[]" value="1" checked>
                                                     <label class="form-label mb-0">Enforce picture check </label>
                                                 </div>
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <input type="checkbox" class="form-check"
-                                                        name="restrict_location_check[]" value="1">
+                                                        name="restrict_location_check[]" value="1" checked>
                                                     <label class="form-label mb-0">Restrict start shift
                                                         location check </label>
                                                 </div>
@@ -326,14 +326,14 @@
                                                     <div class="form-check form-switch mb-3">
                                                         <!-- Always send a value: hidden input for 0, checkbox for 1 -->
                                                         {{-- <input type="hidden" name="auto_checkcall_enabled[]" value="0"> --}}
-                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox" name="auto_checkcall_enabled[]" value="1">
+                                                        <input class="form-check-input autoCheckcallToggle" type="checkbox" name="auto_checkcall_enabled[]" value="1" checked>
                                                         <label class="form-check-label form-label">Enable Auto Checkcalls</label>
                                                     </div>
                                                 </div>
 
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center">
                                                     <div class="form-check form-switch mb-3">
-                                                        <input class="form-check-input autoPatrolToggle" type="checkbox" name="auto_patrol_enabled[]" value="1">
+                                                        <input class="form-check-input autoPatrolToggle" type="checkbox" name="auto_patrol_enabled[]" value="1" checked>
                                                         <label class="form-check-label form-label">Enable Auto Patrols</label>
                                                     </div>
                                                 </div>
@@ -341,7 +341,7 @@
                                                 <div class="col-md-4 mb-3 d-flex gap-2 align-items-center requireMediaToggleWrapper">
                                                     <div class="form-check form-switch mb-3">
                                                             <input class="form-check-input requireMediaToggle" type="checkbox"
-                                                                name="require_media_upload[]" >
+                                                                name="require_media_upload[]" checked>
                                                             <label class="form-check-label form-label"
                                                                 >Require Media Upload for checkcalls</label>
                                                     </div>

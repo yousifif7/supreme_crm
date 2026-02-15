@@ -83,7 +83,7 @@ class ShiftNotificationController extends BaseController
 
                     // Notify the guard (use eager-loaded relation when available)
                     $shiftDate = $patrol->shift ?? null;
-                    if ($shiftDate && $shiftDate->staff_id) {
+                    if ($shiftDate && $shiftDate->staff_id && $this->isShiftBookedOn($shiftDate)) {
                         send_push_notification(
                             $shiftDate->staff_id,
                             'Patrol Auto-Completed',
@@ -291,14 +291,14 @@ foreach ($missedBookOffs as $mb) {
 
                     // Notify admin and guard (if assigned)
                     try {
-                        if($patrol->shift->shift->is_assign == 3){
+                        if ($p->shift && $this->isShiftBookedOn($p->shift)) {
                             Notify::toDashboard(1, 'alert', 'Patrol missed', "Patrol '{$p->name}' (ID: {$p->id}) was not started within 15 minutes and has been marked missed.", '/shift-dates/' . ($p->shift?->id ?? $p->shift_id) . '/view');
                         }
                     } catch (\Exception $e) {
                         
                     }
 
-                    if ($p->shift && $p->shift->staff_id) {
+                    if ($p->shift && $p->shift->staff_id && $this->isShiftBookedOn($p->shift)) {
                         try {
                             send_push_notification($p->shift->staff_id, 'Patrol Missed', "Your patrol '{$p->name}' was marked as missed.", ['type' => 'patrol', 'patrolId' => $p->id]);
                         } catch (\Exception $e) {
@@ -345,8 +345,8 @@ foreach ($missedBookOffs as $mb) {
                     $shiftEnd->addDay();
                 }
                 
-                // Send notifications if shift is booked on (is_assign == 3) and within shift window
-                if ($shift->is_assign == 3) {
+                // Send notifications only when shift status is booked_on and within shift window
+                if ($this->isShiftBookedOn($shift)) {
                     return $now->gte($shiftStart->copy()->subMinutes(15)) && $now->lte($shiftEnd);
                 }
                 
@@ -515,7 +515,7 @@ foreach ($missedBookOffs as $mb) {
                     return false;
                 }
                 
-                return $shift->is_assign == 3;
+                return $this->isShiftBookedOn($shift);
             });
 
             foreach ($checkCalls as $checkCall) {
@@ -644,7 +644,9 @@ foreach ($missedBookOffs as $mb) {
                                 $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
                                 $adminMessage = ($alertType === 'checkcall_missed') ? "{$empName} missed check call '{$checkCall->name}'." : "{$empName} appears to have missed check call '{$checkCall->name}' and it will be marked soon unless handled.";
                                 $actionUrl = '/shift-dates/' . $checkCall->shiftDate->id.'/view';
-                                Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                if ($this->isShiftBookedOn($checkCall->shiftDate)) {
+                                    Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                                }
                             } catch (\Exception $e) {
                                 
                             }
@@ -695,5 +697,10 @@ foreach ($missedBookOffs as $mb) {
         
 
         return response()->json(['success' => true, 'processed' => $processed]);
+    }
+
+    private function isShiftBookedOn($shiftDate): bool
+    {
+        return $shiftDate && ($shiftDate->status ?? null) === 'booked_on';
     }
 }

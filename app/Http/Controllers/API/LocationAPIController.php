@@ -14,6 +14,7 @@ use App\Models\Shift;
 use App\Models\ShiftDate;
 use App\Models\User;
 use App\Models\Site;
+use App\Services\GeoService;
 
 
 class LocationAPIController extends Controller
@@ -42,7 +43,121 @@ class LocationAPIController extends Controller
             'patrol_id' => $validated['patrol_id'],
         ]);
 
-        return response()->json(['status' => 'success', 'location_id' => $location->id]);
+        $outsideInfo = $this->notifyIfOutsideShiftSite(Auth::user(), $validated);
+
+        return response()->json([
+            'status' => 'success',
+            'location_id' => $location->id,
+            'outside_site' => (bool) ($outsideInfo['outside_site'] ?? false),
+            'outside_message' => $outsideInfo['message'] ?? null,
+        ]);
+    }
+
+    private function notifyIfOutsideShiftSite($user, array $validated): array
+    {
+        if (!$user || empty($validated['on_duty'])) {
+            return ['outside_site' => false];
+        }
+
+        $shiftDate = $this->resolveShiftDateForLocation($validated);
+        if (!$shiftDate || (int) ($shiftDate->staff_id ?? 0) !== (int) $user->id) {
+            return ['outside_site' => false];
+        }
+
+        if (!(bool) ($shiftDate->shift?->restrict_location_check ?? false)) {
+            return ['outside_site' => false];
+        }
+
+        $site = $shiftDate->shift?->site;
+        if (!$site) {
+            return ['outside_site' => false];
+        }
+
+        $geoService = app(GeoService::class);
+        $siteCoords = $geoService->getCoordinatesFromAddress($site->address ?? null, $site->post_code ?? null);
+        if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
+            return ['outside_site' => false];
+        }
+
+        $distanceMeters = $geoService->distanceInMeters(
+            $validated['latitude'],
+            $validated['longitude'],
+            $siteCoords['lat'],
+            $siteCoords['lng']
+        );
+
+        $baseRadius = (float) config('services.site_geofence.radius_meters', 200);
+        $margin = (float) config('services.site_geofence.margin_meters', 75);
+        $allowedMeters = $baseRadius + $margin;
+
+        if ($distanceMeters <= $allowedMeters) {
+            return ['outside_site' => false];
+        }
+
+        $cacheKey = 'outside_site_notified:' . $user->id . ':' . $shiftDate->id;
+        if (Cache::has($cacheKey)) {
+            return [
+                'outside_site' => true,
+                'message' => 'Outside shift site radius.',
+            ];
+        }
+
+        $guardMessage = 'You are outside your shift site radius for ' . ($site->site_name ?? 'this site')
+            . '. Please return to site. Distance: ' . round($distanceMeters, 1)
+            . 'm (allowed: ' . round($allowedMeters, 1) . 'm).';
+
+        $displayName = trim(($user->first_name ?? $user->name ?? 'Guard') . ' ' . ($user->last_name ?? ''));
+        $dashboardMessage = $displayName . ' is outside the shift site radius at '
+            . now()->format('Y-m-d H:i:s') . '. Site: ' . ($site->site_name ?? 'N/A')
+            . ', Distance: ' . round($distanceMeters, 1) . 'm, Allowed: ' . round($allowedMeters, 1) . 'm.';
+
+        Notify::toDashboard(
+            null,
+            'alert',
+            'Guard Outside Site Radius',
+            $dashboardMessage,
+            '/shift-dates/' . $shiftDate->id . '/view'
+        );
+
+        send_push_notification(
+            $user->id,
+            'Outside Site Radius',
+            $guardMessage,
+            ['type' => 'location', 'shiftDateId' => $shiftDate->id]
+        );
+
+        $shiftEnd = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+        $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+        if ($shiftEnd->lte($shiftStart)) {
+            $shiftEnd->addDay();
+        }
+        $cacheUntil = $shiftEnd->copy()->addHour();
+        if ($cacheUntil->lte(now())) {
+            $cacheUntil = now()->addHours(6);
+        }
+
+        Cache::put($cacheKey, true, $cacheUntil);
+
+        return [
+            'outside_site' => true,
+            'message' => 'Outside shift site radius. Guard and control notified.',
+        ];
+    }
+
+    private function resolveShiftDateForLocation(array $validated): ?ShiftDate
+    {
+        if (!empty($validated['shiftdate_id'])) {
+            return ShiftDate::with('shift.site')->find($validated['shiftdate_id']);
+        }
+
+        if (!empty($validated['patrol_id'])) {
+            $patrol = Patrol::find($validated['patrol_id']);
+            if ($patrol) {
+                return ShiftDate::with('shift.site')->find($patrol->shift_id);
+            }
+        }
+
+        return null;
     }
 
     public function history(Request $request)

@@ -39,9 +39,9 @@ class NotificationsDataTable extends DataTable
             ->addColumn('user_name', function ($notification) {
                 return $notification->user ? $notification->user->first_name .' '. $notification->user->last_name : 'N/A';
             })
-            ->addColumn('employee_name', function ($notification) {
-                return $notification->employee ? $notification->employee->fore_name .' '. $notification->employee->sur_name : 'N/A';
-            })
+            // ->addColumn('employee_name', function ($notification) {
+            //     return $notification->employee ? $notification->employee->fore_name .' '. $notification->employee->sur_name : 'N/A';
+            // })
             ->editColumn('read', function ($notification) {
                 return $notification->read ? '<span class="badge bg-success">Read</span>' : '<span class="badge bg-warning">Unread</span>';
             })
@@ -147,7 +147,7 @@ class NotificationsDataTable extends DataTable
             Column::make('title')->title('Title'),
             Column::make('message')->title('Message'),
             Column::make('user_name')->title('User'),
-            Column::make('employee_name')->title('Employee'),
+            // Column::make('employee_name')->title('Employee'),
             Column::make('read')->title('Status')->orderable(false)->searchable(false),
             Column::make('action_url')->title('Action URL')->orderable(false)->searchable(false),
             Column::make('created_at')->title('Created At'),

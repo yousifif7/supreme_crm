@@ -109,6 +109,11 @@ class CheckCallController extends Controller
         $lat = $data['location']['latitude'];
         $lng = $data['location']['longitude'];
 
+        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
+        if ($geoFenceError) {
+            return $geoFenceError;
+        }
+
         // Try to resolve human-readable address from coordinates (GeoService caches results)
         $geoService = new GeoService();
         $resolvedAddress = null;
@@ -1045,5 +1050,55 @@ class CheckCallController extends Controller
             'message' => 'Check call rejected successfully',
             'checkcall' => $checkcall
         ]);
+    }
+
+    private function ensureWithinShiftSiteRadius(ShiftDate $shiftDate, $guardLat, $guardLng, string $activity)
+    {
+        if (!(bool) ($shiftDate->shift?->restrict_location_check ?? false)) {
+            return null;
+        }
+
+        $site = $shiftDate->shift?->site;
+
+        if (!$site) {
+            return response()->json([
+                'message' => 'Site information is missing for this shift. Cannot verify your location.',
+            ], 422);
+        }
+
+        $geoService = app(GeoService::class);
+        $siteCoords = $geoService->getCoordinatesFromAddress($site->address ?? null, $site->post_code ?? null);
+
+        if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
+            Log::warning('Could not resolve site coordinates for geofence', [
+                'shift_date_id' => $shiftDate->id,
+                'site_id' => $site->id,
+                'site_address' => $site->address,
+                'site_post_code' => $site->post_code,
+            ]);
+
+            return response()->json([
+                'message' => 'Unable to verify site location right now. Please try again shortly.',
+            ], 422);
+        }
+
+        $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
+        $baseRadius = (float) config('services.site_geofence.radius_meters', 200);
+        $margin = (float) config('services.site_geofence.margin_meters', 75);
+        $allowedMeters = $baseRadius + $margin;
+
+        if ($distanceMeters > $allowedMeters) {
+            return response()->json([
+                'message' => 'You are outside the allowed site radius and cannot ' . $activity . '.',
+                'distance_meters' => round($distanceMeters, 1),
+                'allowed_radius_meters' => round($allowedMeters, 1),
+                'site' => [
+                    'id' => $site->id,
+                    'name' => $site->site_name,
+                ],
+            ], 422);
+        }
+
+        return null;
     }
 }
