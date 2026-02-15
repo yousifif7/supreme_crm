@@ -535,9 +535,9 @@ class ShiftController extends Controller
                 $data['end'] = substr($data['end'], 0, 5);
             }
 
-            $data['restrict_start_time'] = $data['restrict_start_time'] ? 1 : 0;
-            $data['enforce_picture_check'] = $data['enforce_picture_check'] ? 1 : 0;
-            $data['restrict_location_check'] = $data['restrict_location_check'] ? 1 : 0;
+            $data['restrict_start_time'] = !empty($data['restrict_start_time']) ? 1 : 0;
+            $data['enforce_picture_check'] = !empty($data['enforce_picture_check']) ? 1 : 0;
+            $data['restrict_location_check'] = !empty($data['restrict_location_check']) ? 1 : 0;
             $data['days'] = json_encode([str_replace(['"', '[', ']'], '', $data['days'])]);
 
             if (!empty($data['staff_id'])) {
@@ -556,6 +556,9 @@ class ShiftController extends Controller
                 'service_type_1'   => $serviceType1?->name,
                 'service_type_2'   => $serviceType2?->name,
                 'subcontractor_id'   => $request->subcontractor_id[$i] ?? null,
+                'restrict_start_time' => $data['restrict_start_time'],
+                'enforce_picture_check' => $data['enforce_picture_check'],
+                'restrict_location_check' => $data['restrict_location_check'],
                 // Persist site-level rate on the parent Shift record so it is
                 // available for later edits and reports.
                 'site_rate'        => $request->site_rate[$i] ?? null,
@@ -3082,6 +3085,9 @@ public function patrolUpdate(Request $request, $id)
                 'from_shift' => $request->from_shift[$i] ?? null,
                 'to_shift' => $request->to_shift[$i] ?? null,
                 'days' => $request->days[$i] ?? "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+                'restrict_start_time' => $request->restrict_start_time[$i] ?? null,
+                'enforce_picture_check' => $request->enforce_picture_check[$i] ?? null,
+                'restrict_location_check' => $request->restrict_location_check[$i] ?? null,
             ], [
                 'client_id' => 'required|integer',
                 'site_id' => 'required|integer',
@@ -3091,6 +3097,9 @@ public function patrolUpdate(Request $request, $id)
                 'end_shift' => 'required|date_format:H:i',
                 'from_shift' => 'required|date',
                 'to_shift' => 'required|date|after_or_equal:from_shift',
+                'restrict_start_time' => 'nullable',
+                'enforce_picture_check' => 'nullable',
+                'restrict_location_check' => 'nullable',
                 'training_id' => 'nullable|array',
                 'training_id.*' => 'exists:training_materials,id',
             ]);
@@ -3116,6 +3125,9 @@ public function patrolUpdate(Request $request, $id)
 
             $data = $validator->validated();
 
+            $data['restrict_start_time'] = !empty($data['restrict_start_time']) ? 1 : 0;
+            $data['enforce_picture_check'] = !empty($data['enforce_picture_check']) ? 1 : 0;
+            $data['restrict_location_check'] = !empty($data['restrict_location_check']) ? 1 : 0;
             $data['days'] = json_encode([str_replace(['"', '[', ']'], '', $data['days'])]);
             $data['is_assign'] = !empty($data['staff_id']) ? 1 : 0;
 
@@ -3132,6 +3144,9 @@ public function patrolUpdate(Request $request, $id)
                 'service_type_1' => $serviceType1?->name,
                 'service_type_2' => $serviceType2?->name,
                 'subcontractor_id' => $request->subcontractor_id[$i] ?? null,
+                'restrict_start_time' => $data['restrict_start_time'],
+                'enforce_picture_check' => $data['enforce_picture_check'],
+                'restrict_location_check' => $data['restrict_location_check'],
             ]);
 
             // Expand to ShiftDates

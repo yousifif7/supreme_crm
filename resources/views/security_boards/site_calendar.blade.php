@@ -245,7 +245,16 @@
                         // Reset values in clone
                         clone.querySelectorAll('input, select').forEach(el => {
                             if (el.type === 'checkbox') {
-                                el.checked = false;
+                                const checkboxName = el.getAttribute('name') || '';
+                                const defaultCheckedNames = [
+                                    'restrict_start_time[]',
+                                    'enforce_picture_check[]',
+                                    'restrict_location_check[]',
+                                    'auto_checkcall_enabled[]',
+                                    'auto_patrol_enabled[]',
+                                    'require_media_upload[]'
+                                ];
+                                el.checked = defaultCheckedNames.includes(checkboxName);
                             } else {
                                 el.value = '';
                             }

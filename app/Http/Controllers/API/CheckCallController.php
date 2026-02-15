@@ -1054,7 +1054,7 @@ class CheckCallController extends Controller
 
     private function ensureWithinShiftSiteRadius(ShiftDate $shiftDate, $guardLat, $guardLng, string $activity)
     {
-        if (!(bool) ($shiftDate->shift?->restrict_location_check ?? false)) {
+        if ((int) ($shiftDate->shift?->restrict_location_check ?? 0) !== 1) {
             return null;
         }
 
