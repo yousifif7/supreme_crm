@@ -1435,6 +1435,9 @@ if ($now->lt($bookingOpensAt)) {
             'total_checkpoints' => 'required|integer',
             'completed_checkpoints' => 'required|integer',
             'issues_reported' => 'required|integer',
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
+            'location.address' => 'required|string',
         ]);
 
         $patrol->update([

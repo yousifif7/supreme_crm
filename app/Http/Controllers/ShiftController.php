@@ -757,6 +757,20 @@ class ShiftController extends Controller
 
                     // ensure $shiftDate references last created instance for downstream usage
                     $shiftDate = $lastCreated;
+                    
+                    // Send push notification if staff was assigned
+                    if ($shift->staff_id) {
+                        try {
+                            send_push_notification(
+                                $shift->staff_id,
+                                'New shift assigned',
+                                'A new shift has been assigned to you. Please check your schedule and respond.',
+                                ['type' => 'shift', 'shiftId' => $shiftDate->id]
+                            );
+                        } catch (\Exception $e) {
+                            \Log::error('Failed to send push notification in store: ' . $e->getMessage());
+                        }
+                    }
                 }
                 // Logger::log(Auth::user(), 'Create', 'A Shift for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->date);
             }
@@ -3243,12 +3257,20 @@ public function patrolUpdate(Request $request, $id)
                         'completed_at' => null,
                     ]);
                 }
-                send_push_notification(
-                    $shift->staff_id,
-                    'New shift',
-                    'A new shift has been assigned to you, check out your schedule.',
-                    ['type' => 'shift', 'shiftId' => $shiftDate->id]
-                );
+            }
+            
+            // Send push notification once per shift if staff is assigned
+            if ($shift->staff_id) {
+                try {
+                    send_push_notification(
+                        $shift->staff_id,
+                        'New shift assigned',
+                        'A new shift has been assigned to you. Please check your schedule and respond.',
+                        ['type' => 'shift', 'shiftId' => $shiftDate->id]
+                    );
+                } catch (\Exception $e) {
+                    \Log::error('Failed to send push notification in storeOverride: ' . $e->getMessage());
+                }
             }
         }
 

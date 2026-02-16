@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('check_calls', function (Blueprint $table) {
             $table->id();
             $table->foreignId('shift_id')->references('id')->on('shift_dates')->onDelete('cascade');
-            $table->datetimes('scheduled_time');
+            $table->datetime('scheduled_time');
             $table->enum('status', ['pending', 'completed', 'missed'])->default('pending');
             $table->enum('method', ['app', 'phone']);
             $table->timestamps();

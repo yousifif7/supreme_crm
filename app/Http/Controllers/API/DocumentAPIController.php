@@ -320,7 +320,7 @@ class DocumentAPIController extends Controller
                         $adminTitle = "Upcoming patrol for {$empName}";
                         $adminMessage = "{$empName} has an upcoming patrol '{$patrol->name}' scheduled at {$patrol->start_time}.";
                         $actionUrl = '/shift-dates/' . $patrol->shift->id.'/view';
-                        Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                        // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for patrol_warning: ' . $e->getMessage());
                     }
@@ -440,8 +440,8 @@ class DocumentAPIController extends Controller
                         $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                         $adminTitle = "Upcoming check call for {$empName}";
                         $adminMessage = "{$empName} has an upcoming check call '{$checkCall->name}' scheduled at {$checkCall->scheduled_time}.";
-                        $actionUrl = '/shift-dates/' . $checkCall->shift_date_id.'/view';
-                        Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
+                        $actionUrl = '/shift-dates/' . $checkCall->shift_id.'/view';
+                        // Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for checkcall_warning: ' . $e->getMessage());
                     }
@@ -500,7 +500,7 @@ class DocumentAPIController extends Controller
                         $empName = $emp ? trim(($emp->fore_name ?? '') . ' ' . ($emp->sur_name ?? '')) : ($user->first_name ?? ($user->name ?? 'Employee'));
                         $adminTitle = ($alertType === 'checkcall_missed') ? "Missed check call by {$empName}" : "Potential missed check call for {$empName}";
                         $adminMessage = ($alertType === 'checkcall_missed') ? "{$empName} missed check call '{$checkCall->name}'." : "{$empName} appears to have missed check call '{$checkCall->name}' and it will be marked soon unless handled.";
-                        $actionUrl = '/shift-dates/' . $checkCall->shift_date_id.'/view';
+                        $actionUrl = '/shift-dates/' . $checkCall->shift_id.'/view';
                         Notify::toDashboard(1, 'alert', $adminTitle, $adminMessage, $actionUrl);
                     } catch (\Exception $e) {
                         Log::warning('Dashboard notify failed for checkcall_missed: ' . $e->getMessage());
