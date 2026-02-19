@@ -228,6 +228,12 @@
                                <input type="text" name="nationality" id="nationality" class="form-control"
                                    placeholder="Enter nationality">
                            </div>
+                            <div class="col-md-4 mb-3">
+                              <label class="form-label">Address</label>
+                              <input type="text" name="address" class="form-control"
+                                  placeholder="Enter Address">
+                              <span class="text-danger form-error" id="error_address"></span>
+                          </div>
                            <div class="col-md-4 mb-3">
                                <label class="form-label" for="next_kin">Next of Kin</label>
                                <input type="text" name="next_kin" id="next_kin" class="form-control"

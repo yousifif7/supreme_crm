@@ -487,6 +487,10 @@
                                 <div id="address_group_detail"></div>
                             </div>
                             <div class="col-md-4">
+                                <div class="text-muted ">Address</div>
+                                <div id="address_detail"></div>
+                            </div>
+                            <div class="col-md-4">
                                 <div class="text-muted ">Manager</div>
                                 <div id="manager_detail"></div>
                             </div>
@@ -1690,6 +1694,7 @@
                 $('#driving_licence_detail').text(data.driving_licence_number ?? 'N/A');
                 $('#driving_licence_expiry_detail').text(data.driving_licence_expiry ?? 'N/A');
                 $('#address_group_detail').text(data.address_group);
+                $('#address_detail').text(data.address);
                 $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(
                     `${data.bank_name ?? 'N/A'} / ${data.sort_code ?? 'N/A'} / ${data.account_number ?? 'N/A'}`

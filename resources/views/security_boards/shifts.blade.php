@@ -75,6 +75,10 @@
 
 
                     <!-- Search -->
+                    <button type="button" class="add_btn btn btn-white" data-bs-toggle="modal"
+                        data-bs-target="#filterModal">
+                        Filter
+                    </button>
                     <div class="input-group input-group-flat d-inline-flex me-1">
                         <span class="input-icon-addon">
                             <i class="ti ti-search"></i>
@@ -110,6 +114,7 @@
 
         @include('security_boards.shiftmodal')
         @include('security_boards.partials.edit-shift-modal')
+        
 
         <!-- Edit Shift -->
 
@@ -225,6 +230,7 @@
         </div>
         <!-- Assign Shift Modal -->
         @include('security_boards.assign-shift-modal')
+        @include('security_boards.shifts.shift_filter_options')
 
     </div>
     <!-- /Page Wrapper -->
@@ -232,26 +238,167 @@
 @section('scripts')
     <script>
         $(document).ready(function() {
-            // Auto-apply when the select changes
-            $('#shiftStatus').on('change', function() {
-                const val = $(this).val();
+            const FILTER_KEYS = ['staff', 'client_id', 'site', 'status', 'from_shift', 'to_shift'];
+
+            function getFilterValues() {
+                const values = {};
+                FILTER_KEYS.forEach(function(key) {
+                    values[key] = $('#shiftFilterForm [name="' + key + '"]').val() || '';
+                });
+                return values;
+            }
+
+            function restoreFromUrl() {
+                const params = new URLSearchParams(window.location.search);
+
+                FILTER_KEYS.forEach(function(key) {
+                    const value = params.get(key);
+                    if (value !== null) {
+                        const $field = $('#shiftFilterForm [name="' + key + '"]');
+                        $field.val(value);
+                    }
+                });
+
+                const statusFromUrl = params.get('shiftStatus');
+                if (statusFromUrl !== null) {
+                    $('#shiftStatus').val(statusFromUrl);
+                }
+
+                const searchFromUrl = params.get('search');
+                if (searchFromUrl !== null) {
+                    $('.search_box').val(searchFromUrl);
+                }
+
+                // Refresh Select2 UIs after value restore
+                $('#shiftFilterForm .staff-select-filter, #shiftFilterForm .client-select-filter, #shiftFilterForm .site-select-filter').trigger('change.select2');
+            }
+
+            function syncUrlWithCurrentFilters() {
+                const url = new URL(window.location.href);
+                const params = url.searchParams;
+
+                const shiftStatus = $('#shiftStatus').val();
+                const search = $('.search_box').val();
+                const filterValues = getFilterValues();
+
+                if (shiftStatus) params.set('shiftStatus', shiftStatus);
+                else params.delete('shiftStatus');
+
+                if (search) params.set('search', search);
+                else params.delete('search');
+
+                FILTER_KEYS.forEach(function(key) {
+                    if (filterValues[key]) params.set(key, filterValues[key]);
+                    else params.delete(key);
+                });
+
+                window.history.replaceState({}, '', url.toString());
+            }
+
+            function drawShiftsTable() {
                 try {
                     const table = $('#shifts-table').DataTable();
-                    // Use draw(false) to keep the current paging where possible
                     table.draw(false);
                 } catch (err) {
-                    const url = new URL(window.location.href);
-                    if (val) url.searchParams.set('shiftStatus', val);
-                    else url.searchParams.delete('shiftStatus');
-                    window.location.href = url.toString();
+                    console.error('Failed to redraw shifts table', err);
                 }
+            }
+
+            restoreFromUrl();
+
+            $('.staff-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+            $('.client-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+            $('.site-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+
+
+            // Auto-apply when the select changes
+            $('#shiftStatus').on('change', function() {
+                syncUrlWithCurrentFilters();
+                drawShiftsTable();
+            });
+
+            let searchDebounce = null;
+            $('.search_box').on('input', function() {
+                clearTimeout(searchDebounce);
+                searchDebounce = setTimeout(function() {
+                    syncUrlWithCurrentFilters();
+                    drawShiftsTable();
+                }, 300);
             });
 
             $(document).on('preXhr.dt', '#shifts-table', function(e, settings, data) {
                 try {
                     data.shift_status = $('#shiftStatus').val();
+
+                    if (data.search && typeof data.search === 'object') {
+                        data.search.value = $('.search_box').val() || '';
+                    }
+
+                    const filterData = $('#shiftFilterForm').serializeArray();
+                    filterData.forEach(function(item) {
+                        data[item.name] = item.value;
+                    });
                 } catch (err) {
                     // ignore
+                }
+            });
+
+            $('#shiftFilterForm').on('submit', function(e) {
+                e.preventDefault();
+                syncUrlWithCurrentFilters();
+                drawShiftsTable();
+                closeBsModal('#filterModal');
+            });
+
+            $('#resetShiftFilters').on('click', function() {
+                FILTER_KEYS.forEach(function(key) {
+                    const $field = $('#shiftFilterForm [name="' + key + '"]');
+                    $field.val('');
+                });
+
+                $('#shiftFilterForm .staff-select-filter, #shiftFilterForm .client-select-filter, #shiftFilterForm .site-select-filter').trigger('change.select2');
+                $('#shiftStatus').val('');
+                $('.search_box').val('');
+
+                syncUrlWithCurrentFilters();
+
+                try {
+                    const table = $('#shifts-table').DataTable();
+                    table.search('');
+                } catch (err) {
+                    console.error('Failed to clear table search during reset', err);
+                }
+
+                drawShiftsTable();
+            });
+
+            // Apply restored search term once DataTable is initialized
+            $(document).on('init.dt', '#shifts-table', function() {
+                const term = $('.search_box').val() || '';
+                if (term) {
+                    try {
+                        $('#shifts-table').DataTable().search(term).draw(false);
+                    } catch (err) {
+                        console.error('Failed to apply initial search term', err);
+                    }
                 }
             });
         });

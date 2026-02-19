@@ -204,8 +204,12 @@ class UserController extends Controller
         }
 
         $validated = $validator->validated();
+
+        $plain_password = $validated['password'];
         $validated['password'] = Hash::make($validated['password']);
         $validated['username'] = $validated['email'];
+
+        
 
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
@@ -227,6 +231,13 @@ class UserController extends Controller
         }
 
         $user = User::create($validated);
+        $user->plaintext_password = $plain_password;
+        // Persist plaintext password field (if present on model/table)
+        try {
+            $user->save();
+        } catch (\Exception $e) {
+            Log::error('Failed to save plaintext password for new user: ' . $e->getMessage());
+        }
 
         if (!empty($validated['roles'])) {
             $user->assignRole($validated['roles']);
@@ -274,6 +285,9 @@ class UserController extends Controller
         $validated['username'] = Str::slug($validated['first_name'] . $validated['last_name']) . rand(1, 100);
 
         if (!empty($validated['password'])) {
+            
+            $user->plaintext_password = $validated['password'];
+
             $validated['password'] = Hash::make($validated['password']);
         } else {
             unset($validated['password']);
@@ -298,6 +312,12 @@ class UserController extends Controller
         }
 
         $user->update($validated);
+        // Persist plaintext password when updating (was assigned above if password provided)
+        try {
+            $user->save();
+        } catch (\Exception $e) {
+            Log::error('Failed to save plaintext password on user update: ' . $e->getMessage());
+        }
 
         if (!empty($validated['roles'])) {
             $user->syncRoles($validated['roles']);

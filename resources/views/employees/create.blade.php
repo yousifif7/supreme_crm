@@ -235,6 +235,12 @@
                               <span class="text-danger form-error" id="error_nationality"></span>
                           </div>
                           <div class="col-md-4 mb-3">
+                              <label class="form-label">Address</label>
+                              <input type="text" name="address" class="form-control"
+                                  placeholder="Enter Address">
+                              <span class="text-danger form-error" id="error_address"></span>
+                          </div>
+                          <div class="col-md-4 mb-3">
                               <label class="form-label">Next of Kin</label>
                               <input type="text" name="next_kin" class="form-control"
                                   placeholder="Enter next of kin">

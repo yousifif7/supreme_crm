@@ -101,7 +101,8 @@ class Employee extends Model
         'driving_licence_expiry',
         'driving_licence_file',
         'additional_files',
-        'reference_number'
+        'reference_number',
+        'address',
     ];
 
     protected $casts = [

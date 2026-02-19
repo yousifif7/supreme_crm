@@ -154,7 +154,8 @@ class EmployeeController extends Controller
             ],
             'additional_file.*' => 'file|mimes:jpeg,jpg,png,pdf|max:20480',
             'employment_start_date' => 'nullable|date',
-            'employment_end_date' => 'nullable|date|after:employment_start_date'
+            'employment_end_date' => 'nullable|date|after:employment_start_date',
+            'address' => 'nullable|string',
         ]);
         
         
@@ -557,7 +558,8 @@ $validator->after(function ($validator) use ($request) {
                 'regex:/[@$!%*?&#]/', // at least one special char
             ],  // Add password validation
             'employment_start_date' => 'nullable|date',
-            'employment_end_date' => 'nullable|date|after:employment_start_date'
+            'employment_end_date' => 'nullable|date|after:employment_start_date',
+            'address' => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -1046,6 +1048,7 @@ $validator->after(function ($validator) use ($request) {
             'passport_no'     => $employee?->passport_no,
             'passport_expiry' => $employee?->passport_expiry,
             'address_group'   => $employee?->address_group,
+            'address'   => $employee?->address,
             'guard_rate'      => $employee?->guard_rate,
             'bank_name'       => $employee?->bank_name,
             'bank_branch'     => $employee?->bank_branch,

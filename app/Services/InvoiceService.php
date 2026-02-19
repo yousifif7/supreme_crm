@@ -285,6 +285,7 @@ class InvoiceService
 
         // Fetch all ShiftDate rows that belong to this subcontractor within the date range.
         $shiftDatesQuery = ShiftDate::with('shift')
+            ->where('is_assign', 4)
             ->whereDate('shift_date', '>=', $dateFrom)
             ->whereDate('shift_date', '<=', $dateTo);
 

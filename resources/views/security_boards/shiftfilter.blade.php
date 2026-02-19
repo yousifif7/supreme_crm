@@ -36,6 +36,7 @@
             @if (Request::is('scheduling*'))
                 <button id="editSelectedBtn" class="btn add-btn btn-success" hidden style="background: gray;">Multiple
                     Edit</button>
+                <button id="deleteSelectedBtn" class="btn btn-danger" style="background:red;" hidden>Delete Selected</button>
                 <button id="enableSelectBtn" class="btn add-btn btn-success" name="Multi_Select"
                     style="background: gray;">Multi Select</button>
                 <button id="toggle-subcontractors-all" class="btn" style="background-color:gray; color:white;">

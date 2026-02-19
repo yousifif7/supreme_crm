@@ -95,8 +95,38 @@ class ShiftsDataTable extends DataTable
             ->with(['shift.client', 'shift.site', 'shift.staff', 'staff'])
             ->select('shift_dates.*');
 
-        // Accept both AJAX param (shift_status) and query param (shiftStatus) for compatibility
-        $status = request()->get('shift_status', request()->get('shiftStatus'));
+        $staffId = request()->get('staff');
+        $clientId = request()->get('client_id');
+        $siteId = request()->get('site');
+        $fromShift = request()->get('from_shift');
+        $toShift = request()->get('to_shift');
+
+        if ($staffId !== null && $staffId !== '') {
+            $query->where('shift_dates.staff_id', $staffId);
+        }
+
+        if ($siteId !== null && $siteId !== '') {
+            $query->whereHas('shift', function ($q) use ($siteId) {
+                $q->where('site_id', $siteId);
+            });
+        }
+
+        if ($clientId !== null && $clientId !== '') {
+            $query->whereHas('shift', function ($q) use ($clientId) {
+                $q->where('client_id', $clientId);
+            });
+        }
+
+        if (!empty($fromShift)) {
+            $query->whereDate('shift_dates.shift_date', '>=', $fromShift);
+        }
+
+        if (!empty($toShift)) {
+            $query->whereDate('shift_dates.shift_date', '<=', $toShift);
+        }
+
+        // Status priority: modal filter (status) > quick status (shift_status / shiftStatus)
+        $status = request()->get('ShiftStatus', request()->get('shift_status', request()->get('shiftStatus')));
 
         if ($status !== null && $status !== '') {
             // Filter by the is_assign field which is used as the status indicator

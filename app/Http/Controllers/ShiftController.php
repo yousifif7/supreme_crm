@@ -77,6 +77,39 @@ class ShiftController extends Controller
         });
     }
 
+    protected function resolveSubcontractorUserId($subcontractorId): ?int
+    {
+        if (empty($subcontractorId)) {
+            return null;
+        }
+
+        $subcontractor = Subcontractor::find($subcontractorId);
+        if ($subcontractor && !empty($subcontractor->user_id)) {
+            return (int) $subcontractor->user_id;
+        }
+
+        $byUserId = Subcontractor::where('user_id', $subcontractorId)->first();
+        if ($byUserId && !empty($byUserId->user_id)) {
+            return (int) $byUserId->user_id;
+        }
+
+        return null;
+    }
+
+    protected function findSubcontractorByStoredId($storedValue): ?Subcontractor
+    {
+        if (empty($storedValue)) {
+            return null;
+        }
+
+        $subcontractor = Subcontractor::with('user')->find($storedValue);
+        if ($subcontractor) {
+            return $subcontractor;
+        }
+
+        return Subcontractor::with('user')->where('user_id', $storedValue)->first();
+    }
+
 
     public function unassign(Request $request, $id)
     {
@@ -546,6 +579,7 @@ class ShiftController extends Controller
 
             $serviceType1 = DB::table('employee_types')->where('id', $request->service_type_1[$i])->first();
             $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
+            $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
 
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
@@ -555,7 +589,7 @@ class ShiftController extends Controller
                 'end_shift'   => $request->end_shift[$i],
                 'service_type_1'   => $serviceType1?->name,
                 'service_type_2'   => $serviceType2?->name,
-                'subcontractor_id'   => $request->subcontractor_id[$i] ?? null,
+                'subcontractor_id'   => $resolvedSubcontractorUserId,
                 'restrict_start_time' => $data['restrict_start_time'],
                 'enforce_picture_check' => $data['enforce_picture_check'],
                 'restrict_location_check' => $data['restrict_location_check'],
@@ -848,6 +882,10 @@ class ShiftController extends Controller
         if ($request->filled('guard_rate')) {
             $data['guard_rate'] = $request->input('guard_rate');
         }
+
+        if ($request->has('subcontractor_id')) {
+            $data['subcontractor_id'] = $this->resolveSubcontractorUserId($request->subcontractor_id);
+        }
         
         if (isset($data['book_on'])) {
             $data['absentee_start_time'] = $data['book_on'];
@@ -1052,13 +1090,13 @@ class ShiftController extends Controller
 
         // If subcontractor was provided in the request, ensure it's persisted
         if ($request->has('subcontractor_id')) {
-            $shift->subcontractor_id = $request->subcontractor_id ?: null;
+            $shift->subcontractor_id = $data['subcontractor_id'] ?? null;
             $shift->save();
 
             try {
                 $parent = $shift->shift;
                 if ($parent) {
-                    $parent->subcontractor_id = $request->subcontractor_id ?: null;
+                    $parent->subcontractor_id = $data['subcontractor_id'] ?? null;
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -1410,7 +1448,7 @@ private function formatGanttData($shiftDates)
 
         if (!empty($resolvedSubcontractorId)) {
             try {
-                $subModel = \App\Models\Subcontractor::with('user')->find($resolvedSubcontractorId);
+                $subModel = $this->findSubcontractorByStoredId($resolvedSubcontractorId);
                 if ($subModel) {
                     $resolvedSubcontractorName = trim($subModel->company_name ?? '') ?: trim($subModel->contact_person ?? '');
                     if (!$resolvedSubcontractorName && isset($subModel->user) && $subModel->user) {
@@ -1509,7 +1547,7 @@ private function formatGanttArray($shiftDates)
 
         if (!empty($resolvedSubcontractorId)) {
             try {
-                $subModel = \App\Models\Subcontractor::with('user')->find($resolvedSubcontractorId);
+                $subModel = $this->findSubcontractorByStoredId($resolvedSubcontractorId);
                 if ($subModel) {
                     $resolvedSubcontractorName = trim($subModel->company_name ?? '') ?: trim($subModel->contact_person ?? '');
                     if (!$resolvedSubcontractorName && isset($subModel->user) && $subModel->user) {
@@ -2048,14 +2086,15 @@ public function getTodayShifts()
         $shiftDate->is_assign = 1;
         $shiftDate->status = 'pending';
         // store subcontractor on the shift_date and also update parent shift record
-        $shiftDate->subcontractor_id = $request->subcontractor_id ?? null;
+        $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id);
+        $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
         $shiftDate->save();
 
-        if (!empty($request->subcontractor_id)) {
+        if ($request->has('subcontractor_id')) {
             try {
                 $parent = $shiftDate->shift;
                 if ($parent) {
-                    $parent->subcontractor_id = $request->subcontractor_id;
+                    $parent->subcontractor_id = $resolvedSubcontractorUserId;
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -2710,6 +2749,20 @@ public function patrolUpdate(Request $request, $id)
             $endCalc   = strlen($newEnd) === 5 ? $newEnd . ':00' : $newEnd;
             $shiftDate->total_hours = $this->calculateTotalHours($startCalc, $endCalc, 'H:i:s');
 
+            if ($request->has('subcontractor_id')) {
+                $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id);
+                $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
+                try {
+                    $parent = $shiftDate->shift;
+                    if ($parent) {
+                        $parent->subcontractor_id = $resolvedSubcontractorUserId;
+                        $parent->save();
+                    }
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to update parent shift subcontractor (multiAssign non-override): '.$e->getMessage());
+                }
+            }
+
             // Only update staff and is_assign when staff is actually being changed
             $oldStaffId = $shiftDate->staff_id;
             $newStaffId = $staffUser->user_id;
@@ -2864,14 +2917,15 @@ public function patrolUpdate(Request $request, $id)
         $shiftDate->is_assign = 1;
         $shiftDate->status = 'pending';
         // store subcontractor on the shift_date and also update parent shift record
-        $shiftDate->subcontractor_id = $request->subcontractor_id ?? null;
+        $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id);
+        $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
         $shiftDate->save();
 
-        if (!empty($request->subcontractor_id)) {
+        if ($request->has('subcontractor_id')) {
             try {
                 $parent = $shiftDate->shift;
                 if ($parent) {
-                    $parent->subcontractor_id = $request->subcontractor_id;
+                    $parent->subcontractor_id = $resolvedSubcontractorUserId;
                     $parent->save();
                 }
             } catch (\Throwable $e) {
@@ -2973,11 +3027,12 @@ public function patrolUpdate(Request $request, $id)
 
             // persist subcontractor if provided for bulk assign
             if ($request->has('subcontractor_id')) {
-                $shiftDate->subcontractor_id = $request->subcontractor_id ?: null;
+                $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id);
+                $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
                 try {
                     $parent = $shiftDate->shift;
                     if ($parent) {
-                        $parent->subcontractor_id = $request->subcontractor_id ?: null;
+                        $parent->subcontractor_id = $resolvedSubcontractorUserId;
                         $parent->save();
                     }
                 } catch (\Throwable $e) {
@@ -3038,7 +3093,7 @@ public function patrolUpdate(Request $request, $id)
         $data['absentee_end_time']   = $data['book_off'] ?? null;
         $data['start_time']          = $data['start_shift'];
         $data['end_time']            = $data['end_shift'];
-        $data['subcontractor_id']            = $data['subcontractor_id'] ?? null;
+        $data['subcontractor_id']            = $this->resolveSubcontractorUserId($data['subcontractor_id'] ?? null);
 
         // Normalize time format
         if (strlen($data['start_shift']) === 5) $data['start_shift'] .= ':00';
@@ -3055,6 +3110,18 @@ public function patrolUpdate(Request $request, $id)
         }
 
         $shift->update($data);
+
+        if ($request->has('subcontractor_id')) {
+            try {
+                $parent = $shift->shift;
+                if ($parent) {
+                    $parent->subcontractor_id = $data['subcontractor_id'] ?? null;
+                    $parent->save();
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Failed to update parent shift subcontractor (updateWithOverride): '.$e->getMessage());
+            }
+        }
 
         // Send notification
         if (!empty($data['staff_id'])) {
@@ -3147,7 +3214,8 @@ public function patrolUpdate(Request $request, $id)
 
             $serviceType1 = DB::table('employee_types')->where('id', $request->service_type_1[$i])->first();
             $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
-
+            $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
+            
             // Create main Shift
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
@@ -3157,7 +3225,7 @@ public function patrolUpdate(Request $request, $id)
                 'end_shift'   => $request->end_shift[$i],
                 'service_type_1' => $serviceType1?->name,
                 'service_type_2' => $serviceType2?->name,
-                'subcontractor_id' => $request->subcontractor_id[$i] ?? null,
+                'subcontractor_id' => $resolvedSubcontractorUserId,
                 'restrict_start_time' => $data['restrict_start_time'],
                 'enforce_picture_check' => $data['enforce_picture_check'],
                 'restrict_location_check' => $data['restrict_location_check'],
@@ -3399,6 +3467,12 @@ public function patrolUpdate(Request $request, $id)
         
         if (array_key_exists('to_shift', $data) && $data['to_shift']) {
             $parentShift->to_shift = $data['to_shift'];
+        }
+
+        if (array_key_exists('subcontractor_id', $data)) {
+            $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($data['subcontractor_id']);
+            $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
+            $parentShift->subcontractor_id = $resolvedSubcontractorUserId;
         }
 
         // Calculate total hours if both times are present

@@ -1292,8 +1292,13 @@ if ($now->lt($bookingOpensAt)) {
         return response()->json(['message' => 'Scan recorded for patrol', 'patrol_id' => $patrol->id]);
     }
 
-    public function startPatrol($patrol_id)
+    public function startPatrol(Request $request, $patrol_id)
     {
+        $validated = $request->validate([
+            'location.latitude' => 'required|numeric',
+            'location.longitude' => 'required|numeric',
+        ]);
+
         $patrol = Patrol::findOrFail($patrol_id);
 
         $now = Carbon::now();
@@ -1322,6 +1327,21 @@ if ($now->lt($bookingOpensAt)) {
 
         if($patrol->status == 'missed'){
             return response()->json(['message' => 'This Patrol has already been missed, You cannot submit unless an Admin gave permission to.'], 422);
+        }
+
+        $shiftDateForGeo = ShiftDate::find($patrol->shift_id);
+        if (!$shiftDateForGeo) {
+            return response()->json(['message' => 'Shift not found for this patrol.'], 404);
+        }
+
+        $geoFenceError = $this->ensureWithinShiftSiteRadius(
+            $shiftDateForGeo,
+            $validated['location']['latitude'],
+            $validated['location']['longitude'],
+            'start patrol'
+        );
+        if ($geoFenceError) {
+            return $geoFenceError;
         }
 
         // If the guard currently has a different patrol in progress, mark that one completed
@@ -1439,6 +1459,21 @@ if ($now->lt($bookingOpensAt)) {
             'location.longitude' => 'required|numeric',
             'location.address' => 'required|string',
         ]);
+
+        $shiftDateForGeo = ShiftDate::find($patrol->shift_id);
+        if (!$shiftDateForGeo) {
+            return response()->json(['message' => 'Shift not found for this patrol.'], 404);
+        }
+
+        $geoFenceError = $this->ensureWithinShiftSiteRadius(
+            $shiftDateForGeo,
+            $request->input('location.latitude'),
+            $request->input('location.longitude'),
+            'complete patrol'
+        );
+        if ($geoFenceError) {
+            return $geoFenceError;
+        }
 
         $patrol->update([
             'summary' => $request->summary,
