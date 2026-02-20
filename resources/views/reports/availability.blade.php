@@ -23,6 +23,16 @@
                             <div class="form-text small">Tap to toggle days; works on mobile without needing Ctrl/Cmd.</div>
                         </div>
 
+                        <div class="col-md-4">
+                            <label for="employee_id" class="form-label">Staff</label>
+                            <select name="employee_id" id="employee_id" class="form-control select2_employee">
+                                <option value="">All staff</option>
+                                @foreach(($employees ?? []) as $id => $name)
+                                    <option value="{{ $id }}" {{ (string)$id === (string) request()->input('employee_id') ? 'selected' : '' }}>{{ $name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
                         <div class="col-md-2">
                             <label for="start_date" class="form-label">Start Date</label>
                             <input type="date" name="start_date" id="start_date" class="form-control"
@@ -122,6 +132,10 @@
     <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.8/js/dataTables.bootstrap5.min.js"></script>
 
+    <!-- Select2 for enhanced selects -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+
     <!-- Initialize DataTable -->
     <script>
         $(document).ready(function() {
@@ -136,6 +150,20 @@
                     searchPlaceholder: "Search client..."
                 }
             });
+
+            // init select2 for employee selector if available
+            try {
+                if ($.fn.select2 && $('.select2_employee').length) {
+                    $('.select2_employee').select2({
+                        placeholder: 'Select staff',
+                        allowClear: true,
+                        width: '100%',
+                        minimumResultsForSearch: 10
+                    });
+                }
+            } catch (e) {
+                // ignore
+            }
         });
     </script>
 

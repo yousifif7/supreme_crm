@@ -109,10 +109,10 @@ class CheckCallController extends Controller
         $lat = $data['location']['latitude'];
         $lng = $data['location']['longitude'];
 
-        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
-        if ($geoFenceError) {
-            return $geoFenceError;
-        }
+        // $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
+        // if ($geoFenceError) {
+        //     return $geoFenceError;
+        // }
 
         // Try to resolve human-readable address from coordinates (GeoService caches results)
         $geoService = new GeoService();
@@ -1054,7 +1054,7 @@ class CheckCallController extends Controller
 
     private function ensureWithinShiftSiteRadius(ShiftDate $shiftDate, $guardLat, $guardLng, string $activity)
     {
-        if ((int) ($shiftDate->shift?->restrict_location_check ?? 0) !== 1) {
+        if (!(bool) ($shiftDate->shift?->restrict_location_check ?? false)) {
             return null;
         }
 
@@ -1083,8 +1083,8 @@ class CheckCallController extends Controller
         }
 
         $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
-        $baseRadius = (float) config('services.site_geofence.radius_meters', 200);
-        $margin = (float) config('services.site_geofence.margin_meters', 75);
+        $baseRadius = (float) config('services.site_geofence.radius_meters', 300);
+        $margin = (float) config('services.site_geofence.margin_meters', 100);
         $allowedMeters = $baseRadius + $margin;
 
         if ($distanceMeters > $allowedMeters) {

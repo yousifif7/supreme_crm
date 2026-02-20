@@ -2731,8 +2731,8 @@ public function workHours(Request $request)
         }
 
         $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
-        $baseRadius = (float) config('services.site_geofence.radius_meters', 200);
-        $margin = (float) config('services.site_geofence.margin_meters', 75);
+        $baseRadius = (float) config('services.site_geofence.radius_meters', 300);
+        $margin = (float) config('services.site_geofence.margin_meters', 100);
         $allowedMeters = $baseRadius + $margin;
 
         if ($distanceMeters > $allowedMeters) {

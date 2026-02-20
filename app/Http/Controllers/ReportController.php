@@ -923,6 +923,16 @@ class ReportController extends Controller
             }
         }
 
+        // If no date/day filters provided but a single employee was selected,
+        // return all availability rows for that employee.
+        if ($availabilities->isEmpty() && $employeeId && empty($days) && empty($startDate) && empty($endDate)) {
+            $query = \App\Models\Availability::with('user')
+                ->when($employeeId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('id', $employeeId)))
+                ->when($clientId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('client_id', $clientId)));
+
+            $availabilities = $query->get();
+        }
+
         // Exports (Availability export class exists and expects collection)
         if ($export === 'pdf') {
             $pdf = Pdf::loadView('reports.pdf.availability-pdf', compact('availabilities'))

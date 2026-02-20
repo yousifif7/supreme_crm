@@ -41,8 +41,8 @@
         }
 
         .gantt-sidebar-header {
-            width: 180px;
-            min-width: 160px;
+            width: 150px;
+            min-width: 140px;
             padding: 10px;
             font-size: 16px;
             font-weight: 800;
@@ -64,10 +64,10 @@
             min-width: 100%;
         }
 
-        /* increase row height so multi-line bars fit comfortably */
+        /* row height reduced to make bars more compact */
         .gantt-row {
             display: flex;
-            min-height: 160px;
+            min-height: 96px;
             border-bottom: 1px solid #dee2e6;
             position: relative;
         }
@@ -92,8 +92,8 @@
         }
 
         .gantt-row-sidebar {
-            width: 180px;
-            min-width: 160px;
+            width: 150px;
+            min-width: 140px;
             padding: 14px;
             background-color: #fff;
             border-right: 1px solid #dee2e6;
@@ -117,7 +117,9 @@
            min-width that caused overly wide columns on large screens. */
         .day-column {
             flex: 1;
-            min-width: 260px; /* JS will set the concrete width per day */
+            min-width: 140px; /* JS will set the concrete width per day */
+
+            max-width: 850px;
             border-right: 1px solid #dee2e6;
             position: relative;
             box-sizing: border-box;
@@ -141,35 +143,38 @@
            Use CSS grid as the base and JavaScript will cap columns (e.g. max 5)
            so many shifts will arrange into several rows without hidden overflow. */
         .day-cell {
-            display: grid;
-            grid-auto-flow: row;
-            gap: 8px;
-            min-height: 140px;
+            /* Use a wrapping flex layout so shift bars can size to their content
+               instead of stretching to fill fixed grid columns. Flex-wrap allows
+               multiple bars to flow into rows while each bar keeps width:auto. */
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            min-height: 80px;
             position: relative;
             padding: 12px;
-            align-items: start;
+            align-items: flex-start;
             box-sizing: border-box;
             overflow: visible;
-            /* initial fallback: 2 columns */
-            grid-template-columns: repeat(2, 1fr);
         }
 
         /* Ensure bars fill their grid cell and can shrink if needed */
         .day-cell>.gantt-bar {
+            /* Let each bar size to its content but never exceed the cell width */
             min-width: 0;
-            width: 100%;
+            width: auto;
             max-width: 100%;
             box-sizing: border-box;
+            flex: 0 0 auto;
         }
 
         /* Bar layout: stacked rows, no ellipsis; text wraps naturally and remains readable */
         .gantt-bar {
             background: #4e73df;
             color: #fff;
-            padding: 14px 16px 14px 60px;
+            padding: 6px 10px 6px 36px;
             /* leave left space for checkbox */
-            border-radius: 10px;
-            margin-bottom: 10px;
+            border-radius: 6px;
+            margin-bottom: 6px;
             width: auto;
             box-sizing: border-box;
             cursor: pointer;
@@ -177,8 +182,10 @@
             position: relative;
             overflow: visible;
             transition: transform .12s ease, box-shadow .12s ease;
-            display: block;
+            display: inline-flex;
+            flex-direction: column;
             white-space: normal;
+            align-items: stretch;
         }
 
         /* .bar-content holds each piece on its own line */
@@ -187,7 +194,7 @@
             white-space: normal;
             word-break: break-word;
             overflow-wrap: anywhere;
-            line-height: 1.18;
+            line-height: 1.08;
         }
 
         /* each content piece is block so it displays on separate lines */
@@ -197,8 +204,8 @@
         .gantt-bar .staff-name {
             display: block;
             color: inherit;
-            margin: 4px 0;
-            font-size: 14px;
+            margin: 5px 0;
+            font-size: 12px;
             font-weight: 600;
         }
 
@@ -212,7 +219,7 @@
 
         /* small duration text */
         .gantt-bar small {
-            font-size: 12px;
+            font-size: 10px;
             opacity: 0.95;
             color: inherit;
         }
@@ -226,11 +233,11 @@
         /* Checkbox inside bar - hidden unless .selection-mode on .gantt-container */
         .gantt-bar .multi-shift-checkbox {
             position: absolute;
-            left: 16px;
-            top: 16px;
+            left: 3px;
+            top: 12px;
             z-index: 8;
-            width: 18px;
-            height: 18px;
+            width: 14px;
+            height: 14px;
             cursor: pointer;
             background: #fff;
             border-radius: 3px;
@@ -244,20 +251,33 @@
 
         /* adjust padding when selection active */
         .selection-mode .gantt-bar {
-            padding-left: 60px;
+            padding-left: 36px;
         }
 
         /* note icons */
         .gantt-bar .note-icon,
         .gantt-bar .view-note-icon {
             position: absolute;
-            top: 14px;
-            right: 14px;
+            top: 10px;
+            right: 10px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
             z-index: 9;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.12);
+            color: inherit;
         }
 
+
+        /* Reserve space inside the bar so the icon never overlays text */
+        .gantt-bar .bar-content {
+            padding-right: 44px;
+        }
         /* selected visual */
         .gantt-bar.selected {
             outline: 4px solid rgba(255, 193, 7, 0.95);
@@ -2201,10 +2221,11 @@
     });
 
     // After placing bars: sizing assurance and synchronise padding with selection mode
+    // Keep bars width:auto so they wrap to content; only enforce padding and box-sizing.
     $('#ganttChart .day-cell > .gantt-bar').each(function() {
         $(this).css({
             'min-width': 0,
-            'width': '100%',
+            'width': 'auto',
             'max-width': '100%',
             'box-sizing': 'border-box',
             'padding-left': getBarLeftPadding()
@@ -2236,10 +2257,15 @@
         if (timelineAvailableWidth < 400) timelineAvailableWidth = Math.max(containerWidth * 0.6,
             400);
 
-        const minDayWidth = 180;
+        const minDayWidth = 110;
+        // Prevent very wide day columns so shift bars will wrap instead
+        // of stretching across the timeline. Adjust this value if you
+        // want larger/smaller maximum column widths.
+        const maxDayWidth = 850;
         const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
         let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
         if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+        if (dayWidth > maxDayWidth) dayWidth = maxDayWidth;
 
         const dayColumns = ganttChartEl.querySelectorAll('.day-column');
         dayHeaders.forEach(h => {
