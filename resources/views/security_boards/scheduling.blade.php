@@ -69,6 +69,22 @@
             display: flex;
             min-height: 160px;
             border-bottom: 1px solid #dee2e6;
+            position: relative;
+        }
+
+        /* Ensure the row divider is always visible above inner content by
+           drawing it with a pseudo-element. This prevents wide day-columns
+           or inner elements from visually covering the separator. */
+        .gantt-row::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 1px;
+            background: #dee2e6;
+            z-index: 1000; /* high enough to appear above row contents but below modals */
+            pointer-events: none;
         }
 
         .gantt-row:hover {
@@ -92,6 +108,7 @@
             flex: 1;
             position: relative;
             display: flex;
+            z-index: 1; /* keep content below the row divider pseudo-element */
         }
 
         /* Day column: allow JS to set fixed widths per day so a full week
@@ -105,6 +122,7 @@
             position: relative;
             box-sizing: border-box;
             overflow: visible;
+            z-index: 1; /* ensure columns don't cover row dividers */
         }
 
         .day-header {
@@ -119,16 +137,21 @@
             min-width: 120px;
         }
 
-        /* day-cell grid: two columns on large screens; stack only on very tiny screens */
+        /* day-cell grid: allow multiple bars to flow into columns/rows.
+           Use CSS grid as the base and JavaScript will cap columns (e.g. max 5)
+           so many shifts will arrange into several rows without hidden overflow. */
         .day-cell {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 12px;
+            display: grid;
+            grid-auto-flow: row;
+            gap: 8px;
             min-height: 140px;
             position: relative;
             padding: 12px;
             align-items: start;
             box-sizing: border-box;
             overflow: visible;
+            /* initial fallback: 2 columns */
+            grid-template-columns: repeat(2, 1fr);
         }
 
         /* Ensure bars fill their grid cell and can shrink if needed */
@@ -839,6 +862,115 @@
         @if(isset($subcontractors) && $subcontractors)
             window._subcontractorMap = @json($subcontractors->mapWithKeys(function($u){ return [$u->id => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))]; }));
         @endif
+    </script>
+
+    <script>
+        /**
+         * Layout helper: cap columns per day-cell so bars flow into multiple rows.
+         * Keeps colors and interactivity intact; only affects visual placement.
+         */
+        function adjustGanttDayCellColumns() {
+            try {
+                const BAR_PIXEL_WIDTH = 220; // desired visual width for each bar (preserve default bar size)
+                const MAX_COLS = 5; // force up to 5 columns for dense cells
+
+                // Collect unique dates from header
+                const headerDates = Array.from(document.querySelectorAll('.gantt-timeline-header .day-header')).map(h => h.getAttribute('data-date'));
+                if (!headerDates || !headerDates.length) return;
+
+                let totalTimelineWidth = 0;
+
+                headerDates.forEach(dateStr => {
+                    // Find all day-column elements for this date across all rows
+                    const dayCols = Array.from(document.querySelectorAll(`.day-column[data-date="${dateStr}"]`));
+                    if (!dayCols.length) return;
+
+                    // For this date, find the maximum number of bars in any cell (site)
+                    let maxBars = 0;
+                    dayCols.forEach(dc => {
+                        const cell = dc.querySelector('.day-cell');
+                        if (cell) {
+                            const count = cell.querySelectorAll('.gantt-bar').length || 0;
+                            if (count > maxBars) maxBars = count;
+                        }
+                    });
+
+                    // decide number of columns to display for this date
+                    const cols = maxBars >= MAX_COLS ? MAX_COLS : Math.max(1, Math.min(maxBars, MAX_COLS));
+
+                    // compute desired width: cols * BAR_PIXEL_WIDTH + paddings
+                    const sampleCell = dayCols[0].querySelector('.day-cell');
+                    const style = sampleCell ? getComputedStyle(sampleCell) : { paddingLeft: '12px', paddingRight: '12px' };
+                    const padLeft = parseFloat(style.paddingLeft) || 0;
+                    const padRight = parseFloat(style.paddingRight) || 0;
+                    const GAP = 10; // grid-gap between columns (px)
+                    const EXTRA_MARGIN = 12; // extra breathing room so last bar doesn't touch border
+                    const desiredWidth = Math.max(dayCols[0].clientWidth, Math.ceil(cols * BAR_PIXEL_WIDTH + padLeft + padRight + (cols - 1) * GAP + EXTRA_MARGIN));
+
+                    // Apply desired width to every .day-column for this date
+                    dayCols.forEach(dc => {
+                        dc.style.flex = `0 0 ${desiredWidth}px`;
+                        const cell = dc.querySelector('.day-cell');
+                        if (cell) {
+                            // set grid columns so bars wrap into cols columns of fixed width
+                            cell.style.gridTemplateColumns = `repeat(${cols}, ${BAR_PIXEL_WIDTH}px)`;
+                            // ensure grid gap is applied (for browsers that may not inherit CSS)
+                            cell.style.columnGap = GAP + 'px';
+                            cell.style.rowGap = '10px';
+                        }
+                    });
+
+                    // Also set header column width
+                    const headerEl = document.querySelector(`.gantt-timeline-header .day-header[data-date="${dateStr}"]`);
+                    if (headerEl) headerEl.style.flex = `0 0 ${desiredWidth}px`;
+
+                    totalTimelineWidth += desiredWidth;
+                });
+
+                // Update timeline min widths for alignment
+                const ganttChartEl = document.getElementById('ganttChart');
+                if (ganttChartEl) {
+                    const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
+                    const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
+                    if (timelineHeader) timelineHeader.style.minWidth = totalTimelineWidth + 'px';
+                    rowContents.forEach(rc => rc.style.minWidth = totalTimelineWidth + 'px');
+                }
+
+            } catch (err) {
+                console.debug('adjustGanttDayCellColumns error', err);
+            }
+        }
+
+        // Debounced resize handler
+        (function() {
+            let t;
+            window.addEventListener('resize', function() {
+                clearTimeout(t);
+                t = setTimeout(adjustGanttDayCellColumns, 120);
+            });
+
+            // Observe DOM changes inside ganttChart (bars added/removed) and adjust
+            const ganttEl = document.getElementById('ganttChart');
+            if (ganttEl && window.MutationObserver) {
+                const mo = new MutationObserver(function() {
+                    adjustGanttDayCellColumns();
+                    // ensure any collapse buttons are removed
+                    try { $('.gantt-cell-more-btn').remove(); } catch(e) {}
+                });
+                mo.observe(ganttEl, { childList: true, subtree: true });
+            }
+
+            // Ensure adjustments run after initial load and when DOM ready
+            document.addEventListener('DOMContentLoaded', function() {
+                // remove old collapse handlers/buttons if present
+                try {
+                    $(document).off('click', '.gantt-cell-more-btn');
+                    $('.gantt-cell-more-btn').remove();
+                    $('.gantt-bar-collapsed').removeClass('gantt-bar-collapsed').show();
+                } catch (e) {}
+                setTimeout(adjustGanttDayCellColumns, 50);
+            });
+        })();
     </script>
 
     <script>
@@ -2844,6 +2976,51 @@
                     // Update the specific shift bar in-place so the UI reflects the new note
                     console.debug('Note save success for shiftId=', shiftId, res);
                     if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, res.note);
+                    // Also robustly update the bar's icon and data attributes so other clients/pollers pick it up
+                    try {
+                        const $bar = $(`.gantt-bar[data-shift-id="${shiftId}"]`);
+                        if ($bar && $bar.length) {
+                            if (res.note && res.note.id) $bar.attr('data-note-id', res.note.id);
+                            let $existingIcon = $bar.find('.note-icon, .view-note-icon');
+                            if ($existingIcon.length) {
+                                // replace class and rebind handlers
+                                $existingIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                                // bind view-note click
+                                $existingIcon.on('click', function(e) {
+                                    e.stopPropagation();
+                                    const sid = $(this).data('shift-id');
+                                    $('#shiftId').val(sid);
+                                    $.get(`/shift-dates/${sid}/note`, function(data) {
+                                        if (data && data.note) {
+                                            $('#viewNoteText').text(data.note);
+                                            $('#viewNoteType').text(data.note_type);
+                                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                                            $('#deleteNoteBtn').data('shift-id', sid);
+                                            $('#viewNoteModal').modal('show');
+                                        }
+                                    });
+                                });
+                            } else {
+                                // create and append icon, then bind
+                                const $newIcon = $(`<span class="view-note-icon" data-shift-id="${shiftId}" style="color:#0d6efd">📝</span>`);
+                                $bar.append($newIcon);
+                                $newIcon.on('click', function(e) {
+                                    e.stopPropagation();
+                                    const sid = $(this).data('shift-id');
+                                    $('#shiftId').val(sid);
+                                    $.get(`/shift-dates/${sid}/note`, function(data) {
+                                        if (data && data.note) {
+                                            $('#viewNoteText').text(data.note);
+                                            $('#viewNoteType').text(data.note_type);
+                                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                                            $('#deleteNoteBtn').data('shift-id', sid);
+                                            $('#viewNoteModal').modal('show');
+                                        }
+                                    });
+                                });
+                            }
+                        }
+                    } catch (e) { console.debug('bar icon update failed', e); }
                     // Force reload of shifts so the Gantt chart re-renders with authoritative data
                     if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
                         try {
@@ -2866,6 +3043,92 @@
                 }
             });
         });
+
+        // ----- Polling for recent notes (near-real-time) -----
+        (function() {
+            let lastNoteId = 0;
+
+            // initialize lastNoteId to the highest note id currently present in the DOM (if any)
+            function initLastNoteId() {
+                try {
+                    // check any existing note data attributes on bars
+                    const ids = [];
+                    $('.gantt-bar').each(function() {
+                        const nid = $(this).data('note-id');
+                        if (nid) ids.push(parseInt(nid, 10));
+                    });
+                    if (ids.length) lastNoteId = Math.max(...ids);
+                } catch (e) { lastNoteId = 0; }
+            }
+
+            function pollNotes() {
+                $.get('/shift-dates/notes/updates', { after: lastNoteId })
+                    .done(function(res) {
+                        if (!res || !res.notes || !res.notes.length) return;
+                        res.notes.forEach(function(note) {
+                            // Update the UI for the affected shift_date
+                            try {
+                                if (typeof refreshShiftBar === 'function') {
+                                    // pass full note object so refreshShiftBar can use note.id when available
+                                    refreshShiftBar(note.shift_date_id, note);
+                                }
+                                // also set data-note-id on any existing bar
+                                const $bar = $(`.gantt-bar[data-shift-id="${note.shift_date_id}"]`);
+                                if ($bar && $bar.length && note.id) $bar.attr('data-note-id', note.id);
+                            } catch (e) {}
+                            lastNoteId = Math.max(lastNoteId, note.id);
+                        });
+                    })
+                    .fail(function() {
+                        // ignore transient failures
+                    });
+            }
+
+            $(document).ready(function() {
+                initLastNoteId();
+
+                // Visibility-aware polling with exponential backoff
+                let baseInterval = 3000; // 3s
+                const maxInterval = 30000; // 30s
+                let currentInterval = baseInterval;
+
+                function scheduleNextPoll() {
+                    // If page not visible, pause polling and retry later with a small interval
+                    if (document.hidden) {
+                        setTimeout(scheduleNextPoll, 5000);
+                        return;
+                    }
+
+                    // Execute poll
+                    const jq = pollNotes();
+                    if (jq && typeof jq.done === 'function') {
+                        jq.done(function() {
+                            // success -> reset interval
+                            currentInterval = baseInterval;
+                        }).fail(function() {
+                            // failure -> exponential backoff
+                            currentInterval = Math.min(maxInterval, Math.max(currentInterval * 2, baseInterval));
+                        }).always(function() {
+                            setTimeout(scheduleNextPoll, currentInterval);
+                        });
+                    } else {
+                        // fallback: schedule again
+                        setTimeout(scheduleNextPoll, currentInterval);
+                    }
+                }
+
+                // Start polling loop
+                scheduleNextPoll();
+
+                // If user hides/returns to tab, adjust polling promptly
+                document.addEventListener('visibilitychange', function() {
+                    if (!document.hidden) {
+                        // resume immediately when tab becomes visible
+                        scheduleNextPoll();
+                    }
+                });
+            });
+        })();
 
         // Click delete button (from view modal)
         $(document).on('click', '#deleteNoteBtn', function() {
@@ -2936,22 +3199,58 @@
                     const viewIcon = $(`.view-note-icon[data-shift-id="${idStr}"]`);
                     const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
 
-                    if (noteData) {
-                        // Ensure a view-note-icon exists
+                        if (noteData) {
+                        // Ensure a view-note-icon exists and handlers are bound correctly
                         if (noteIcon.length) {
-                            noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd');
-                            noteIcon.html('📄');
+                            noteIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                            // bind view-note click
+                            noteIcon.on('click', function(e) {
+                                e.stopPropagation();
+                                const sid = $(this).data('shift-id');
+                                $('#shiftId').val(sid);
+                                $.get(`/shift-dates/${sid}/note`, function(data) {
+                                    if (data && data.note) {
+                                        $('#viewNoteText').text(data.note);
+                                        $('#viewNoteType').text(data.note_type);
+                                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                                        $('#deleteNoteBtn').data('shift-id', sid);
+                                        $('#viewNoteModal').modal('show');
+                                    }
+                                });
+                            });
                         }
+                        // also set bar-level data attribute if note id present
+                        try {
+                            const $bar = $(`.gantt-bar[data-shift-id="${idStr}"]`);
+                            if ($bar && $bar.length && noteData.id) $bar.attr('data-note-id', noteData.id);
+                        } catch (e) {}
 
-                    } else {
-                        // No note -> show inactive note-icon
-                        if (viewIcon.length) {
-                            viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color', '#555');
-                            viewIcon.html('📝');
-                        }
-                        if (noteIcon.length) {
-                            noteIcon.css('color', '#555');
-                        }
+                        } else {
+                            // No note -> show inactive note-icon and bind add-note handler
+                            if (viewIcon.length) {
+                                viewIcon.off('click').removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
+                                viewIcon.on('click', function(e) {
+                                    e.stopPropagation();
+                                    const sid = $(this).data('shift-id');
+                                    $('#shiftId').val(sid);
+                                    $('#noteForm')[0].reset();
+                                    $('#noteType').val('guard');
+                                    $('#noteText').val('');
+                                    $('#noteModal').modal('show');
+                                });
+                            }
+                            if (noteIcon.length) {
+                                noteIcon.off('click').css('color', '#555');
+                                noteIcon.on('click', function(e) {
+                                    e.stopPropagation();
+                                    const sid = $(this).data('shift-id');
+                                    $('#shiftId').val(sid);
+                                    $('#noteForm')[0].reset();
+                                    $('#noteType').val('guard');
+                                    $('#noteText').val('');
+                                    $('#noteModal').modal('show');
+                                });
+                            }
                     }
                     return;
                 }

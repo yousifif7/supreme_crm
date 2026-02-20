@@ -569,6 +569,8 @@ Route::post('/shifts/store-override', [ShiftController::class, 'storeOverride'])
 Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
 Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
 Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
+// Endpoint for polling recent notes (used for near-real-time updates)
+Route::get('/shift-dates/notes/updates', [ShiftController::class, 'recentNotes'])->name('shift.note.updates');
 
 Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
 

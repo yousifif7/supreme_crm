@@ -86,14 +86,10 @@ class ShiftNotificationController extends BaseController
                 // minutes since patrol start (positive if start in past)
                 $minutesSinceStart = $startDt->diffInMinutes($now, false);
 
-                
-
                 if ($minutesSinceStart >= 50) {
                     $patrol->status = 'completed';
                     $patrol->completed_at = $now;
                     $patrol->save();
-
-                    
 
                     // Notify the guard (use eager-loaded relation when available)
                     $shiftDate = $patrol->shift ?? null;
@@ -121,76 +117,91 @@ class ShiftNotificationController extends BaseController
         // --- Auto Book Off (5 minutes after shift end) ---
         $threshold = now()->subMinutes(5)->format('Y-m-d H:i:s');
 
-// Select shifts where the scheduled end has passed the threshold AND
-// either `absentee_end_time` is NULL OR the recorded absentee time is earlier
-// than the scheduled end (admin may have accidentally set an early absentee time).
-// Handle overnight shifts by resolving times to proper datetimes via CASE.
-$missedBookOffs = ShiftDate::whereNotNull('staff_id')
-    ->whereBetween('shift_date', [$cutoff, $now->toDateString()])
-    ->whereRaw("(
-        -- scheduled end datetime <= threshold
-        CASE
-            WHEN end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), end_time)
-            ELSE TIMESTAMP(shift_date, end_time)
-        END <= ?
-    ) AND (
-        -- absentee_end_time is NULL OR absentee datetime < scheduled end datetime
-        absentee_end_time IS NULL OR (
-            CASE
-                WHEN absentee_end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), absentee_end_time)
-                ELSE TIMESTAMP(shift_date, absentee_end_time)
-            END < (
+        // Build a reusable base query for missed book-offs (we'll chunk this)
+        $missedBookOffsBaseQuery = ShiftDate::whereNotNull('staff_id')
+            ->whereBetween('shift_date', [$cutoff, $now->toDateString()])
+            ->whereRaw("(
+                -- scheduled end datetime <= threshold
                 CASE
                     WHEN end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), end_time)
                     ELSE TIMESTAMP(shift_date, end_time)
-                END
-            )
-        )
-    )", [$threshold])
-    ->select('id', 'staff_id', 'start_time', 'end_time', 'shift_date', 'absentee_end_time', 'is_assign')
-    ->get();
+                END <= ?
+            ) AND (
+                -- absentee_end_time is NULL OR absentee datetime < scheduled end datetime
+                absentee_end_time IS NULL OR (
+                    CASE
+                        WHEN absentee_end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), absentee_end_time)
+                        ELSE TIMESTAMP(shift_date, absentee_end_time)
+                    END < (
+                        CASE
+                            WHEN end_time <= start_time THEN TIMESTAMP(DATE_ADD(shift_date, INTERVAL 1 DAY), end_time)
+                            ELSE TIMESTAMP(shift_date, end_time)
+                        END
+                    )
+                )
+            )", [$threshold]);
 
- 
+        // Get distinct staff IDs for these missed book-offs so we can eager-load users once.
+        $missedBookOffStaffIds = (clone $missedBookOffsBaseQuery)
+            ->distinct()
+            ->pluck('staff_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
 
-// --- Auto book-off: apply admin-like book_off for eligible shifts ---
-foreach ($missedBookOffs as $mb) {
-    try {
-        // $mb already contains selected ShiftDate fields; avoid extra lookup
-        $sd = $mb;
-        if (!$sd) continue;
+        // We'll process the missed book-offs in chunks to avoid loading the full result set into memory.
+        // Select fields we need, include 'status' to determine current assignment state reliably.
+        $processMissedBookOff = function () use ($missedBookOffsBaseQuery) {
+            (clone $missedBookOffsBaseQuery)
+                ->select('id', 'staff_id', 'start_time', 'end_time', 'shift_date', 'absentee_end_time', 'is_assign', 'status')
+                ->chunkById(500, function ($chunk) {
+                    foreach ($chunk as $mb) {
+                        try {
+                            $sd = $mb;
+                            if (!$sd) continue;
 
-        // Only auto book-off if currently booked ON (is_assign == 3)
-        if ($sd->staff_id && $sd->is_assign == 3 && $sd->status==='booked_on') {
-            $sd->absentee_end_time = now()->format('H:i:s');
-            $sd->status = 'booked_off';
-            $sd->is_assign = 4;
-            $sd->save();
+                            // Only auto book-off if currently booked ON (is_assign == 3) and status is 'booked_on'
+                            if ($sd->staff_id && $sd->is_assign == 3 && ($sd->status ?? '') === 'booked_on') {
+                                $sd->absentee_end_time = now()->format('H:i:s');
+                                $sd->status = 'booked_off';
+                                $sd->is_assign = 4;
+                                $sd->save();
 
-            $latestBooking = ShiftBooking::where('user_id', $sd->staff_id)
-                ->where('type', 'book_on')
-                ->latest('created_at')
-                ->first();
+                                $latestBooking = ShiftBooking::where('user_id', $sd->staff_id)
+                                    ->where('type', 'book_on')
+                                    ->latest('created_at')
+                                    ->first();
 
-            if ($latestBooking) {
-                $latestBooking->type = 'book_off';
-                $latestBooking->timestamp = now();
-                $latestBooking->save();
-            } else {
-            }
+                                if ($latestBooking) {
+                                    $latestBooking->type = 'book_off';
+                                    $latestBooking->timestamp = now();
+                                    $latestBooking->save();
+                                } else {
+                                    // no previous booking found - skip
+                                }
 
-            // Notify staff
-            send_push_notification(
-                $sd->staff_id,
-                'Shift Booked Off',
-                "You have been automatically booked OFF for shift (ID: {$sd->id}) that ended at {$sd->end_time}",
-                ['type' => 'shift', 'shiftId' => $sd->id]
-            );
+                                // Notify staff
+                                send_push_notification(
+                                    $sd->staff_id,
+                                    'Shift Booked Off',
+                                    "You have been automatically booked OFF for shift (ID: {$sd->id}) that ended at {$sd->end_time}",
+                                    ['type' => 'shift', 'shiftId' => $sd->id]
+                                );
+                            }
+                        } catch (\Exception $e) {
+                            // per-row failures should not stop the chunk
+                        }
+                    }
+                });
+        };
 
-            
+        // --- Execute missed book-off processing (chunked) ---
+        try {
+            $processMissedBookOff();
+        } catch (\Throwable $e) {
+            // tolerate failures here to avoid bringing down the whole processor
         }
-        } catch (\Exception $e) {
-    }
-}
 
         // --- Book On Reminder (5 minutes before shift start) ---
         $bookOnReminders5MinsBefore = ShiftDate::whereNotNull('staff_id')
@@ -212,10 +223,10 @@ foreach ($missedBookOffs as $mb) {
             ->select('id', 'staff_id', 'start_time', 'shift_date')
             ->get();
 
-        // collect staff ids to eager-load once (include ALL reminder queries)
+        // collect staff ids to eager-load once (include ALL reminder queries and missed book-offs)
         $staffIds = collect($missedBookOns)
             ->pluck('staff_id')
-            ->merge(collect($missedBookOffs)->pluck('staff_id'))
+            ->merge(collect($missedBookOffStaffIds))
             ->merge(collect($bookOnReminders5MinsBefore)->pluck('staff_id'))
             ->merge(collect($bookOnReminders5MinsAfter)->pluck('staff_id'))
             ->unique()
@@ -683,8 +694,6 @@ foreach ($missedBookOffs as $mb) {
                 }
             }
         }
-
-        
 
         return response()->json(['success' => true, 'processed' => $processed]);
     }

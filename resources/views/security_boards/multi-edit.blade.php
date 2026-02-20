@@ -2,7 +2,7 @@
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h4 class="modal-title">Assign Staff to Selected Shifts</h4>
+                <h4 class="modal-title">Multi Edit to Selected Shifts</h4>
                 <button type="button" class="btn-close custom-btn-close" data-bs-dismiss="modal" aria-label="Close">
                     <i class="ti ti-x"></i>
                 </button>
@@ -19,10 +19,9 @@
                                         <!-- Staff -->
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label for="staff_id" class="form-label">Staff <span
-                                                        class="text-danger">*</span></label>
+                                                <label for="staff_id" class="form-label">Staff</label>
                                                 <select name="staff_id" id="staff_id"
-                                                    class="form-select select2_edit_modal" required>
+                                                    class="form-select select2_edit_modal">
                                                     <option value="">-- Choose --</option>
                                                     @php
                                                         $sortedStaffs = $staffs->sortBy(function($s) {
@@ -111,7 +110,7 @@
 
                         <div class="modal-footer">
                             <button type="button" class="btn btn-light me-2" data-bs-dismiss="modal">Cancel</button>
-                            <button type="submit" class="btn btn-primary">Assign</button>
+                            <button type="submit" class="btn btn-primary">Save</button>
                         </div>
                         </div>
                     </div>

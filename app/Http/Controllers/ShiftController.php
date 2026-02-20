@@ -2860,6 +2860,15 @@ public function patrolUpdate(Request $request, $id)
         ]);
     }
 
+    public function recentNotes(Request $request)
+    {
+        $after = intval($request->query('after', 0));
+
+        $notes = ShiftNote::where('id', '>', $after)->orderBy('id', 'asc')->get();
+
+        return response()->json(['notes' => $notes]);
+    }
+
     public function deleteNote($shiftDateId)
     {
         // The routes use /shift-dates/{id}/note for GET/POST/DELETE where {id}
