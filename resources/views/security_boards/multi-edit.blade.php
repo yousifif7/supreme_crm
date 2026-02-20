@@ -80,7 +80,7 @@
                                             </div>
                                         </div>
 
-                                        <!-- Book On -->
+                                        {{-- <!-- Book On -->
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book On</label>
@@ -98,7 +98,7 @@
                                                     placeholder="HH:MM" class="form-control time-input">
                                                 <span class="text-danger form-error error_book_off"></span>
                                             </div>
-                                        </div>
+                                        </div> --}}
 
                                     </div> <!-- .row -->
                                 </div> <!-- .shift-group -->

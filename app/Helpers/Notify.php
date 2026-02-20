@@ -47,6 +47,11 @@ if (!function_exists('notify_users')) {
 
 function applyRestrictions($entity, $validator, $fieldName = 'staff_id', $newShiftHours = 0, $shiftDate = null, $newShiftStart = null)
 {
+    // If no entity provided (e.g. staff not entered), skip restriction checks.
+    if (empty($entity) || !is_object($entity)) {
+        return;
+    }
+
     $entityClass = get_class($entity);
     $restrictions = \App\Models\Restriction::where('entity_type', $entityClass)
         ->where('is_active', true)

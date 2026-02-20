@@ -1979,7 +1979,9 @@ public function getTodayShifts()
         $override = $request->input('override', false);
 
         $staffId   = $request->staff_id;
-        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        // tolerate missing Employee record
+        $staffUser = Employee::where('user_id', $staffId)->first();
+        $staffUserId = $staffUser?->user_id ?? $staffId;
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift     = Shift::findOrFail($shiftDate->shift_id);
 
@@ -2636,8 +2638,16 @@ public function patrolUpdate(Request $request, $id)
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $staffId   = $request->staff_id;
-        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        $staffId   = $request->staff_id ?? null;
+        // Allow missing Employee record: prefer Employee but tolerate absence.
+        $staffUser = null;
+        $staffEmployeeId = null; // employee table id (may be null)
+        $staffUserId = $staffId; // users.id
+        if ($request->filled('staff_id')) {
+            $staffUser = Employee::where('user_id', $staffId)->first();
+            $staffEmployeeId = $staffUser?->id;
+            $staffUserId = $staffId;
+        }
 
         $updatedShifts = [];
         $errors = [];
@@ -2690,45 +2700,48 @@ public function patrolUpdate(Request $request, $id)
                 $newShiftEnd->addDay();
             }
 
-            // Calculate total hours for restriction checks
-            $selectedDays = explode(',', trim($shift->days, '[]"'));
-            $newShiftHours = $this->calculateTotalWorkingHours(
-                $staffUser->id,
-                $shift->from_shift,
-                $shift->to_shift,
-                $shift->start_shift,
-                $shift->end_shift,
-                $shift->{'break-mins_shift'} ?? 0,
-                $selectedDays,
-                'H:i:s'
-            );
+            // Only perform restriction and overlap checks when a staff_id was provided
+            if ($staffId) {
+                // Calculate total hours for restriction checks
+                $selectedDays = explode(',', trim($shift->days, '"[]"'));
+                $newShiftHours = $this->calculateTotalWorkingHours(
+                    $staffEmployeeId,
+                    $shift->from_shift,
+                    $shift->to_shift,
+                    $shift->start_shift,
+                    $shift->end_shift,
+                    $shift->{'break-mins_shift'} ?? 0,
+                    $selectedDays,
+                    'H:i:s'
+                );
 
-            // Apply restrictions
-            applyRestrictions(
-                $staffUser,
-                $validator,
-                'staff_id',
-                $newShiftHours,
-                $shiftDate->shift_date,
-                $newShiftStart
-            );
+                // Apply restrictions
+                applyRestrictions(
+                    $staffUser,
+                    $validator,
+                    'staff_id',
+                    $newShiftHours,
+                    $shiftDate->shift_date,
+                    $newShiftStart
+                );
 
-            if ($validator->errors()->any()) {
-                $errors[$shiftId] = $validator->errors()->toArray();
-                continue;
-            }
+                if ($validator->errors()->any()) {
+                    $errors[$shiftId] = $validator->errors()->toArray();
+                    continue;
+                }
 
-            // Check for overlapping shifts
-            $overlap = ShiftDate::where('staff_id', $staffUser->user_id)
-                ->where(function ($query) use ($newShiftStart, $newShiftEnd) {
-                    $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newShiftEnd])
-                        ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newShiftStart]);
-                })
-                ->exists();
+                // Check for overlapping shifts
+                $overlap = ShiftDate::where('staff_id', $staffUser?->user_id ?? $staffUserId)
+                    ->where(function ($query) use ($newShiftStart, $newShiftEnd) {
+                        $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newShiftEnd])
+                            ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newShiftStart]);
+                    })
+                    ->exists();
 
-            if ($overlap) {
-                $errors[$shiftId] = ['overlap' => 'This staff already has a shift during this time.'];
-                continue;
+                if ($overlap) {
+                    $errors[$shiftId] = ['overlap' => 'This staff already has a shift during this time.'];
+                    continue;
+                }
             }
 
             // Update shift times and dates
@@ -2765,7 +2778,7 @@ public function patrolUpdate(Request $request, $id)
 
             // Only update staff and is_assign when staff is actually being changed
             $oldStaffId = $shiftDate->staff_id;
-            $newStaffId = $staffUser->user_id;
+            $newStaffId = $staffUser?->user_id ?? $staffUserId;
 
             if ($newStaffId != $oldStaffId) {
                 // Staff is being changed - set to dispatched
@@ -2777,13 +2790,15 @@ public function patrolUpdate(Request $request, $id)
 
             $shiftDate->save();
 
-            // Push notification
-            send_push_notification(
-                $staffUser->user_id,
-                'Shift assigned',
-                'An admin assigned a shift for you, You have to respond!',
-                ['type' => 'shift', 'shiftId' => $shiftDate->id]
-            );
+            // Push notification only if staff was assigned
+            if (!empty($newStaffId)) {
+                send_push_notification(
+                    $newStaffId,
+                    'Shift assigned',
+                    'An admin assigned a shift for you, You have to respond!',
+                    ['type' => 'shift', 'shiftId' => $shiftDate->id]
+                );
+            }
 
             $updatedShifts[] = $shiftDate->id;
         }
@@ -2895,7 +2910,9 @@ public function patrolUpdate(Request $request, $id)
         }
 
         $staffId   = $request->staff_id;
-        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        // tolerate missing Employee record
+        $staffUser = Employee::where('user_id', $staffId)->first();
+        $staffUserId = $staffUser?->user_id ?? $staffId;
         $shiftDate = ShiftDate::findOrFail($request->shift_id);
         $shift     = Shift::findOrFail($shiftDate->shift_id);
 
@@ -2908,7 +2925,7 @@ public function patrolUpdate(Request $request, $id)
             $newEnd->addDay();
         }
 
-        $overlap = ShiftDate::where('staff_id', $staffUser->user_id)
+        $overlap = ShiftDate::where('staff_id', $staffUser?->user_id ?? $staffUserId)
             ->where(function ($query) use ($newStart, $newEnd) {
                 $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newEnd])
                     ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newStart]);
@@ -2922,7 +2939,7 @@ public function patrolUpdate(Request $request, $id)
         }
 
         // ✅ Force assign
-        $shiftDate->staff_id = $staffUser->user_id;
+        $shiftDate->staff_id = $staffUser?->user_id ?? $staffUserId;
         $shiftDate->is_assign = 1;
         $shiftDate->status = 'pending';
         // store subcontractor on the shift_date and also update parent shift record
@@ -2943,7 +2960,7 @@ public function patrolUpdate(Request $request, $id)
         }
 
         send_push_notification(
-            $staffUser->user_id,
+            $staffUser?->user_id ?? $staffUserId,
             'Shift assigned (override)',
             'An admin assigned a shift for you, overriding restrictions.',
             ['type' => 'shift', 'shiftId' => $shiftDate->id],
@@ -2981,7 +2998,9 @@ public function patrolUpdate(Request $request, $id)
         }
 
         $staffId   = $request->staff_id;
-        $staffUser = Employee::where('user_id', $staffId)->firstOrFail();
+        // tolerate missing Employee record
+        $staffUser = Employee::where('user_id', $staffId)->first();
+        $staffUserId = $staffUser?->user_id ?? $staffId;
         $updatedShifts = [];
         $errors = [];
 
@@ -3002,7 +3021,7 @@ public function patrolUpdate(Request $request, $id)
             }
 
             // ✅ Overlap check only
-            $overlap = ShiftDate::where('staff_id', $staffUser->user_id)
+            $overlap = ShiftDate::where('staff_id', $staffUser?->user_id ?? $staffUserId)
                 ->where(function ($query) use ($newShiftStart, $newShiftEnd) {
                     $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newShiftEnd])
                         ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newShiftStart]);
@@ -3015,7 +3034,7 @@ public function patrolUpdate(Request $request, $id)
             }
 
             // ✅ Assign without restriction checks
-            $shiftDate->staff_id            = $staffUser->user_id;
+            $shiftDate->staff_id            = $staffUser?->user_id ?? $staffUserId;
             $shiftDate->is_assign           = 1;
             $shiftDate->status              = 'pending';
             $shiftDate->start_time          = $newStart;
@@ -3114,8 +3133,10 @@ public function patrolUpdate(Request $request, $id)
 
         // ⚠ Skip restrictions completely
         if (!empty($data['staff_id'])) {
-            $staffUser = Employee::where('user_id', $data['staff_id'])->firstOrFail();
-            $shift->staff_id = $staffUser->user_id;
+            // tolerate missing Employee record
+            $staffUser = Employee::where('user_id', $data['staff_id'])->first();
+            $staffUserId = $staffUser?->user_id ?? $data['staff_id'];
+            $shift->staff_id = $staffUser?->user_id ?? $data['staff_id'];
         }
 
         $shift->update($data);
@@ -3135,7 +3156,7 @@ public function patrolUpdate(Request $request, $id)
         // Send notification
         if (!empty($data['staff_id'])) {
             send_push_notification(
-                $staffUser->user_id,
+                $staffUser?->user_id ?? $data['staff_id'],
                 'Shift updated (override)',
                 'An admin updated a shift for you, overriding restrictions.',
                 ['type' => 'shift', 'shiftId' => $shift->id]
