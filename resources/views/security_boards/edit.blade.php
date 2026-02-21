@@ -23,8 +23,7 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Staff <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Staff</label>
                                                 <select name="staff_id" class="form-select select2_modal select2" id="staff_id">
                                                     <option value="">--choose--</option>
                                                         @php
@@ -55,8 +54,7 @@
                                         @hasanyrole('superadmin')       
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Shift Date <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Shift Date</label>
                                                 <input type="date" name="shift_date" id="shift_date"
                                                     class="form-control">
                                                 <span class="text-danger form-error" id="error_shift_date_shift"></span>
@@ -64,8 +62,7 @@
                                         </div>
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Start <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Start</label>
                                                 <input type="text" name="start_shift" id="start_shift"
                                                     placeholder="HH:MM" class="form-control time-input"
                                                     value="{{ old('start_shift.0') }}">
@@ -75,7 +72,7 @@
 
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">End <span class="text-danger">*</span></label>
+                                                <label class="form-label">End</label>
                                                 <input type="text" name="end_shift" id="end_shift"
                                                     class="form-control time-input" placeholder="HH:MM">
                                                 <span class="text-danger form-error error_end_shift"></span>
@@ -93,21 +90,19 @@
                                         @endhasanyrole
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Book on <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Book on</label>
                                                 <input type="text" name="book_on" id="book_on" class="form-control"
-                                                    value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}">
+                                                    value="{{ isset($shiftDate) ? \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') : '' }}">
                                                 <span class="text-danger form-error time-input"
                                                     id="error_book_on"></span>
                                             </div>
                                         </div>
                                         <div class="col-md-4">
                                             <div class="mb-3">
-                                                <label class="form-label">Book off <span
-                                                        class="text-danger">*</span></label>
+                                                <label class="form-label">Book off</label>
                                                 <input type="text" name="book_off" id="book_off"
                                                     class="form-control"
-                                                    value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}">
+                                                    value="{{ isset($shiftDate) ? \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') : '' }}">
                                                 <span class="text-danger form-error time-input"
                                                     id="error_book_off"></span>
                                             </div>

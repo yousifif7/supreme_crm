@@ -118,8 +118,6 @@
         .day-column {
             flex: 1;
             min-width: 140px; /* JS will set the concrete width per day */
-
-            max-width: 850px;
             border-right: 1px solid #dee2e6;
             position: relative;
             box-sizing: border-box;
@@ -262,7 +260,7 @@
             right: 10px;
             cursor: pointer;
             font-size: 14px;
-            z-index: 9;
+            z-index: 1100;
             width: 30px;
             height: 30px;
             display: inline-flex;
@@ -273,10 +271,34 @@
             color: inherit;
         }
 
+        /* edit icon (pencil) placed left of the note icon */
+        .gantt-bar .edit-shift-icon {
+            position: absolute;
+            top: 10px;
+            right: 46px; /* sits just left of the note icon */
+            cursor: pointer;
+            font-size: 14px;
+            z-index: 1100;
+            width: 30px;
+            height: 30px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.12);
+            color: inherit;
+        }
 
-        /* Reserve space inside the bar so the icon never overlays text */
+        .gantt-bar .edit-shift-icon i {
+            font-size: 14px;
+            line-height: 1;
+            color: inherit;
+        }
+
+
+        /* Reserve space inside the bar so the icons never overlay text (note + edit) */
         .gantt-bar .bar-content {
-            padding-right: 44px;
+            padding-right: 100px;
         }
         /* selected visual */
         .gantt-bar.selected {
@@ -754,6 +776,7 @@
             <!-- Add shift -->
             @include('security_boards.shiftmodal');
             @include('security_boards.multi-edit');
+            @include('security_boards.edit')
 
         </div>
 
@@ -872,6 +895,33 @@
                 window.loadAllShiftsData.__isStub = true;
             }
         }
+    </script>
+    <script>
+        // Lightweight jQuery -> Bootstrap 5 modal polyfill.
+        // If code calls `$(...).modal('show')` (Bootstrap 4 style), this will delegate
+        // to the Bootstrap 5 `bootstrap.Modal` API when available, preserving
+        // existing callsites without changing other code.
+        (function() {
+            if (window.jQuery && (typeof window.jQuery.fn.modal !== 'function')) {
+                window.jQuery.fn.modal = function(action) {
+                    try {
+                        const show = action === 'show';
+                        const hide = action === 'hide';
+                        this.each(function() {
+                            const el = this;
+                            if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
+                                if (show) {
+                                    try { new window.bootstrap.Modal(el).show(); } catch (e) {}
+                                } else if (hide) {
+                                    try { const inst = window.bootstrap.Modal.getInstance(el); if (inst) inst.hide(); } catch (e) {}
+                                }
+                            }
+                        });
+                    } catch (e) {}
+                    return this;
+                };
+            }
+        })();
     </script>
     <script>
         window.isSuperAdmin = @json(auth()->check() && auth()->user()->getRoleNames()->contains('superadmin'));
@@ -2112,6 +2162,12 @@
                         ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
                         : `<i class="fa-solid note-icon  " data-shift-id="${shift.id}" style="color:#ffffff">📝</i>`
                     }
+                    <span class="edit-shift-icon" data-shift-id="${shift.id}" title="Edit shift">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+                            <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                        </svg>
+                    </span>
                 `);
 
                 const idStr = String(shift.id);
@@ -2123,6 +2179,58 @@
                     bar.attr('data-sub-name', subcontractorName || '');
                     // keep subcontractor id too so client-side map lookup can work when name is missing
                     if (subcontractorId) bar.attr('data-sub-id', subcontractorId);
+
+                    // bind edit icon handler for this bar
+                    try {
+                        bar.find('.edit-shift-icon').on('click', function(e) {
+                            e.stopPropagation();
+                            const sid = $(this).data('shift-id');
+                            $('#shift_id').val(sid);
+                            try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+                            const editUrls = [
+                                `${baseUrl}/editshift/${sid}`,
+                                `${baseUrl}/shift-dates/${sid}/edit`,
+                                `${baseUrl}/shifts/${sid}`
+                            ];
+                            // Show modal immediately with a non-destructive spinner overlay to improve perceived responsiveness.
+                            try {
+                                if ($('#edit_shift .modal-spinner').length === 0) {
+                                    $('#edit_shift .modal-content').append('<div class="modal-spinner" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:1051;"><div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading...</div></div></div>');
+                                }
+                                $('#edit_shift').modal('show');
+                            } catch (e) {}
+
+                            const populate = function(data) {
+                                try {
+                                    if (data.shift_date) $('#shift_date').val(data.shift_date);
+                                    if (data.start_time) $('#start_shift').val(data.start_time);
+                                    if (data.end_time) $('#end_shift').val(data.end_time);
+                                    if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
+                                    if (data.book_on) $('#book_on').val(data.book_on);
+                                    if (data.book_off) $('#book_off').val(data.book_off);
+                                    if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
+                                    if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
+                                    if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
+                                } catch (err) { console.debug(err); }
+                                try { $('#edit_shift .modal-spinner').remove(); } catch (e) {}
+                                $('#edit_shift').modal('show');
+                            };
+
+                            (function tryNext(i){
+                                if (i >= editUrls.length) { try { $('#edit_shift .modal-spinner').remove(); } catch (e) {} $('#edit_shift').modal('show'); return; }
+                                $.get(editUrls[i]).done(function(resp){
+                                    if (resp && typeof resp === 'object') populate(resp);
+                                    else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
+                                        try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                                        try { $('#edit_shift .modal-spinner').remove(); } catch (e) {}
+                                        $('#edit_shift').modal('show');
+                                    } else {
+                                        try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { try { $('#edit_shift .modal-spinner').remove(); } catch (er) {} $('#edit_shift').modal('show'); }
+                                    }
+                                }).fail(function() { tryNext(i+1); });
+                            })(0);
+                        });
+                    } catch (err) {}
                 } catch (e) {}
 
                 cell.append(bar);
@@ -2258,14 +2366,9 @@
             400);
 
         const minDayWidth = 110;
-        // Prevent very wide day columns so shift bars will wrap instead
-        // of stretching across the timeline. Adjust this value if you
-        // want larger/smaller maximum column widths.
-        const maxDayWidth = 850;
         const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
         let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
         if (dayWidth < minDayWidth) dayWidth = minDayWidth;
-        if (dayWidth > maxDayWidth) dayWidth = maxDayWidth;
 
         const dayColumns = ganttChartEl.querySelectorAll('.day-column');
         dayHeaders.forEach(h => {
@@ -2784,6 +2887,14 @@
                 minimumResultsForSearch: 0 // force search bar for single select
             })
 
+            $('.select2_modal').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#edit_shift'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+
 
             $('.select2_client').select2({
                     placeholder: "--choose--",
@@ -3245,13 +3356,62 @@
                                 });
                             });
                         }
-                        // also set bar-level data attribute if note id present
-                        try {
-                            const $bar = $(`.gantt-bar[data-shift-id="${idStr}"]`);
-                            if ($bar && $bar.length && noteData.id) $bar.attr('data-note-id', noteData.id);
-                        } catch (e) {}
+                            // also set bar-level data attribute if note id present
+                            try {
+                                const $bar = $(`.gantt-bar[data-shift-id="${idStr}"]`);
+                                if ($bar && $bar.length && noteData.id) $bar.attr('data-note-id', noteData.id);
+                                // ensure edit icon exists when note state updates
+                                if ($bar && $bar.length && $bar.find('.edit-shift-icon').length === 0) {
+                                    const $editIcon = $(`
+                                        <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
+                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                                <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+                                                <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                                            </svg>
+                                        </span>
+                                    `);
+                                    $bar.append($editIcon);
+                                    $editIcon.on('click', function(e) {
+                                        e.stopPropagation();
+                                        const sid = $(this).data('shift-id');
+                                        $('#shift_id').val(sid);
+                                        try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+                                        const editUrls = [
+                                            `${baseUrl}/shifts/${sid}/edit`,
+                                            `${baseUrl}/shift-dates/${sid}/edit`,
+                                            `${baseUrl}/shifts/${sid}`
+                                        ];
+                                        const populate = function(data) {
+                                            try {
+                                                if (data.shift_date) $('#shift_date').val(data.shift_date);
+                                                if (data.start_time) $('#start_shift').val(data.start_time);
+                                                if (data.end_time) $('#end_shift').val(data.end_time);
+                                                if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
+                                                if (data.book_on) $('#book_on').val(data.book_on);
+                                                if (data.book_off) $('#book_off').val(data.book_off);
+                                                if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
+                                                if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
+                                                if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
+                                            } catch (err) { console.debug(err); }
+                                            $('#edit_shift').modal('show');
+                                        };
+                                        (function tryNext(i){
+                                            if (i >= editUrls.length) { $('#edit_shift').modal('show'); return; }
+                                            $.get(editUrls[i]).done(function(resp){
+                                                if (resp && typeof resp === 'object') populate(resp);
+                                                else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
+                                                    try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                                                    $('#edit_shift').modal('show');
+                                                } else {
+                                                    try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { $('#edit_shift').modal('show'); }
+                                                }
+                                            }).fail(function() { tryNext(i+1); });
+                                        })(0);
+                                    });
+                                }
+                            } catch (e) {}
 
-                        } else {
+                            } else {
                             // No note -> show inactive note-icon and bind add-note handler
                             if (viewIcon.length) {
                                 viewIcon.off('click').removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
@@ -3336,6 +3496,58 @@
                                     });
                                 }
                             });
+
+                            // Ensure edit icon exists for this bar as well
+                            if (bar.find('.edit-shift-icon').length === 0) {
+                                const $editIcon = $(`
+                                    <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+                                            <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                                        </svg>
+                                    </span>
+                                `);
+                                bar.append($editIcon);
+
+                                // bind edit handler (same logic as creation path)
+                                $editIcon.on('click', function(e) {
+                                    e.stopPropagation();
+                                    const sid = $(this).data('shift-id');
+                                    $('#shift_id').val(sid);
+                                    try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+                                    const editUrls = [
+                                        `${baseUrl}/shifts/${sid}/edit`,
+                                        `${baseUrl}/shift-dates/${sid}/edit`,
+                                        `${baseUrl}/shifts/${sid}`
+                                    ];
+                                    const populate = function(data) {
+                                        try {
+                                            if (data.shift_date) $('#shift_date').val(data.shift_date);
+                                            if (data.start_time) $('#start_shift').val(data.start_time);
+                                            if (data.end_time) $('#end_shift').val(data.end_time);
+                                            if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
+                                            if (data.book_on) $('#book_on').val(data.book_on);
+                                            if (data.book_off) $('#book_off').val(data.book_off);
+                                            if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
+                                            if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
+                                            if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
+                                        } catch (err) { console.debug(err); }
+                                        $('#edit_shift').modal('show');
+                                    };
+                                    (function tryNext(i){
+                                        if (i >= editUrls.length) { $('#edit_shift').modal('show'); return; }
+                                        $.get(editUrls[i]).done(function(resp){
+                                            if (resp && typeof resp === 'object') populate(resp);
+                                            else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
+                                                try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                                                $('#edit_shift').modal('show');
+                                            } else {
+                                                try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { $('#edit_shift').modal('show'); }
+                                            }
+                                        }).fail(function() { tryNext(i+1); });
+                                    })(0);
+                                });
+                            }
                         }
 
                         // If the bar exists but icon still missing, attempt to fully re-render the day cell
@@ -3446,6 +3658,12 @@
         ${subcontractorName2 ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${safeEscape(subcontractorName2)}</div>` : ''}
     </div>
     ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" style="color:#0d6efd">📝</span>` : `<span class="note-icon" data-shift-id="${idStr}" style="color:#555">📝</span>`}
+    <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+            <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+        </svg>
+    </span>
 </div>
             `);
 
@@ -3477,6 +3695,48 @@
                         $('#viewNoteModal').modal('show');
                     }
                 });
+            });
+
+            // edit icon: open edit modal and populate
+            $bar.find('.edit-shift-icon').on('click', function(e) {
+                e.stopPropagation();
+                const sid = $(this).data('shift-id');
+                $('#shift_id').val(sid);
+                try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+
+                const editUrls = [
+                    `${baseUrl}/shifts/${sid}/edit`,
+                    `${baseUrl}/shift-dates/${sid}/edit`,
+                    `${baseUrl}/shifts/${sid}`
+                ];
+
+                const populate = function(data) {
+                    try {
+                        if (data.shift_date) $('#shift_date').val(data.shift_date);
+                        if (data.start_time) $('#start_shift').val(data.start_time);
+                        if (data.end_time) $('#end_shift').val(data.end_time);
+                        if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
+                        if (data.book_on) $('#book_on').val(data.book_on);
+                        if (data.book_off) $('#book_off').val(data.book_off);
+                        if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
+                        if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
+                        if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
+                    } catch (err) { console.debug(err); }
+                    $('#edit_shift').modal('show');
+                };
+
+                (function tryNext(i){
+                    if (i >= editUrls.length) { $('#edit_shift').modal('show'); return; }
+                    $.get(editUrls[i]).done(function(resp){
+                        if (resp && typeof resp === 'object') populate(resp);
+                        else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
+                            try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                            $('#edit_shift').modal('show');
+                        } else {
+                            try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { $('#edit_shift').modal('show'); }
+                        }
+                    }).fail(function() { tryNext(i+1); });
+                })(0);
             });
 
             // persist cleaned display name (orig), raw staff and resolved subcontractor on the bar for toggling
@@ -3519,5 +3779,180 @@
         }
     </script>
 
+    <script>
+        // Handle edit shift form submission on scheduling page
+        $(document).off('submit', '#edit_shift-form').on('submit', '#edit_shift-form', function(e) {
+            e.preventDefault();
+            const shiftId = $('#shift_id').val();
+            const formData = $('#edit_shift-form').serialize();
+
+            const submitData = (useOverride = false) => {
+                const url = useOverride ? `${baseUrl}/updateshift/${shiftId}/override` : `${baseUrl}/updateshift/${shiftId}`;
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        try { $('#edit_shift').modal('hide'); } catch (e) {}
+                        showToast(response.success || response.message || 'Shift updated successfully!', 'success', 1200);
+                        // Full page reload to ensure Gantt is fully in sync with server
+                        try { setTimeout(function(){ window.location.reload(); }, 600); } catch (e) { window.location.reload(); }
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat();
+                            if (messages.length) {
+                                if (window.isSuperAdmin && !useOverride) {
+                                    showRestrictionToast(messages[0], function() { submitData(true); });
+                                } else {
+                                    toast_danger(messages[0]);
+                                }
+                            } else {
+                                toast_danger('Validation failed, but no message returned.');
+                            }
+                        } else if (xhr.responseJSON?.error) {
+                            if (window.isSuperAdmin && !useOverride) {
+                                showRestrictionToast(xhr.responseJSON.error, function() { submitData(true); });
+                            } else {
+                                toast_danger(xhr.responseJSON.error);
+                            }
+                        } else {
+                            toast_danger('An unexpected error occurred while updating the shift.');
+                        }
+                    }
+                });
+            };
+
+            submitData(false);
+        });
+    </script>
+
+    <script>
+        // --- Edit modal subcontractor & Select2 wiring (from shift-detail) ---
+        $(document).ready(function() { try {
+            if ($.fn.select2) {
+                $('.selec2_assign_modal').each(function() {
+                    if (!$(this).hasClass('select2-hidden-accessible')) {
+                        var opts = { dropdownParent: $('#edit_shift'), width: '100%' };
+                        if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
+                        try { $(this).select2(opts); } catch (e) { console.warn('[scheduling] select2 init failed', e); }
+                    }
+                });
+            }
+
+            function populateEditSubcontractorsAssign(staffId, preserveValue) {
+                var $modal = $('#edit_shift');
+                var $sub = $modal.find('#subcontractor');
+                if (!$sub.length) return;
+                $sub.prop('disabled', true).html('<option value="">Loading...</option>');
+
+                if (!staffId) {
+                    $sub.html('<option value="">--choose--</option>').prop('disabled', false).trigger('change');
+                    return;
+                }
+
+                $.ajax({
+                    url: `${baseUrl}/subcontractors/for-employee/${staffId}`,
+                    method: 'GET',
+                    dataType: 'json'
+                }).done(function(res) {
+                    $sub.empty().append('<option value="">--choose--</option>');
+                    if (res && res.data && res.data.length) {
+                        res.data.forEach(function(s) {
+                            var label = s.company_name || (s.first_name ? (s.first_name + ' ' + (s.last_name||'')) : ('Subcontractor ' + s.id));
+                            $sub.append(`<option value="${s.id}">${label}</option>`);
+                        });
+                    }
+
+                    if (typeof preserveValue !== 'undefined' && preserveValue) {
+                        try { $sub.val(preserveValue); } catch (e) {}
+                    }
+
+                    $sub.prop('disabled', false);
+                    if ($sub.hasClass('select2-hidden-accessible')) $sub.trigger('change.select2');
+                    else $sub.trigger('change');
+                }).fail(function() {
+                    $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+                });
+            }
+
+            // avoid duplicate handlers
+            $('#edit_shift').off('change', '#staff_id');
+            $('#edit_shift').off('select2:select', '#staff_id');
+
+            // init subcontractor select2 if present
+            (function initSubSelect() {
+                var $modal = $('#edit_shift');
+                var $sub = $modal.find('#subcontractor');
+                if (!$sub.length) return;
+                try {
+                    if ($.fn.select2 && !$sub.hasClass('select2-hidden-accessible')) {
+                        $sub.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 });
+                    }
+                } catch (e) { console.warn('[scheduling] subcontractor select2 init failed', e); }
+            })();
+
+            var _editSubDebounce = null;
+            function debouncedPopulate(staffId, preserve) {
+                clearTimeout(_editSubDebounce);
+                _editSubDebounce = setTimeout(function() { populateEditSubcontractorsAssign(staffId, preserve); }, 120);
+            }
+
+            $('#edit_shift').on('change', '#staff_id', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+            $('#edit_shift').on('select2:select', '#staff_id', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+
+            $('#edit_shift').find('#staff_id').off('.editStaff').on('change.editStaff', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            }).on('select2:select.editStaff', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+
+            $('#edit_shift').on('shown.bs.modal', function() {
+                var $modal = $('#edit_shift');
+                var staffId = $modal.find('#staff_id').val();
+                var preserve = $modal.find('#subcontractor').val();
+
+                var doInit = function() {
+                    if (staffId) debouncedPopulate(staffId, preserve);
+                };
+
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(doInit, {timeout: 200});
+                } else {
+                    setTimeout(doInit, 80);
+                }
+
+                $modal.find('#staff_id').one('focus.editLazy click.editLazy', function() {
+                    var $el = $(this);
+                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                        try {
+                            var opts = { dropdownParent: $modal, width: '100%' };
+                            if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
+                            $el.select2(opts);
+                        } catch (e) { console.warn('[scheduling] lazy select2 init failed', e); }
+                    }
+                });
+
+                $modal.find('#subcontractor').one('focus.editLazy click.editLazy', function() {
+                    var $el = $(this);
+                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                        try { $el.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 }); } catch (e) { console.warn('[scheduling] lazy subcontractor select2 init failed', e); }
+                    }
+                });
+            });
+
+        } catch (e) { console.error('[scheduling edit_shift] wiring failed', e); } });
+    </script>
 
 @endsection
