@@ -15,6 +15,7 @@ use App\Models\ShiftDate;
 use App\Models\User;
 use App\Models\Site;
 use App\Services\GeoService;
+use Illuminate\Support\Facades\Log;
 
 
 class LocationAPIController extends Controller
@@ -74,8 +75,30 @@ class LocationAPIController extends Controller
         }
 
         $geoService = app(GeoService::class);
-        $siteCoords = $geoService->getCoordinatesFromAddress($site->address ?? null, $site->post_code ?? null);
+
+        // Prefer using site's plain `address` for geocoding (postcode may be inaccurate)
+        $address = trim((string) ($site->address ?? ''));
+        if ($address === '') {
+            Log::warning('Site address missing for location geofence', [
+                'shift_date_id' => $shiftDate->id ?? null,
+                'site_id' => $site->id ?? null,
+            ]);
+            return ['outside_site' => false];
+        }
+
+        Log::info('Using site address for geocoding (location API)', [
+            'shift_date_id' => $shiftDate->id ?? null,
+            'site_id' => $site->id ?? null,
+            'site_address' => $address,
+        ]);
+
+        $siteCoords = $geoService->getCoordinatesFromAddress($address, null);
         if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
+            Log::warning('Address geocoding failed for site (location API)', [
+                'shift_date_id' => $shiftDate->id ?? null,
+                'site_id' => $site->id ?? null,
+                'site_address' => $address,
+            ]);
             return ['outside_site' => false];
         }
 
@@ -86,8 +109,8 @@ class LocationAPIController extends Controller
             $siteCoords['lng']
         );
 
-        $baseRadius = (float) config('services.site_geofence.radius_meters', 200);
-        $margin = (float) config('services.site_geofence.margin_meters', 75);
+        $baseRadius = (float) config('services.site_geofence.radius_meters', 50);
+        $margin = (float) config('services.site_geofence.margin_meters', 50);
         $allowedMeters = $baseRadius + $margin;
 
         if ($distanceMeters <= $allowedMeters) {

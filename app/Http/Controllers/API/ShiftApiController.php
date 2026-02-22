@@ -1457,7 +1457,7 @@ if ($now->lt($bookingOpensAt)) {
             'issues_reported' => 'required|integer',
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
-            'location.address' => 'required|string',
+            'location.address' => 'nullable|string',
         ]);
 
         $shiftDateForGeo = ShiftDate::find($patrol->shift_id);
@@ -2715,14 +2715,33 @@ public function workHours(Request $request)
         }
 
         $geoService = app(GeoService::class);
-        $siteCoords = $geoService->getCoordinatesFromAddress($site->address ?? null, $site->post_code ?? null);
+        // Use the site's plain `address` field for geocoding (postcode can be inaccurate).
+        $address = trim((string) ($site->address ?? ''));
 
-        if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
-            Log::warning('Could not resolve site coordinates for geofence', [
+        if ($address === '') {
+            Log::warning('Site address missing for geofence', [
                 'shift_date_id' => $shiftDate->id,
                 'site_id' => $site->id,
-                'site_address' => $site->address,
-                'site_post_code' => $site->post_code,
+            ]);
+
+            return response()->json([
+                'message' => 'Site address is missing. Cannot verify your location.',
+            ], 422);
+        }
+
+        Log::info('Using site address for geocoding', [
+            'shift_date_id' => $shiftDate->id,
+            'site_id' => $site->id,
+            'site_address' => $address,
+        ]);
+
+        $siteCoords = $geoService->getCoordinatesFromAddress($address, null);
+
+        if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
+            Log::warning('Address geocoding failed for site', [
+                'shift_date_id' => $shiftDate->id,
+                'site_id' => $site->id,
+                'site_address' => $address,
             ]);
 
             return response()->json([
