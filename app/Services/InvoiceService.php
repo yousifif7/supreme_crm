@@ -213,7 +213,7 @@ class InvoiceService
 
         foreach ($grouped as $siteId => $datesForSite) {
             foreach ($datesForSite as $shiftDate) {
-                $hourlyRate = ($shiftDate->shift->site_rate ?? $client->office_rate) ?? $shiftDate->guard_rate;
+                $hourlyRate = ($shiftDate->shift->site_rate ?? $shiftDate->shift->site->guard_rate) ?? $shiftDate->guard_rate;
                 // For client invoices across sites, bill based on scheduled shift times
                 $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
                 $invoiceItems[] = $item;

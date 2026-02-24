@@ -372,6 +372,19 @@ class ShiftController extends Controller
                 $breakMinutes = $request->{'break-mins_shift'}[$i] ?? null;
                 $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
 
+                // ✅ Prevent accidental multi-year shift ranges
+                if ($from && $to) {
+                    try {
+                        $fromDate = \Carbon\Carbon::parse($from);
+                        $toDate   = \Carbon\Carbon::parse($to);
+                        if ($toDate->diffInDays($fromDate) > 365) {
+                            $validator->errors()->add('to_shift', 'The shift date range cannot exceed 1 year. Please split large ranges into separate shifts.');
+                        }
+                    } catch (\Exception $e) {
+                        // let the existing date validation handle parse errors
+                    }
+                }
+
                 // ✅ Validate time logic only if both times are present and in an acceptable format
                 if ($start && $end && preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $start) && preg_match('/^\d{2}:\d{2}(:\d{2})?$/', $end)) {
                     // Accept either H:i or H:i:s
@@ -667,29 +680,29 @@ class ShiftController extends Controller
 
                         $lastCreated = $shiftDate;
 
-                        if ($shift->staff_id) {
-                            $weekStart = now()->startOfWeek();
-                            $weekEnd   = now()->endOfWeek();
+                        // if ($shift->staff_id) {
+                        //     $weekStart = now()->startOfWeek();
+                        //     $weekEnd   = now()->endOfWeek();
 
-                            $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
-                                ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                                ->sum('total_hours');
+                        //     $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
+                        //         ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                        //         ->sum('total_hours');
 
-                            $minWeeklyHours = $entity->hour_per_week ?? 40;
+                        //     $minWeeklyHours = $entity->hour_per_week ?? 40;
 
-                            $expectedHours = $totalWeekHours + $shiftDate->total_hours;
+                        //     $expectedHours = $totalWeekHours + $shiftDate->total_hours;
 
-                            $staff = User::find($shift->staff_id);
-                            if ($expectedHours < $minWeeklyHours) {
-                                Notify::toDashboard(
-                                    null,
-                                    'alert',
-                                    'Worked Hours',
-                                    "Guard {$staff->first_name} {$staff->last_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
-                                    "#"
-                                );
-                            }
-                        }
+                        //     $staff = User::find($shift->staff_id);
+                        //     if ($expectedHours < $minWeeklyHours) {
+                        //         Notify::toDashboard(
+                        //             null,
+                        //             'alert',
+                        //             'Worked Hours',
+                        //             "Guard {$staff->first_name} {$staff->last_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                        //             "#"
+                        //         );
+                        //     }
+                        // }
 
                         if (!empty($data['training_id'])) {
                             $shiftDate->trainings()->sync($data['training_id']);
@@ -951,16 +964,12 @@ class ShiftController extends Controller
                 $shift->staff_id = $data['staff_id'];
                 $shift->is_assign = 1;
                 $shift->status = 'pending';
-                // Ensure these values are persisted via the bulk update below
-                $data['is_assign'] = 1;
-                $data['status'] = 'pending';
+
             } else {
                 // Staff is being removed
                 $shift->staff_id = null;
-                $shift->is_assign = 0;
+                $shift->is_assign = 1;
                 $shift->status = 'pending';
-                $data['is_assign'] = 0;
-                $data['status'] = 'pending';
             }
         } elseif (!isset($data['staff_id'])) {
             // No staff change - preserve existing status
@@ -1050,27 +1059,27 @@ class ShiftController extends Controller
                     ['type' => 'shift', 'shiftId' => $shift->id],
                 );
 
-                $weekStart = now()->startOfWeek();
-                $weekEnd   = now()->endOfWeek();
+                // $weekStart = now()->startOfWeek();
+                // $weekEnd   = now()->endOfWeek();
 
-                $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staff->id)
-                    ->whereBetween('shift_date', [$weekStart, $weekEnd])
-                    ->sum('total_hours');
+                // $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $staff->id)
+                //     ->whereBetween('shift_date', [$weekStart, $weekEnd])
+                //     ->sum('total_hours');
 
-                $minWeeklyHours = $entity->hour_per_week ?? 40;
+                // $minWeeklyHours = $entity->hour_per_week ?? 40;
 
-                $expectedHours = $totalWeekHours + $newShiftHours;
+                // $expectedHours = $totalWeekHours + $newShiftHours;
 
-                if ($expectedHours < $minWeeklyHours) {
-                    // 👇 Instead of blocking, just trigger a notification
-                    Notify::toDashboard(
-                        null,
-                        'alert',
-                        'Worked Hours',
-                        "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
-                        "#"
-                    );
-                }
+                // if ($expectedHours < $minWeeklyHours) {
+                //     // 👇 Instead of blocking, just trigger a notification
+                //     Notify::toDashboard(
+                //         null,
+                //         'alert',
+                //         'Worked Hours',
+                //         "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+                //         "#"
+                //     );
+                // }
             }
         }
 
@@ -1174,9 +1183,36 @@ class ShiftController extends Controller
         ]);
 
         $shifts= ShiftDate::whereIn('id', $request->ids)->get();
-        foreach($shifts as $shift){
-            Logger::log($shift, 'Deleted', 'Shift at '.$shift->shift->site->site_name.' Deleted');
-            $shift->delete();
+        foreach($shifts as $shiftDate){
+            $bookings = ShiftBooking::where('shift_id', $shiftDate->id)->get();
+            if($bookings){
+                foreach($bookings as $booking){
+                    $booking->delete();
+                }
+            }
+
+            if ($shiftDate->checkCalls) {
+                foreach ($shiftDate->checkCalls as $checkCall) {
+                    $checkCall->delete();
+                }
+            }
+
+            if ($shiftDate->patrols) {
+                foreach ($shiftDate->patrols as $patrol) {
+                    $patrol->delete();
+                }
+            }
+
+            if($shiftDate->staff_id){
+                send_push_notification(
+                    $shiftDate->staff_id,
+                    'Shift Deleted',
+                    'An assigned shift for you has been deleted. (ID: ' . $shiftDate->id . ') at ' . $shiftDate->shift->site->site_name,
+                    ['type' => 'shift', 'shiftId' => $shiftDate->id],
+                    );
+            }
+            Logger::log($shiftDate, 'Deleted', 'Shift at '.$shiftDate->shift->site->site_name.' Deleted');
+            $shiftDate->forceDelete();
         }
 
         return response()->json(['message' => 'Selected shifts deleted successfully.']);
@@ -2122,27 +2158,27 @@ public function getTodayShifts()
             ['type' => 'shift', 'shiftId' => $shiftDate->id],
         );
 
-        $weekStart = now()->startOfWeek();
-        $weekEnd   = now()->endOfWeek();
+        // $weekStart = now()->startOfWeek();
+        // $weekEnd   = now()->endOfWeek();
 
-        $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
-            ->whereBetween('shift_date', [$weekStart, $weekEnd])
-            ->sum('total_hours');
+        // $totalWeekHours = \App\Models\ShiftDate::where('staff_id', $shiftDate->staff_id)
+        //     ->whereBetween('shift_date', [$weekStart, $weekEnd])
+        //     ->sum('total_hours');
 
-        $minWeeklyHours = $entity->hour_per_week ?? 40;
+        // $minWeeklyHours = $entity->hour_per_week ?? 40;
 
-        $expectedHours = $totalWeekHours + $newShiftHours;
+        // $expectedHours = $totalWeekHours + $newShiftHours;
 
-        if ($expectedHours < $minWeeklyHours) {
-            // 👇 Instead of blocking, just trigger a notification
-            Notify::toDashboard(
-                null,
-                'alert',
-                'Worked Hours',
-                "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
-                "#"
-            );
-        }
+        // if ($expectedHours < $minWeeklyHours) {
+        //     // 👇 Instead of blocking, just trigger a notification
+        //     Notify::toDashboard(
+        //         null,
+        //         'alert',
+        //         'Worked Hours',
+        //         "Guard {$staff->fore_name} {$staff->sur_name} has only {$expectedHours} hours scheduled this week. Minimum is {$minWeeklyHours}.",
+        //         "#"
+        //     );
+        // }
 
         $checkcalls = $shiftDate->checkCalls;
         
@@ -3143,14 +3179,31 @@ public function patrolUpdate(Request $request, $id)
 
         // Calculate total hours
         $data['total_hours'] = $this->calculateTotalHours($data['start_shift'], $data['end_shift'], 'H:i:s');
-        $shift->status = 'pending';
 
         // ⚠ Skip restrictions completely
+        $staffUser = null;
+        $staffUserId = null;
         if (!empty($data['staff_id'])) {
             // tolerate missing Employee record
             $staffUser = Employee::where('user_id', $data['staff_id'])->first();
             $staffUserId = $staffUser?->user_id ?? $data['staff_id'];
-            $shift->staff_id = $staffUser?->user_id ?? $data['staff_id'];
+
+            $staffChanged = $staffUserId != $shift->staff_id;
+
+            if ($staffChanged) {
+                // Delete any existing bookings before reassigning
+                ShiftBooking::where('shift_id', $shift->id)->delete();
+
+                $shift->staff_id = $staffUserId;
+                $data['is_assign'] = 1;
+                $data['status'] = 'pending';
+            }
+        } elseif (array_key_exists('staff_id', $data) && empty($data['staff_id']) && $shift->staff_id) {
+            // Staff is being removed
+            ShiftBooking::where('shift_id', $shift->id)->delete();
+            $shift->staff_id = null;
+            $data['is_assign'] = 0;
+            $data['status'] = 'pending';
         }
 
         $shift->update($data);
@@ -3233,6 +3286,8 @@ public function patrolUpdate(Request $request, $id)
             $validator->after(function ($validator) use ($request, $i) {
                 $start = $request->start_shift[$i] ?? null;
                 $end = $request->end_shift[$i] ?? null;
+                $from = $request->from_shift[$i] ?? null;
+                $to   = $request->to_shift[$i] ?? null;
 
                 if ($start && $end) {
                     $startTime = \Carbon\Carbon::createFromFormat('H:i', $start);
@@ -3240,6 +3295,19 @@ public function patrolUpdate(Request $request, $id)
 
                     if ($startTime->eq($endTime)) {
                         $validator->errors()->add("end_shift", "End time must not be the same as start time.");
+                    }
+                }
+
+                // ✅ Prevent accidental multi-year shift ranges
+                if ($from && $to) {
+                    try {
+                        $fromDate = \Carbon\Carbon::parse($from);
+                        $toDate   = \Carbon\Carbon::parse($to);
+                        if ($toDate->diffInDays($fromDate) > 365) {
+                            $validator->errors()->add('to_shift', 'The shift date range cannot exceed 1 year. Please split large ranges into separate shifts.');
+                        }
+                    } catch (\Exception $e) {
+                        // let the existing date validation handle parse errors
                     }
                 }
             });

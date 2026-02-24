@@ -1544,10 +1544,10 @@ if ($now->lt($bookingOpensAt)) {
             }
         }
 
-        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
-        if ($geoFenceError) {
-            return $geoFenceError;
-        }
+        // $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
+        // if ($geoFenceError) {
+        //     return $geoFenceError;
+        // }
 
         $geoService = new GeoService();
         $resolvedAddress = null;

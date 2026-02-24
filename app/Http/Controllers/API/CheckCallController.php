@@ -269,37 +269,20 @@ class CheckCallController extends Controller
             Log::error('Notification failed: ' . $e->getMessage());
         }
 
-        // If any media was processed, return it directly so mobile downloads automatically.
-        if (count($processedFiles) > 0) {
-            // Single file -> return file directly
-            if (count($processedFiles) === 1) {
-                $single = $processedFiles[0];
-                if (file_exists($single)) {
-                    $name = basename($single);
-                    return response()->download($single, $name);
-                }
-            }
-
-            // Multiple files -> create ZIP and return
-            $zipName = 'checkcall_' . $checkCall->id . '_' . time() . '.zip';
-            $zipPath = public_path('check_calls/' . $zipName);
-
-            $zip = new \ZipArchive();
-            if ($zip->open($zipPath, \ZipArchive::CREATE) === TRUE) {
-                foreach ($processedFiles as $p) {
-                    if (file_exists($p)) {
-                        $zip->addFile($p, basename($p));
-                    }
-                }
-                $zip->close();
-
-                return response()->download($zipPath, $zipName)->deleteFileAfterSend(true);
-            }
+        // Build media URL list for the response
+        $mediaUrls = [];
+        foreach ($processedFiles as $p) {
+            $relative = ltrim(str_replace(public_path(), '', $p), '\\/');
+            $mediaUrls[] = [
+                'file_path' => $relative,
+                'url'       => asset($relative),
+            ];
         }
 
         return response()->json([
-            'message' => 'Check call completed successfully',
-            'check_call_id' => $checkCall->id
+            'message'       => 'Check call completed successfully',
+            'check_call_id' => $checkCall->id,
+            'media'         => $mediaUrls,
         ], 200);
     }
 

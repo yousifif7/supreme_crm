@@ -167,6 +167,7 @@
                                                   </div>
                                               </div>
 
+                                              @hasrole('superadmin')
                                               <div class="row">
                                                   <div class="col-md-6">
                                                       <div class="mb-3">
@@ -189,6 +190,7 @@
                                                       </div>
                                                   </div>
                                               </div>
+                                              @endhasrole
 
                                               <div class="row align-items-center justify-content-between">
                                                   <div class="col-md-3">

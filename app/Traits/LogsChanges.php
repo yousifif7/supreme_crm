@@ -197,16 +197,18 @@ trait LogsChanges
                 $description .= ": {$labels}";
             }
 
-            // If this is a Patrol, include the patrol name for clearer context
+            // If this is a Patrol, include the patrol name and due time for clearer context
             if ($modelType === 'Patrol') {
                 $patrolName = $model->name ?? ($model->title ?? 'Unnamed Patrol');
-                $description .= " (Patrol: {$patrolName})";
+                $patrolDue  = $model->start_time ? (' due ' . $model->start_time) : '';
+                $description .= " (Patrol: {$patrolName}{$patrolDue})";
             }
 
-            // If this is a CheckCall, include the checkcall name or scheduled time
+            // If this is a CheckCall, include the checkcall name and scheduled time
             if ($modelType === 'CheckCall') {
-                $ccName = $model->name ?? ($model->scheduled_time ?? 'Unnamed CheckCall');
-                $description .= " (CheckCall: {$ccName})";
+                $ccName = $model->name ?? 'Unnamed CheckCall';
+                $ccDue  = $model->scheduled_time ? (' due ' . $model->scheduled_time) : '';
+                $description .= " (CheckCall: {$ccName}{$ccDue})";
             }
 
             // Use central Logger helper so all logs follow the same format/resolution
@@ -270,16 +272,18 @@ trait LogsChanges
             // Do not include the username inside the description (we store it in the `user_name` column)
             $description = "{$actionTitle} {$label}";
 
-            // If this is a Patrol, include the patrol name for clearer context
+            // If this is a Patrol, include the patrol name and due time for clearer context
             if ($modelType === 'Patrol') {
                 $patrolName = $model->name ?? ($model->title ?? 'Unnamed Patrol');
-                $description .= " (Patrol: {$patrolName})";
+                $patrolDue  = $model->start_time ? (' due ' . $model->start_time) : '';
+                $description .= " (Patrol: {$patrolName}{$patrolDue})";
             }
 
-            // If this is a CheckCall, include the checkcall name or scheduled time
+            // If this is a CheckCall, include the checkcall name and scheduled time
             if ($modelType === 'CheckCall') {
-                $ccName = $model->name ?? ($model->scheduled_time ?? 'Unnamed CheckCall');
-                $description .= " (CheckCall: {$ccName})";
+                $ccName = $model->name ?? 'Unnamed CheckCall';
+                $ccDue  = $model->scheduled_time ? (' due ' . $model->scheduled_time) : '';
+                $description .= " (CheckCall: {$ccName}{$ccDue})";
             }
 
             // Use central Logger helper so all logs follow the same format/resolution
