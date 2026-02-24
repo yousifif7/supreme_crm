@@ -20,7 +20,7 @@
       <option value="terrain">Terrain</option>
     </select>
 
-    <button id="gm-toggle-heat" class="btn btn-sm btn-outline-primary">Toggle Heat</button>
+    <button id="gm-toggle-heat" class="btn btn-sm btn-outline-primary">Show Heat</button>
     <button id="gm-toggle-path" class="btn btn-sm btn-outline-secondary">Toggle Path</button>
 
     <label class="mb-0">Radius
@@ -342,7 +342,7 @@ async function initMapAndDeck() {
   gm_deckOverlay.setMap(gm_map);
   deckOverlayActive = true;
 
-  await refreshData({ useDeck: true });
+  await refreshData({ useDeck: false });
 
   if (document.getElementById('gm-autorefresh').checked) {
     window._gm_deck_interval = setInterval(() => refreshData({ useDeck: true }), 30000);

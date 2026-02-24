@@ -591,11 +591,25 @@
                                 } catch (e) { /* ignore */ }
                             };
 
+                            // Snapshot checkbox values here so the closure captures them
+                            const _parentSh = data.parent_shift || {};
+                            const _shiftObj = shiftObj;
+                            const _data     = data;
+                            const applyCheckboxes = function() {
+                                $modal.find('input[name="restrict_start_time[]"]').prop('checked',    !!(+_parentSh.restrict_start_time    || +_shiftObj.restrict_start_time));
+                                $modal.find('input[name="enforce_picture_check[]"]').prop('checked',  !!(+_parentSh.enforce_picture_check  || +_shiftObj.enforce_picture_check));
+                                $modal.find('input[name="restrict_location_check[]"]').prop('checked',!!(+_parentSh.restrict_location_check || +_shiftObj.restrict_location_check));
+                                $modal.find('input[name="require_media_upload[]"]').prop('checked',   !!(+_shiftObj.require_media));
+                                $modal.find('input[name="auto_checkcall_enabled[]"]').prop('checked', !!(_data.check_calls_count > 0)).trigger('change');
+                                $modal.find('input[name="auto_patrol_enabled[]"]').prop('checked',    !!(_data.patrols_count > 0)).trigger('change');
+                            };
+
                             if (modalEl && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                                 const modalInstance = bootstrap.Modal.getInstance(modalEl) || new bootstrap.Modal(modalEl);
                                 // re-apply once when modal is shown
                                 modalEl.addEventListener('shown.bs.modal', function handler() {
                                     applyFinalRates();
+                                    applyCheckboxes();
                                     modalEl.removeEventListener('shown.bs.modal', handler);
                                 });
                                 modalInstance.show();
@@ -610,8 +624,8 @@
                             }
 
                             // Extra safety: re-apply after short delays in case other async handlers run later
-                            setTimeout(applyFinalRates, 150);
-                            setTimeout(applyFinalRates, 500);
+                            setTimeout(function() { applyFinalRates(); applyCheckboxes(); }, 150);
+                            setTimeout(function() { applyFinalRates(); applyCheckboxes(); }, 500);
                         } catch (err) {
                             console.error('Error showing edit modal', err);
                         }

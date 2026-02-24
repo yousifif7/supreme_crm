@@ -299,6 +299,7 @@ class ShiftController extends Controller
         ];
 
         $shiftsWorkingHours = 0;
+        $shiftDatesCreated = 0;
         for ($i = 0; $i < $shiftCount; $i++) {
             $validator = Validator::make([
                 'client_id' => $request->client_id[$i],
@@ -679,6 +680,7 @@ class ShiftController extends Controller
                         ]);
 
                         $lastCreated = $shiftDate;
+                        $shiftDatesCreated++;
 
                         // if ($shift->staff_id) {
                         //     $weekStart = now()->startOfWeek();
@@ -822,9 +824,9 @@ class ShiftController extends Controller
                         }
                     }
                 }
-                // Logger::log(Auth::user(), 'Create', 'A Shift for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->date);
+                }
             }
-        }
+                Logger::log(Auth::user(), 'Create', 'Amount: ('.$shiftDatesCreated.' shift dates created) for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->shift_date.' From date: ' .$fromDate. ' To Date: '. $toDate);
 
         return response()->json([
             'message' => 'Shifts created successfully!',
@@ -847,7 +849,9 @@ class ShiftController extends Controller
 
     public function edit($id)
     {
-        $shift = ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff', 'shift.subcontractor'])->findOrFail($id);
+        $shift = ShiftDate::with(['staff', 'shift.client', 'shift.site', 'shift.staff', 'shift.subcontractor'])
+            ->withCount(['checkCalls', 'patrols'])
+            ->findOrFail($id);
 
         // Provide lists used by the edit modal so the frontend can populate selects
         $clients = User::role('client')->orderBy('first_name', 'asc')->get();
@@ -864,6 +868,8 @@ class ShiftController extends Controller
             'staffs' => $staffs,
             'subcontractors' => $subcontractors,
             'services' => $services,
+            'check_calls_count' => $shift->check_calls_count,
+            'patrols_count'     => $shift->patrols_count,
         ]);
     }
 
@@ -3249,6 +3255,7 @@ public function patrolUpdate(Request $request, $id)
         try {
         $shiftCount = count($request->client_id);
 
+        $shiftDatesCreated=0;
         for ($i = 0; $i < $shiftCount; $i++) {
             // Basic validation
             $validator = Validator::make([
@@ -3372,6 +3379,8 @@ public function patrolUpdate(Request $request, $id)
                     'guard_rate'  => $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0,
                 ]);
 
+                $shiftDatesCreated++;
+
                 if (!empty($data['training_id'])) {
                     $trainingIds = is_array($data['training_id']) ? $data['training_id'] : [$data['training_id']];
                     $shiftDate->trainings()->sync($trainingIds);
@@ -3454,6 +3463,7 @@ public function patrolUpdate(Request $request, $id)
             }
         }
 
+        Logger::log(Auth::user(), 'Create', 'Amount: ('.$shiftDatesCreated.' shift dates created) for site ' . $shift->site->site_name . ' Starting at: ' . $shiftDate->start_time . ' On ' . $shiftDate->shift_date.' From date: ' .$fromDate. ' To Date: '. $toDate);
 
         return response()->json([
             'message' => 'Shifts overridden successfully!',
@@ -3612,7 +3622,15 @@ public function patrolUpdate(Request $request, $id)
         $shiftDate->save();
         $parentShift->save();
 
-        // Handle checkcalls if provided
+        // Reload with counts so the response tells the frontend how many checkcalls/patrols exist
+        $shiftDate->loadCount(['checkCalls', 'patrols']);
+
+        return response()->json([
+            'message'           => 'Shift updated successfully',
+            'shift'             => $shiftDate,
+            'check_calls_count' => $shiftDate->check_calls_count,
+            'patrols_count'     => $shiftDate->patrols_count,
+        ]);
         if ($request->has('checkcalls') && is_array($request->checkcalls)) {
             foreach ($request->checkcalls as $checkcall) {
                 if (!empty($checkcall['name']) && !empty($checkcall['scheduled_time'])) {
@@ -3748,7 +3766,15 @@ public function patrolUpdate(Request $request, $id)
             Log::warning('Failed to create auto checkcalls/patrols in updateSimple: ' . $e->getMessage());
         }
 
-        return response()->json(['message' => 'Shift updated successfully', 'shift' => $shiftDate]);
+        // Reload with counts so the response tells the frontend how many checkcalls/patrols exist
+        $shiftDate->loadCount(['checkCalls', 'patrols']);
+
+        return response()->json([
+            'message'           => 'Shift updated successfully',
+            'shift'             => $shiftDate,
+            'check_calls_count' => $shiftDate->check_calls_count,
+            'patrols_count'     => $shiftDate->patrols_count,
+        ]);
     }
 
     public function exportPatrolsPdf($shiftDateId)

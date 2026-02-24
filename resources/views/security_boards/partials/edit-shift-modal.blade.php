@@ -650,35 +650,13 @@
                 function updateForGroup($group) {
             try {
                 var $auto = $group.find('.autoCheckcallToggle').first();
-                var $autoPatrol = $group.find('.autoPatrolToggle').first();
                 var $wrapper = $group.find('.requireMediaToggleWrapper').first();
-                var $require = $group.find('.requireMediaToggle').first();
-                var $from = $group.find('input[name="from_shift"]').first();
-                var $to = $group.find('input[name="to_shift"]').first();
                 if ($auto.length && $wrapper.length) {
                     if ($auto.is(':checked')) {
                         $wrapper.show();
                     } else {
                         $wrapper.hide();
                     }
-                }
-
-                try {
-                    var hasDate = ($from.length && $from.val()) || ($to.length && $to.val());
-                    if (hasDate) {
-                        if ($auto.length && !$auto.is(':checked')) {
-                            $auto.prop('checked', true);
-                            if ($wrapper.length) $wrapper.show();
-                        }
-                        if ($autoPatrol.length && !$autoPatrol.is(':checked')) {
-                            $autoPatrol.prop('checked', true);
-                        }
-                        if ($require.length && !$require.is(':checked')) {
-                            $require.prop('checked', true);
-                        }
-                    }
-                } catch (e) {
-                    console && console.error && console.error('Error checking shift date for group', e);
                 }
             } catch (e) {
                 console && console.error && console.error('Error updating RequireMedia visibility for group', e);

@@ -87,7 +87,6 @@
                                                 <span class="text-danger form-error" id="error_guard_rate"></span>
                                             </div>
                                         </div>
-                                        @endhasanyrole
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book on</label>
@@ -107,6 +106,8 @@
                                                     id="error_book_off"></span>
                                             </div>
                                         </div>
+                                        @endhasanyrole
+
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Status </label>
