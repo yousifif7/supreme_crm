@@ -122,6 +122,9 @@ class ShiftController extends Controller
             ['type' => 'shift', 'shiftId' => $shiftDate->id],
         );
 
+        ShiftBooking::where('shift_id', $shiftDate->id)->delete();
+
+
         $bookings = $shiftDate->bookings;
         foreach ($bookings as $booking) {
             $booking->delete();
@@ -940,16 +943,24 @@ class ShiftController extends Controller
         $staffChanged = isset($data['staff_id']) && $data['staff_id'] != $shift->staff_id;
         
         if ($staffChanged) {
+            // Delete any existing bookings for this shift date before reassigning
+            ShiftBooking::where('shift_id', $shift->id)->delete();
+
             // Staff is being changed - set to dispatched
             if ($data['staff_id']) {
                 $shift->staff_id = $data['staff_id'];
                 $shift->is_assign = 1;
                 $shift->status = 'pending';
+                // Ensure these values are persisted via the bulk update below
+                $data['is_assign'] = 1;
+                $data['status'] = 'pending';
             } else {
                 // Staff is being removed
                 $shift->staff_id = null;
                 $shift->is_assign = 0;
                 $shift->status = 'pending';
+                $data['is_assign'] = 0;
+                $data['status'] = 'pending';
             }
         } elseif (!isset($data['staff_id'])) {
             // No staff change - preserve existing status
@@ -2781,6 +2792,9 @@ public function patrolUpdate(Request $request, $id)
             $newStaffId = $staffUser?->user_id ?? $staffUserId;
 
             if ($newStaffId != $oldStaffId) {
+                // Delete any existing bookings before reassigning
+                ShiftBooking::where('shift_id', $shiftDate->id)->delete();
+
                 // Staff is being changed - set to dispatched
                 $shiftDate->staff_id = $newStaffId;
                 $shiftDate->is_assign = 1;
@@ -3434,14 +3448,19 @@ public function patrolUpdate(Request $request, $id)
                     return response()->json(['errors' => ['ban_forbidden' => 'Selected staff is banned for the shift site/client and cannot be assigned.']], 422);
                 }
 
+                // Delete any existing bookings before reassigning
+                ShiftBooking::where('shift_id', $shiftDate->id)->delete();
+
                 $shiftDate->staff_id = $newStaffId;
                 $shiftDate->is_assign = 1;
                 $shiftDate->status = 'pending';
 
             } elseif (!$newStaffId && $oldStaffId) {
-                // Staff is being removed - set to unassigned
+                // Staff is being removed - delete bookings and set to unassigned
+                ShiftBooking::where('shift_id', $shiftDate->id)->delete();
                 $shiftDate->staff_id = null;
                 $shiftDate->is_assign = 0;
+                $shiftDate->status = 'pending';
             } elseif ($newStaffId && $newStaffId == $oldStaffId) {
                 // Same staff - don't change is_assign, just keep current status
                 // No changes needed

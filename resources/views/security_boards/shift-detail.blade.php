@@ -1342,20 +1342,65 @@
                 showToast('Invalid date/time format. Please use dd-MM-yyyy HH:mm:ss', 'error', 5000);
                 return;
             }
+            const updatedName         = $('#checkpoint_name').val();
+            const updatedStatus       = $('#status').val();
+            const updatedApproval     = $('#approval_status').val();
+            const updatedDisplayTime  = $('#scheduled_time').val();
+
             $.ajax({
                 url: `/checkcalls/${id}`,
                 type: 'PUT',
                 data: {
                     _token: '{{ csrf_token() }}',
-                    name: $('#checkpoint_name').val(),
+                    name: updatedName,
                     scheduled_time: backendTime,
-                    status: $('#status').val(),
-                    approval_status: $('#approval_status').val()
+                    status: updatedStatus,
+                    approval_status: updatedApproval
                 },
                 success: function(res) {
                     $('#editCheckCallModal').modal('hide');
+
+                    // Update row in place without reloading
+                    let row = $("button.edit-checkcall-btn[data-id='" + id + "']").closest('tr');
+
+                    // Name
+                    row.find('td:eq(0)').text(updatedName);
+
+                    // Time (show as dd-MM-yyyy HH:mm from display value)
+                    let timeParts = updatedDisplayTime.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}:\d{2})/);
+                    if (timeParts) row.find('td:eq(2)').text(timeParts[1] + '-' + timeParts[2] + '-' + timeParts[3] + ' ' + timeParts[4]);
+
+                    // Status badge
+                    let statusHtml = '';
+                    if (updatedStatus === 'pending')   statusHtml = '<p class="bg-warning text-center">Pending</p>';
+                    else if (updatedStatus === 'missed') statusHtml = '<p class="bg-danger text-center">Missed</p>';
+                    else if (updatedStatus === 'completed') statusHtml = '<p class="bg-success text-center">Completed</p>';
+                    row.find('td:eq(3)').html(statusHtml);
+
+                    // Approval status badge + approve/reject buttons
+                    let approvalHtml = '';
+                    if (updatedApproval === 'approved')  approvalHtml = '<a class="bg-success">Approved</a>';
+                    else if (updatedApproval === 'rejected') approvalHtml = '<a class="bg-danger">Rejected</a>';
+                    else approvalHtml = '<p class="bg-warning">Pending</p>';
+
+                    // Show approve/reject buttons only if completed & approval still pending
+                    if (updatedStatus === 'completed' && (updatedApproval === 'pending' || !updatedApproval)) {
+                        let checkcallName = updatedName.replace(/"/g, '&quot;');
+                        let checkcallTime = timeParts ? (timeParts[1]+'-'+timeParts[2]+'-'+timeParts[3]+' '+timeParts[4]) : '';
+                        approvalHtml += `<div class="mt-1">
+                            <button class="btn btn-sm btn-success approve-checkcall-btn" data-id="${id}" data-name="${checkcallName}" data-time="${checkcallTime}">Approve</button>
+                            <button class="btn btn-sm btn-danger reject-checkcall-btn" data-id="${id}" data-name="${checkcallName}" data-time="${checkcallTime}">Reject</button>
+                        </div>`;
+                    }
+                    row.find('td:eq(4)').html(approvalHtml);
+
+                    // Update edit button data attributes for future edits
+                    let editBtn = row.find('.edit-checkcall-btn');
+                    editBtn.data('name', updatedName);
+                    editBtn.data('status', updatedStatus);
+                    editBtn.data('approval_status', updatedApproval);
+
                     showToast('Check call updated successfully', 'success', 5000);
-                    location.reload();
                 },
                 error: function(xhr) {
                     let msg = 'Error updating check call';
@@ -1387,6 +1432,7 @@
         $(document).on('click', '.delete-checkcall-btn', function() {
             if (!confirm('Are you sure you want to delete this check call?')) return;
             let id = $(this).data('id');
+            let $row = $(this).closest('tr');
 
             $.ajax({
                 url: `/checkcalls/${id}`,
@@ -1395,12 +1441,8 @@
                     _token: '{{ csrf_token() }}'
                 },
                 success: function() {
-                    showToast(
-                        "Check call deleted succesfully", // message
-                        'success', // type
-                        5000 // duration in ms
-                    );
-                    location.reload();
+                    $row.remove();
+                    showToast('Check call deleted successfully', 'success', 5000);
                 },
                 error: function() {
                     alert('Error deleting check call');
@@ -1441,25 +1483,45 @@
         $('#confirm-approval-btn').on('click', function() {
             if (!approvalCheckCallId || !approvalAction) return;
 
+            const _actionId  = approvalCheckCallId;
+            const _action    = approvalAction;
+
             $.ajax({
-                url: `/checkcalls/${approvalCheckCallId}/${approvalAction}`,
+                url: `/checkcalls/${_actionId}/${_action}`,
                 type: 'POST',
                 data: {
                     _token: '{{ csrf_token() }}'
                 },
                 success: function(response) {
                     $('#approvalCheckCallModal').modal('hide');
+
+                    // Update approval cell in the row without reloading
+                    let $approveBtn = $("button.approve-checkcall-btn[data-id='" + _actionId + "']");
+                    let $rejectBtn  = $("button.reject-checkcall-btn[data-id='" + _actionId + "']");
+                    let $row = $approveBtn.length ? $approveBtn.closest('tr') : $rejectBtn.closest('tr');
+
+                    if (_action === 'approve') {
+                        $row.find('td:eq(4)').html('<a class="bg-success">Approved</a>');
+                    } else {
+                        $row.find('td:eq(4)').html('<a class="bg-danger">Rejected</a>');
+                        // Reset status badge to Pending on rejection
+                        $row.find('td:eq(3)').html('<p class="bg-warning text-center">Pending</p>');
+                    }
+
+                    // Remove approve/reject buttons from the row
+                    $approveBtn.remove();
+                    $rejectBtn.remove();
+
                     showToast(
-                        response.message || `Check call ${approvalAction}d successfully`, 
-                        'success', 
+                        response.message || `Check call ${_action}d successfully`,
+                        'success',
                         5000
                     );
-                    location.reload();
                 },
                 error: function(xhr) {
                     $('#approvalCheckCallModal').modal('hide');
                     showToast(
-                        xhr.responseJSON?.message || `Error ${approvalAction}ing check call`,
+                        xhr.responseJSON?.message || `Error ${_action}ing check call`,
                         'error',
                         5000
                     );

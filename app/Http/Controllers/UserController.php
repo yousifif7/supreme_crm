@@ -460,7 +460,7 @@ class UserController extends Controller
         }
 
         try {
-            $cutoff = now()->subDays(7)->toDateTimeString();
+            $cutoff = now()->subDays(30)->toDateTimeString();
 
             // If there are too many rows, avoid doing heavy deletes inside request
             $estimate = \DB::table('notifications')->where('created_at', '<', $cutoff)->count();
@@ -520,7 +520,7 @@ class UserController extends Controller
             return; // already pruned today
         }
 
-        $cutoff = now()->subDays(14)->toDateTimeString();
+        $cutoff = now()->subDays(90)->toDateTimeString();
         $batchSize = 1000; // delete in batches to avoid long locks / large transactions
         $totalDeleted = 0;
 
