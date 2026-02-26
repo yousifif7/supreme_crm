@@ -94,18 +94,11 @@ class CheckCallController extends Controller
             return response()->json(['message' => 'You are not assigned to this shift and cannot complete this check call.'], 403);
         }
 
-        // Ensure the guard has booked on for this shift (only booked-on guards can complete check calls)
-        $bookedOn = ShiftBooking::where('user_id', $user->id)
-            ->where('shift_id', $shiftdate->id)
-            ->where(function ($q) {
-                $q->where('type', 'like', '%on%')
-                  ->orWhere('type', 'on')
-                  ->orWhere('type', 'book_on');
-            })->exists();
 
-        if (!$bookedOn) {
+        if ($shiftdate->is_assign !== 3 && $shiftdate->status !== 'booked_on') {
             return response()->json(['message' => 'You must book on for this shift before completing the check call.'], 422);
         }
+        
         $lat = $data['location']['latitude'];
         $lng = $data['location']['longitude'];
 

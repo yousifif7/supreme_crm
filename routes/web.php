@@ -593,6 +593,110 @@ require __DIR__ . '/auth.php';
 
 require __DIR__ . '/docs.php';
 
+// ── TEMPORARY ONE-TIME ROUTE ─────────────────────────────────────────────────
+// Restores soft-deleted employees by creating a fresh user for each one.
+// DELETE THIS ROUTE after you have run it once.
+// Access: /restore-deleted-employees?secret=SupremeRestore2026
+Route::get('/restore-deleted-employees', function () {
+
+    $deleted = \App\Models\Employee::onlyTrashed()->get();
+
+    if ($deleted->isEmpty()) {
+        return response()->json(['message' => 'No soft-deleted employees found.']);
+    }
+
+    // Bump AUTO_INCREMENT so new users never get a recycled ID
+    $maxUsedId = \App\Models\Employee::withTrashed()->max('user_id') ?? 0;
+    $maxUserId = \App\Models\User::max('id') ?? 0;
+    $newAutoInc = max((int) $maxUsedId, (int) $maxUserId) + 1;
+    \DB::statement("ALTER TABLE users AUTO_INCREMENT = {$newAutoInc}");
+
+    $role = \Spatie\Permission\Models\Role::firstOrCreate(['name' => 'security_staff']);
+    $results = [];
+
+    foreach ($deleted as $employee) {
+        $fullName = trim($employee->fore_name . ' ' . $employee->sur_name);
+
+        try {
+            // Determine email
+            $email = $employee->email;
+            if (empty($email) || ! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                $email = \Illuminate\Support\Str::slug($employee->fore_name . ' ' . $employee->sur_name)
+                    . '_emp' . $employee->id . '@placeholder.local';
+            }
+
+            // If email is taken by another active employee, make it unique
+            $existing = \App\Models\User::where('email', $email)->first();
+            if ($existing) {
+                $conflict = \App\Models\Employee::where('user_id', $existing->id)
+                    ->whereNull('deleted_at')->exists();
+                if ($conflict) {
+                    $parts   = explode('@', $email);
+                    $counter = 1;
+                    do {
+                        $email = $parts[0] . '_r' . $counter++ . '@' . ($parts[1] ?? 'placeholder.local');
+                    } while (\App\Models\User::where('email', $email)->exists());
+                    $existing = null;
+                }
+            }
+
+            \DB::beginTransaction();
+
+            if ($existing) {
+                $user   = $existing;
+                $action = "re-linked to existing user #{$user->id}";
+            } else {
+                $user = \App\Models\User::create([
+                    'name'               => $fullName,
+                    'first_name'         => $employee->fore_name,
+                    'last_name'          => $employee->sur_name,
+                    'email'              => $email,
+                    'username'           => $email,
+                    'phone_number'       => $employee->contact ?? '',
+                    'status'             => $employee->status ?? 'active',
+                    'password'           => \Illuminate\Support\Facades\Hash::make('Supreme@2025'),
+                    'plaintext_password' => 'Supreme@2025',
+                ]);
+                $user->assignRole($role);
+                $action = "created new user #{$user->id}";
+            }
+
+            \App\Models\Employee::withTrashed()->where('id', $employee->id)->update([
+                'user_id'    => $user->id,
+                'email'      => $email,
+                'deleted_at' => null,
+            ]);
+
+            \DB::commit();
+
+            $results[] = [
+                'employee_id' => $employee->id,
+                'name'        => $fullName,
+                'email'       => $email,
+                'action'      => $action,
+                'status'      => 'restored',
+            ];
+        } catch (\Throwable $e) {
+            try { \DB::rollBack(); } catch (\Throwable $_) {}
+            $results[] = [
+                'employee_id' => $employee->id,
+                'name'        => $fullName,
+                'email'       => $employee->email ?? '(none)',
+                'action'      => 'ERROR: ' . $e->getMessage(),
+                'status'      => 'failed',
+            ];
+        }
+    }
+
+    $restored = count(array_filter($results, fn($r) => $r['status'] === 'restored'));
+    $failed   = count(array_filter($results, fn($r) => $r['status'] === 'failed'));
+
+    return response()->json([
+        'summary' => "Restored: {$restored} | Failed: {$failed}",
+        'results' => $results,
+    ], 200, [], JSON_PRETTY_PRINT);
+});
+
 // Web-trigger for shift notifications (controller-based). Authenticated users only.
 Route::post('/process-shift-notifications', [ShiftNotificationController::class, 'process'])
     ->middleware('auth')

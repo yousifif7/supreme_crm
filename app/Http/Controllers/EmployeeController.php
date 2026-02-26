@@ -305,6 +305,19 @@ $validator->after(function ($validator) use ($request) {
         try {
             \DB::beginTransaction();
 
+            // Prevent MySQL AUTO_INCREMENT recycling from colliding with existing
+            // employee records. If MySQL restarted and reset AUTO_INCREMENT below
+            // the highest user_id still referenced by an employee, the new user
+            // would get a recycled ID that already has an employee attached to it.
+            // Bumping AUTO_INCREMENT here ensures the new user always gets a fresh ID.
+            $maxUsedId = Employee::withTrashed()->max('user_id') ?? 0;
+            $autoInc = \DB::selectOne(
+                "SELECT AUTO_INCREMENT FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'"
+            )->AUTO_INCREMENT ?? 1;
+            if ((int)$autoInc <= (int)$maxUsedId) {
+                \DB::statement('ALTER TABLE users AUTO_INCREMENT = ' . ((int)$maxUsedId + 1));
+            }
+
             // Create user with hashed password
             $user = User::create([
                 'name' => $data['fore_name'],
@@ -341,7 +354,7 @@ $validator->after(function ($validator) use ($request) {
                 'act_certificate_file' => 'license_expiry',
                 'driving_licence_file' => 'driving_licence_expiry',
             ];
-                foreach ($documents as $document => $label) {
+                foreach ($documents as $document) {
                 if (empty($data[$document])) continue;
 
                 $fileVal = $data[$document];
@@ -447,8 +460,10 @@ $validator->after(function ($validator) use ($request) {
 
             if (!empty($user) && isset($user->id)) {
                 try {
-                    // Attempt to remove user record to avoid duplicate email issues
-                    User::where('id', $user->id)->delete();
+                    // Force-delete (hard delete) the user so the ID and email are fully freed.
+                    // A soft-delete would leave the record in place and cause duplicate-email
+                    // errors on the next attempt because the DB unique index ignores deleted_at.
+                    User::where('id', $user->id)->forceDelete();
                 } catch (\Throwable $__) {
                     Log::warning('Failed to delete partially created user: ' . ($user->id ?? 'unknown'));
                 }
@@ -744,8 +759,6 @@ $validator->after(function ($validator) use ($request) {
             return response()->json(['error' => 'Failed to update employee record.'], 500);
         }
 
-        // Update the employee record
-        $employee->update($data);
         // Update employee holidays
         if ($request->has('holidays')) {
             // Delete existing holidays for clean sync

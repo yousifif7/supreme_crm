@@ -119,8 +119,82 @@ trait LogsChanges
 
                     $oldValue = $oldEmployeeName;
                     $newValue = $newEmployeeName;
-                } else {
-                    $label = isset($arrayValues[$field]) ? $arrayValues[$field] : $field;
+                } elseif ($field == 'subcontractor' || $field == 'subcontractor_id') {
+                    // Handle both array of IDs and single ID
+                    if (is_array($oldValue) || is_array($newValue)) {
+                        // Array logic for multiple subcontractors
+                        $oldSubs = is_array($oldValue) ? $oldValue : [];
+                        $newSubs = is_array($newValue) ? $newValue : [];
+
+                        $oldSubNames = [];
+                        $newSubNames = [];
+
+                        if (!empty($oldSubs)) {
+                            $oldUsers = \App\Models\User::whereIn('id', $oldSubs)->get();
+                            $oldSubNames = $oldUsers->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))->filter()->values()->toArray();
+                        }
+
+                        if (!empty($newSubs)) {
+                            $newUsers = \App\Models\User::whereIn('id', $newSubs)->get();
+                            $newSubNames = $newUsers->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))->filter()->values()->toArray();
+                        }
+
+                        $oldSubList = implode(', ', $oldSubNames);
+                        $newSubList = implode(', ', $newSubNames);
+
+                        if (empty($oldSubs) && !empty($newSubs)) {
+                            $label = "Assigned subcontractors: {$newSubList}";
+                        } elseif (!empty($oldSubs) && empty($newSubs)) {
+                            $label = "Removed subcontractors: {$oldSubList}";
+                        } elseif (!empty($oldSubs) && !empty($newSubs)) {
+                            $added = array_diff($newSubs, $oldSubs);
+                            $removed = array_diff($oldSubs, $newSubs);
+
+                            $changes = [];
+                            if (!empty($added)) {
+                                $addedUsers = \App\Models\User::whereIn('id', $added)->get();
+                                $addedNames = $addedUsers->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))->filter()->implode(', ');
+                                $changes[] = "Added: {$addedNames}";
+                            }
+                            if (!empty($removed)) {
+                                $removedUsers = \App\Models\User::whereIn('id', $removed)->get();
+                                $removedNames = $removedUsers->map(fn($u) => trim($u->first_name . ' ' . $u->last_name))->filter()->implode(', ');
+                                $changes[] = "Removed: {$removedNames}";
+                            }
+                            $label = "Subcontractors updated: " . implode('; ', $changes);
+                        } else {
+                            $label = "Subcontractor";
+                        }
+
+                        $oldValue = $oldSubList;
+                        $newValue = $newSubList;
+                    } else {
+                        // Single subcontractor ID logic
+                        $oldSubName = null;
+                        if ($oldValue) {
+                            $oldUser = \App\Models\User::find($oldValue);
+                            $oldSubName = $oldUser ? trim($oldUser->first_name . ' ' . $oldUser->last_name) : 'Unknown';
+                        }
+
+                        $newSubName = null;
+                        if ($newValue) {
+                            $newUser = \App\Models\User::find($newValue);
+                            $newSubName = $newUser ? trim($newUser->first_name . ' ' . $newUser->last_name) : 'Unknown';
+                        }
+
+                        if (!$oldValue && $newValue) {
+                            $label = "Assigned subcontractor: {$newSubName}";
+                        } elseif ($oldValue && !$newValue) {
+                            $label = "Removed subcontractor: {$oldSubName}";
+                        } elseif ($oldValue && $newValue) {
+                            $label = "Changed subcontractor from {$oldSubName} to {$newSubName}";
+                        } else {
+                            $label = "Subcontractor";
+                        }
+
+                        $oldValue = $oldSubName;
+                        $newValue = $newSubName;
+                    }
                 }
 
                 if ($field == 'status_id') {
@@ -139,8 +213,8 @@ trait LogsChanges
                     $newValue = $statuses[$newValue] ?? $newValue;
                 }
 
-                // Skip the duplicate label assignment for staff_id
-                if ($field !== 'staff_id') {
+                // Skip the duplicate label assignment for staff_id, subcontractor, and subcontractor_id
+                if ($field !== 'staff_id' && $field !== 'subcontractor' && $field !== 'subcontractor_id') {
                     if ($oldValue) {
                         if (is_array($oldValue)) {
                             $oldValue = json_encode($oldValue);
