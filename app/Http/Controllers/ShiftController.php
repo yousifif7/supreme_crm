@@ -3622,15 +3622,7 @@ public function patrolUpdate(Request $request, $id)
         $shiftDate->save();
         $parentShift->save();
 
-        // Reload with counts so the response tells the frontend how many checkcalls/patrols exist
-        $shiftDate->loadCount(['checkCalls', 'patrols']);
-
-        return response()->json([
-            'message'           => 'Shift updated successfully',
-            'shift'             => $shiftDate,
-            'check_calls_count' => $shiftDate->check_calls_count,
-            'patrols_count'     => $shiftDate->patrols_count,
-        ]);
+        // Process custom checkcalls and patrols BEFORE returning
         if ($request->has('checkcalls') && is_array($request->checkcalls)) {
             foreach ($request->checkcalls as $checkcall) {
                 if (!empty($checkcall['name']) && !empty($checkcall['scheduled_time'])) {
@@ -3647,7 +3639,7 @@ public function patrolUpdate(Request $request, $id)
         }
         
         $site = Site::with('checkpoints')->find($parentShift->site_id);
-        $totalCheckpoints = $site->checkpoints->count() ?? 0;
+        $totalCheckpoints = $site ? $site->checkpoints->count() : 0;
        
         if ($request->has('patrols') && is_array($request->patrols)) {
             foreach ($request->patrols as $patrol) {

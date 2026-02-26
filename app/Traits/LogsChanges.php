@@ -67,6 +67,9 @@ trait LogsChanges
             foreach ($dirty as $field => $newValue) {
                 $oldValue = $model->getOriginal($field);
 
+                // Set a default label for each field to avoid undefined variable error
+                $label = ucfirst(str_replace('_', ' ', $field));
+
                 if ($field == 'staff_id') {
                     // Staff are stored as a user_id on shifts, but the human-readable
                     // name is maintained on the Employee record. Prefer Employee
@@ -244,7 +247,7 @@ trait LogsChanges
                 $date = $model->shift_date ?? 'N/A';
                 $start = $model->start_time ?? 'N/A';
                 $end = $model->end_time ?? 'N/A';
-                
+
                 $labels .= " for shift at {$site} on {$date}";
             }
 
@@ -309,7 +312,7 @@ trait LogsChanges
             $label = $model->client_name ?? $model->site_name ?? $model->fore_name ?? $model->shift->fore_name ?? $model->company_name ?? $model->first_name ?? $model->name ?? $model->id;
 
             // create shift logs description
-                if ($modelType == 'ShiftDate') {
+            if ($modelType == 'ShiftDate') {
                 $modelType = 'Shift';
                 // Prefer Employee name (fore_name/sur_name) by user_id, fall back to User
                 $staff = 'Unassigned';

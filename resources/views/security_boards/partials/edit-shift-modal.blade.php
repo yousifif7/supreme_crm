@@ -645,21 +645,23 @@
         document.querySelectorAll('#edit_shift .shift-group').forEach(group => initDaySelector(group));
     });
     
-    // Toggle visibility of the "Require Media Upload" option per shift-group
+    // Toggle visibility of checkcall/patrol sections and "Require Media Upload" per shift-group
     $(document).ready(function() {
-                function updateForGroup($group) {
+        function updateForGroup($group) {
             try {
-                var $auto = $group.find('.autoCheckcallToggle').first();
+                var $autoCheckcall = $group.find('.autoCheckcallToggle').first();
                 var $wrapper = $group.find('.requireMediaToggleWrapper').first();
-                if ($auto.length && $wrapper.length) {
-                    if ($auto.is(':checked')) {
+
+                // Show/hide require media upload based on auto checkcall toggle
+                if ($autoCheckcall.length && $wrapper.length) {
+                    if ($autoCheckcall.is(':checked')) {
                         $wrapper.show();
                     } else {
                         $wrapper.hide();
                     }
                 }
             } catch (e) {
-                console && console.error && console.error('Error updating RequireMedia visibility for group', e);
+                console && console.error && console.error('Error updating toggle visibility for group', e);
             }
         }
 
@@ -691,73 +693,45 @@
         });
     });
     
-    // Check call functionality for edit shift modal
+    // Check call & patrol functionality for edit shift modal
+    // Uses document-level delegation with #edit_shift prefix so handlers survive DOM replacement
     $(document).ready(function() {
-        let checkIndex = 0;
+        var editCheckIndex = 0;
+        var editPatrolIndex = 0;
 
-        function addCheckCallRow($parentRow) {
-            checkIndex++;
-            const row = `
-                <div class="row checkcall-row mb-3 align-items-center" data-index="${checkIndex}">
-                    <div class="col-md-3">
-                        <label>Check Call Name</label>
-                        <input type="text" name="checkcalls[${checkIndex}][name]" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label>Scheduled Time</label>
-                        <input type="time" name="checkcalls[${checkIndex}][scheduled_time]" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <button type="button" class="btn btn-danger btn-sm removeCheckCallRow">Remove</button>
-                    </div>
-                </div>
-            `;
-            $parentRow.append(row);
-        }
-
-        $('#edit_shift').on('click', '.addCheckCallRow', function() {
-            console.log("Add Check Call clicked in edit modal ✅");
+        $(document).on('click', '#edit_shift .addCheckCallRow', function(e) {
+            e.stopImmediatePropagation();
+            editCheckIndex++;
             var $parentRow = $(this).closest('.checkcall-section').find('.checkcall-rows');
-            addCheckCallRow($parentRow);
+            var row = '<div class="row checkcall-row mb-3 align-items-center" data-index="' + editCheckIndex + '">' +
+                '<div class="col-md-3"><label>Check Call Name</label><input type="text" name="checkcalls[' + editCheckIndex + '][name]" class="form-control"></div>' +
+                '<div class="col-md-3"><label>Scheduled Time</label><input type="time" name="checkcalls[' + editCheckIndex + '][scheduled_time]" class="form-control"></div>' +
+                '<div class="col-md-3"><button type="button" class="btn btn-danger btn-sm removeCheckCallRow">Remove</button></div>' +
+                '</div>';
+            $parentRow.append(row);
         });
 
-        $('#edit_shift').on('click', '.removeCheckCallRow', function() {
+        $(document).on('click', '#edit_shift .removeCheckCallRow', function(e) {
+            e.stopImmediatePropagation();
             $(this).closest('.checkcall-row').remove();
         });
-    });
 
-
-        let patrolIndex = 0;
-
-        function addPatrolRow($parentRow) {
-            patrolIndex++;
-            const row = `
-                <div class="row patrol-row mb-3 align-items-center" data-index="${patrolIndex}">
-                    <div class="col-md-3">
-                        <label>Patrol Name</label>
-                        <input type="text" name="patrols[${patrolIndex}][name]" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <label>Scheduled Time</label>
-                        <input type="time" name="patrols[${patrolIndex}][start_time]" class="form-control">
-                    </div>
-                    <div class="col-md-3">
-                        <button type="button" class="btn btn-danger btn-sm removePatrolRow">Remove</button>
-                    </div>
-                </div>
-            `;
+        $(document).on('click', '#edit_shift .addPatrolRow', function(e) {
+            e.stopImmediatePropagation();
+            editPatrolIndex++;
+            var $parentRow = $(this).closest('.patrol-section').find('.patrol-rows');
+            var row = '<div class="row patrol-row mb-3 align-items-center" data-index="' + editPatrolIndex + '">' +
+                '<div class="col-md-3"><label>Patrol Name</label><input type="text" name="patrols[' + editPatrolIndex + '][name]" class="form-control"></div>' +
+                '<div class="col-md-3"><label>Scheduled Time</label><input type="time" name="patrols[' + editPatrolIndex + '][start_time]" class="form-control"></div>' +
+                '<div class="col-md-3"><button type="button" class="btn btn-danger btn-sm removePatrolRow">Remove</button></div>' +
+                '</div>';
             $parentRow.append(row);
-        }
-
-        $(document).ready(function() {
-            $(document).on('click', '.addPatrolRow', function() {
-                var $parentRow = $(this).closest('.patrol-section').find('.patrol-rows');
-                addPatrolRow($parentRow);
-            });
-
-            $(document).on('click', '.removePatrolRow', function() {
-                $(this).closest('.patrol-row').remove();
-            });
         });
+
+        $(document).on('click', '#edit_shift .removePatrolRow', function(e) {
+            e.stopImmediatePropagation();
+            $(this).closest('.patrol-row').remove();
+        });
+    });
     
 </script>
