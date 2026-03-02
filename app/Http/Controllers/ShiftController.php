@@ -1446,8 +1446,7 @@ public function getShifts(Request $request)
     // Ensure predictable ordering (helps DB use indexes) before streaming rows
     $query->orderBy('shift_dates.shift_date', 'asc')->orderBy('shift_dates.start_time', 'asc');
 
-    // TTL in seconds (configurable). Default to 300s (5 minutes) to reduce frequent recomputation.
-    $ttl = config('gantt.cache_ttl', 30);
+    $ttl = config('gantt.cache_ttl', 10);
 
     $ganttArray = $this->formatGanttArray($query->cursor());
     Cache::put($cacheKey, $ganttArray, $ttl);
@@ -3561,14 +3560,20 @@ public function patrolUpdate(Request $request, $id)
             $shiftDate->absentee_end_time = $data['book_off'];
         }
         
-        if (array_key_exists('employee_rate', $data)) {
-            $shiftDate->guard_rate = $data['employee_rate'];
-            $parentShift->employee_rate = $data['employee_rate'];
+        if (array_key_exists('employee_rate', $data) && $data['employee_rate'] !== null && $data['employee_rate'] !== '') {
+            // Only treat this as an update when a non-empty value was provided
+            $newRate = (float) $data['employee_rate'];
+            if ((float) $shiftDate->guard_rate !== $newRate) {
+                $shiftDate->guard_rate = $newRate;
+            }
+            $parentShift->employee_rate = $newRate;
         }
 
-        if (array_key_exists('site_rate', $data)) {
-            $shiftDate->guard_rate = $data['site_rate'];
-            $parentShift->site_rate = $data['site_rate'];
+        if (array_key_exists('site_rate', $data) && $data['site_rate'] !== null && $data['site_rate'] !== '') {
+            // Only update when an explicit non-empty site_rate was provided
+            $newSiteRate = (float) $data['site_rate'];
+            $shiftDate->guard_rate = $newSiteRate;
+            $parentShift->site_rate = $newSiteRate;
         }
         
         if (array_key_exists('shift_date', $data)) {

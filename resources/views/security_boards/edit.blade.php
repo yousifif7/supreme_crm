@@ -87,11 +87,12 @@
                                                 <span class="text-danger form-error" id="error_guard_rate"></span>
                                             </div>
                                         </div>
+										<!--
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Book on</label>
                                                 <input type="text" name="book_on" id="book_on" class="form-control"
-                                                    value="{{ isset($shiftDate) ? \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') : '' }}">
+                                                  //  value="{{ isset($shiftDate) ? \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') : '' }}">
                                                 <span class="text-danger form-error time-input"
                                                     id="error_book_on"></span>
                                             </div>
@@ -106,6 +107,7 @@
                                                     id="error_book_off"></span>
                                             </div>
                                         </div>
+-->
                                         @endhasanyrole
 
                                         <div class="col-md-4">

@@ -714,7 +714,8 @@ class ShiftApiController extends Controller
                 'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
             ]);
         }
-
+        
+        /*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $request->input('location.latitude'),
@@ -724,6 +725,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
+        */
 
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
@@ -812,6 +814,7 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
+        /*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -821,7 +824,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
         if ($shiftDate->is_assign !== 2) {
             // Provide more detailed guidance to the client about why booking on is blocked
             if ($shiftDate->is_assign == 1) {
@@ -860,17 +863,30 @@ class ShiftApiController extends Controller
         }
 
         
-$now = Carbon::now();
-$shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
+        $now = Carbon::now();
+        $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
-// 15 minutes before the shift starts
-$bookingOpensAt = $shiftStart->copy()->subMinutes(15);
+        // 15 minutes before the shift starts
+        $bookingOpensAt = $shiftStart->copy()->subMinutes(15);
 
-if ($now->lt($bookingOpensAt)) {
-    return response()->json([
-        'message' => 'You can only book on within 15 minutes of the shift start time (' . $shiftDate->start_time . ')'
-    ], 422);
-}
+        if ($now->lt($bookingOpensAt)) {
+            return response()->json([
+                'message' => 'You can only book on within 15 minutes of the shift start time (' . $shiftDate->start_time . ')'
+            ], 422);
+        }
+
+        // Prevent booking on after the scheduled shift end (handle overnight shifts)
+        $shiftEnd = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->end_time);
+        if ($shiftEnd->lte($shiftStart)) {
+            // overnight shift ending next day
+            $shiftEnd->addDay();
+        }
+
+        if ($now->gt($shiftEnd)) {
+            return response()->json([
+                'message' => 'This shift time has already been passed out; you cannot book on.'
+            ], 422);
+        }
 
 
         // If there are no patrols AND no checkcalls for this shift, require booking media upload
@@ -993,7 +1009,7 @@ if ($now->lt($bookingOpensAt)) {
                 'message' => 'You have not booked on for this shift, so you cannot book off.'
             ], 400);
         }
-
+/*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -1003,7 +1019,7 @@ if ($now->lt($bookingOpensAt)) {
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
         // Prevent booking off if the shift is not in a started state or already ended
         if ($shiftDate->is_assign === 4) {
             return response()->json([
@@ -1333,7 +1349,7 @@ if ($now->lt($bookingOpensAt)) {
         if (!$shiftDateForGeo) {
             return response()->json(['message' => 'Shift not found for this patrol.'], 404);
         }
-
+/*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $validated['location']['latitude'],
@@ -1343,7 +1359,7 @@ if ($now->lt($bookingOpensAt)) {
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
         // If the guard currently has a different patrol in progress, mark that one completed
         $staffShiftIds = ShiftDate::where('staff_id', Auth::id())->pluck('id')->toArray();
         $other = Patrol::where('status', 'in_progress')
@@ -1465,6 +1481,14 @@ if ($now->lt($bookingOpensAt)) {
             return response()->json(['message' => 'Shift not found for this patrol.'], 404);
         }
 
+        if ($patrol->shift->shift->enforce_picture_check) {
+            $hasMedia = PatrolMedia::where('patrol_id', $patrol->id)->exists();
+            if (!$hasMedia) {
+                return response()->json(['message' => 'This site requires a picture check for patrols. Please upload patrol media before completing.'], 422);
+            }
+        }
+
+        /*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $request->input('location.latitude'),
@@ -1474,6 +1498,7 @@ if ($now->lt($bookingOpensAt)) {
         if ($geoFenceError) {
             return $geoFenceError;
         }
+            */
 
         $patrol->update([
             'summary' => $request->summary,

@@ -60,6 +60,23 @@ trait LogsChanges
 
             // Exclude unwanted fields
             unset($dirty['is_assign']);
+            
+            // Exclude rate/numeric field updates when values are effectively unchanged (e.g., 0.00 to 0, null to empty)
+            $numericFields = ['guard_rate', 'site_rate', 'employee_rate', 'total_hours'];
+            foreach ($numericFields as $field) {
+                if (isset($dirty[$field])) {
+                    $oldValue = (float) ($model->getOriginal($field) ?? 0);
+                    $newValue = (float) ($dirty[$field] ?? 0);
+                    if (abs($oldValue - $newValue) < 0.01) {
+                        unset($dirty[$field]);
+                    }
+                }
+            }
+            
+            // If no meaningful changes remain, skip logging
+            if (empty($dirty)) {
+                return;
+            }
 
             $fields = '';
             $labels = 'Updated ';
