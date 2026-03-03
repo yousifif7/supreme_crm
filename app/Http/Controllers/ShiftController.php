@@ -3511,6 +3511,11 @@ public function patrolUpdate(Request $request, $id)
 
         $data = $validator->validated();
 
+                
+        if (array_key_exists('status_id', $data)) {
+            $shiftDate->is_assign = $data['status_id'];
+        }
+        
         // Update ShiftDate fields
         // Only change is_assign when staff is actually being changed
         if (array_key_exists('staff_id', $data)) {
@@ -3578,10 +3583,6 @@ public function patrolUpdate(Request $request, $id)
         
         if (array_key_exists('shift_date', $data)) {
             $shiftDate->shift_date = $data['shift_date'];
-        }
-        
-        if (array_key_exists('status_id', $data)) {
-            $shiftDate->is_assign = $data['status_id'];
         }
 
         // Update parent Shift fields (client_id, site_id)

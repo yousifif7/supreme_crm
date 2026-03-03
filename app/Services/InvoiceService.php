@@ -70,8 +70,10 @@ class InvoiceService
                 'shiftDateCount' => $shiftDates->count(),
                 'shiftIds' => $shiftDates->pluck('shift_id')->unique()->values()->all(),
                 'shift_samples' => $shiftDates->take(20)->map(function($sd) use ($client) {
-                    $siteRate = $sd->shift->site->rate ?? ($client->office_rate ?? 0);
-                    $hourlyRate = $sd->guard_rate ?? $siteRate;
+                    // Debug: use same billing rate logic as invoice generation
+                    $hourlyRate = $sd->shift->site->office_rate
+                        ?? $sd->shift->site_rate
+                        ?? ($client->office_rate ?? 0);
                     $computed = [];
                     try {
                         // For client-facing debug we compute using scheduled shift hours
@@ -112,8 +114,11 @@ class InvoiceService
         $totalAmount = 0; // Track actual billed amount
 
         foreach ($shiftDates as $shiftDate) {
-            $hourlyRate = $shiftDate->shift->site_rate ?? $shiftDate->guard_rate ;
-            
+            // Client invoices: bill using the site's billable rate → office_rate → shift site_rate
+            $hourlyRate = $shiftDate->shift->site->office_rate
+                ?? $shiftDate->shift->site_rate
+                ?? ($client->office_rate ?? 0);
+
             // For client invoices, bill based on scheduled shift times (ignore book on/off)
             $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
             $invoiceItems[] = $item;
@@ -213,7 +218,10 @@ class InvoiceService
 
         foreach ($grouped as $siteId => $datesForSite) {
             foreach ($datesForSite as $shiftDate) {
-                $hourlyRate = ($shiftDate->shift->site_rate ?? $shiftDate->shift->site->guard_rate) ?? $shiftDate->guard_rate;
+                // Client invoices: bill using the site's billable rate → office_rate → shift site_rate
+                $hourlyRate = $shiftDate->shift->site->office_rate
+                    ?? $shiftDate->shift->site_rate
+                    ?? ($client->office_rate ?? 0);
                 // For client invoices across sites, bill based on scheduled shift times
                 $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
                 $invoiceItems[] = $item;
@@ -371,9 +379,13 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Resolve hourly rate for subcontractor invoice:
-            // prefer site rate -> shiftDate guard_rate -> shift employee_rate -> subcontractor default rate -> 0
-            $hourlyRate = $shiftDate->shift->site_rate ?? $shiftDate->guard_rate ?? $shiftDate->shift->employee_rate ?? $subDefaultRate ?? 0;
+            // Subcontractor payroll: pay using guard_rate on shift date → site guard_rate → site payable_rate → shift employee_rate → subcontractor default
+            $hourlyRate = $shiftDate->guard_rate
+                ?? $shiftDate->shift->site->guard_rate
+                ?? $shiftDate->shift->site->payable_rate
+                ?? $shiftDate->shift->employee_rate
+                ?? $subDefaultRate
+                ?? 0;
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -470,8 +482,12 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Prefer guard_rate on the shift date if present, otherwise fall back to PO rate
-            $hourlyRate = $shiftDate->guard_rate ?? ($shiftDate->shift->employee_rate ?? 0);
+            // Staff payroll: pay using guard_rate on shift date → site guard_rate → site payable_rate → shift employee_rate
+            $hourlyRate = $shiftDate->guard_rate
+                ?? $shiftDate->shift->site->guard_rate
+                ?? $shiftDate->shift->site->payable_rate
+                ?? $shiftDate->shift->employee_rate
+                ?? 0;
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;

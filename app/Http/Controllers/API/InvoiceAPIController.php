@@ -164,9 +164,35 @@ class InvoiceAPIController extends Controller
 
     public function exportPayrollPdf($invoiceId)
     {
-        $invoice = Invoice::with('employee')->findOrFail($invoiceId);
+        $invoice = Invoice::with(['securityStaff', 'employee', 'items.site', 'subcontractor'])->findOrFail($invoiceId);
 
-        $pdf = Pdf::loadView('invoices.payroll_pdf', compact('invoice'));
+        // Resolve payee user & employee record (mirrors PayrollController logic)
+        $staff    = null;
+        $payeeUser = null;
+        if (! empty($invoice->security_staff_id)) {
+            $staff     = \App\Models\Employee::where('user_id', $invoice->security_staff_id)->first();
+            $payeeUser = $staff?->user ?? \App\Models\User::find($invoice->security_staff_id);
+        } elseif (! empty($invoice->subcontractor_id)) {
+            $payeeUser = $invoice->subcontractor;
+        }
+
+        $totalHours       = $invoice->items->sum(fn($i) => $i->hours + $i->break_hours + $i->book_on_hours + $i->book_off_hours);
+        $totalBreaks      = $invoice->items->sum('break_hours');
+        $totalBookOn      = $invoice->items->sum('book_on_hours');
+        $totalBookOff     = $invoice->items->sum('book_off_hours');
+        $sspAmount        = $invoice->ssp_amount        ?? 0;
+        $sspDays          = $invoice->ssp_days          ?? 0;
+        $holidayAmount    = $invoice->holiday_amount    ?? 0;
+        $holidayHours     = $invoice->holiday_hours     ?? 0;
+        $unpaidAmount     = $invoice->unpaid_leave_amount ?? 0;
+        $unpaidHours      = $invoice->unpaid_leave_hours  ?? 0;
+
+        $pdf = Pdf::loadView('invoices.payroll_pdf', compact(
+            'invoice', 'staff', 'payeeUser',
+            'totalHours', 'totalBreaks', 'totalBookOn', 'totalBookOff',
+            'sspAmount', 'sspDays', 'holidayAmount', 'holidayHours',
+            'unpaidAmount', 'unpaidHours'
+        ));
 
         return $pdf->download('Payroll_' . $invoice->invoice_number . '.pdf');
     }
