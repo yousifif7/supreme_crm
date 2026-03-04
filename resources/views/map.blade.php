@@ -20,16 +20,7 @@
       <option value="terrain">Terrain</option>
     </select>
 
-    <button id="gm-toggle-heat" class="btn btn-sm btn-outline-primary">Show Heat</button>
     <button id="gm-toggle-path" class="btn btn-sm btn-outline-secondary">Toggle Path</button>
-
-    <label class="mb-0">Radius
-      <input id="gm-radius" type="range" min="5" max="200" value="30" style="vertical-align:middle;margin-left:6px">
-    </label>
-
-    <label class="mb-0">Intensity
-      <input id="gm-intensity" type="range" min="1" max="20" value="8" style="vertical-align:middle;margin-left:6px">
-    </label>
     
     <label class="mb-0">GPS Filter (m)
       <input id="gm-gps-filter" type="range" min="0" max="20" value="5" style="vertical-align:middle;margin-left:6px">
@@ -61,9 +52,7 @@ const GM_API_KEY = "{{ env('GOOGLE_MAPS_API_KEY') }}";
 const SITE_QUERY = @json($shiftDate->shift->site->address ?? $shiftDate->shift->site->post_code ?? '');
 const SITE_TITLE = @json($shiftDate->shift->site->site_name ?? '');
 
-let gm_map, gm_deckOverlay, gm_pathPolyline, gm_startMarker, gm_endMarker;
-let deckLoaded = false;
-let deckOverlayActive = false;
+let gm_map, gm_pathPolyline, gm_startMarker, gm_endMarker;
 let pathVisible = true;
 const statusEl = document.getElementById('gm-deck-status');
 
@@ -236,8 +225,7 @@ function loadScriptOnce(src, id) {
   return new Promise((resolve, reject) => {
     if (document.getElementById(id)) {
       const check = () => {
-        if (window.deck && window.deck.GoogleMapsOverlay) resolve();
-        else if (window.deck && id.indexOf('google-maps') === -1) resolve();
+        if (window.google && window.google.maps) resolve();
         else setTimeout(check, 100);
       };
       return check();
@@ -251,17 +239,6 @@ function loadScriptOnce(src, id) {
     s.onerror = (e) => reject(new Error('Failed to load ' + src));
     document.head.appendChild(s);
   });
-}
-
-async function ensureDeckAndMaps() {
-  if (!window.deck) {
-    await loadScriptOnce('https://unpkg.com/deck.gl@8.9.0/dist.min.js', 'deck-core');
-  }
-  if (!window.deck || !window.deck.GoogleMapsOverlay) {
-    await loadScriptOnce('https://unpkg.com/@deck.gl/google-maps@8.9.0/dist.min.js', 'deck-google-maps');
-  }
-  deckLoaded = !!(window.deck && window.deck.GoogleMapsOverlay);
-  return deckLoaded;
 }
 
 function loadGoogleMaps(callbackName = 'initDeckGmMap') {
@@ -327,25 +304,10 @@ async function initMapAndDeck() {
     console.warn('Site geocode/draw failed', e);
   }
 
-  try {
-    const loaded = await ensureDeckAndMaps();
-    if (!loaded) throw new Error('deck.gl missing');
-  } catch (err) {
-    console.warn('deck.gl load failed, heatmap will not be shown:', err);
-    statusEl.textContent = 'deck.gl failed to load; showing path only';
-    await refreshData({ useDeck: false });
-    return;
-  }
-
-  const GoogleMapsOverlay = deck.GoogleMapsOverlay || deck.GoogleMapsOverlay;
-  gm_deckOverlay = new GoogleMapsOverlay({ layers: [] });
-  gm_deckOverlay.setMap(gm_map);
-  deckOverlayActive = true;
-
-  await refreshData({ useDeck: false });
+  await refreshData();
 
   if (document.getElementById('gm-autorefresh').checked) {
-    window._gm_deck_interval = setInterval(() => refreshData({ useDeck: true }), 30000);
+    window._gm_deck_interval = setInterval(() => refreshData(), 30000);
   }
 
   statusEl.textContent = 'Ready';
@@ -373,18 +335,7 @@ async function fetchLocations(maxPoints = 1500) {
   }
 }
 
-function buildDeckHeatLayer(points, radiusPixels = 30, intensity = 8) {
-  const { HeatmapLayer } = deck;
-  return new HeatmapLayer({
-    id: 'deck-heat',
-    data: points.map(p => ({ position: p.position, weight: 1 })),
-    getPosition: d => d.position,
-    getWeight: d => d.weight || 1,
-    radiusPixels: radiusPixels,
-    intensity: intensity,
-    aggregation: 'SUM'
-  });
-}
+// Heatmap layer removed (deck.gl) — map now shows path only
 
 function parseTimestamp(raw) {
   if (!raw) return NaN;
@@ -413,13 +364,12 @@ function sortPointsByTime(points) {
   return withIdx.map(x => x.p);
 }
 
-async function refreshData({ useDeck = true } = {}) {
+async function refreshData() {
   statusEl.textContent = 'Loading points…';
   const { pts, meta } = await fetchLocations(2000);
   
   if (!pts.length) {
     statusEl.textContent = 'No points found';
-    if (gm_deckOverlay && deckOverlayActive) gm_deckOverlay.setProps({ layers: [] });
     gm_pathPolyline.setPath([]);
     if (gm_startMarker) { gm_startMarker.setMap(null); gm_startMarker = null; }
     if (gm_endMarker) { gm_endMarker.setMap(null); gm_endMarker = null; }
@@ -549,15 +499,7 @@ async function refreshData({ useDeck = true } = {}) {
     console.warn('Failed to compute/draw centroid site zone', e);
   }
 
-  // Heatmap (use original points for intensity)
-  if (useDeck && deckLoaded && gm_deckOverlay) {
-    const radius = parseInt(document.getElementById('gm-radius').value, 10) || 30;
-    const intensity = parseInt(document.getElementById('gm-intensity').value, 10) || 8;
-    const heatLayer = buildDeckHeatLayer(pts, radius, intensity);
-    gm_deckOverlay.setProps({ layers: [heatLayer] });
-  } else {
-    if (gm_deckOverlay) gm_deckOverlay.setProps({ layers: [] });
-  }
+  // No heatmap: path-only display
 }
 
 // ===== CONTROLS =====
@@ -566,17 +508,7 @@ document.getElementById('gm-map-type').addEventListener('change', (e) => {
   gm_map.setMapTypeId(e.target.value);
 });
 
-document.getElementById('gm-toggle-heat').addEventListener('click', function () {
-  if (!gm_deckOverlay) return;
-  const visible = !!(gm_deckOverlay.props && gm_deckOverlay.props.layers && gm_deckOverlay.props.layers.length);
-  if (visible) {
-    gm_deckOverlay.setProps({ layers: [] });
-    this.textContent = 'Show Heat';
-  } else {
-    refreshData({ useDeck: true });
-    this.textContent = 'Hide Heat';
-  }
-});
+// Heat toggle removed
 
 document.getElementById('gm-toggle-path').addEventListener('click', function () {
   pathVisible = !pathVisible;
@@ -589,30 +521,24 @@ document.getElementById('gm-toggle-path').addEventListener('click', function () 
   }
 });
 
-document.getElementById('gm-radius').addEventListener('input', () => {
-  refreshData({ useDeck: deckLoaded });
-});
-
-document.getElementById('gm-intensity').addEventListener('input', () => {
-  refreshData({ useDeck: deckLoaded });
-});
+// Heat controls removed
 
 document.getElementById('gm-gps-filter').addEventListener('input', function() {
   document.getElementById('gm-filter-value').textContent = this.value + 'm';
-  refreshData({ useDeck: deckLoaded });
+  refreshData();
 });
 document.getElementById('gm-min-time').addEventListener('input', function() {
   document.getElementById('gm-min-time-value').textContent = this.value + 'm';
-  refreshData({ useDeck: deckLoaded });
+  refreshData();
 });
 
 document.getElementById('gm-smooth-path').addEventListener('change', () => {
-  refreshData({ useDeck: deckLoaded });
+  refreshData();
 });
 
 document.getElementById('gm-autorefresh').addEventListener('change', function () {
   if (this.checked) {
-    window._gm_deck_interval = setInterval(() => refreshData({ useDeck: deckLoaded }), 30000);
+    window._gm_deck_interval = setInterval(() => refreshData(), 30000);
   } else {
     if (window._gm_deck_interval) clearInterval(window._gm_deck_interval);
   }

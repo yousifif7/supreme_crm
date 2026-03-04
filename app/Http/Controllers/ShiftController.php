@@ -137,6 +137,8 @@ class ShiftController extends Controller
 
         $shiftDate->save();
 
+        try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
+
         $checkcalls = $shiftDate->checkCalls;
         foreach ($checkcalls as $checkcall) {
             if($checkcall->status !=='completed'){
@@ -1130,6 +1132,9 @@ class ShiftController extends Controller
             }
         }
 
+        try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
+
+
         return response()->json(['message' => 'Shift updated successfully']);
     }
 
@@ -1307,6 +1312,8 @@ class ShiftController extends Controller
                 $shiftDate->status = 'booked_off';
                 $shiftDate->is_assign = 4;
                 $shiftDate->save();
+
+                try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
 
                 // Create shift booking
                 $latestBooking = ShiftBooking::where('user_id', $shiftDate->staff_id)
@@ -1934,10 +1941,34 @@ public function getTodayShifts()
 }
 
 
-    private function calculateTotalHours($start, $end, $format = 'H:i')
+    private function calculateTotalHours($start, $end, $format = null)
     {
-        $startTime = \Carbon\Carbon::createFromFormat($format, $start);
-        $endTime = \Carbon\Carbon::createFromFormat($format, $end);
+        // Accept a variety of input formats (H:i, H:i:s). If the caller supplied
+        // a preferred format we'll try it first, otherwise try common time formats.
+        $tryFormats = [];
+        if ($format) $tryFormats[] = $format;
+        $tryFormats = array_merge($tryFormats, ['H:i:s', 'H:i']);
+
+        $parseTime = function ($value) use ($tryFormats) {
+            foreach ($tryFormats as $fmt) {
+                try {
+                    $t = \Carbon\Carbon::createFromFormat($fmt, $value);
+                    if ($t) return $t;
+                } catch (\Throwable $_) {
+                    // continue
+                }
+            }
+
+            // As a final fallback, let Carbon attempt to parse any reasonable time string
+            try {
+                return \Carbon\Carbon::parse($value);
+            } catch (\Throwable $e) {
+                throw new \Exception('Unable to parse time: ' . $value);
+            }
+        };
+
+        $startTime = $parseTime($start);
+        $endTime = $parseTime($end);
 
         // Handle overnight shifts (e.g. 22:00 to 06:00 next day)
         if ($endTime->lessThanOrEqualTo($startTime)) {
@@ -1946,7 +1977,176 @@ public function getTodayShifts()
 
         $totalHours = $startTime->diffInMinutes($endTime) / 60;
 
-        return number_format($totalHours, 2);
+        // Return numeric rounded hours (float)
+        return round($totalHours, 2);
+    }
+
+    /**
+     * Reschedule Patrols and CheckCalls for a ShiftDate when its start/end
+     * times change or the shift is updated.
+     *
+     * Strategy:
+     *  - Keep already-completed events untouched.
+     *  - Delete ALL pending auto-generated checkcalls ("Auto CheckCall …") and
+     *    auto-generated patrols ("Auto Patrol …") for this shift.
+     *  - Recreate them based on the new duration (one per hour, same as
+     *    the original creation logic).
+     *  - Manually-named checkcalls/patrols have their scheduled_time updated
+     *    proportionally instead of being deleted.
+     */
+    private function rescheduleShiftEvents(\App\Models\ShiftDate $shiftDate)
+    {
+        // ── 1. Parse new shift window ────────────────────────────────────────
+        try {
+            $dateOnly = \Carbon\Carbon::parse($shiftDate->shift_date)->toDateString();
+        } catch (\Throwable $_) {
+            $dateOnly = (string) $shiftDate->shift_date;
+        }
+
+        try {
+            $start = \Carbon\Carbon::parse($dateOnly . ' ' . $shiftDate->start_time);
+        } catch (\Throwable $_) {
+            return; // can't do anything without a valid start
+        }
+
+        try {
+            $end = \Carbon\Carbon::parse($dateOnly . ' ' . $shiftDate->end_time);
+        } catch (\Throwable $_) {
+            return;
+        }
+
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay(); // overnight shift
+        }
+
+        $durationMinutes = $start->diffInMinutes($end);
+        if ($durationMinutes <= 0) {
+            $durationMinutes = 1440;
+        }
+
+        // Number of hourly slots (same formula used during creation)
+        $slots = (int) ceil($durationMinutes / 60);
+
+        // ── 2. Get site info for patrol checkpoints ───────────────────────────
+        $totalCheckpoints = 0;
+        try {
+            $site = \App\Models\Site::with('checkpoints')->find($shiftDate->shift->site_id ?? null);
+            $totalCheckpoints = $site?->checkpoints?->count() ?? 0;
+        } catch (\Throwable $_) {}
+
+        $requireMedia = $shiftDate->require_media ?? 0;
+        $staffId      = $shiftDate->staff_id ?? null;
+
+        // ── 3. Handle CheckCalls ─────────────────────────────────────────────
+        $existingCCs = \App\Models\CheckCall::where('shift_id', $shiftDate->id)->get();
+
+        // Separate completed from pending auto-generated
+        $completedCCs = $existingCCs->filter(fn($cc) =>
+            ($cc->status === 'completed') || !empty($cc->completed_at)
+        );
+        $pendingAutoCCs = $existingCCs->filter(fn($cc) =>
+            ($cc->status !== 'completed') &&
+            empty($cc->completed_at) &&
+            preg_match('/^Auto CheckCall\s+\d+$/i', $cc->name ?? '')
+        );
+        $pendingManualCCs = $existingCCs->filter(fn($cc) =>
+            ($cc->status !== 'completed') &&
+            empty($cc->completed_at) &&
+            !preg_match('/^Auto CheckCall\s+\d+$/i', $cc->name ?? '')
+        );
+
+        // Only recreate auto checkcalls if there were any before (or if none exist yet)
+        $hadAutoCCs = $pendingAutoCCs->isNotEmpty();
+
+        // Delete pending auto checkcalls
+        foreach ($pendingAutoCCs as $cc) {
+            try { $cc->delete(); } catch (\Throwable $_) {}
+        }
+
+        // Recreate auto checkcalls if there were auto ones originally
+        if ($hadAutoCCs) {
+            for ($n = 0; $n < $slots; $n++) {
+                $checkTime = $start->copy()->addHours($n);
+                try {
+                    \App\Models\CheckCall::create([
+                        'shift_id'       => $shiftDate->id,
+                        'employee_id'    => $staffId,
+                        'name'           => 'Auto CheckCall ' . ($n + 1),
+                        'scheduled_time' => $checkTime->format('Y-m-d H:i:s'),
+                        'status'         => 'pending',
+                        'require_media'  => $requireMedia,
+                    ]);
+                } catch (\Throwable $_) {}
+            }
+        }
+
+        // Update manual checkcall times to stay within the new window
+        foreach ($pendingManualCCs as $cc) {
+            try {
+                $scheduled = \Carbon\Carbon::parse($cc->scheduled_time);
+                // If it falls outside the new window, clamp to shift start
+                if ($scheduled->lessThan($start) || $scheduled->greaterThan($end)) {
+                    $cc->scheduled_time = $start->format('Y-m-d H:i:s');
+                    $cc->save();
+                }
+            } catch (\Throwable $_) {}
+        }
+
+        // ── 4. Handle Patrols ────────────────────────────────────────────────
+        $existingPatrols = \App\Models\Patrol::where('shift_id', $shiftDate->id)->get();
+
+        $completedPatrols = $existingPatrols->filter(fn($p) =>
+            ($p->status === 'completed') || !empty($p->completed_at)
+        );
+        $pendingAutoPatrols = $existingPatrols->filter(fn($p) =>
+            ($p->status !== 'completed') &&
+            empty($p->completed_at) &&
+            preg_match('/^Auto Patrol\s+\d+$/i', $p->name ?? '')
+        );
+        $pendingManualPatrols = $existingPatrols->filter(fn($p) =>
+            ($p->status !== 'completed') &&
+            empty($p->completed_at) &&
+            !preg_match('/^Auto Patrol\s+\d+$/i', $p->name ?? '')
+        );
+
+        $hadAutoPatrols = $pendingAutoPatrols->isNotEmpty();
+
+        // Delete pending auto patrols
+        foreach ($pendingAutoPatrols as $p) {
+            try { $p->delete(); } catch (\Throwable $_) {}
+        }
+
+        // Recreate auto patrols if there were auto ones originally
+        if ($hadAutoPatrols) {
+            for ($n = 0; $n < $slots; $n++) {
+                $patrolTime = $start->copy()->addHours($n);
+                try {
+                    \App\Models\Patrol::create([
+                        'shift_id'              => $shiftDate->id,
+                        'name'                  => 'Auto Patrol ' . ($n + 1),
+                        'summary'               => 'Scheduled patrol at ' . $patrolTime->format('H:i'),
+                        'start_time'            => $patrolTime->format('Y-m-d H:i:s'),
+                        'status'                => 'pending',
+                        'total_checkpoints'     => $totalCheckpoints,
+                        'completed_checkpoints' => 0,
+                        'issues_reported'       => 0,
+                        'completed_at'          => null,
+                    ]);
+                } catch (\Throwable $_) {}
+            }
+        }
+
+        // Update manual patrol times to stay within the new window
+        foreach ($pendingManualPatrols as $p) {
+            try {
+                $pt = \Carbon\Carbon::parse($p->start_time);
+                if ($pt->lessThan($start) || $pt->greaterThan($end)) {
+                    $p->start_time = $start->format('Y-m-d H:i:s');
+                    $p->summary    = 'Scheduled patrol at ' . $start->format('H:i');
+                    $p->save();
+                }
+            } catch (\Throwable $_) {}
+        }
     }
 
     private function calculateTotalWorkingHours($staffId, $startDate, $endDate, $startTime, $endTime, $breakMinutes, $days, $format = 'H:i')
@@ -2143,6 +2343,7 @@ public function getTodayShifts()
         $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id);
         $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
         $shiftDate->save();
+
 
         if ($request->has('subcontractor_id')) {
             try {
@@ -2845,6 +3046,9 @@ public function patrolUpdate(Request $request, $id)
 
             $shiftDate->save();
 
+            // After saving a changed shift, reschedule related patrols & checkcalls
+            try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
+
             // Push notification only if staff was assigned
             if (!empty($newStaffId)) {
                 send_push_notification(
@@ -3002,6 +3206,7 @@ public function patrolUpdate(Request $request, $id)
         $shiftDate->subcontractor_id = $resolvedSubcontractorUserId;
         $shiftDate->save();
 
+
         if ($request->has('subcontractor_id')) {
             try {
                 $parent = $shiftDate->shift;
@@ -3124,6 +3329,8 @@ public function patrolUpdate(Request $request, $id)
             }
 
             $shiftDate->save();
+
+            try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
 
             send_push_notification(
                 $staffUser->user_id,
@@ -3609,11 +3816,11 @@ public function patrolUpdate(Request $request, $id)
         }
 
         // Calculate total hours if both times are present
-        if ($shiftDate->start_time && $shiftDate->end_time) {
+        if ((array_key_exists('start_shift', $data) && $data['start_shift']) && (array_key_exists('end_shift', $data) && $data['end_shift'])) {
             try {
                 $shiftDate->total_hours = $this->calculateTotalHours(
-                    $shiftDate->start_time, 
-                    $shiftDate->end_time, 
+                    $data['start_shift'], 
+                    $data['end_shift'], 
                     'H:i'
                 );
             } catch (\Throwable $e) {
@@ -3626,6 +3833,7 @@ public function patrolUpdate(Request $request, $id)
         }
 
         $shiftDate->save();
+        try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
         $parentShift->save();
 
         // Process custom checkcalls and patrols BEFORE returning
