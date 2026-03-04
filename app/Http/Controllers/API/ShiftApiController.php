@@ -1550,8 +1550,6 @@ class ShiftApiController extends Controller
         }
 
         $user = Auth::user();
-        $employee = Employee::where('user_id', $user->id)->first();
-
         // Prepare timestamp data
         // Accept location sent as nested array (`location[latitude]`), dotted keys (`location.latitude`) or plain `latitude`/`longitude`
         $lat = $request->input('location.latitude');
@@ -1587,9 +1585,11 @@ class ShiftApiController extends Controller
         // Ensure location is an array with a `formatted_address` key so watermark code can read it
         $locationForStamp = is_array($resolvedAddress) ? $resolvedAddress : ['formatted_address' => ($resolvedAddress ?? ($shiftDate->shift->site->address ?? 'N/A'))];
 
+        // Use user name from User model for timestampData
+        $userName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
         $timestampData = [
             'time' => Carbon::now()->format('Y-m-d H:i:s'),
-            'employee' => $employee ? ($employee->fore_name . ' ' . $employee->sur_name) : ($user->first_name . ' ' . $user->last_name),
+            'employee' => $userName,
             'latitude' => $lat,
             'longitude' => $lng,
             'site' => $shiftDate->shift->site->site_name ?? 'N/A',
@@ -1738,7 +1738,6 @@ class ShiftApiController extends Controller
             }
         }
 
-        $username = $user->first_name . ' ' . $user->last_name;
         // Notify admin and the guard
         try {
             Notification::create([
@@ -1746,7 +1745,7 @@ class ShiftApiController extends Controller
                 'employee_id' => null,
                 'type' => 'alert',
                 'title' => 'Patrol media uploaded',
-                'message' => $username . ' uploaded media for patrol (' . $patrol->name . ' )',
+                'message' => $userName . ' uploaded media for patrol (' . $patrol->name . ' )',
                 'read' => false,
                 'action_url' => "/shift-dates/{$patrol->shift_id}/view"
             ]);

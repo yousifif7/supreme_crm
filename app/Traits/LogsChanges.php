@@ -88,23 +88,12 @@ trait LogsChanges
                 $label = ucfirst(str_replace('_', ' ', $field));
 
                 if ($field == 'staff_id') {
-                    // Staff are stored as a user_id on shifts, but the human-readable
-                    // name is maintained on the Employee record. Prefer Employee
-                    // (by user_id) and fall back to the User record if needed.
-                    $oldEmployee = \App\Models\Employee::where('user_id', $oldValue)->first();
-                    $newEmployee = \App\Models\Employee::where('user_id', $newValue)->first();
+                    // Staff are stored as a user_id on shifts, use User model name fields only
+                    $oldUser = $oldValue ? \App\Models\User::find($oldValue) : null;
+                    $newUser = $newValue ? \App\Models\User::find($newValue) : null;
 
-                    $oldStaffName = $oldEmployee ? ($oldEmployee->fore_name . ' ' . $oldEmployee->sur_name) : null;
-                    $newStaffName = $newEmployee ? ($newEmployee->fore_name . ' ' . $newEmployee->sur_name) : null;
-
-                    if (!$oldStaffName && $oldValue) {
-                        $oldUser = \App\Models\User::find($oldValue);
-                        $oldStaffName = $oldUser ? ($oldUser->first_name . ' ' . $oldUser->last_name) : null;
-                    }
-                    if (!$newStaffName && $newValue) {
-                        $newUser = \App\Models\User::find($newValue);
-                        $newStaffName = $newUser ? ($newUser->first_name . ' ' . $newUser->last_name) : null;
-                    }
+                    $oldStaffName = $oldUser ? (trim((($oldUser->first_name ?? '') . ' ' . ($oldUser->last_name ?? '')))) : null;
+                    $newStaffName = $newUser ? (trim((($newUser->first_name ?? '') . ' ' . ($newUser->last_name ?? '')))) : null;
 
                     // Determine if it's assign/unassign/reassign
                     if (!$oldValue && $newValue) {

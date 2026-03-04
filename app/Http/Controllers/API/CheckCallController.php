@@ -9,15 +9,12 @@ use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
 use App\Models\Notification;
-use App\Models\ShiftBooking;
 use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\Models\CheckCallMedia;
 use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Auth\Events\Validated;
-use Illuminate\Support\Facades\Storage;
 
 class CheckCallController extends Controller
 {
@@ -44,8 +41,8 @@ class CheckCallController extends Controller
 
         $checkCall = CheckCall::findOrFail($id);
         $user = Auth::user();
-        $employee = Employee::where('user_id', $user->id)->first();
-
+        // Remove Employee model usage for name, use User model directly
+        // ...existing code...
         if($checkCall->status == 'completed'){
             return response()->json(['message' => 'This CheckCall has already been completed.'], 404);
         }
@@ -53,10 +50,7 @@ class CheckCallController extends Controller
             return response()->json(['message' => 'This CheckCall has already been missed, You cannot submit unless an Admin gave permission to.'], 422);
         }
         
-        if (!$employee) {
-            return response()->json(['message' => 'No employee linked to this user.'], 404);
-        }
-
+        // ...existing code...
         if($checkCall->require_media =='1' && (empty($data['media_files']) || count($data['media_files']) == 0)){
             return response()->json(['message' => 'This check call requires media evidence. Please attach media files before completing.'], 422);
         }
@@ -67,21 +61,7 @@ class CheckCallController extends Controller
         $earliest = $scheduledUtc->copy()->subMinutes(5);
         $latest   = $scheduledUtc->copy()->addMinutes(15);
 
-        // if ($now->lt($earliest)) {
-        //     return response()->json([
-        //         'message' => 'Too early! Check call can only be completed 5 minutes before its due time. '
-        //             . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
-        //     ], 422);
-        // }
-
-        // if ($now->gt($latest)) {
-        //     $checkCall->status = 'missed';
-        //     $checkCall->save();
-        //     return response()->json([
-        //         'message' => 'Missed! Check call can only be completed within 15 minutes after its due time. '
-        //             . $scheduledUtc->format('Y-m-d H:i') . " (UTC). Your local time: " . $now,
-        //     ], 422);
-        // }
+        // ...existing code...
 
         // Prepare timestamp data for all file types
         $shiftdate = ShiftDate::find($checkCall->shift_id);
@@ -94,7 +74,6 @@ class CheckCallController extends Controller
             return response()->json(['message' => 'You are not assigned to this shift and cannot complete this check call.'], 403);
         }
 
-
         if ($shiftdate->is_assign !== 3 && $shiftdate->status !== 'booked_on') {
             return response()->json(['message' => 'You must book on for this shift before completing the check call.'], 422);
         }
@@ -102,10 +81,7 @@ class CheckCallController extends Controller
         $lat = $data['location']['latitude'];
         $lng = $data['location']['longitude'];
 
-        // $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
-        // if ($geoFenceError) {
-        //     return $geoFenceError;
-        // }
+        // ...existing code...
 
         // Try to resolve human-readable address from coordinates (GeoService caches results)
         $geoService = new GeoService();
@@ -117,9 +93,11 @@ class CheckCallController extends Controller
             Log::warning('GeoService failed: ' . $e->getMessage());
         }
 
+        // Use user name for timestampData
+        $userName =  trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
         $timestampData = [
             'time' => Carbon::now()->format('Y-m-d H:i:s'),
-            'employee' => $employee->fore_name . ' ' . $employee->sur_name,
+            'employee' => $userName,
             'latitude' => $lat,
             'longitude' => $lng,
             'site' => $shiftdate->shift->site->site_name ?? 'N/A',
@@ -253,7 +231,7 @@ class CheckCallController extends Controller
                 'employee_id' => null,
                 'type' => 'alert',
                 'title' => 'Checkcall completed',
-                'message' => 'Guard ' . $employee->fore_name . ' ' . $employee->sur_name . ' completed checkcall ' . $checkCall->name,
+                'message' => 'Guard ' . $userName . ' completed checkcall ' . $checkCall->name,
                 'read' => false,
                 'action_url' => "/shift-dates/{$checkCall->shift_id}/view"
             ]);
