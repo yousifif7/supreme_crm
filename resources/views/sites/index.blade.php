@@ -244,6 +244,10 @@
                                 <td id="post_code_detail"></td>
                             </tr>
                             <tr>
+                                <th>Radius (meters)</th>
+                                <td id="radius_detail"></td>
+                            </tr>
+                            <tr>
                                 <th>Site Code</th>
                                 <td id="site_code_detail"></td>
                             </tr>
@@ -551,6 +555,8 @@
                     $('#office_rate').val(data.site.office_rate);
                     $('#billable_rate').val(data.site.billable_rate);
                     $('#payable_rate').val(data.site.payable_rate);
+                    // radius
+                    $('#radius').val(data.site.radius);
 
                     // ✅ Handle employee types
                     if (data.employee_types) {
@@ -678,6 +684,8 @@
                                                             }
 
             $('#checkpoints_detail').html(checkpointsHtml);
+            // radius
+            $('#radius_detail').text(data.radius ?? '-');
 
             let modal = new bootstrap.Modal(document.getElementById('viewSiteDetailModal'));
             modal.show();

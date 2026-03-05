@@ -1057,9 +1057,30 @@ class CheckCallController extends Controller
         }
 
         $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
-        $baseRadius = (float) config('services.site_geofence.radius_meters', 300);
+
+        // Prefer a per-site radius if configured on the site record; otherwise fall back to global config.
+        $siteRadius = null;
+        if (isset($site->radius) && is_numeric($site->radius) && (float) $site->radius > 0) {
+            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 100);
+        }
+
+        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 300);
+
+        // Always use the configured global margin; per-site margin is not supported.
         $margin = (float) config('services.site_geofence.margin_meters', 100);
+
+        // Final allowed distance is the base radius plus margin (always apply margin even when site radius exists).
         $allowedMeters = $baseRadius + $margin;
+
+        // Helpful logging for debugging radius decisions
+        Log::debug('GeoFence radii (checkcall)', [
+            'site_id' => $site->id ?? null,
+            'site_radius' => $siteRadius,
+            'base_radius' => $baseRadius,
+            'margin' => $margin,
+            'allowed_meters' => $allowedMeters,
+            'distance_meters' => $distanceMeters,
+        ]);
 
         if ($distanceMeters > $allowedMeters) {
             return response()->json([

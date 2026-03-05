@@ -109,9 +109,27 @@ class LocationAPIController extends Controller
             $siteCoords['lng']
         );
 
-        $baseRadius = (float) config('services.site_geofence.radius_meters', 50);
-        $margin = (float) config('services.site_geofence.margin_meters', 50);
+        // Prefer a per-site radius if configured on the site record; otherwise fall back to global config.
+        $siteRadius = null;
+        if (isset($site->radius) && is_numeric($site->radius) && (float) $site->radius > 0) {
+            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 100);
+        }
+
+        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 300);
+
+        // Always use the configured global margin; per-site margin is not supported here.
+        $margin = (float) config('services.site_geofence.margin_meters', 100);
         $allowedMeters = $baseRadius + $margin;
+
+        // Debug log to aid troubleshooting of geofence decisions
+        Log::debug('GeoFence radii (location API)', [
+            'site_id' => $site->id ?? null,
+            'site_radius' => $siteRadius,
+            'base_radius' => $baseRadius,
+            'margin' => $margin,
+            'allowed_meters' => $allowedMeters,
+            'distance_meters' => $distanceMeters,
+        ]);
 
         if ($distanceMeters <= $allowedMeters) {
             return ['outside_site' => false];

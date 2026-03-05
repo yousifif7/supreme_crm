@@ -56,6 +56,11 @@
                                                  placeholder="Enter Site Code">
                                              <span class="text-danger form-error" id="error_site_code"></span>
                                          </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label class="form-label">Radius (meters)</label>
+                                            <input type="number" name="radius" class="form-control numeric-input" id="radius" min="0" step="any" placeholder="Enter radius in meters">
+                                            <span class="text-danger form-error" id="error_radius"></span>
+                                        </div>
                                          <div class="col-md-6 mb-3">
                                              <label class="form-label">Contact Person </label>
                                              <input type="text" name="contact_person" class="form-control"

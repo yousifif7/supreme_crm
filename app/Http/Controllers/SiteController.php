@@ -33,6 +33,7 @@ class SiteController extends Controller
             'address'        => 'nullable|string|max:255',
             'post_code'      => 'nullable|string|max:50',
             'site_code'      => 'nullable|string|max:50',
+            'radius'         => 'nullable|numeric',
             'contact_number' => 'nullable|string|max:50',
             'note'           => 'nullable|string|max:1000',
             'manager_1_id'   => 'nullable|integer',
@@ -129,6 +130,7 @@ class SiteController extends Controller
             'address'        => 'nullable|string|max:255',
             'post_code'      => 'nullable|string|max:50',
             'site_code'      => 'nullable|string|max:50',
+            'radius'         => 'nullable|numeric',
             'contact_number' => 'nullable|string|max:50',
             'note'           => 'nullable|string|max:1000',
             'manager_1_id'   => 'nullable|integer',
@@ -347,6 +349,7 @@ class SiteController extends Controller
                     'required'  => $cp->required,
                 ];
             })->toArray(),
+                    'radius' => $site->radius,
         ]);
     }
 

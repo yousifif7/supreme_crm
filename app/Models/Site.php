@@ -11,10 +11,13 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Site extends Model
 {
     use SoftDeletes, LogsChanges;
-    protected $fillable = ['client_id', 'site_name', 'guard_names', 'address', 'post_code', 'site_code', 'contact_number', 'contact_person', 'note', 'manager_1_id', 'manager_2_id', 'start_time', 'end_time', 'break_time', 'guard_rate', 'office_rate', 'billable_rate', 'payable_rate', 'has_qr', 'nfc_tag'];
+    protected $fillable = [
+        'client_id', 'site_name', 'guard_names', 'address', 'post_code', 'site_code', 'contact_number', 'contact_person', 'note', 'manager_1_id', 'manager_2_id', 'start_time', 'end_time', 'break_time', 'guard_rate', 'office_rate', 'billable_rate', 'payable_rate', 'has_qr', 'nfc_tag', 'radius'
+    ];
 
     protected $casts = [
         'has_qr' => 'boolean',
+        'radius' => 'integer',
     ];
 
     public function client(): BelongsTo

@@ -825,6 +825,43 @@
         });
     </script>
     <script>
+        // Helper to extract a useful error message from jQuery XHR responses
+        function formatAjaxError(xhr) {
+            try {
+                if (!xhr) return 'Unknown error';
+                if (xhr.status === 0) return 'Network error or CORS issue';
+
+                // Prefer structured JSON responses
+                const json = xhr.responseJSON;
+                if (json) {
+                    if (json.message) return json.message;
+                    if (json.error) return json.error;
+                    if (json.errors) {
+                        const msgs = [];
+                        Object.values(json.errors).forEach(v => {
+                            if (Array.isArray(v) && v.length) msgs.push(v[0]);
+                            else if (typeof v === 'string') msgs.push(v);
+                        });
+                        if (msgs.length) return msgs.join(' | ');
+                    }
+                    // Fallback: stringify the JSON (trimmed)
+                    try { return JSON.stringify(json).slice(0, 1000); } catch(e){}
+                }
+
+                // If server returned HTML or plain text, strip tags and return trimmed text
+                const txt = xhr.responseText || '';
+                if (txt) {
+                    const stripped = txt.replace(/<[^>]*>?/gm, '').trim();
+                    if (stripped.length) return stripped.length > 1000 ? stripped.slice(0,1000) + '...' : stripped;
+                }
+
+                if (xhr.statusText) return `${xhr.statusText} (${xhr.status})`;
+                return 'Unknown error';
+            } catch (e) {
+                return 'Unknown error';
+            }
+        }
+
         $('.visa_type').on('change', function() {
             const form = $(this).closest('form');
             const showTerms = $(this).val() === 'Student';
@@ -892,33 +929,9 @@
                             let firstError = Object.values(errors)[0][0];
                             toast_danger(firstError);
                         } else {
-                            let response = xhr.responseJSON;
-
-                            if (response && response.error) {
-                                // Show backend error (like invalid SIA licence)
-                                toast_danger(response.error);
-                            } else if (response && response.message) {
-                                toast_danger(response.message);
-                            } else if (response && response.errors) {
-                                // Sometimes errors come as a flat object
-                                let firstError = Object.values(response.errors)[0];
-                                let errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
-                                toast_danger(errorMessage);
-                            } else if (xhr.responseText) {
-                                try {
-                                    const parsedResponse = JSON.parse(xhr.responseText);
-                                    toast_danger(parsedResponse.error || parsedResponse.message || 'An unexpected error occurred.');
-                                } catch (e) {
-                                    // fallback if backend returns plain text
-                                    if (xhr.responseText.length < 200) {
-                                        toast_danger(xhr.responseText);
-                                    } else {
-                                        toast_danger('An unexpected error occurred. Please try again.');
-                                    }
-                                }
-                            } else {
-                                toast_danger('An unexpected error occurred. Please try again.');
-                            }
+                            const msg = formatAjaxError(xhr);
+                            toast_danger(msg);
+                            console.error('Create employee error:', xhr);
                         }
                     },
                     complete: function() {
@@ -987,33 +1000,9 @@
                             let firstError = Object.values(errors)[0][0];
                             toast_danger(firstError);
                         } else {
-                            let response = xhr.responseJSON;
-
-                            if (response && response.error) {
-                                // Show backend error (like invalid SIA licence)
-                                toast_danger(response.error);
-                            } else if (response && response.message) {
-                                toast_danger(response.message);
-                            } else if (response && response.errors) {
-                                // Sometimes errors come as a flat object
-                                let firstError = Object.values(response.errors)[0];
-                                let errorMessage = Array.isArray(firstError) ? firstError[0] : firstError;
-                                toast_danger(errorMessage);
-                            } else if (xhr.responseText) {
-                                try {
-                                    const parsedResponse = JSON.parse(xhr.responseText);
-                                    toast_danger(parsedResponse.error || parsedResponse.message || 'An unexpected error occurred.');
-                                } catch (e) {
-                                    // fallback if backend returns plain text
-                                    if (xhr.responseText.length < 200) {
-                                        toast_danger(xhr.responseText);
-                                    } else {
-                                        toast_danger('An unexpected error occurred. Please try again.');
-                                    }
-                                }
-                            } else {
-                                toast_danger('An unexpected error occurred. Please try again.');
-                            }
+                            const msg = formatAjaxError(xhr);
+                            toast_danger(msg);
+                            console.error('Edit employee error:', xhr);
                         }
                     },
                     complete: function() {

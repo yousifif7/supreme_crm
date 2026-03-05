@@ -17,6 +17,7 @@
 
                 <div class="mb-2"><strong>Address:</strong> {{ $site->address ?? '-' }}</div>
                 <div class="mb-2"><strong>Post Code:</strong> {{ $site->post_code ?? '-' }}</div>
+                <div class="mb-2"><strong>Radius (meters):</strong> {{ $site->radius ?? '-' }}</div>
                 <div class="mb-2"><strong>Contact Person:</strong> {{ $site->contact_person ?? '-' }}</div>
                 <div class="mb-2"><strong>Contact Number:</strong> {{ $site->contact_number ?? '-' }}</div>
                 <div class="mb-2"><strong>Guard Names:</strong> {{ $site->guard_names ?? '-' }}</div>
