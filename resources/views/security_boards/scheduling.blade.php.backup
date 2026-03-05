@@ -116,20 +116,17 @@
            box-model and overflow handling here but remove a large CSS
            min-width that caused overly wide columns on large screens. */
         .day-column {
-            flex: 0 0 auto;
-            width: max-content;
-            min-width: 0;
+            flex: 1;
+            min-width: 140px; /* JS will set the concrete width per day */
             border-right: 1px solid #dee2e6;
             position: relative;
             box-sizing: border-box;
             overflow: visible;
-            z-index: 1;
+            z-index: 1; /* ensure columns don't cover row dividers */
         }
 
         .day-header {
-            flex: 0 0 auto;
-            width: max-content;
-            min-width: 0;
+            flex: 1;
             text-align: center;
             padding: 8px 6px;
             font-size: 12px;
@@ -137,91 +134,83 @@
             color: #343a40;
             background-color: #f8f9fa;
             border-bottom: 1px solid #dee2e6;
+            min-width: 120px;
         }
 
-        /* day-cell: flex row wrap so bars size to their content */
+        /* day-cell grid: allow multiple bars to flow into columns/rows.
+           Use CSS grid as the base and JavaScript will cap columns (e.g. max 5)
+           so many shifts will arrange into several rows without hidden overflow. */
         .day-cell {
+            /* Use a wrapping flex layout so shift bars can size to their content
+               instead of stretching to fill fixed grid columns. Flex-wrap allows
+               multiple bars to flow into rows while each bar keeps width:auto. */
             display: flex;
             flex-wrap: wrap;
             gap: 6px;
-            min-height: 100px;
+            min-height: 80px;
             position: relative;
-            padding: 8px;
-            align-content: flex-start;
+            padding: 12px;
+            align-items: flex-start;
             box-sizing: border-box;
             overflow: visible;
         }
 
-        /* Bars grow to fill available row width; at most 4-5 per row in a 760px column */
+        /* Ensure bars fill their grid cell and can shrink if needed */
         .day-cell>.gantt-bar {
-            flex: 1 1 140px;
-            min-width: 130px;
+            /* Let each bar size to its content but never exceed the cell width */
+            min-width: 0;
+            width: auto;
             max-width: 100%;
             box-sizing: border-box;
-            align-self: start;
+            flex: 0 0 auto;
         }
 
-        /* Bar layout: readable and compact */
+        /* Bar layout: stacked rows, no ellipsis; text wraps naturally and remains readable */
         .gantt-bar {
             background: #4e73df;
             color: #fff;
-            padding: 4px 6px;
-            border-radius: 5px;
-            margin-bottom: 0;
+            padding: 6px 10px 6px 36px;
+            /* leave left space for checkbox */
+            border-radius: 6px;
+            margin-bottom: 6px;
+            width: auto;
             box-sizing: border-box;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
             position: relative;
-            overflow: hidden;
+            overflow: visible;
             transition: transform .12s ease, box-shadow .12s ease;
-            display: flex;
-            flex-direction: row;
-            align-items: flex-start;
+            display: inline-flex;
+            flex-direction: column;
             white-space: normal;
-            gap: 5px;
-            height: auto;
+            align-items: stretch;
         }
 
         /* .bar-content holds each piece on its own line */
         .gantt-bar .bar-content {
-            flex: 1 1 auto;
-            min-width: 0;
-            display: flex;
-            flex-direction: column;
+            display: block;
             white-space: normal;
             word-break: break-word;
             overflow-wrap: anywhere;
-            line-height: 1.15;
-            gap: 2px;
+            line-height: 1.08;
         }
 
         /* each content piece is block so it displays on separate lines */
         .gantt-bar .service-type,
+        .gantt-bar .time-text,
         .gantt-bar .duration-text,
         .gantt-bar .staff-name {
             display: block;
             color: inherit;
-            margin: 0;
-            font-size: 11px;
-            font-weight: 500;
-        }
-
-        /* time-text with icons inline */
-        .gantt-bar .time-text {
-            display: flex;
-            align-items: center;
-            gap: 4px;
-            color: inherit;
-            margin: 0;
-            font-size: 11px;
+            margin: 5px 0;
+            font-size: 12px;
             font-weight: 600;
-            flex-wrap: wrap;
         }
 
         /* subcontractor inline when appended to staff-name should be normal weight */
         .gantt-bar .staff-name .subcontractor-inline {
             font-weight: 400;
-            font-size: 11px;
+            font-size: 14px;
             color: inherit;
             margin-left: 4px;
         }
@@ -229,75 +218,87 @@
         /* small duration text */
         .gantt-bar small {
             font-size: 10px;
-            opacity: 0.9;
+            opacity: 0.95;
             color: inherit;
         }
 
         /* Hover */
         .gantt-bar:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.16);
         }
 
-        /* Checkbox - in-flow flex item, hidden by default so it takes no space */
+        /* Checkbox inside bar - hidden unless .selection-mode on .gantt-container */
         .gantt-bar .multi-shift-checkbox {
-            flex: 0 0 14px;
+            position: absolute;
+            left: 3px;
+            top: 12px;
+            z-index: 8;
             width: 14px;
             height: 14px;
-            margin-top: 2px;
             cursor: pointer;
             background: #fff;
             border-radius: 3px;
             border: 1px solid rgba(0, 0, 0, 0.1);
             display: none;
-            flex-shrink: 0;
         }
 
         .selection-mode .gantt-bar .multi-shift-checkbox {
             display: block;
         }
 
-        /* note icon: dimmed pencil = no note yet */
-        .gantt-bar .note-icon {
-            cursor: pointer;
-            font-size: 12px;
-            flex-shrink: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0.35;
-            line-height: 1;
+        /* adjust padding when selection active */
+        .selection-mode .gantt-bar {
+            padding-left: 36px;
         }
 
-        /* view-note icon: amber highlight = note exists */
+        /* note icons */
+        .gantt-bar .note-icon,
         .gantt-bar .view-note-icon {
+            position: absolute;
+            top: 10px;
+            right: 10px;
             cursor: pointer;
-            font-size: 12px;
-            flex-shrink: 0;
+            font-size: 14px;
+            z-index: 1100;
+            width: 30px;
+            height: 30px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
-            line-height: 1;
-            background: rgba(255, 193, 7, 0.30);
-            border-radius: 3px;
-            padding: 1px 2px;
-            outline: 1px solid rgba(255, 193, 7, 0.55);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.12);
+            color: inherit;
         }
 
-        /* edit icon (pencil) - inline with time row */
+        /* edit icon (pencil) placed left of the note icon */
         .gantt-bar .edit-shift-icon {
+            position: absolute;
+            top: 10px;
+            right: 46px; /* sits just left of the note icon */
             cursor: pointer;
+            font-size: 14px;
+            z-index: 1100;
+            width: 30px;
+            height: 30px;
             display: inline-flex;
             align-items: center;
-            flex-shrink: 0;
-            opacity: 0.8;
+            justify-content: center;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.12);
             color: inherit;
-            vertical-align: middle;
         }
 
-        .gantt-bar .edit-shift-icon svg {
-            width: 14px;
-            height: 14px;
+        .gantt-bar .edit-shift-icon i {
+            font-size: 14px;
+            line-height: 1;
+            color: inherit;
+        }
+
+
+        /* Reserve space inside the bar so the icons never overlay text (note + edit) */
+        .gantt-bar .bar-content {
+            padding-right: 100px;
         }
         /* selected visual */
         .gantt-bar.selected {
@@ -533,8 +534,11 @@
             z-index: 1;
         }
 
-        /* Responsive tweaks */
+        /* Responsive tweaks (still keep cells relatively wide; horizontal scroll allowed) */
         @media (max-width: 1400px) {
+            .day-column {
+                min-width: 240px;
+            }
 
             // Create a safe stub so other code can call window.loadAllShiftsData() before
             // the real implementation is ready. Calls will be queued and executed once
@@ -579,6 +583,10 @@
         }
 
         @media (max-width: 992px) {
+            .day-column {
+                min-width: 220px;
+            }
+
             .gantt-row {
                 min-height: 140px;
             }
@@ -590,8 +598,8 @@
         }
 
         @media (max-width: 768px) {
-            .day-cell {
-                padding: 5px;
+            .day-column {
+                min-width: 200px;
             }
 
             .gantt-row {
@@ -605,32 +613,31 @@
             }
 
             .gantt-bar {
-                padding: 4px 6px;
-                font-size: 10px;
-                height: auto;
+                padding-left: 52px;
+                font-size: 14px;
             }
 
             .gantt-bar .multi-shift-checkbox {
-                width: 12px;
-                height: 12px;
-                margin-top: 3px;
+                left: 10px;
+                top: 10px;
+                width: 16px;
+                height: 16px;
             }
         }
 
-        /* On very narrow phones: looser min-width for bars so more fit per row */
+        /* On very narrow phones stack bars vertically but keep ample height so content is visible */
         @media (max-width: 520px) {
             .day-cell {
-                padding: 4px;
+                grid-template-columns: 1fr;
+                min-height: 160px;
             }
 
-            .day-cell>.gantt-bar {
-                min-width: 120px;
+            .day-column {
+                min-width: 180px;
             }
 
             .gantt-bar {
-                padding: 4px 5px;
-                font-size: 9px;
-                height: auto;
+                padding-left: 40px;
             }
         }
     </style>
@@ -934,59 +941,70 @@
          */
         function adjustGanttDayCellColumns() {
             try {
-                const ganttChartEl = document.getElementById('ganttChart');
-                if (!ganttChartEl) return;
+                const BAR_PIXEL_WIDTH = 220; // desired visual width for each bar (preserve default bar size)
+                const MAX_COLS = 5; // force up to 5 columns for dense cells
 
-                const MAX_COL_WIDTH = 760; // hard cap: ~4-5 bars per row
-                const MIN_COL_WIDTH = 160; // at least one bar fits
-
-                const headerDates = Array.from(ganttChartEl.querySelectorAll('.gantt-timeline-header .day-header')).map(h => h.getAttribute('data-date'));
+                // Collect unique dates from header
+                const headerDates = Array.from(document.querySelectorAll('.gantt-timeline-header .day-header')).map(h => h.getAttribute('data-date'));
                 if (!headerDates || !headerDates.length) return;
 
                 let totalTimelineWidth = 0;
 
                 headerDates.forEach(dateStr => {
-                    const dayCols = Array.from(ganttChartEl.querySelectorAll(`.day-column[data-date="${dateStr}"]`));
+                    // Find all day-column elements for this date across all rows
+                    const dayCols = Array.from(document.querySelectorAll(`.day-column[data-date="${dateStr}"]`));
                     if (!dayCols.length) return;
 
-                    // Count max bars in any cell for this date
+                    // For this date, find the maximum number of bars in any cell (site)
                     let maxBars = 0;
                     dayCols.forEach(dc => {
                         const cell = dc.querySelector('.day-cell');
-                        if (cell) maxBars = Math.max(maxBars, cell.querySelectorAll('.gantt-bar').length);
+                        if (cell) {
+                            const count = cell.querySelectorAll('.gantt-bar').length || 0;
+                            if (count > maxBars) maxBars = count;
+                        }
                     });
 
-                    // Width = bars-per-row * bar-min-width + gaps + padding, capped at MAX_COL_WIDTH
-                    const barsPerRow = Math.min(maxBars, 5); // at most 5 per row
-                    const BAR_MIN = 140; // matches flex basis above
-                    const GAP = 6;      // matches .day-cell gap
-                    const PAD = 16;     // 8px each side
-                    const natural = barsPerRow * BAR_MIN + (barsPerRow - 1) * GAP + PAD;
-                    const desiredWidth = Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, natural));
+                    // decide number of columns to display for this date
+                    const cols = maxBars >= MAX_COLS ? MAX_COLS : Math.max(1, Math.min(maxBars, MAX_COLS));
 
-                    // Apply to all data columns for this date
+                    // compute desired width: cols * BAR_PIXEL_WIDTH + paddings
+                    const sampleCell = dayCols[0].querySelector('.day-cell');
+                    const style = sampleCell ? getComputedStyle(sampleCell) : { paddingLeft: '12px', paddingRight: '12px' };
+                    const padLeft = parseFloat(style.paddingLeft) || 0;
+                    const padRight = parseFloat(style.paddingRight) || 0;
+                    const GAP = 10; // grid-gap between columns (px)
+                    const EXTRA_MARGIN = 12; // extra breathing room so last bar doesn't touch border
+                    const desiredWidth = Math.max(dayCols[0].clientWidth, Math.ceil(cols * BAR_PIXEL_WIDTH + padLeft + padRight + (cols - 1) * GAP + EXTRA_MARGIN));
+
+                    // Apply desired width to every .day-column for this date
                     dayCols.forEach(dc => {
                         dc.style.flex = `0 0 ${desiredWidth}px`;
-                        dc.style.width = desiredWidth + 'px';
-                        dc.style.minWidth = desiredWidth + 'px';
+                        const cell = dc.querySelector('.day-cell');
+                        if (cell) {
+                            // set grid columns so bars wrap into cols columns of fixed width
+                            cell.style.gridTemplateColumns = `repeat(${cols}, ${BAR_PIXEL_WIDTH}px)`;
+                            // ensure grid gap is applied (for browsers that may not inherit CSS)
+                            cell.style.columnGap = GAP + 'px';
+                            cell.style.rowGap = '10px';
+                        }
                     });
 
-                    // Sync the header cell for this date
-                    const headerEl = ganttChartEl.querySelector(`.gantt-timeline-header .day-header[data-date="${dateStr}"]`);
-                    if (headerEl) {
-                        headerEl.style.flex = `0 0 ${desiredWidth}px`;
-                        headerEl.style.width = desiredWidth + 'px';
-                        headerEl.style.minWidth = desiredWidth + 'px';
-                    }
+                    // Also set header column width
+                    const headerEl = document.querySelector(`.gantt-timeline-header .day-header[data-date="${dateStr}"]`);
+                    if (headerEl) headerEl.style.flex = `0 0 ${desiredWidth}px`;
 
                     totalTimelineWidth += desiredWidth;
                 });
 
-                // Keep timeline and row-content in sync for horizontal scrolling
-                const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
-                const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
-                if (timelineHeader) timelineHeader.style.minWidth = totalTimelineWidth + 'px';
-                rowContents.forEach(rc => rc.style.minWidth = totalTimelineWidth + 'px');
+                // Update timeline min widths for alignment
+                const ganttChartEl = document.getElementById('ganttChart');
+                if (ganttChartEl) {
+                    const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
+                    const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
+                    if (timelineHeader) timelineHeader.style.minWidth = totalTimelineWidth + 'px';
+                    rowContents.forEach(rc => rc.style.minWidth = totalTimelineWidth + 'px');
+                }
 
             } catch (err) {
                 console.debug('adjustGanttDayCellColumns error', err);
@@ -1667,8 +1685,10 @@
                 if (allShiftsData && allShiftsData.length) renderCurrentView();
             }, 150));
 
-            // Checkbox spacing is now handled by flex layout; no padding override needed.
-            function getBarLeftPadding() { return ''; }
+            // Small helper to return the desired left padding depending on selection mode
+            function getBarLeftPadding() {
+                return selectionMode ? '60px' : '16px';
+            }
 
             $('#multiSelectBtn').on('click', function() {
                 selectionMode = !selectionMode;
@@ -2134,23 +2154,20 @@
                         <input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" aria-label="Select shift ${shift.id}">
                         <div class="bar-content">
                             ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
-                            <div class="time-text" style="display:flex;align-items:center;gap:3px;">
-                                <span>${escapeHtml(shift.formatted_time || '')}</span>
-                                ${shift.note 
-                                    ? `<span class="view-note-icon" data-shift-id="${shift.id}" title="View note">📋</span>` 
-                                    : `<span class="note-icon" data-shift-id="${shift.id}" title="Add note">✏️</span>`
-                                }
-                                <span class="edit-shift-icon" data-shift-id="${shift.id}" title="Edit shift">
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
-                                        <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
-                                    </svg>
-                                </span>
-                            </div>
+                            <div class="time-text">${escapeHtml(shift.formatted_time || '')}</div>
                             <div class="staff-name">${escapeHtml(displayStaff)}</div>
                             ${subcontractorName ? `<div class="subcontractor-name" style="display:none;">${escapeHtml(subcontractorName)}</div>` : ''}
                         </div>
-
+                    ${shift.note 
+                        ? `<i class="fa-solid view-note-icon fa-file text-success" data-shift-id="${shift.id}" style="color:green"></i>` 
+                        : `<i class="fa-solid note-icon  " data-shift-id="${shift.id}" style="color:#ffffff">📝</i>`
+                    }
+                    <span class="edit-shift-icon" data-shift-id="${shift.id}" title="Edit shift">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+                            <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                        </svg>
+                    </span>
                 `);
 
                 const idStr = String(shift.id);
@@ -2220,8 +2237,12 @@
 
                 // Ensure bar fills the grid cell and can shrink if needed
                 bar.css({
+                    'min-width': 0,
+                    'width': '100%',
+                    'max-width': '100%',
                     'box-sizing': 'border-box',
-                    // Explicitly reserve space for the checkbox when selection mode is on.
+                    // Override default left padding to remove excessive empty space.
+                    // JS keeps this in sync with selectionMode.
                     'padding-left': getBarLeftPadding()
                 });
 
@@ -2307,9 +2328,16 @@
         });
     });
 
-    // After placing bars: sync padding-left with current selection mode.
+    // After placing bars: sizing assurance and synchronise padding with selection mode
+    // Keep bars width:auto so they wrap to content; only enforce padding and box-sizing.
     $('#ganttChart .day-cell > .gantt-bar').each(function() {
-        $(this).css('padding-left', getBarLeftPadding());
+        $(this).css({
+            'min-width': 0,
+            'width': 'auto',
+            'max-width': '100%',
+            'box-sizing': 'border-box',
+            'padding-left': getBarLeftPadding()
+        });
     });
 
     // Responsive sizing: bigger baseline so content remains visible
@@ -2342,21 +2370,37 @@
         let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
         if (dayWidth < minDayWidth) dayWidth = minDayWidth;
 
-        // Sync sidebar row widths to the header sidebar width
+        const dayColumns = ganttChartEl.querySelectorAll('.day-column');
+        dayHeaders.forEach(h => {
+            h.style.minWidth = dayWidth + 'px';
+            h.style.flex = '0 0 ' + dayWidth + 'px';
+        });
+        dayColumns.forEach(c => {
+            c.style.minWidth = dayWidth + 'px';
+            c.style.flex = '0 0 ' + dayWidth + 'px';
+        });
+
+        const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
+        const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
+        const timelineTotalWidth = dayWidth * totalDays;
+        if (timelineHeader) timelineHeader.style.minWidth = timelineTotalWidth + 'px';
+        rowContents.forEach(rc => rc.style.minWidth = timelineTotalWidth + 'px');
+
         const rowSidebars = ganttChartEl.querySelectorAll('.gantt-row-sidebar');
         rowSidebars.forEach(sb => {
-            sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect().width + 'px' : '160px');
-            sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect().width + 'px' : '160px');
+            sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect()
+                .width + 'px' : '160px');
+            sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0]
+                .getBoundingClientRect().width + 'px' : '160px');
             sb.style.boxSizing = 'border-box';
         });
 
-        // Column/header widths are driven by content via adjustGanttDayCellColumns().
-        // Call it now so header and columns align after initial render.
-        if (typeof adjustGanttDayCellColumns === 'function') adjustGanttDayCellColumns();
-
         if (initialLoad) {
-            const wrapper = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
-            try { wrapper.scrollLeft = 0; } catch (err) {}
+            const wrapper = document.querySelector('.gantt-container') || ganttChartEl
+                .parentElement;
+            try {
+                wrapper.scrollLeft = 0;
+            } catch (err) {}
             initialLoad = false;
         }
     })();
@@ -3077,7 +3121,7 @@
                             let $existingIcon = $bar.find('.note-icon, .view-note-icon');
                             if ($existingIcon.length) {
                                 // replace class and rebind handlers
-                                $existingIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css({'color': '', 'opacity': ''}).html('📋');
+                                $existingIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
                                 // bind view-note click
                                 $existingIcon.on('click', function(e) {
                                     e.stopPropagation();
@@ -3095,7 +3139,7 @@
                                 });
                             } else {
                                 // create and append icon, then bind
-                                const $newIcon = $(`<span class="view-note-icon" data-shift-id="${shiftId}" title="View note">📋</span>`);
+                                const $newIcon = $(`<span class="view-note-icon" data-shift-id="${shiftId}" style="color:#0d6efd">📝</span>`);
                                 $bar.append($newIcon);
                                 $newIcon.on('click', function(e) {
                                     e.stopPropagation();
@@ -3608,20 +3652,18 @@
     <input type="checkbox" class="multi-shift-checkbox" data-id="${idStr}" aria-label="Select shift ${idStr}">
     <div class="bar-content">
         ${shift.service_type ? `<div class="service-type">${safeEscape(shift.service_type)}</div>` : ''}
-        <div class="time-text">
-            <span>${safeEscape(shift.formatted_time || shift.start_time || '')}</span>
-            ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" title="View note">�</span>` : `<span class="note-icon" data-shift-id="${idStr}" title="Add note">✏️</span>`}
-            <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
-                    <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
-                </svg>
-            </span>
-        </div>
+        <div class="time-text">${safeEscape(shift.formatted_time || shift.start_time || '')}</div>
         <div class="duration-text">${safeEscape(shift.duration || '')}</div>
         <div class="staff-name">${safeEscape(displayStaff2)}</div>
         ${subcontractorName2 ? `<div class="subcontractor-name" style="display:none; font-weight:bold">${safeEscape(subcontractorName2)}</div>` : ''}
     </div>
+    ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" style="color:#0d6efd">📝</span>` : `<span class="note-icon" data-shift-id="${idStr}" style="color:#555">📝</span>`}
+    <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+            <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+        </svg>
+    </span>
 </div>
             `);
 
