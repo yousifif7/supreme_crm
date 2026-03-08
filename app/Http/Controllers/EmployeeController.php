@@ -698,7 +698,7 @@ $validator->after(function ($validator) use ($request) {
             }
         }
 
-        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
+        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file', 'driving_licence_file'];
         foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
