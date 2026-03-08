@@ -13,8 +13,9 @@ use GuzzleHttp\Cookie\CookieJar;
 class SiaLicenceChecker
 {
     protected $searchUrl = 'https://services.sia.homeoffice.gov.uk/PublicRegister/SearchPublicRegisterByLicence';
-    protected $timeout = 30;
-    protected $debug = true;
+    protected $timeout = 15;
+    // Set to true only when manually debugging a single licence — never leave on for bulk runs
+    protected $debug = false;
 
     /**
      * Check an SIA licence by 16-digit licence number
@@ -63,16 +64,14 @@ class SiaLicenceChecker
                 'Referer' => 'https://services.sia.homeoffice.gov.uk/',
             ];
 
-            // Try variants: GET with common param names, then POST fallback
+            // Two attempts only: one GET, one POST fallback. The extra variants
+            // previously here made 12+ HTTP calls per employee, causing CPU spikes.
             $attempts = [
                 ['method' => 'get',  'params' => ['licence' => $licenceNumber]],
-                ['method' => 'get',  'params' => ['licenceNumber' => $licenceNumber]],
                 ['method' => 'post', 'params' => ['licence' => $licenceNumber]],
-                ['method' => 'post', 'params' => ['LicenseNo' => $licenceNumber]],
-
             ];
 
-            $this->timeout = max($this->timeout, 60); // increase default timeout for remote
+            // Keep timeout from class property — do not override it here
             // prepare a cookie jar and try to prime a session / fetch hidden form tokens
             $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
             $initialFormParams = [];
@@ -132,7 +131,7 @@ foreach ($attempts as $idx => $attempt) {
                     $response = Http::withHeaders($commonHeaders)
                         ->withOptions($opts)
                         ->timeout($this->timeout)
-                        ->retry(3, 1500, null, false) // 3 retries, 1.5s backoff, no throwing
+                        ->retry(1, 500, null, false) // 1 retry, 0.5s backoff — keep it light for bulk
                         ->accept('text/html');
 
                     if ($method === 'get') {
@@ -231,12 +230,8 @@ foreach ($attempts as $idx => $attempt) {
                         }
                     }
                     // exponential backoff with jitter before next attempt (ms)
-                    $base = 300; // 300ms base
-                    $backoffMs = (int) min(5000, $base * (2 ** ($serverErrorCount - 1)));
-                    $jitter = rand(0, 300);
-                    $delayMs = $backoffMs + $jitter;
-                    Log::info('SIA server error backoff', ['licence' => $licenceNumber, 'attempt' => $idx, 'delay_ms' => $delayMs]);
-                    usleep($delayMs * 1000);
+                    // Small fixed backoff — the job will be retried later if needed
+                    usleep(300_000); // 300ms
                     // try next attempt variant
                     $lastResponse = $response;
                     continue;

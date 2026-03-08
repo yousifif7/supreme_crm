@@ -43,6 +43,7 @@ use App\Http\Controllers\VehicleComplianceController;
 use App\Http\Controllers\VehicleMaintenanceController;
 use App\Http\Controllers\DocumentationUploadController;
 use App\Http\Controllers\RoadworthinessCheckController;
+use App\Http\Controllers\SiaReportController;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -52,6 +53,78 @@ Route::get('/dashboard', function () {
     //return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
+
+// function softDeleteEmailsForUsersAndEmployees(array $emails): array
+// {
+//     // Normalize emails to improve matching (trim + lowercase + unique)
+//     $emails = array_values(array_unique(array_filter(array_map(function ($e) {
+//         $e = trim((string) $e);
+//         return $e === '' ? null : mb_strtolower($e);
+//     }, $emails))));
+
+//     if (count($emails) === 0) {
+//         return [
+//             'users_updated' => 0,
+//             'employees_updated' => 0,
+//             'emails_count' => 0,
+//         ];
+//     }
+
+//     // Use transactions so both tables update consistently
+//     return DB::transaction(function () use ($emails) {
+//         $now = now();
+//         $nowStr = $now->toDateTimeString();
+
+//         // Find matched user IDs (not deleted)
+//         $matchedUserIds = DB::table('users')
+//             ->whereNull('deleted_at')
+//             ->whereIn(DB::raw('LOWER(email)'), $emails)
+//             ->pluck('id')
+//             ->toArray();
+
+//         // Important: update only rows not already soft-deleted
+//         $usersUpdated = DB::table('users')
+//             ->whereNull('deleted_at')
+//             ->whereIn(DB::raw('LOWER(email)'), $emails)
+//             ->update(['deleted_at' => $nowStr]);
+
+//         // Soft-delete employees that either match email OR are linked to matched users
+//         $employeeQuery = DB::table('employees')->whereNull('deleted_at')->where(function ($q) use ($emails, $matchedUserIds) {
+//             $q->whereIn(DB::raw('LOWER(email)'), $emails);
+//             if (!empty($matchedUserIds)) {
+//                 $q->orWhereIn('user_id', $matchedUserIds);
+//             }
+//         });
+
+//         $employeesUpdated = $employeeQuery->update(['deleted_at' => $nowStr]);
+
+//         return [
+//             'users_updated' => $usersUpdated,
+//             'employees_updated' => $employeesUpdated,
+//             'emails_count' => count($emails),
+//         ];
+//     });
+// }
+
+// Route::post('/maintenance/soft-delete-emails', function (Request $request) {
+
+
+//     // If you want to pass emails from the request:
+//     // $emails = $request->input('emails', []);
+
+//     // Or hardcode the list (your list below):
+//     $emails = [
+//         'abdulhaseebishi_r1@gmail.com',
+//     ];
+
+//     $result = softDeleteEmailsForUsersAndEmployees($emails);
+
+//     return response()->json([
+//         'ok' => true,
+//         'result' => $result,
+//         'timestamp' => now()->toDateTimeString(),
+//     ]);
+// });
 
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
 
@@ -186,6 +259,11 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/process-sia-licences', [EmployeeController::class, 'processSia'])
         ->middleware('auth')
         ->name('process.sia.licences');
+
+    // SIA licence check reports
+    Route::get('/reports/sia', [SiaReportController::class, 'index'])->name('reports.sia');
+    Route::get('/reports/sia/{runId}', [SiaReportController::class, 'show'])->name('reports.sia.show');
+    Route::get('/reports/sia/{runId}/csv', [SiaReportController::class, 'downloadCsv'])->name('reports.sia.csv');
 
 
     // Documents AJAX endpoints (used by employee modal)

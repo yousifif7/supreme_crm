@@ -871,6 +871,58 @@ document.addEventListener('click', () => {
             }
         };
 
+        // Auto-trigger SIA check once a day from the browser (no cron needed).
+        // triggerSiaCheck already guards with a 24-hour localStorage key, so
+        // subsequent page loads within the same day are instant no-ops.
+        // Now that the endpoint only dispatches queued jobs it returns in ms
+        // and the heavy work happens in the background — safe to call here.
+        // If the user visits before 16:00 local time, schedule the check to
+        // run exactly at 16:00 today. No cron required — purely client-side.
+        setTimeout(async function () {
+            try {
+                const now = new Date();
+                // build today's 16:00 local time
+                const target = new Date(now);
+                target.setHours(16, 0, 0, 0);
+
+                if (now >= target) {
+                    // it's already 16:00 or later — run the check now
+                    await window.triggerSiaCheck();
+                    return;
+                }
+
+                // schedule for the remaining milliseconds until 16:00
+                const msUntilTarget = target.getTime() - now.getTime();
+
+                // Safety: if scheduling fails or the timeout is too large for some
+                // browsers, we fall back to a minute-based poll (every 60s) as a
+                // backup to ensure the check eventually runs.
+                let scheduled = false;
+
+                try {
+                    setTimeout(() => {
+                        try { window.triggerSiaCheck().catch(() => {}); } catch (e) {}
+                        scheduled = true;
+                    }, msUntilTarget);
+                } catch (e) {
+                    scheduled = false;
+                }
+
+                if (!scheduled) {
+                    // fallback: poll every minute until 16:00 then trigger
+                    const pollInterval = setInterval(async () => {
+                        const now2 = new Date();
+                        if (now2 >= target) {
+                            clearInterval(pollInterval);
+                            try { await window.triggerSiaCheck(); } catch (e) { }
+                        }
+                    },5 * 60 * 1000);
+                }
+            } catch (e) {
+                // non-critical background task — fail silently
+            }
+        }, 15000); // wait 15 s after page load so it doesn't compete with page rendering
+
         // Helper to open profile change request modal
         async function openProfileChangeModal(id) {
             try {

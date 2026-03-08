@@ -446,6 +446,11 @@ $validator->after(function ($validator) use ($request) {
         }
             \DB::commit();
 
+            // Kick off an async SIA check for this employee if they have a licence
+            // if (!empty($employee->sia_licence)) {
+            //     RunSiaCheck::dispatch($employee->id);
+            // }
+
             return response()->json(['message' => 'Employee created successfully']);
 
         } catch (\Throwable $e) {
@@ -840,6 +845,11 @@ $validator->after(function ($validator) use ($request) {
             Log::error('Failed to sync uploaded files to documents table (update): ' . $e->getMessage());
         }
 
+        // Kick off an async SIA check if this employee has a licence
+        // if (!empty($employee->sia_licence)) {
+        //     RunSiaCheck::dispatch($employee->id);
+        // }
+
         return response()->json(['message' => 'Employee updated successfully']);
     }
 
@@ -1182,35 +1192,32 @@ $validator->after(function ($validator) use ($request) {
     public function processSia(Request $request)
     {
         $user = auth()->user();
-        \Log::info('EmployeeController: processSia web trigger started', ['by' => $user->id]);
+        \Log::info('EmployeeController: processSia dispatch started', ['by' => $user->id]);
 
-        $siaChecker = app(SiaLicenceChecker::class);
-        $processed = 0;
+        $employeeIds = \App\Models\Employee::whereNotNull('sia_licence')->pluck('id');
+        $total = $employeeIds->count();
 
-        try {
-            // Process employees in chunks to avoid memory/time spikes
-            \App\Models\Employee::whereNotNull('sia_licence')->chunk(100, function($employees) use ($siaChecker, &$processed) {
-                foreach ($employees as $employee) {
-                    try {
-                        $result = $siaChecker->checkByLicenceNumber($employee->sia_licence, true);
-                        $newStatus = (!empty($result) && !empty($result['valid'])) ? 'Active' : 'Inactive';
-                        if ($employee->sia_status !== $newStatus) {
-                            $employee->sia_status = $newStatus;
-                            $employee->save();
-                        }
-                        $processed++;
-                    } catch (\Throwable $e) {
-                        \Log::error('processSia: failed for employee ' . ($employee->id ?? 'unknown') . ': ' . $e->getMessage());
-                    }
-                }
-            });
-
-            \Log::info('EmployeeController: processSia completed', ['processed' => $processed]);
-            return response()->json(['processed' => $processed]);
-        } catch (\Throwable $e) {
-            \Log::error('EmployeeController: processSia failed: ' . $e->getMessage());
-            return response()->json(['error' => 'processing failed'], 500);
+        if ($total === 0) {
+            return response()->json(['message' => 'No employees with SIA licences found.', 'queued' => 0]);
         }
+
+        // All jobs in this batch share the same run_id so they form one report
+        $runId = (string) \Illuminate\Support\Str::uuid();
+
+        // Dispatch one lightweight job per employee.
+        // Stagger by 3 seconds each so the SIA website is not hammered and the
+        // queue worker stays cool — 100 employees spreads over ~5 minutes.
+        foreach ($employeeIds as $index => $id) {
+            RunSiaCheck::dispatch($id, $runId)->delay(now()->addSeconds($index * 3));
+        }
+
+        \Log::info('EmployeeController: processSia jobs dispatched', ['count' => $total, 'run_id' => $runId]);
+
+        return response()->json([
+            'message' => "SIA checks queued for {$total} employees. Processing in the background.",
+            'queued'  => $total,
+            'run_id'  => $runId,
+        ]);
     }
 
 
