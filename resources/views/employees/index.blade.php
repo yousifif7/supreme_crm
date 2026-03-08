@@ -374,6 +374,10 @@
             word-break: break-word !important;
             overflow-wrap: anywhere !important;
         }
+        /* Ensure delete confirmation modal appears above other modals */
+        #delete_modal {
+            z-index: 20050 !important;
+        }
     </style>
     <!-- View Employee Detail Modal -->
     <div class="modal fade" id="viewEmployeeDetailModal" tabindex="-1" aria-labelledby="employeeDetailLabel"
@@ -1217,14 +1221,14 @@
                         if (data.employee[field]) {
                             const fileName = data.employee[field];
                             const url = `${baseUrl}/documents/${fileName}`;
-                            const previewHtml = `
-                                <div class="document-preview mt-2">
-                                    <small class="text-muted">Current: </small>
-                                    <a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary">
-                                        <i class="ti ti-file"></i> View ${documentFields[field]}
-                                    </a>
-                                </div>
-                            `;
+                                    const previewHtml = `
+                                                <div class="document-preview mt-2">
+                                                    <small class="text-muted">Current: </small>
+                                                    <a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary ms-1" title="View ${documentFields[field]}">
+                                                        <i class="ti ti-file"></i><span class="ms-1">${fileName}</span>
+                                                    </a>
+                                                </div>
+                                            `;
                             $('#' + field).after(previewHtml);
                         }
                     });
@@ -1755,7 +1759,8 @@
 
                             additionalHtml += `<div class="mb-1 d-flex align-items-center" data-filepath="${filePath}">
                                 <span class="ms-2">${fileName}</span>
-                                <a href="${baseUrl}/${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">View</a>`;
+                                <a href="${baseUrl}/${filePath}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1" title="View ${fileName}"><i class="ti ti-file"></i></a>
+                                <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${filePath}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button>`;
 
                             // If the document appears to be pending, show Approve / Reject buttons
                             const pendingStatuses = ['pending', 'awaiting', 'for_review', 'pending_admin'];
@@ -1776,8 +1781,8 @@
 
                             if (isPending) {
                                 additionalHtml += `
-                                    <button type="button" class="btn btn-sm btn-success ms-2 approve-doc-btn" data-file="${filePath}" data-employee="${id}">Approve</button>
-                                    <button type="button" class="btn btn-sm btn-danger ms-1 reject-doc-btn" data-file="${filePath}" data-employee="${id}">Reject</button>`;
+                                    <button type="button" class="btn btn-sm btn-success ms-2 approve-doc-btn" data-file="${filePath}" data-employee="${id}" title="Approve"><i class="ti ti-check"></i></button>
+                                    <button type="button" class="btn btn-sm btn-danger ms-1 reject-doc-btn" data-file="${filePath}" data-employee="${id}" title="Reject"><i class="ti ti-x"></i></button>`;
                             }
 
                             additionalHtml += `</div>`;
@@ -1802,7 +1807,11 @@
                         // Separate approved and pending documents
                         const docs = resp.documents || [];
                         const approved = docs.filter(d => (d.status || '').toLowerCase() === 'approved');
-                        const pending = docs.filter(d => (d.status || '').toLowerCase() !== 'approved');
+                        // Exclude 'superseded' from pending — they belong in the older docs section
+                        const pending = docs.filter(d => {
+                            const s = (d.status || '').toLowerCase();
+                            return s !== 'approved' && s !== 'superseded';
+                        });
 
                         // Build Main Documents HTML: prefer approved docs for known fields
                         let mainHtml = '';
@@ -1810,15 +1819,15 @@
                         Object.entries(documentTypes).forEach(([field, label]) => {
                             // find approved doc by document_type matching the field
                             const approvedDoc = approved.find(d => d.document_type === field);
-                            if (approvedDoc) {
+                                if (approvedDoc) {
                                 anyMain = true;
                                 const fileName = (approvedDoc.file_path || '').split('/').pop();
-                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${baseUrl}/${approvedDoc.file_path}" target="_blank" class="btn btn-sm btn-outline-primary ms-1">${fileName}</a></div>`;
+                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${baseUrl}/${approvedDoc.file_path}" target="_blank" class="btn btn-sm btn-outline-primary ms-1" title="View ${fileName}"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${approvedDoc.file_path}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></div>`;
                             } else if (data[field]) {
                                 // fallback to employee field (unverified)
                                 anyMain = true;
                                 const url = `${baseUrl}/documents/${data[field]}`;
-                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1">View (unverified)</a></div>`;
+                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1" title="View (unverified)"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${data[field]}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></div>`;
                             }
                         });
 
@@ -1830,7 +1839,7 @@
                             mainHtml += `<div class="mt-2"><strong>Other approved documents:</strong><ul class="list-unstyled mb-0">`;
                             otherApproved.forEach(d => {
                                 const fileName = (d.file_path || '').split('/').pop();
-                                mainHtml += `<li><a href="${baseUrl}/${d.file_path}" target="_blank">${fileName}</a></li>`;
+                                mainHtml += `<li><a href="${baseUrl}/${d.file_path}" target="_blank">${fileName}</a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${d.file_path}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></li>`;
                             });
                             mainHtml += `</ul></div>`;
                         }
@@ -1862,6 +1871,11 @@
                         }
 
                         const oldDocs = docs.filter(d => {
+                            // Include explicitly superseded records, plus any DB record
+                            // whose file basename is no longer in the employee's current fields
+                            // (catches legacy rows that were never marked superseded).
+                            const s = (d.status || '').toLowerCase();
+                            if (s === 'superseded') return true;
                             const bn = (d.file_path || '').split('/').pop();
                             return bn && !currentBasenames.has(bn);
                         });
@@ -1872,7 +1886,7 @@
                             oldDocs.forEach(d => {
                                 const bn = (d.file_path || '').split('/').pop();
                                 const typeLabel = (d.document_type && documentTypes[d.document_type]) ? documentTypes[d.document_type] : (d.document_type || 'Other');
-                                oldDocsHtml += `<li class="mb-1"><span class="badge bg-secondary me-2">${typeLabel}</span><a href="${baseUrl}/${d.file_path}" target="_blank">${bn}</a> <span class="small text-muted">(${d.status || 'unknown'})</span></li>`;
+                                oldDocsHtml += `<li class="mb-1"><span class="badge bg-secondary me-2">${typeLabel}</span><a href="${baseUrl}/${d.file_path}" target="_blank">${bn}</a> <span class="small text-muted">(${d.status || 'unknown'})</span> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${d.file_path}" data-employee="${id}"><i class="ti ti-trash"></i></button></li>`;
                             });
                             oldDocsHtml += '</ul>';
                         } else {
@@ -1885,7 +1899,7 @@
                         let pendingHtml = '';
                         if (pending.length > 0) {
                             pendingHtml = '<ul class="list-unstyled mb-0">';
-                            pending.forEach(d => {
+                                pending.forEach(d => {
                                 const fileName = (d.file_path || '').split('/').pop();
                                 const comment = d.admin_comments ? `<div class="small text-muted">${d.admin_comments}</div>` : '';
                                 // Determine a human-friendly type label using documentTypes mapping
@@ -1893,21 +1907,23 @@
                                 const isRejected = (d.status || '').toString().toLowerCase() === 'rejected';
 
                                 if (isRejected) {
-                                    // Show rejected status and admin comment; hide action buttons
+                                    // Show rejected status and admin comment; include delete button
                                     pendingHtml += `<li class="mb-2 d-flex align-items-center">
                                         <span class="badge bg-secondary me-2 text-truncate" style="max-width:120px;">${typeLabel}</span>
-                                        <a href="${baseUrl}/${d.file_path}" target="_blank" class="me-2">${fileName}</a>
+                                        <a href="${baseUrl}/${d.file_path}" target="_blank" class="me-2" title="View ${fileName}"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a>
                                         <span class="badge bg-danger ms-1">Rejected</span>
                                         ${comment}
+                                        <button class="btn btn-sm btn-danger ms-2 delete-doc-btn" data-file="${d.file_path}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button>
                                     </li>`;
                                 } else {
                                     pendingHtml += `<li class="mb-2 d-flex align-items-center">
                                         <span class="badge bg-secondary me-2 text-truncate" style="max-width:120px;">${typeLabel}</span>
-                                        <a href="${baseUrl}/${d.file_path}" target="_blank" class="me-2">${fileName}</a>
+                                        <a href="${baseUrl}/${d.file_path}" target="_blank" class="me-2" title="View ${fileName}"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a>
                                         <span class="badge bg-warning text-dark ms-1">${d.status || 'pending'}</span>
                                         <div class="ms-auto">
-                                            <button class="btn btn-sm btn-success ms-2 approve-doc-btn" data-file="${d.file_path}" data-employee="${id}">Approve</button>
-                                            <button class="btn btn-sm btn-danger ms-1 reject-doc-btn" data-file="${d.file_path}" data-employee="${id}">Reject</button>
+                                            <button class="btn btn-sm btn-success ms-2 approve-doc-btn" data-file="${d.file_path}" data-employee="${id}" title="Approve"><i class="ti ti-check"></i></button>
+                                            <button class="btn btn-sm btn-danger ms-1 reject-doc-btn" data-file="${d.file_path}" data-employee="${id}" title="Reject"><i class="ti ti-x"></i></button>
+                                            <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${d.file_path}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button>
                                         </div>
                                         ${comment}
                                     </li>`;
@@ -1960,6 +1976,40 @@
                     $('#doc_action_file').val(file);
                     $('#rejectModal textarea[name="admin_comment"]').val('');
                     $('#rejectModal').modal('show');
+                });
+
+                // Delete document flow: open confirmation and call delete endpoint
+                $(document).off('click', '.delete-doc-btn').on('click', '.delete-doc-btn', function() {
+                    const file = $(this).data('file');
+                    const emp = $(this).data('employee');
+                    if (!file || !emp) return;
+                    $('#delete_modal').data('deletePayload', { file: file, employeeId: emp });
+                    try { $('#delete_modal').modal('show'); } catch (e) { }
+                });
+
+                $(document).off('click', '#confirmDeleteBtn').on('click', '#confirmDeleteBtn', function() {
+                    const payload = $('#delete_modal').data('deletePayload') || {};
+                    if (!payload.file || !payload.employeeId) return;
+                    $('#confirmDeleteBtn').prop('disabled', true).text('Deleting...');
+                    $.ajax({
+                        url: `${baseUrl}/employees/${payload.employeeId}/documents/delete`,
+                        method: 'POST',
+                        headers: { 'X-CSRF-TOKEN': $('input[name="_token"]').val() },
+                        data: { file_path: payload.file },
+                        success: function(res) {
+                            try { $('#delete_modal').modal('hide'); } catch (e) {}
+                            toast_success(res.message || 'Document deleted');
+                            try { if (typeof viewEmployeeDetail === 'function') viewEmployeeDetail(payload.employeeId); } catch (e) {}
+                            try { reloadDatatable('#employees-table'); } catch (e) {}
+                        },
+                        error: function(xhr) {
+                            const msg = formatAjaxError(xhr);
+                            toast_danger(msg);
+                        },
+                        complete: function() {
+                            $('#confirmDeleteBtn').prop('disabled', false).text('Yes, Delete');
+                        }
+                    });
                 });
 
                 // Days of week mapping

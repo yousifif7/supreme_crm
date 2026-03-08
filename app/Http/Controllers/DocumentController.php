@@ -223,6 +223,113 @@ class DocumentController extends Controller
         return response()->json(['message' => 'Document rejected', 'document' => $doc]);
     }
 
+    // Delete a document for an employee: remove DB row and clear employee's reference
+    public function deleteByEmployee(Request $request, $employeeId)
+    {
+        $employee = Employee::find($employeeId);
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        $filePath = $request->input('file_path');
+        if (!$filePath) {
+            return response()->json(['error' => 'file_path is required'], 422);
+        }
+
+        // Try to find exact match first
+        $doc = Document::where('user_id', $employee->user_id)
+            ->where('file_path', $filePath)
+            ->first();
+
+        // Fallback: match by basename
+        if (!$doc) {
+            $basename = basename($filePath);
+            $doc = Document::where('user_id', $employee->user_id)
+                ->where('file_path', 'like', "%{$basename}%")
+                ->first();
+        }
+
+        // If we found a DB record, delete it
+        if ($doc) {
+            $docType = $doc->document_type;
+            $storedPath = $doc->file_path;
+            try {
+                $doc->delete();
+            } catch (\Exception $e) {
+                // ignore deletion failure but continue to clear employee fields
+            }
+        } else {
+            // no DB record found; still attempt to infer document type from request path
+            $docType = null;
+            $storedPath = $filePath;
+        }
+
+        // Clear references on Employee model if this was a main document
+        $mainFields = array_keys($this->documentFields);
+        if ($docType && in_array($docType, $mainFields)) {
+            $employee->{$docType} = null;
+            // clear expiry if mapped
+            $expiryMap = $this->expiryFields;
+            if (isset($expiryMap[$docType])) {
+                $expiryField = $expiryMap[$docType];
+                $employee->{$expiryField} = null;
+            }
+            $employee->save();
+        } else {
+            // It may be an employee field (passed as e.g. 'documents/filename.pdf')
+            // Try to find which main field points to this basename and clear it
+            $basename = basename($storedPath);
+            foreach ($mainFields as $f) {
+                $val = $employee->{$f};
+                if (!$val) continue;
+                if ((basename($val) === $basename) || str_contains($val, $basename)) {
+                    $employee->{$f} = null;
+                    $expiryMap = $this->expiryFields;
+                    if (isset($expiryMap[$f])) {
+                        $employee->{$expiryMap[$f]} = null;
+                    }
+                    $employee->save();
+                }
+            }
+        }
+
+        // If this was an 'other' / additional_files entry, remove from JSON array
+        try {
+            if (empty($doc) || ($doc && $doc->document_type === 'other')) {
+                $add = $employee->additional_files;
+                if ($add) {
+                    if (is_string($add)) $add = json_decode($add, true) ?: [];
+                    if (is_array($add) && count($add) > 0) {
+                        $filtered = array_values(array_filter($add, function ($it) use ($storedPath) {
+                            if (is_string($it)) return basename($it) !== basename($storedPath) && $it !== $storedPath;
+                            if (is_array($it)) {
+                                $p = $it['path'] ?? ($it['file'] ?? ($it['file_path'] ?? null));
+                                return basename($p) !== basename($storedPath) && $p !== $storedPath;
+                            }
+                            return true;
+                        }));
+                        $employee->additional_files = empty($filtered) ? null : $filtered;
+                        $employee->save();
+                    }
+                }
+            }
+        } catch (\Exception $e) {
+            // ignore JSON parse issues
+        }
+
+        // Attempt to remove physical file if it looks like an app-managed path
+        try {
+            $publicPath = public_path($storedPath);
+            if ($storedPath && file_exists($publicPath) && is_file($publicPath)) {
+                @unlink($publicPath);
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
+        return response()->json(['message' => 'Document deleted']);
+    }
+
     // Check if a document field has a corresponding expiry field
     protected function hasExpiryField($field)
     {

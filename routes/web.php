@@ -192,6 +192,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/documents/user/{userId}/ajax', [DocumentController::class, 'byUser'])->name('documents.byUser');
     Route::post('/employees/{id}/documents/approve', [DocumentController::class, 'approveByEmployee'])->name('employees.documents.approve');
     Route::post('/employees/{id}/documents/reject', [DocumentController::class, 'rejectByEmployee'])->name('employees.documents.reject');
+    Route::post('/employees/{id}/documents/delete', [DocumentController::class, 'deleteByEmployee'])->name('employees.documents.delete');
 
     Route::get('/employees/export/excel', [ExportController::class, 'exportEmployeeExcel'])->name('employees.export.excel');
     Route::get('/employees/export/pdf', [ExportController::class, 'exportEmployeePdf'])->name('employees.export.pdf');

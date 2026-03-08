@@ -23,7 +23,7 @@ class GeoService
             return null;
         }
 
-        $cacheKey = 'geo_coords_v3_' . md5(strtolower($fullQuery));
+        $cacheKey = 'geo_coords_v4_' . md5(strtolower($fullQuery));
 
         return Cache::remember($cacheKey, 86400, function () use ($fullQuery, $postal, $addressClean) {
             $apiKey = config('services.google_maps.key');
@@ -46,7 +46,17 @@ class GeoService
                 }
             }
 
-            // Tier 2: full address + postcode + country:GB restriction.
+            // Tier 2: full address constrained by postal_code component.
+            // Anchoring to the postcode prevents Google from snapping to a business
+            // name (e.g. "Atos") registered at a different location in its Places DB.
+            if ($postal !== '') {
+                $result = $this->geocodeRequest($fullQuery, 'GB', $apiKey, $postal);
+                if ($result !== null) {
+                    return $result;
+                }
+            }
+
+            // Tier 3: full address + country:GB only (no postcode component).
             $result = $this->geocodeRequest($fullQuery, 'GB', $apiKey);
 
             if ($result !== null) {
@@ -57,8 +67,7 @@ class GeoService
                     return $result;
                 }
 
-                // GEOMETRIC_CENTER / APPROXIMATE = city/area centroid — try postcode
-                // as a fallback even for non-UK postcodes.
+                // GEOMETRIC_CENTER / APPROXIMATE = try postcode as a final fallback.
                 if ($postal !== '' && !$isUkPostcode) {
                     $postcodeResult = $this->geocodeRequest($postal, 'GB', $apiKey);
                     if ($postcodeResult !== null) {
@@ -70,7 +79,7 @@ class GeoService
                 return $result;
             }
 
-            // Tier 3: full address failed and no postcode result — try address alone.
+            // Tier 4: strip building name — try address-only (no postcode prefix).
             if ($addressClean !== '' && $postal !== '') {
                 return $this->geocodeRequest($addressClean, 'GB', $apiKey);
             }
@@ -81,16 +90,27 @@ class GeoService
 
     /**
      * Send a single geocode request and return a normalised result array, or null on failure.
+     *
+     * @param string $postalCode  When provided, adds a postal_code component constraint so
+     *                            Google anchors results to that postcode area rather than
+     *                            snapping to a business name registered elsewhere.
      */
-    private function geocodeRequest(string $query, string $countryRestriction, string $apiKey): ?array
+    private function geocodeRequest(string $query, string $countryRestriction, string $apiKey, string $postalCode = ''): ?array
     {
         $params = [
-            'address'    => $query,
-            'key'        => $apiKey,
+            'address' => $query,
+            'key'     => $apiKey,
         ];
 
+        $componentParts = [];
         if ($countryRestriction !== '') {
-            $params['components'] = 'country:' . $countryRestriction;
+            $componentParts[] = 'country:' . $countryRestriction;
+        }
+        if ($postalCode !== '') {
+            $componentParts[] = 'postal_code:' . $postalCode;
+        }
+        if (!empty($componentParts)) {
+            $params['components'] = implode('|', $componentParts);
         }
 
         $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', $params);

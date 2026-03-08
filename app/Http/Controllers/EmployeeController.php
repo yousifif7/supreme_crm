@@ -805,10 +805,20 @@ $validator->after(function ($validator) use ($request) {
             foreach ($documents as $document) {
                 if (!empty($data[$document])) {
                     $expiry = $docExpiryMap[$document] ?? null;
+                    $newFilePath = (strpos($data[$document], '/') === false) ? 'documents/' . $data[$document] : $data[$document];
+
+                    // Preserve history: mark any previous approved record with a different
+                    // file path as superseded so it still appears in "Older Documents".
+                    Document::where('user_id', $employee->user_id)
+                        ->where('document_type', $document)
+                        ->where('file_path', '!=', $newFilePath)
+                        ->where('status', 'approved')
+                        ->update(['status' => 'superseded']);
+
+                    // Create (or no-op if same file was already recorded) the new approved record.
                     Document::updateOrCreate(
-                        ['user_id' => $employee->user_id, 'document_type' => $document],
+                        ['user_id' => $employee->user_id, 'document_type' => $document, 'file_path' => $newFilePath],
                         [
-                            'file_path' => (strpos($data[$document], '/') === false) ? 'documents/' . $data[$document] : $data[$document],
                             'expiry_date' => $expiry ? ($data[$expiry] ?? null) : null,
                             'status' => 'approved',
                         ]
@@ -1040,26 +1050,26 @@ $validator->after(function ($validator) use ($request) {
             'gender'          => $employee?->gender,
             'ni_number'       => $employee?->ni_number,
             'sia_licence'     => $employee?->sia_licence,
-            'sia_expiry'      => $employee?->sia_expiry,
+            'sia_expiry'      => $employee?->sia_expiry?->format('d-m-Y') ?? null,
             'licence_type'    => $employee?->licence_type,
             'license_number'  => $employee?->license_number,
-            'license_expiry'  => $employee?->license_expiry,
-            'entry_date'      => $employee?->entry_date,
-            'dob'             => $employee?->dob,
+            'license_expiry'  => $employee?->license_expiry?->format('d-m-Y') ?? null,
+            'entry_date'      => $employee?->entry_date?->format('d-m-Y') ?? null,
+            'dob'             => $employee?->dob?->format('d-m-Y') ?? null,
             'service_type'    => $employee?->service_type,
             'visa_type'       => $employee?->visa_type,
-            'visa_expiry'     => $employee?->visa_expiry,
+            'visa_expiry'     => $employee?->visa_expiry?->format('d-m-Y') ?? null,
             'share_code'      => $employee?->share_code,
-            'share_code_expiry' => $employee?->share_code_expiry,
+            'share_code_expiry' => $employee?->share_code_expiry?->format('d-m-Y') ?? null,
             'biometric_residence_permit' => $employee?->biometric_residence_permit,
-            'biometric_residence_permit_expiry' => $employee?->biometric_residence_permit_expiry,
+            'biometric_residence_permit_expiry' => $employee?->biometric_residence_permit_expiry?->format('d-m-Y') ?? null,
             'place_work'      => $employee?->place_work,
             'contact'         => $employee?->contact,
             'emergency_contact' => $employee?->emergency_contact,
             'job_title'       => $employee?->job_title,
             'nationality'     => $employee?->nationality,
             'passport_no'     => $employee?->passport_no,
-            'passport_expiry' => $employee?->passport_expiry,
+            'passport_expiry' => $employee?->passport_expiry?->format('d-m-Y') ?? null,
             'address_group'   => $employee?->address_group,
             'address'   => $employee?->address,
             'guard_rate'      => $employee?->guard_rate,
@@ -1069,8 +1079,8 @@ $validator->after(function ($validator) use ($request) {
             'account_name'    => $employee?->account_name,
             'account_number'  => $employee?->account_number,
             'other_info'      => $employee?->other_info,
-            'employment_start_date' => $employee?->employment_start_date,
-            'employment_end_date' => $employee?->employment_end_date,
+            'employment_start_date' => $employee?->employment_start_date?->format('d-m-Y') ?? null,
+            'employment_end_date' => $employee?->employment_end_date?->format('d-m-Y') ?? null,
             
             // Document files
             'profile_picture' => $employee?->profile_picture,
@@ -1083,7 +1093,7 @@ $validator->after(function ($validator) use ($request) {
             'act_certificate_file' => $employee?->act_certificate_file,
             'driving_licence_file' => $employee?->driving_licence_file,
             'driving_licence_number' => $employee?->driving_licence_number,
-            'driving_licence_expiry' => $employee?->driving_licence_expiry,
+            'driving_licence_expiry' => $employee?->driving_licence_expiry?->format('d-m-Y') ?? null,
             'additional_files' => $employee?->additional_files,
 
             // Add availability here
@@ -1129,8 +1139,8 @@ $validator->after(function ($validator) use ($request) {
             'first_aid_certificate_file' => $employee->first_aid_certificate_file,
             'act_certificate_file' => $employee->act_certificate_file,
             'additional_files' => $employee->additional_files,
-            'employment_start_date' => $employee->employment_start_date,
-            'employment_end_date' => $employee->employment_end_date,
+            'employment_start_date' => $employee->employment_start_date?->format('d-m-Y') ?? null,
+            'employment_end_date' => $employee->employment_end_date?->format('d-m-Y') ?? null,
         ]);
     }
 
