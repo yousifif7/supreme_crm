@@ -48,9 +48,15 @@
 <script>
 const DECK_LOCATIONS_URL = "{{ route('shift.locations', ['shiftDateId' => $shiftDate->id]) }}";
 const GM_API_KEY = "{{ env('GOOGLE_MAPS_API_KEY') }}";
-// Optional: server can provide site metadata for geocoding and zone display
-const SITE_QUERY = @json($shiftDate->shift->site->address ?? $shiftDate->shift->site->post_code ?? '');
+// Site metadata — prefer server-resolved coords (accurate) over client-side geocoding
+const SITE_ADDRESS  = @json(trim($shiftDate->shift->site->address ?? ''));
+const SITE_POSTCODE = @json(trim($shiftDate->shift->site->post_code ?? ''));
+const SITE_QUERY    = SITE_ADDRESS && SITE_POSTCODE
+  ? SITE_ADDRESS + ' ' + SITE_POSTCODE
+  : (SITE_ADDRESS || SITE_POSTCODE);
 const SITE_TITLE = @json($shiftDate->shift->site->site_name ?? '');
+const SITE_LAT = @json($siteLat ?? null);
+const SITE_LNG = @json($siteLng ?? null);
 
 let gm_map, gm_pathPolyline, gm_startMarker, gm_endMarker;
 let pathVisible = true;
@@ -59,18 +65,45 @@ const statusEl = document.getElementById('gm-deck-status');
 let siteMarker = null;
 let siteCircle = null;
 
+// 3-tier geocode strategy:
+//   Tier 1: full address + GB restriction → accept only ROOFTOP / RANGE_INTERPOLATED
+//   Tier 2: if imprecise (GEOMETRIC_CENTER / APPROXIMATE) → retry with postcode only
+//   Tier 3: if full address call fails entirely → postcode only
 function geocodeAndCenterSite(query) {
   return new Promise((resolve) => {
     if (!query || !window.google || !google.maps) return resolve(null);
     const geocoder = new google.maps.Geocoder();
-    geocoder.geocode({ address: query }, (results, status) => {
-      if (status === 'OK' && results && results[0] && results[0].geometry && results[0].geometry.location) {
-        const loc = results[0].geometry.location;
-        try { gm_map.setCenter(loc); gm_map.setZoom(15); } catch (e) { console.warn('setCenter failed', e); }
-        return resolve(loc);
+    const preciseTypes = ['ROOFTOP', 'RANGE_INTERPOLATED'];
+
+    function applyResult(loc) {
+      try { gm_map.setCenter(loc); gm_map.setZoom(17); } catch (e) { console.warn('setCenter failed', e); }
+      return resolve(loc);
+    }
+
+    function tryPostcodeOnly() {
+      if (!SITE_POSTCODE) return resolve(null);
+      geocoder.geocode({ address: SITE_POSTCODE, componentRestrictions: { country: 'GB' } }, (r2, s2) => {
+        if (s2 === 'OK' && r2 && r2[0]) return applyResult(r2[0].geometry.location);
+        console.warn('Geocode tier 3 (postcode-only) failed', s2);
+        resolve(null);
+      });
+    }
+
+    // Tier 1: full query + GB restriction
+    geocoder.geocode({ address: query, componentRestrictions: { country: 'GB' } }, (results, status) => {
+      if (status === 'OK' && results && results[0]) {
+        const locType = results[0].geometry.location_type;
+        if (preciseTypes.includes(locType)) {
+          // Precise hit — use directly
+          return applyResult(results[0].geometry.location);
+        }
+        // Tier 2: imprecise result (GEOMETRIC_CENTER / APPROXIMATE) — retry with postcode only
+        console.info('Geocode tier 1 imprecise (' + locType + '), retrying with postcode', SITE_POSTCODE);
+        return tryPostcodeOnly();
       }
-      console.warn('Geocode failed for site query', status, query);
-      resolve(null);
+      // Tier 3: full query failed — fall back to postcode
+      console.warn('Geocode tier 1 failed (' + status + '), falling back to postcode');
+      tryPostcodeOnly();
     });
   });
 }
@@ -292,9 +325,14 @@ async function initMapAndDeck() {
     map: null
   });
 
-  // If the server provided a site address/postcode, geocode and draw the site zone
+  // Draw site zone — use server-resolved coordinates when available (reliable),
+  // otherwise fall back to client-side geocoding (may fail for business names).
   try {
-    if (SITE_QUERY && SITE_QUERY.length) {
+    if (SITE_LAT !== null && SITE_LNG !== null) {
+      const siteLoc = new google.maps.LatLng(SITE_LAT, SITE_LNG);
+      try { gm_map.setCenter(siteLoc); gm_map.setZoom(17); } catch(e){}
+      drawSiteZoneOnMap(siteLoc, { title: SITE_TITLE || 'Site', address: SITE_QUERY, radiusMeters: 100 });
+    } else if (SITE_QUERY && SITE_QUERY.length) {
       const siteLoc = await geocodeAndCenterSite(SITE_QUERY);
       if (siteLoc) {
         drawSiteZoneOnMap(siteLoc, { title: SITE_TITLE || 'Site', address: SITE_QUERY, radiusMeters: 100 });
@@ -450,54 +488,8 @@ async function refreshData() {
     }
   }
 
-  // Fit bounds
-  if (filtered.length === 0) {
-    gm_map.setCenter({ lat: 51.5074, lng: -0.1278 });
-    gm_map.setZoom(13);
-  } else if (filtered.length === 1) {
-    gm_map.setCenter({ lat: filtered[0].latitude, lng: filtered[0].longitude });
-    gm_map.setZoom(17);
-  } else {
-    const bounds = new google.maps.LatLngBounds();
-    filtered.forEach(p => bounds.extend(new google.maps.LatLng(p.latitude, p.longitude)));
-    try {
-      gm_map.fitBounds(bounds);
-      // Add slight zoom boost
-      google.maps.event.addListenerOnce(gm_map, 'bounds_changed', function() {
-        const currentZoom = gm_map.getZoom();
-        if (currentZoom < 18) {
-          gm_map.setZoom(Math.min(currentZoom + 1, 18));
-        }
-      });
-    } catch (e) {
-      console.warn('fitBounds failed', e);
-    }
-  }
-
-  // Re-evaluate site zone: if the geocoded site is far from the tracked centroid,
-  // prefer the centroid so the zone matches where guards actually are.
-  try {
-    const centroid = computeCentroid(filtered);
-    if (centroid) {
-      const centroidLatLng = new google.maps.LatLng(centroid.latitude, centroid.longitude);
-
-      let useCentroid = false;
-      if (!siteMarker) {
-        useCentroid = true; // no geocoded site available
-      } else {
-        const sitePos = siteMarker.getPosition();
-        const dist = haversineDistance(sitePos.lat(), sitePos.lng(), centroid.latitude, centroid.longitude);
-        // If site geocode is more than 200m away from centroid, prefer centroid
-        if (dist > 200) useCentroid = true;
-      }
-
-      if (useCentroid) {
-        drawSiteZoneOnMap(centroidLatLng, { title: SITE_TITLE || 'Site', address: SITE_QUERY || '', radiusMeters: 100 });
-      }
-    }
-  } catch (e) {
-    console.warn('Failed to compute/draw centroid site zone', e);
-  }
+  // Always keep the map centered on the site (set during geocodeAndCenterSite).
+  // Do NOT fitBounds to guard locations — the site marker is the reference point.
 
   // No heatmap: path-only display
 }

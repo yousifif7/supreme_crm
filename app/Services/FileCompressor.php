@@ -12,6 +12,9 @@ class FileCompressor
     // Path to ffmpeg, if available
     protected ?string $ffmpegPath = null;
 
+    // Path to GhostScript (gs / gswin64c), if available
+    protected ?string $gsPath = null;
+
     public function __construct()
     {
         // Try to detect ffmpeg in a safe way without relying on disabled shell functions.
@@ -60,6 +63,97 @@ class FileCompressor
         }
 
         // if still not found, leave ffmpegPath null — video compression will be skipped
+
+        // ── GhostScript detection (for PDF compression) ───────────────────────
+        $envGs = env('GS_PATH');
+        if (!empty($envGs) && is_executable($envGs)) {
+            $this->gsPath = $envGs;
+        } else {
+            $gsCandidates = [
+                // Linux / macOS
+                '/usr/bin/gs',
+                '/usr/local/bin/gs',
+                '/bin/gs',
+                // Windows (common GhostScript install paths)
+                'C:\\Program Files\\gs\\gs10.05.0\\bin\\gswin64c.exe',
+                'C:\\Program Files\\gs\\gs10.04.0\\bin\\gswin64c.exe',
+                'C:\\Program Files\\gs\\gs10.03.1\\bin\\gswin64c.exe',
+                'C:\\Program Files\\gs\\gs10.02.1\\bin\\gswin64c.exe',
+                'C:\\Program Files\\gs\\gs10.01.2\\bin\\gswin64c.exe',
+                'C:\\Program Files (x86)\\gs\\gs9.56.1\\bin\\gswin32c.exe',
+            ];
+
+            foreach ($gsCandidates as $p) {
+                if (file_exists($p) && is_executable($p)) {
+                    $this->gsPath = $p;
+                    break;
+                }
+            }
+
+            // Last-resort shell lookup
+            if (empty($this->gsPath) && function_exists('shell_exec')) {
+                $which = trim(@shell_exec('which gs 2>/dev/null'));
+                if (!empty($which) && is_executable($which)) {
+                    $this->gsPath = $which;
+                }
+            }
+            if (empty($this->gsPath) && function_exists('exec')) {
+                $out = null;
+                @exec('which gs 2>/dev/null', $out);
+                if (!empty($out[0]) && is_executable($out[0])) {
+                    $this->gsPath = $out[0];
+                }
+            }
+        }
+    }
+
+    /**
+     * Extension → MIME fallback map used when mime_content_type() is unavailable or returns a generic type.
+     */
+    private const EXT_MIME_MAP = [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'bmp'  => 'image/bmp',
+        'mp4'  => 'video/mp4',
+        'mov'  => 'video/quicktime',
+        'avi'  => 'video/x-msvideo',
+        'mkv'  => 'video/x-matroska',
+        'wmv'  => 'video/x-ms-wmv',
+        'pdf'  => 'application/pdf',
+    ];
+
+    /**
+     * Resolve the MIME type for a file. Falls back to an extension map when the
+     * fileinfo extension is absent or returns an unhelpful generic type.
+     */
+    private function resolveMime(string $fullPath): string
+    {
+        // Primary: use finfo_open (fileinfo extension) which is more reliable than mime_content_type().
+        if (function_exists('finfo_open')) {
+            $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo !== false) {
+                $mime = finfo_file($finfo, $fullPath);
+                finfo_close($finfo);
+                if (!empty($mime) && $mime !== 'application/octet-stream') {
+                    return $mime;
+                }
+            }
+        }
+
+        // Secondary: mime_content_type() (uses fileinfo internally on most setups).
+        if (function_exists('mime_content_type')) {
+            $mime = @mime_content_type($fullPath);
+            if (!empty($mime) && $mime !== 'application/octet-stream') {
+                return $mime;
+            }
+        }
+
+        // Fallback: derive MIME from the file extension.
+        $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+        return self::EXT_MIME_MAP[$ext] ?? 'application/octet-stream';
     }
 
     /**
@@ -73,7 +167,7 @@ class FileCompressor
             return false;
         }
 
-        $mime = mime_content_type($fullPath) ?: '';
+        $mime = $this->resolveMime($fullPath);
 
         if (str_starts_with($mime, 'image/')) {
             return $this->compressImage($fullPath, $mime);
@@ -83,68 +177,145 @@ class FileCompressor
             return $this->compressVideo($fullPath);
         }
 
-        // For other files, skip to avoid breaking serving; log for visibility
+        // PDFs and other non-media files are left untouched.
         Log::info('FileCompressor: skipping compression for non-media file', ['path' => $fullPath, 'mime' => $mime]);
         return false;
     }
 
+    /**
+     * Resize a GD image resource so neither dimension exceeds $maxDimension.
+     * Returns the (possibly new) resource. Caller is responsible for imagedestroy().
+     */
+    private function resizeImageResource($img, string $mime, int $maxDimension = 2048)
+    {
+        $w = imagesx($img);
+        $h = imagesy($img);
+        if ($w <= $maxDimension && $h <= $maxDimension) {
+            return $img;
+        }
+        $ratio = min($maxDimension / $w, $maxDimension / $h);
+        $newW  = (int) round($w * $ratio);
+        $newH  = (int) round($h * $ratio);
+        $resized = @imagecreatetruecolor($newW, $newH);
+        if ($resized === false) {
+            return $img; // fall back to original size
+        }
+        if ($mime === 'image/png') {
+            imagealphablending($resized, false);
+            imagesavealpha($resized, true);
+            $transparent = imagecolorallocatealpha($resized, 0, 0, 0, 127);
+            imagefilledrectangle($resized, 0, 0, $newW, $newH, $transparent);
+        }
+        imagecopyresampled($resized, $img, 0, 0, 0, 0, $newW, $newH, $w, $h);
+        imagedestroy($img);
+        return $resized;
+    }
+
     protected function compressImage(string $fullPath, string $mime): bool
     {
+        // GD must be available for any image compression.
+        if (!extension_loaded('gd')) {
+            Log::info('FileCompressor: GD extension not loaded, skipping image compression', ['path' => $fullPath]);
+            return false;
+        }
+
         try {
-            $ext = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+            // Write to a temporary file first so the original is never left corrupt
+            // if something fails mid-write.
+            $tmpOut = tempnam(sys_get_temp_dir(), 'imgcomp-');
+            if ($tmpOut === false) {
+                Log::warning('FileCompressor: could not create temp file for safe image write', ['path' => $fullPath]);
+                return false;
+            }
+
+            $img = null;
+            $written = false;
 
             switch ($mime) {
                 case 'image/jpeg':
                 case 'image/jpg':
+                    if (!function_exists('imagecreatefromjpeg') || !function_exists('imagejpeg')) {
+                        break;
+                    }
                     $img = @imagecreatefromjpeg($fullPath);
                     if ($img === false) {
                         Log::warning('FileCompressor: could not create JPEG image resource', ['path' => $fullPath]);
-                        return false;
+                        break;
                     }
-                    imagejpeg($img, $fullPath, $this->jpegQuality);
-                    imagedestroy($img);
-                    return true;
+                    $img     = $this->resizeImageResource($img, $mime);
+                    $written = imagejpeg($img, $tmpOut, $this->jpegQuality);
+                    break;
 
                 case 'image/png':
+                    if (!function_exists('imagecreatefrompng') || !function_exists('imagepng')) {
+                        break;
+                    }
                     $img = @imagecreatefrompng($fullPath);
                     if ($img === false) {
                         Log::warning('FileCompressor: could not create PNG image resource', ['path' => $fullPath]);
-                        return false;
+                        break;
                     }
-                    // Convert PNG to JPEG to get better compression if transparent is not required
-                    $convertedPath = $fullPath;
-                    // If PNG has alpha channel, we will still try to save as PNG with compression level
-                    imagepng($img, $convertedPath, 6);
-                    imagedestroy($img);
-                    return true;
+                    $img = $this->resizeImageResource($img, $mime);
+                    // Preserve full alpha channel so transparency is not lost.
+                    imagesavealpha($img, true);
+                    $written = imagepng($img, $tmpOut, 6);
+                    break;
 
                 case 'image/gif':
+                    if (!function_exists('imagecreatefromgif') || !function_exists('imagegif')) {
+                        break;
+                    }
                     $img = @imagecreatefromgif($fullPath);
                     if ($img === false) {
                         Log::warning('FileCompressor: could not create GIF image resource', ['path' => $fullPath]);
-                        return false;
+                        break;
                     }
-                    // Re-save GIF
-                    imagegif($img, $fullPath);
-                    imagedestroy($img);
-                    return true;
+                    $img     = $this->resizeImageResource($img, $mime);
+                    $written = imagegif($img, $tmpOut);
+                    break;
 
                 default:
-                    // For other image types (webp etc) attempt GD webp save if available
-                    if (function_exists('imagecreatefromstring')) {
-                        $data = file_get_contents($fullPath);
-                        $img = @imagecreatefromstring($data);
-                        if ($img !== false && function_exists('imagewebp')) {
-                            imagewebp($img, $fullPath, 80);
-                            imagedestroy($img);
-                            return true;
+                    // WebP and other formats: try generic GD creation + webp output.
+                    if (function_exists('imagecreatefromstring') && function_exists('imagewebp')) {
+                        $rawData = @file_get_contents($fullPath);
+                        if ($rawData !== false) {
+                            $img = @imagecreatefromstring($rawData);
+                            if ($img !== false) {
+                                $img     = $this->resizeImageResource($img, $mime);
+                                $written = imagewebp($img, $tmpOut, 80);
+                            }
                         }
                     }
-                    Log::info('FileCompressor: unsupported image type for compression', ['path' => $fullPath, 'mime' => $mime]);
-                    return false;
+                    if (!$written) {
+                        Log::info('FileCompressor: unsupported image type for compression', ['path' => $fullPath, 'mime' => $mime]);
+                    }
+                    break;
             }
+
+            if ($img !== null && $img !== false) {
+                imagedestroy($img);
+            }
+
+            if (!$written || !file_exists($tmpOut) || filesize($tmpOut) === 0) {
+                // Compression produced nothing useful — leave original intact.
+                @unlink($tmpOut);
+                return false;
+            }
+
+            // Atomically replace the original only after a successful write.
+            if (!@rename($tmpOut, $fullPath)) {
+                copy($tmpOut, $fullPath);
+                @unlink($tmpOut);
+            }
+
+            // tempnam() creates files with 0600 perms on Linux; restore web-readable permissions.
+            @chmod($fullPath, 0644);
+
+            return true;
+
         } catch (\Throwable $e) {
             Log::error('FileCompressor: image compression failed', ['path' => $fullPath, 'error' => $e->getMessage()]);
+            if (!empty($tmpOut)) @unlink($tmpOut);
             return false;
         }
     }
@@ -181,6 +352,8 @@ class FileCompressor
                 copy($tmpOut, $fullPath);
                 unlink($tmpOut);
             }
+            // tempnam() creates files with 0600 perms on Linux; restore web-readable permissions.
+            @chmod($fullPath, 0644);
             return true;
         } catch (\Throwable $e) {
             Log::error('FileCompressor: failed to replace original video with compressed', ['error' => $e->getMessage()]);

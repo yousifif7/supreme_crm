@@ -2731,8 +2731,28 @@ public function getTodayShifts()
 
         $subcontractors = $this->getSubcontractors();
 
+        // Resolve site coordinates server-side so the map does not rely on
+        // client-side geocoding, which fails for business names.
+        $siteLat = null;
+        $siteLng = null;
+        $site = $shiftDate->shift->site ?? null;
+        if ($site) {
+            try {
+                $coords = app(\App\Services\GeoService::class)
+                    ->getCoordinatesFromAddress(
+                        trim($site->address ?? ''),
+                        trim($site->post_code ?? '') ?: null
+                    );
+                if ($coords && isset($coords['lat'], $coords['lng'])) {
+                    $siteLat = $coords['lat'];
+                    $siteLng = $coords['lng'];
+                }
+            } catch (\Throwable $e) {
+                \Log::warning('ShiftController::view — site geocode failed: ' . $e->getMessage());
+            }
+        }
 
-        return view('security_boards.shift-detail', compact('shiftDate','subcontractors'));
+        return view('security_boards.shift-detail', compact('shiftDate', 'subcontractors', 'siteLat', 'siteLng'));
     }
 
 public function patrolUpdate(Request $request, $id)

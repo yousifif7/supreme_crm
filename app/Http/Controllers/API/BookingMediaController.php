@@ -51,6 +51,7 @@ class BookingMediaController extends Controller
         }
 
         // Save each file (supports UploadedFile instances and base64 data URLs)
+        @set_time_limit(0);
         $saved = [];
         foreach ($data['media_files'] ?? [] as $file) {
             $filePath = null;
@@ -95,38 +96,33 @@ class BookingMediaController extends Controller
                     'location' => $resolvedLocation,
                 ];
 
-                // Compress file if necessary
-                $compressedPath = $this->compressFile($fullPath, $fileType);
-                if ($compressedPath && $compressedPath != $fullPath) {
-                    if (file_exists($fullPath)) {
-                        @unlink($fullPath);
+                // Videos: single ffmpeg pass (compress + watermark combined).
+                if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
+                    $this->processVideo($fullPath, $timestampData);
+                } else {
+                    $compressedPath = $this->compressFile($fullPath, $fileType);
+                    if ($compressedPath && $compressedPath != $fullPath) {
+                        if (file_exists($fullPath)) @unlink($fullPath);
+                        @rename($compressedPath, $fullPath);
+                        @chmod($fullPath, 0644);
                     }
-                    @rename($compressedPath, $fullPath);
-                }
-
-                // Apply watermark / timestamp depending on file type
-                switch ($fileType) {
-                    case 'jpg':
-                    case 'jpeg':
-                    case 'png':
-                        $this->addWatermarkToImage($fullPath, $timestampData);
-                        break;
-                    case 'mp4':
-                    case 'mov':
-                    case 'avi':
-                    case 'mkv':
-                        $this->addTimestampToVideo($fullPath, $timestampData);
-                        break;
-                    case 'pdf':
-                        $this->addTimestampToPdf($fullPath, $timestampData);
-                        break;
-                    case 'doc':
-                    case 'docx':
-                        $this->addTimestampToDocument($fullPath, $timestampData);
-                        break;
-                    default:
-                        $this->createMetadataFile($fullPath, $timestampData);
-                        break;
+                    switch ($fileType) {
+                        case 'jpg':
+                        case 'jpeg':
+                        case 'png':
+                            $this->addWatermarkToImage($fullPath, $timestampData);
+                            break;
+                        case 'pdf':
+                            $this->addTimestampToPdf($fullPath, $timestampData);
+                            break;
+                        case 'doc':
+                        case 'docx':
+                            $this->addTimestampToDocument($fullPath, $timestampData);
+                            break;
+                        default:
+                            $this->createMetadataFile($fullPath, $timestampData);
+                            break;
+                    }
                 }
 
                 $bm = BookingMedia::create([
@@ -238,21 +234,47 @@ class BookingMediaController extends Controller
 
     private function compressVideo($filePath)
     {
-        if (!function_exists('shell_exec')) return $filePath;
-        $originalSize = @filesize($filePath) ?: 0;
-        $compressedPath = $filePath . '.compressed.mp4';
-
-        $escapedInput = escapeshellarg($filePath);
-        $escapedOutput = escapeshellarg($compressedPath);
-        $command = "ffmpeg -i {$escapedInput} -c:v libx264 -crf 28 -preset medium -c:a aac -b:a 64k -movflags +faststart {$escapedOutput} 2>/dev/null";
-        shell_exec($command);
-
-        if (file_exists($compressedPath) && filesize($compressedPath) < $originalSize) {
-            return $compressedPath;
-        } else {
-            if (file_exists($compressedPath)) @unlink($compressedPath);
+        // Detect system ffmpeg dynamically
+        $ffmpegBin = null;
+        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) {
+                $ffmpegBin = $candidate;
+                break;
+            }
+        }
+        if (!$ffmpegBin && function_exists('shell_exec')) {
+            $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
+            if ($found && is_executable($found)) $ffmpegBin = $found;
+        }
+        if (!$ffmpegBin) {
+            Log::info('compressVideo: ffmpeg not found, skipping compression', ['path' => $filePath]);
             return $filePath;
         }
+
+        $originalSize = @filesize($filePath) ?: 0;
+        $targetBitrate = '1000k';
+        if ($originalSize > 50 * 1024 * 1024) {
+            $targetBitrate = '500k';
+        } elseif ($originalSize > 20 * 1024 * 1024) {
+            $targetBitrate = '800k';
+        }
+
+        $compressedPath = $filePath . '.compressed.mp4';
+        $cmd = escapeshellcmd($ffmpegBin)
+            . ' -i ' . escapeshellarg($filePath)
+            . ' -c:v libx264 -crf 28 -preset medium -b:v ' . $targetBitrate
+            . ' -c:a aac -b:a 64k -movflags +faststart '
+            . escapeshellarg($compressedPath) . ' -y';
+
+        $out = [];
+        $ret = 0;
+        exec($cmd . ' 2>/dev/null', $out, $ret);
+
+        if ($ret === 0 && file_exists($compressedPath) && filesize($compressedPath) < $originalSize) {
+            return $compressedPath;
+        }
+        if (file_exists($compressedPath)) @unlink($compressedPath);
+        return $filePath;
     }
 
     private function compressPdf($filePath)
@@ -398,67 +420,164 @@ class BookingMediaController extends Controller
         imagedestroy($img);
     }
 
-    private function addTimestampToVideo($videoPath, $timestampData)
+    private function processVideo(string $filePath, array $timestampData): void
     {
-        $ffmpegPath = base_path('ffmpeg-7.0.2-amd64-static/ffmpeg');
-        $ffprobePath = base_path('ffmpeg-7.0.2-amd64-static/ffprobe');
-
-        $videoPath = str_replace(['\\', '/'], '/', $videoPath);
-        $tempDir = base_path('public/temp_videos');
-        if (!file_exists($tempDir)) {
-            mkdir($tempDir, 0777, true);
+        $ffmpegBin = null;
+        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) { $ffmpegBin = $candidate; break; }
+        }
+        if (!$ffmpegBin && function_exists('shell_exec')) {
+            $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
+            if ($found && is_executable($found)) $ffmpegBin = $found;
+        }
+        if (!$ffmpegBin) {
+            Log::warning('processVideo: ffmpeg not found', ['path' => $filePath]);
+            return;
         }
 
-        $outputPath = $videoPath . '.tmp.mp4';
-        $location = ($timestampData['location']['formatted_address'] ?? '') . ' ' . ($timestampData['location']['street'] ?? '') . ' ' . ($timestampData['location']['city'] ?? '') . ' ' . ($timestampData['location']['country'] ?? '') . ' ' . ($timestampData['location']['postal_code'] ?? '');
-        $text = "Time: " . $timestampData['time'] . "\nEmployee: " . $timestampData['employee'] . "\nLat: " . $timestampData['latitude'] . "  " . "Lng: " . $timestampData['longitude'] . "\nSite: " . $timestampData['site'] . "\nLocation: " . $location;
-        $text = str_replace([':', ','], '-', $text);
+        $originalSize = @filesize($filePath) ?: 0;
+        $targetBitrate = '1000k';
+        if ($originalSize > 50 * 1024 * 1024)      $targetBitrate = '500k';
+        elseif ($originalSize > 20 * 1024 * 1024)  $targetBitrate = '800k';
 
-        $textImage = $tempDir . '/text_overlay.png';
-        $fontPath = base_path('ffmpeg/static/Roboto_Condensed-Black.ttf');
-        $fontSize = 15;
-        $im = imagecreatetruecolor(200, 300);
+        $locationText = 'Unknown';
+        if (is_array($timestampData['location'] ?? null)) {
+            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
+        } else {
+            $locationText = (string) ($timestampData['location'] ?? 'Unknown');
+        }
+        $text = "Time: " . ($timestampData['time'] ?? '') .
+            "\nEmployee: " . ($timestampData['employee'] ?? '') .
+            "\nLat: " . ($timestampData['latitude'] ?? '') . "  Lng: " . ($timestampData['longitude'] ?? '') .
+            "\nSite: " . ($timestampData['site'] ?? '') .
+            "\nLocation: " . $locationText;
+
+        $fontPath = public_path('fonts/Arial.ttf');
+        $im = imagecreatetruecolor(500, 120);
         imagesavealpha($im, true);
-        $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
-        imagefill($im, 0, 0, $transparent);
+        imagefill($im, 0, 0, imagecolorallocatealpha($im, 0, 0, 0, 60));
         $white = imagecolorallocate($im, 255, 255, 255);
-        imagettftext($im, $fontSize, 0, 10, 35, $white, $fontPath, $text);
+        if (file_exists($fontPath)) {
+            $y = 18;
+            foreach (explode("\n", $text) as $line) { imagettftext($im, 14, 0, 8, $y, $white, $fontPath, $line); $y += 18; }
+        } else {
+            $y = 5;
+            foreach (explode("\n", $text) as $line) { imagestring($im, 3, 5, $y, $line, $white); $y += 14; }
+        }
+        $textImage = sys_get_temp_dir() . '/booking_proc_' . uniqid() . '.png';
         imagepng($im, $textImage);
         imagedestroy($im);
 
-        $cmdProbe = "\"$ffprobePath\" -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"$videoPath\" 2>&1";
-        $dimensions = trim(shell_exec($cmdProbe));
+        $outputPath = $filePath . '.proc_' . uniqid() . '.mp4';
+        $cmd = escapeshellcmd($ffmpegBin)
+            . ' -i ' . escapeshellarg($filePath)
+            . ' -i ' . escapeshellarg($textImage)
+            . ' -filter_complex "[0:v][1:v]overlay=10:10"'
+            . ' -c:v libx264 -crf 28 -preset fast -b:v ' . $targetBitrate
+            . ' -c:a aac -b:a 64k -movflags +faststart '
+            . escapeshellarg($outputPath) . ' -y';
 
-        $rotateNeeded = false;
-        $width = 0;
-        $height = 0;
+        $out = []; $ret = 0;
+        exec($cmd . ' 2>&1', $out, $ret);
+        @unlink($textImage);
 
-        if (!empty($dimensions)) {
-            $parts = explode(',', $dimensions);
-            if (count($parts) >= 2) {
-                $width = (int)$parts[0];
-                $height = (int)$parts[1];
+        if ($ret === 0 && file_exists($outputPath)) {
+            @unlink($filePath);
+            if (!@rename($outputPath, $filePath)) { @copy($outputPath, $filePath); @unlink($outputPath); }
+            @chmod($filePath, 0644);
+        } else {
+            Log::warning('processVideo: ffmpeg failed', [
+                'path' => $filePath, 'return' => $ret, 'output' => implode("\n", $out),
+            ]);
+            if (file_exists($outputPath)) @unlink($outputPath);
+        }
+    }
+
+    private function addTimestampToVideo($videoPath, $timestampData)
+    {
+        // Detect system ffmpeg dynamically
+        $ffmpegBin = null;
+        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) {
+                $ffmpegBin = $candidate;
+                break;
             }
         }
-
-        if ($width === 0 || $height === 0) {
-            $rotateNeeded = true;
-        } elseif ($height < $width) {
-            $rotateNeeded = true;
+        if (!$ffmpegBin && function_exists('shell_exec')) {
+            $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
+            if ($found && is_executable($found)) $ffmpegBin = $found;
+        }
+        if (!$ffmpegBin) {
+            Log::info('addTimestampToVideo: ffmpeg not found, skipping video watermark', ['path' => $videoPath]);
+            return;
         }
 
-        if ($rotateNeeded) {
-            $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"transpose=1,overlay=10:10\" -c:a copy \"$outputPath\" -y";
+        // Build overlay text
+        $locationText = 'Unknown';
+        if (is_array($timestampData['location'] ?? null)) {
+            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
         } else {
-            $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"overlay=10:10\" -c:a copy \"$outputPath\" -y";
+            $locationText = $timestampData['location'] ?? 'Unknown';
         }
+        $text = "Time: " . ($timestampData['time'] ?? '') .
+            "\nEmployee: " . ($timestampData['employee'] ?? '') .
+            "\nLat: " . ($timestampData['latitude'] ?? '') . "  Lng: " . ($timestampData['longitude'] ?? '') .
+            "\nSite: " . ($timestampData['site'] ?? '') .
+            "\nLocation: " . $locationText;
 
-        exec($cmd . ' 2>&1', $outputLines, $returnVar);
+        // Generate overlay PNG using GD
+        $fontPath = public_path('fonts/Arial.ttf');
+        $fontSize = 14;
+        $im = imagecreatetruecolor(500, 120);
+        imagesavealpha($im, true);
+        $bgColor = imagecolorallocatealpha($im, 0, 0, 0, 60);
+        imagefill($im, 0, 0, $bgColor);
+        $white = imagecolorallocate($im, 255, 255, 255);
+        if (file_exists($fontPath)) {
+            $y = 18;
+            foreach (explode("\n", $text) as $line) {
+                imagettftext($im, $fontSize, 0, 8, $y, $white, $fontPath, $line);
+                $y += $fontSize + 4;
+            }
+        } else {
+            $y = 5;
+            foreach (explode("\n", $text) as $line) {
+                imagestring($im, 3, 5, $y, $line, $white);
+                $y += 14;
+            }
+        }
+        // Unique temp filename to avoid race conditions
+        $textImage = sys_get_temp_dir() . '/booking_overlay_' . uniqid() . '.png';
+        imagepng($im, $textImage);
+        imagedestroy($im);
 
-        if ($returnVar === 0 && file_exists($outputPath)) {
+        $outputPath = $videoPath . '.wm_' . uniqid() . '.mp4';
+        $cmd = escapeshellcmd($ffmpegBin)
+            . ' -i ' . escapeshellarg($videoPath)
+            . ' -i ' . escapeshellarg($textImage)
+            . ' -filter_complex "overlay=10:10"'
+            . ' -c:a copy '
+            . escapeshellarg($outputPath) . ' -y';
+
+        $out = [];
+        $ret = 0;
+        exec($cmd . ' 2>&1', $out, $ret);
+        @unlink($textImage);
+
+        if ($ret === 0 && file_exists($outputPath)) {
             @unlink($videoPath);
-            @rename($outputPath, $videoPath);
-            @unlink($textImage);
+            if (!@rename($outputPath, $videoPath)) {
+                @copy($outputPath, $videoPath);
+                @unlink($outputPath);
+            }
+            @chmod($videoPath, 0644);
+        } else {
+            Log::warning('addTimestampToVideo: ffmpeg watermark failed', [
+                'path'   => $videoPath,
+                'return' => $ret,
+                'output' => implode("\n", $out),
+            ]);
+            if (file_exists($outputPath)) @unlink($outputPath);
         }
     }
 

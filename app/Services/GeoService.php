@@ -9,48 +9,110 @@ class GeoService
 {
     public function getCoordinatesFromAddress(?string $address, ?string $postalCode = null): ?array
     {
-        $query = trim((string) ($address ?? ''));
-        $postal = trim((string) ($postalCode ?? ''));
+        $addressClean = trim((string) ($address ?? ''));
+        $postal       = trim((string) ($postalCode ?? ''));
 
-        if ($postal !== '') {
-            $query = trim($query . ' ' . $postal);
+        // Build combined query (avoid double-appending when postcode is already in address)
+        if ($postal !== '' && strpos($addressClean, $postal) === false) {
+            $fullQuery = trim($addressClean . ', ' . $postal);
+        } else {
+            $fullQuery = $addressClean !== '' ? $addressClean : $postal;
         }
 
-        if ($query === '') {
+        if ($fullQuery === '') {
             return null;
         }
 
-        $cacheKey = 'geo_coords_' . md5(strtolower($query));
+        $cacheKey = 'geo_coords_v3_' . md5(strtolower($fullQuery));
 
-        return Cache::remember($cacheKey, 86400, function () use ($query) {
+        return Cache::remember($cacheKey, 86400, function () use ($fullQuery, $postal, $addressClean) {
             $apiKey = config('services.google_maps.key');
             if (!$apiKey) {
                 return null;
             }
 
-            $url = 'https://maps.googleapis.com/maps/api/geocode/json';
-            $response = Http::get($url, [
-                'address' => $query,
-                'key' => $apiKey,
-            ]);
+            // Tier 1 — UK postcode first.
+            // UK postcodes (e.g. "FY3 9YZ") are extremely precise and unambiguous.
+            // Trying the postcode first avoids Google misreading a building/company name
+            // prefix (e.g. "Atos building") as the primary search term and snapping to
+            // a city centroid instead of the actual street.
+            $isUkPostcode = $postal !== ''
+                && preg_match('/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i', $postal);
 
-            if (!$response->successful()) {
-                return null;
+            if ($isUkPostcode) {
+                $postcodeResult = $this->geocodeRequest($postal, 'GB', $apiKey);
+                if ($postcodeResult !== null) {
+                    return $postcodeResult;
+                }
             }
 
-            $data = $response->json();
-            if (($data['status'] ?? null) !== 'OK' || empty($data['results'][0]['geometry']['location'])) {
-                return null;
+            // Tier 2: full address + postcode + country:GB restriction.
+            $result = $this->geocodeRequest($fullQuery, 'GB', $apiKey);
+
+            if ($result !== null) {
+                $locType = $result['location_type'] ?? '';
+
+                // ROOFTOP / RANGE_INTERPOLATED = precise match → keep it.
+                if (in_array($locType, ['ROOFTOP', 'RANGE_INTERPOLATED'])) {
+                    return $result;
+                }
+
+                // GEOMETRIC_CENTER / APPROXIMATE = city/area centroid — try postcode
+                // as a fallback even for non-UK postcodes.
+                if ($postal !== '' && !$isUkPostcode) {
+                    $postcodeResult = $this->geocodeRequest($postal, 'GB', $apiKey);
+                    if ($postcodeResult !== null) {
+                        return $postcodeResult;
+                    }
+                }
+
+                // Use the imprecise result rather than nothing.
+                return $result;
             }
 
-            $location = $data['results'][0]['geometry']['location'];
+            // Tier 3: full address failed and no postcode result — try address alone.
+            if ($addressClean !== '' && $postal !== '') {
+                return $this->geocodeRequest($addressClean, 'GB', $apiKey);
+            }
 
-            return [
-                'lat' => (float) ($location['lat'] ?? 0),
-                'lng' => (float) ($location['lng'] ?? 0),
-                'formatted_address' => $data['results'][0]['formatted_address'] ?? null,
-            ];
+            return null;
         });
+    }
+
+    /**
+     * Send a single geocode request and return a normalised result array, or null on failure.
+     */
+    private function geocodeRequest(string $query, string $countryRestriction, string $apiKey): ?array
+    {
+        $params = [
+            'address'    => $query,
+            'key'        => $apiKey,
+        ];
+
+        if ($countryRestriction !== '') {
+            $params['components'] = 'country:' . $countryRestriction;
+        }
+
+        $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', $params);
+
+        if (!$response->successful()) {
+            return null;
+        }
+
+        $data = $response->json();
+
+        if (($data['status'] ?? null) !== 'OK' || empty($data['results'][0]['geometry']['location'])) {
+            return null;
+        }
+
+        $location = $data['results'][0]['geometry']['location'];
+
+        return [
+            'lat'               => (float) ($location['lat'] ?? 0),
+            'lng'               => (float) ($location['lng'] ?? 0),
+            'formatted_address' => $data['results'][0]['formatted_address'] ?? null,
+            'location_type'     => $data['results'][0]['geometry']['location_type'] ?? '',
+        ];
     }
 
     public function distanceInMeters($lat1, $lng1, $lat2, $lng2): float

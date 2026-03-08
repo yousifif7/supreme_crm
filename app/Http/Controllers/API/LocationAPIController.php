@@ -76,10 +76,10 @@ class LocationAPIController extends Controller
 
         $geoService = app(GeoService::class);
 
-        // Prefer using site's plain `address` for geocoding (postcode may be inaccurate)
-        $address = trim((string) ($site->address ?? ''));
-        if ($address === '') {
-            Log::warning('Site address missing for location geofence', [
+        $address  = trim((string) ($site->address ?? ''));
+        $postCode = trim((string) ($site->post_code ?? ''));
+        if ($address === '' && $postCode === '') {
+            Log::warning('Site address and postcode both missing for location geofence', [
                 'shift_date_id' => $shiftDate->id ?? null,
                 'site_id' => $site->id ?? null,
             ]);
@@ -90,9 +90,10 @@ class LocationAPIController extends Controller
             'shift_date_id' => $shiftDate->id ?? null,
             'site_id' => $site->id ?? null,
             'site_address' => $address,
+            'site_postcode' => $postCode,
         ]);
 
-        $siteCoords = $geoService->getCoordinatesFromAddress($address, null);
+        $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null);
         if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
             Log::warning('Address geocoding failed for site (location API)', [
                 'shift_date_id' => $shiftDate->id ?? null,
@@ -112,13 +113,13 @@ class LocationAPIController extends Controller
         // Prefer a per-site radius if configured on the site record; otherwise fall back to global config.
         $siteRadius = null;
         if (isset($site->radius) && is_numeric($site->radius) && (float) $site->radius > 0) {
-            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 100);
+            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 200);
         }
 
-        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 300);
+        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 500);
 
         // Always use the configured global margin; per-site margin is not supported here.
-        $margin = (float) config('services.site_geofence.margin_meters', 100);
+        $margin = (float) config('services.site_geofence.margin_meters', 200);
         $allowedMeters = $baseRadius + $margin;
 
         // Debug log to aid troubleshooting of geofence decisions

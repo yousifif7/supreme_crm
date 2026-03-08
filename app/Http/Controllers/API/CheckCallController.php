@@ -106,6 +106,7 @@ class CheckCallController extends Controller
         ];
         // Handle media files
         // Collect processed file full paths so we can optionally return them as a download
+        @set_time_limit(0);
         $processedFiles = [];
         foreach ($data['media_files'] ?? [] as $file) {
             $filePath = null;
@@ -147,44 +148,33 @@ class CheckCallController extends Controller
             $fullPath = public_path($filePath);
             $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 
-            // Compress file based on type
-            $compressedPath = $this->compressFile($fullPath, $fileType);
-            if ($compressedPath && $compressedPath != $fullPath) {
-                // Replace original with compressed version
-                if (file_exists($fullPath)) {
-                    unlink($fullPath);
+            // Videos: single ffmpeg pass (compress + watermark combined — avoids double-encode and is faster).
+            if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
+                $this->processVideo($fullPath, $timestampData);
+            } else {
+                $compressedPath = $this->compressFile($fullPath, $fileType);
+                if ($compressedPath && $compressedPath != $fullPath) {
+                    if (file_exists($fullPath)) unlink($fullPath);
+                    rename($compressedPath, $fullPath);
+                    @chmod($fullPath, 0644);
                 }
-                rename($compressedPath, $fullPath);
-            }
-
-            // Handle different file types for timestamp
-            switch ($fileType) {
-                case 'jpg':
-                case 'jpeg':
-                case 'png':
-                    $this->addWatermarkToImage($fullPath, $timestampData);
-                    break;
-
-                case 'mp4':
-                case 'mov':
-                case 'avi':
-                case 'mkv':
-                    $this->addTimestampToVideo($fullPath, $timestampData);
-                    break;
-
-                case 'pdf':
-                    $this->addTimestampToPdf($fullPath, $timestampData);
-                    break;
-
-                case 'doc':
-                case 'docx':
-                    $this->addTimestampToDocument($fullPath, $timestampData);
-                    break;
-
-                default:
-                    // For unsupported file types, create a metadata file
-                    $this->createMetadataFile($fullPath, $timestampData);
-                    break;
+                switch ($fileType) {
+                    case 'jpg':
+                    case 'jpeg':
+                    case 'png':
+                        $this->addWatermarkToImage($fullPath, $timestampData);
+                        break;
+                    case 'pdf':
+                        $this->addTimestampToPdf($fullPath, $timestampData);
+                        break;
+                    case 'doc':
+                    case 'docx':
+                        $this->addTimestampToDocument($fullPath, $timestampData);
+                        break;
+                    default:
+                        $this->createMetadataFile($fullPath, $timestampData);
+                        break;
+                }
             }
 
             // Save to DB
@@ -354,43 +344,47 @@ class CheckCallController extends Controller
 
     private function compressVideo($filePath)
     {
-        // Check if FFmpeg is available
-        if (!shell_exec('which ffmpeg')) {
+        // Detect system ffmpeg dynamically
+        $ffmpegBin = null;
+        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) {
+                $ffmpegBin = $candidate;
+                break;
+            }
+        }
+        if (!$ffmpegBin && function_exists('shell_exec')) {
+            $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
+            if ($found && is_executable($found)) $ffmpegBin = $found;
+        }
+        if (!$ffmpegBin) {
+            Log::info('compressVideo: ffmpeg not found, skipping compression', ['path' => $filePath]);
             return $filePath;
         }
 
         $originalSize = filesize($filePath);
-        $maxSize = 10 * 1024 * 1024; // 10MB target for videos
-        $targetBitrate = '1000k'; // Adjust based on original size
-
-        // Calculate target bitrate based on original file size
-        if ($originalSize > 50 * 1024 * 1024) { // > 50MB
+        $targetBitrate = '1000k';
+        if ($originalSize > 50 * 1024 * 1024) {
             $targetBitrate = '500k';
-        } elseif ($originalSize > 20 * 1024 * 1024) { // > 20MB
+        } elseif ($originalSize > 20 * 1024 * 1024) {
             $targetBitrate = '800k';
         }
 
         $compressedPath = $filePath . '.compressed.mp4';
-        $escapedInput = escapeshellarg($filePath);
-        $escapedOutput = escapeshellarg($compressedPath);
+        $cmd = escapeshellcmd($ffmpegBin)
+            . ' -i ' . escapeshellarg($filePath)
+            . ' -c:v libx264 -crf 28 -preset medium -b:v ' . $targetBitrate
+            . ' -c:a aac -b:a 64k -movflags +faststart '
+            . escapeshellarg($compressedPath) . ' -y';
 
-        // FFmpeg command for compression
-        $command = "ffmpeg -i {$escapedInput} " .
-            "-c:v libx264 -crf 28 -preset medium -b:v {$targetBitrate} " .
-            "-c:a aac -b:a 64k " .
-            "-movflags +faststart " .
-            "{$escapedOutput} 2>/dev/null";
+        $out = [];
+        $ret = 0;
+        exec($cmd . ' 2>/dev/null', $out, $ret);
 
-        shell_exec($command);
-
-        if (file_exists($compressedPath) && filesize($compressedPath) < $originalSize) {
+        if ($ret === 0 && file_exists($compressedPath) && filesize($compressedPath) < $originalSize) {
             return $compressedPath;
-        } else {
-            if (file_exists($compressedPath)) {
-                unlink($compressedPath);
-            }
-            return $filePath;
         }
+        if (file_exists($compressedPath)) @unlink($compressedPath);
+        return $filePath;
     }
 
     private function compressPdf($filePath)
@@ -565,98 +559,168 @@ class CheckCallController extends Controller
 
     private function addTimestampToVideo($videoPath, $timestampData)
     {
-        $ffmpegPath = base_path('ffmpeg-7.0.2-amd64-static/ffmpeg');
-        $ffprobePath = base_path('ffmpeg-7.0.2-amd64-static/ffprobe');
-
-        // Normalize input path
-        $videoPath = str_replace(['\\', '/'], '/', $videoPath);
-
-        // Temporary directory
-        $tempDir = base_path('public/temp_videos');
-        if (!file_exists($tempDir)) {
-            mkdir($tempDir, 0777, true);
+        // Detect system ffmpeg dynamically
+        $ffmpegBin = null;
+        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) {
+                $ffmpegBin = $candidate;
+                break;
+            }
+        }
+        if (!$ffmpegBin && function_exists('shell_exec')) {
+            $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
+            if ($found && is_executable($found)) $ffmpegBin = $found;
+        }
+        if (!$ffmpegBin) {
+            Log::info('addTimestampToVideo: ffmpeg not found, skipping video watermark', ['path' => $videoPath]);
+            return;
         }
 
-        $outputPath = $videoPath . '.tmp.mp4';
+        $outputPath = $videoPath . '.wm_' . uniqid() . '.mp4';
        
         
-        $location=$timestampData['location']['formatted_address']??''.' '.$timestampData['location']['street']??''.' '.$timestampData['location']['city']??''.' '.$timestampData['location']['country']??''.' '.$timestampData['location']['postal_code']??'';
-        // Prepare overlay text
-        $text = "Time: " . $timestampData['time'] .
-            "\nEmployee: " . $timestampData['employee'] .
-            "\nLat: " . $timestampData['latitude'] . "  " .
-            "Lng: " . $timestampData['longitude'] .
-            "\nSite: " . $timestampData['site'] .
-            "\nLocation: " . $location;
+        // Build overlay text
+        $locationText = 'Unknown';
+        if (is_array($timestampData['location'] ?? null)) {
+            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
+        } else {
+            $locationText = $timestampData['location'] ?? 'Unknown';
+        }
+        $text = "Time: " . ($timestampData['time'] ?? '') .
+            "\nEmployee: " . ($timestampData['employee'] ?? '') .
+            "\nLat: " . ($timestampData['latitude'] ?? '') . "  Lng: " . ($timestampData['longitude'] ?? '') .
+            "\nSite: " . ($timestampData['site'] ?? '') .
+            "\nLocation: " . $locationText;
 
-        $text = str_replace([':', ','], '-', $text);
-
-        // Generate text overlay PNG
-        $textImage = $tempDir . '/text_overlay.png';
-        $fontPath = base_path('ffmpeg/static/Roboto_Condensed-Black.ttf');
-        $fontSize = 15;
-        $im = imagecreatetruecolor(200, 300);
+        // Generate overlay PNG using GD
+        $fontPath = public_path('fonts/Arial.ttf');
+        $fontSize = 14;
+        $im = imagecreatetruecolor(500, 120);
         imagesavealpha($im, true);
-        $transparent = imagecolorallocatealpha($im, 0, 0, 0, 127);
-        imagefill($im, 0, 0, $transparent);
+        $bgColor = imagecolorallocatealpha($im, 0, 0, 0, 60);
+        imagefill($im, 0, 0, $bgColor);
         $white = imagecolorallocate($im, 255, 255, 255);
-        imagettftext($im, $fontSize, 0, 10, 35, $white, $fontPath, $text);
+        if (file_exists($fontPath)) {
+            $y = 18;
+            foreach (explode("\n", $text) as $line) {
+                imagettftext($im, $fontSize, 0, 8, $y, $white, $fontPath, $line);
+                $y += $fontSize + 4;
+            }
+        } else {
+            $y = 5;
+            foreach (explode("\n", $text) as $line) {
+                imagestring($im, 3, 5, $y, $line, $white);
+                $y += 14;
+            }
+        }
+        // Unique temp filename to avoid race conditions
+        $textImage = sys_get_temp_dir() . '/checkcall_overlay_' . uniqid() . '.png';
         imagepng($im, $textImage);
         imagedestroy($im);
 
-        // ✅ FIXED ffprobe command — NO spaces after `v:0`
-        $cmdProbe = "\"$ffprobePath\" -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 \"$videoPath\" 2>&1";
-        $dimensions = trim(shell_exec($cmdProbe));
+        $cmd = escapeshellcmd($ffmpegBin)
+            . ' -i ' . escapeshellarg($videoPath)
+            . ' -i ' . escapeshellarg($textImage)
+            . ' -filter_complex "overlay=10:10"'
+            . ' -c:a copy '
+            . escapeshellarg($outputPath) . ' -y';
 
-        $rotateNeeded = false;
-        $width = 0;
-        $height = 0;
+        $out = [];
+        $ret = 0;
+        exec($cmd . ' 2>&1', $out, $ret);
+        @unlink($textImage);
 
-        // Parse dimensions safely
-        if (!empty($dimensions)) {
-            $parts = explode(',', $dimensions);
-            if (count($parts) >= 2) {
-                $width = (int)$parts[0];
-                $height = (int)$parts[1];
+        if ($ret === 0 && file_exists($outputPath)) {
+            @unlink($videoPath);
+            if (!@rename($outputPath, $videoPath)) {
+                @copy($outputPath, $videoPath);
+                @unlink($outputPath);
             }
-        }
-
-        // Determine if rotation is required
-        if ($width === 0 || $height === 0) {
-            // ffprobe failed to detect — rotate by default
-            $rotateNeeded = true;
-        } elseif ($height < $width) {
-            // Portrait mode → rotate
-            $rotateNeeded = true;
-        }
-
-        // FFmpeg command
-        if ($rotateNeeded) {
-            // Rotate 90° clockwise + overlay
-            $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"transpose=1,overlay=10:10\" -c:a copy \"$outputPath\" -y";
+            @chmod($videoPath, 0644);
         } else {
-            // Normal overlay
-            $cmd = "\"$ffmpegPath\" -i \"$videoPath\" -i \"$textImage\" -filter_complex \"overlay=10:10\" -c:a copy \"$outputPath\" -y";
-        }
-
-        // Execute FFmpeg
-        exec($cmd . ' 2>&1', $outputLines, $returnVar);
-
-        if ($returnVar === 0 && file_exists($outputPath)) {
-            unlink($videoPath);
-            rename($outputPath, $videoPath);
-            unlink($textImage);
-           /* echo "width:  $width , height: $height";
-            echo "Video processed successfully!";*/
-        } else {
-            echo "Error processing video! width:  $width , height: $height <br><pre>" . implode("\n", $outputLines) . "</pre>";
-            echo "<br><b>Probe:</b> $cmdProbe";
-            echo "<br><b>Dimensions:</b> $dimensions";
-            echo "<br><b>Command:</b> $cmd";
+            Log::warning('addTimestampToVideo: ffmpeg watermark failed', [
+                'path'   => $videoPath,
+                'return' => $ret,
+                'output' => implode("\n", $out),
+            ]);
+            if (file_exists($outputPath)) @unlink($outputPath);
         }
     }
 
 
+
+    private function processVideo(string $filePath, array $timestampData): void
+    {
+        $ffmpegBin = null;
+        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) { $ffmpegBin = $candidate; break; }
+        }
+        if (!$ffmpegBin && function_exists('shell_exec')) {
+            $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
+            if ($found && is_executable($found)) $ffmpegBin = $found;
+        }
+        if (!$ffmpegBin) {
+            Log::warning('processVideo: ffmpeg not found', ['path' => $filePath]);
+            return;
+        }
+
+        $originalSize = @filesize($filePath) ?: 0;
+        $targetBitrate = '1000k';
+        if ($originalSize > 50 * 1024 * 1024)      $targetBitrate = '500k';
+        elseif ($originalSize > 20 * 1024 * 1024)  $targetBitrate = '800k';
+
+        $locationText = 'Unknown';
+        if (is_array($timestampData['location'] ?? null)) {
+            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
+        } else {
+            $locationText = (string) ($timestampData['location'] ?? 'Unknown');
+        }
+        $text = "Time: " . ($timestampData['time'] ?? '') .
+            "\nEmployee: " . ($timestampData['employee'] ?? '') .
+            "\nLat: " . ($timestampData['latitude'] ?? '') . "  Lng: " . ($timestampData['longitude'] ?? '') .
+            "\nSite: " . ($timestampData['site'] ?? '') .
+            "\nLocation: " . $locationText;
+
+        $fontPath = public_path('fonts/Arial.ttf');
+        $im = imagecreatetruecolor(500, 120);
+        imagesavealpha($im, true);
+        imagefill($im, 0, 0, imagecolorallocatealpha($im, 0, 0, 0, 60));
+        $white = imagecolorallocate($im, 255, 255, 255);
+        if (file_exists($fontPath)) {
+            $y = 18;
+            foreach (explode("\n", $text) as $line) { imagettftext($im, 14, 0, 8, $y, $white, $fontPath, $line); $y += 18; }
+        } else {
+            $y = 5;
+            foreach (explode("\n", $text) as $line) { imagestring($im, 3, 5, $y, $line, $white); $y += 14; }
+        }
+        $textImage = sys_get_temp_dir() . '/checkcall_proc_' . uniqid() . '.png';
+        imagepng($im, $textImage);
+        imagedestroy($im);
+
+        $outputPath = $filePath . '.proc_' . uniqid() . '.mp4';
+        $cmd = escapeshellcmd($ffmpegBin)
+            . ' -i ' . escapeshellarg($filePath)
+            . ' -i ' . escapeshellarg($textImage)
+            . ' -filter_complex "[0:v][1:v]overlay=10:10"'
+            . ' -c:v libx264 -crf 28 -preset fast -b:v ' . $targetBitrate
+            . ' -c:a aac -b:a 64k -movflags +faststart '
+            . escapeshellarg($outputPath) . ' -y';
+
+        $out = []; $ret = 0;
+        exec($cmd . ' 2>&1', $out, $ret);
+        @unlink($textImage);
+
+        if ($ret === 0 && file_exists($outputPath)) {
+            @unlink($filePath);
+            if (!@rename($outputPath, $filePath)) { @copy($outputPath, $filePath); @unlink($outputPath); }
+            @chmod($filePath, 0644);
+        } else {
+            Log::warning('processVideo: ffmpeg failed', [
+                'path' => $filePath, 'return' => $ret, 'output' => implode("\n", $out),
+            ]);
+            if (file_exists($outputPath)) @unlink($outputPath);
+        }
+    }
 
     private function addTimestampToPdf($pdfPath, $timestampData)
     {
@@ -1022,11 +1086,11 @@ class CheckCallController extends Controller
 
         $geoService = app(GeoService::class);
 
-        // Use the site's plain `address` field for geocoding (postcode can be inaccurate).
-        $address = trim((string) ($site->address ?? ''));
+        $address  = trim((string) ($site->address ?? ''));
+        $postCode = trim((string) ($site->post_code ?? ''));
 
-        if ($address === '') {
-            Log::warning('Site address missing for geofence', [
+        if ($address === '' && $postCode === '') {
+            Log::warning('Site address and postcode both missing for geofence', [
                 'shift_date_id' => $shiftDate->id,
                 'site_id' => $site->id,
             ]);
@@ -1040,9 +1104,10 @@ class CheckCallController extends Controller
             'shift_date_id' => $shiftDate->id,
             'site_id' => $site->id,
             'site_address' => $address,
+            'site_postcode' => $postCode,
         ]);
 
-        $siteCoords = $geoService->getCoordinatesFromAddress($address, null);
+        $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null);
 
         if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
             Log::warning('Address geocoding failed for site (checkcall)', [
