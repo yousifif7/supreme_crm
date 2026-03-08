@@ -304,6 +304,8 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/sites/{id}/logs/ajax', [SiteController::class, 'getLogs'])->name('sites.logs.ajax');
     Route::get('/sites/{id}/view', [SiteController::class, 'view'])->name('sites.view');
     Route::post('/sites/{id}/generate-qr', [SiteController::class, 'generateQr'])->name('sites.generateQr');
+    // Generate additional NFC tag for a site (keeps existing tags)
+    Route::post('/sites/{id}/generate-nfc', [SiteController::class, 'generateNfc'])->name('sites.generateNfc');
 
     Route::get('/sites/export/excel', [ExportController::class, 'exportSiteExcel'])->name('sites.export.excel');
     Route::get('/sites/export/pdf', [ExportController::class, 'exportSitePdf'])->name('sites.export.pdf');

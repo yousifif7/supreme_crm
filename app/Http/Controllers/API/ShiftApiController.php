@@ -1273,10 +1273,32 @@ class ShiftApiController extends Controller
                 return response()->json(['message' => 'Invalid QR code. Please scan the correct QR code for this site.'], 422);
             }
         } elseif ($method === 'nfc') {
-            if (empty($site->nfc_tag)) {
-                return response()->json(['message' => 'This site does not have an NFC tag configured.'], 422);
+            // Allow multiple NFC tags stored as files under public/nfcForSites/site_{id}_*.txt
+            $matched = false;
+
+            // First check filesystem tags
+            $nfcDir = public_path('nfcForSites');
+            if (file_exists($nfcDir)) {
+                $pattern = $nfcDir . DIRECTORY_SEPARATOR . 'site_' . $site->id . '_*.txt';
+                foreach (glob($pattern) as $path) {
+                    try {
+                        $tag = trim(file_get_contents($path));
+                        if ($tag === $scanData) {
+                            $matched = true;
+                            break;
+                        }
+                    } catch (\Exception $e) {
+                        // ignore
+                    }
+                }
             }
-            if ($scanData !== $site->nfc_tag) {
+
+            // Fallback: check DB field (backwards compatibility)
+            if (!$matched && !empty($site->nfc_tag) && $scanData === $site->nfc_tag) {
+                $matched = true;
+            }
+
+            if (!$matched) {
                 return response()->json(['message' => 'Invalid NFC tag. Please scan the correct NFC tag for this site.'], 422);
             }
         }

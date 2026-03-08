@@ -109,7 +109,17 @@ class SiteController extends Controller
                 // Generate NFC tag for the site
                 $nfcTag = 'NFC-SITE-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
                 $site->update(['nfc_tag' => $nfcTag]);
-                
+
+                // persist initial NFC to filesystem so multiple tags are supported
+                try {
+                    $nfcDir = public_path('nfcForSites');
+                    if (!File::exists($nfcDir)) File::makeDirectory($nfcDir, 0755, true);
+                    $filename = 'site_' . $site->id . '_' . time() . '_' . substr(sha1($nfcTag),0,6) . '.txt';
+                    file_put_contents($nfcDir . DIRECTORY_SEPARATOR . $filename, $nfcTag);
+                } catch (\Exception $e) {
+                    Log::warning('Failed to save initial NFC file for site ' . $site->id . ': ' . $e->getMessage());
+                }
+
                 $this->generateQrForSite($site);
             } catch (\Exception $e) {
                 Log::warning('Failed to generate QR/NFC for site ' . $site->id . ': ' . $e->getMessage());
@@ -179,6 +189,16 @@ class SiteController extends Controller
                 if (empty($site->nfc_tag)) {
                     $nfcTag = 'NFC-SITE-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
                     $site->update(['nfc_tag' => $nfcTag]);
+
+                    // Save initial NFC tag to filesystem as well
+                    try {
+                        $nfcDir = public_path('nfcForSites');
+                        if (!File::exists($nfcDir)) File::makeDirectory($nfcDir, 0755, true);
+                        $filename = 'site_' . $site->id . '_' . time() . '_' . substr(sha1($nfcTag),0,6) . '.txt';
+                        file_put_contents($nfcDir . DIRECTORY_SEPARATOR . $filename, $nfcTag);
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to save initial NFC file for site ' . $site->id . ': ' . $e->getMessage());
+                    }
                 }
                 
                 $this->generateQrForSite($site);
@@ -189,6 +209,19 @@ class SiteController extends Controller
                     File::delete($filename);
                 }
                 $site->update(['nfc_tag' => null]);
+
+                // Remove all NFC files for this site
+                try {
+                    $nfcDir = public_path('nfcForSites');
+                    if (File::exists($nfcDir)) {
+                        $pattern = $nfcDir . DIRECTORY_SEPARATOR . 'site_' . $site->id . '_*.txt';
+                        foreach (glob($pattern) as $f) {
+                            try { File::delete($f); } catch (\Exception $e) {}
+                        }
+                    }
+                } catch (\Exception $e) {
+                    Log::warning('Failed to delete NFC files for site ' . $site->id . ': ' . $e->getMessage());
+                }
             }
         } catch (\Exception $e) {
             Log::warning('Failed to update QR/NFC for site ' . $site->id . ': ' . $e->getMessage());
@@ -255,6 +288,12 @@ class SiteController extends Controller
     public function edit($id)
     {
         $site = Site::with('employeeTypes','checkpoints')->find($id);
+        // Attach NFC tags read from filesystem (not stored exclusively in DB)
+        try {
+            $site->nfc_tags = $this->getNfcTagsForSite($site->id);
+        } catch (\Exception $e) {
+            $site->nfc_tags = [];
+        }
 
         return response()->json([
             'site' => $site,
@@ -333,6 +372,7 @@ class SiteController extends Controller
             'manager_2_name'   => $site->manager_2_id ?? '',
             'has_qr' => (bool) $site->has_qr,
             'nfc_tag' => $site->nfc_tag,
+            'nfc_tags' => $this->getNfcTagsForSite($site->id),
 
             // QR image URL if generated (served from public/qrForSites)
             'qr_image' => file_exists(public_path('qrForSites/site_' . $site->id . '.png')) ? asset('qrForSites/site_' . $site->id . '.png') : null,
@@ -365,6 +405,69 @@ class SiteController extends Controller
         } catch (\Exception $e) {
             return response()->json(['error' => 'QR generation failed: ' . $e->getMessage()], 500);
         }
+    }
+
+    /**
+     * Generate an additional NFC tag for a site and save it as a file
+     */
+    public function generateNfc($id)
+    {
+        $site = Site::findOrFail($id);
+
+        if (empty($site->has_qr)) {
+            return response()->json(['error' => 'NFC generation is disabled for this site'], 422);
+        }
+
+        $nfcTag = 'NFC-SITE-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
+
+        try {
+            $nfcDir = $this->getNfcDir();
+            if (!File::exists($nfcDir)) File::makeDirectory($nfcDir, 0755, true);
+            $filename = 'site_' . $site->id . '_' . time() . '_' . substr(sha1($nfcTag),0,6) . '.txt';
+            file_put_contents($nfcDir . DIRECTORY_SEPARATOR . $filename, $nfcTag);
+
+            // If DB nfc_tag is empty, keep compatibility by setting it to the first tag
+            if (empty($site->nfc_tag)) {
+                $site->update(['nfc_tag' => $nfcTag]);
+            }
+
+            return response()->json(['message' => 'NFC generated', 'tag' => $nfcTag, 'nfc_tags' => $this->getNfcTagsForSite($site->id)]);
+        } catch (\Exception $e) {
+            Log::warning('Failed to generate NFC for site ' . $site->id . ': ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to generate NFC'], 500);
+        }
+    }
+
+    /**
+     * Return an array of NFC tags (read from filesystem) for a site
+     */
+    private function getNfcTagsForSite($siteId)
+    {
+        $nfcDir = $this->getNfcDir();
+        $result = [];
+        if (!File::exists($nfcDir)) return $result;
+
+        $pattern = $nfcDir . DIRECTORY_SEPARATOR . 'site_' . $siteId . '_*.txt';
+        foreach (glob($pattern) as $path) {
+            try {
+                $tag = trim(file_get_contents($path));
+                $filename = basename($path);
+                $result[] = [
+                    'tag' => $tag,
+                    'file' => asset('nfcForSites/' . $filename),
+                    'filename' => $filename,
+                ];
+            } catch (\Exception $e) {
+                // skip
+            }
+        }
+
+        return $result;
+    }
+
+    private function getNfcDir()
+    {
+        return public_path('nfcForSites');
     }
 
     /**

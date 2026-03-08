@@ -101,6 +101,15 @@
                                                   </label>
                                               </div>
                                           </div>
+                                          <div class="col-md-6 mb-3">
+                                              <label class="form-label">NFC Tags</label>
+                                              <div class="d-flex gap-2 mb-2">
+                                                  <button type="button" id="generateNfcBtn" class="btn btn-sm btn-outline-primary">Generate another NFC tag</button>
+                                              </div>
+                                              <div id="edit_nfc_list">
+                                                  <!-- populated dynamically with existing NFC tags -->
+                                              </div>
+                                          </div>
                                           <div class="col-md-12 mb-3">
                                               <label class="form-label">Site & Checkpoints</label>
                                               <div id="editSiteMap" style="height: 350px; border-radius: 8px;"></div>

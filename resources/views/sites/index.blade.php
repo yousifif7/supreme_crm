@@ -576,6 +576,12 @@
                     } else {
                         $('#edit_has_qr').prop('checked', false);
                     }
+                    // Toggle generate NFC button availability
+                    if (data.site.has_qr == 1) {
+                        $('#generateNfcBtn').prop('disabled', false);
+                    } else {
+                        $('#generateNfcBtn').prop('disabled', true);
+                    }
                     let lat = data.site.latitude ?? 51.505;
                     let lng = data.site.longitude ?? -0.09;
                     console.log(data)
@@ -583,6 +589,58 @@
                     // ✅ Init map with site + checkpoints
                     initEditMap(lat, lng, data.site.checkpoints || []);
                 }
+
+                // Render existing NFC tags in edit modal
+                try {
+                    const nfcList = data.site.nfc_tags || [];
+                    let html = '';
+                    if (nfcList.length === 0) {
+                        html = '<span class="text-muted">No NFC tags generated</span>';
+                    } else {
+                        html = '<div class="list-group">';
+                        nfcList.forEach(item => {
+                            html += `<div class="list-group-item d-flex justify-content-between align-items-center">` +
+                                        `<div><code class="p-2 bg-light border rounded">${item.tag}</code></div>` +
+                                        `<div><button type="button" class="btn btn-sm btn-outline-secondary copy-site-nfc" data-tag="${item.tag}">Copy</button> <a href="${item.file}" class="btn btn-sm btn-secondary" download>Download</a></div>` +
+                                    `</div>`;
+                        });
+                        html += '</div>';
+                    }
+                    $('#edit_nfc_list').html(html);
+                    // bind copy buttons
+                    $('#edit_nfc_list .copy-site-nfc').off('click').on('click', function(){
+                        const tag = $(this).data('tag');
+                        navigator.clipboard?.writeText(tag).then(() => { toast_success('NFC tag copied'); }).catch(()=>{ alert('Failed to copy'); });
+                    });
+                } catch (e) {}
+
+                // Generate NFC button handler
+                $('#generateNfcBtn').off('click').on('click', function(){
+                    const siteId = $('#site_id').val();
+                    if (!siteId) return;
+                    $(this).prop('disabled', true).text('Generating...');
+                    $.post(`${baseUrl}/sites/${siteId}/generate-nfc`, {_token: '{{ csrf_token() }}'})
+                        .done(function(resp){
+                            toast_success(resp.message || 'NFC generated');
+                            // re-render list
+                            const nfcList = resp.nfc_tags || [];
+                            let html = '';
+                            if (nfcList.length === 0) html = '<span class="text-muted">No NFC tags generated</span>';
+                            else {
+                                html = '<div class="list-group">';
+                                nfcList.forEach(item => {
+                                    html += `<div class="list-group-item d-flex justify-content-between align-items-center">` +
+                                                `<div><code class="p-2 bg-light border rounded">${item.tag}</code></div>` +
+                                                `<div><button type="button" class="btn btn-sm btn-outline-secondary copy-site-nfc" data-tag="${item.tag}">Copy</button> <a href="${item.file}" class="btn btn-sm btn-secondary" download>Download</a></div>` +
+                                            `</div>`;
+                                });
+                                html += '</div>';
+                            }
+                            $('#edit_nfc_list').html(html);
+                        })
+                        .fail(function(xhr){ toast_danger(xhr.responseJSON?.error || 'Failed to generate NFC'); })
+                        .always(function(){ $('#generateNfcBtn').prop('disabled', false).text('Generate another NFC tag'); });
+                });
 
                 $('#edit_site').modal('show');
                 // Ensure map renders correctly after modal is visible
@@ -660,16 +718,16 @@
                                                                 $('#qr_image_detail').html('<span class="text-muted">No QR generated</span>');
                                                             }
 
-                                                            // NFC tag for site (similar to QR code)
-                                                            if (data.nfc_tag) {
-                                                                const nfcHtml = `
-                                                                    <div class="d-flex align-items-center gap-2">
-                                                                        <code class="p-2 bg-light border rounded">${data.nfc_tag}</code>
-                                                                        <button type="button" class="btn btn-sm btn-outline-secondary copy-site-nfc" data-tag="${data.nfc_tag}">
-                                                                            <i class="ti ti-copy"></i> Copy
-                                                                        </button>
-                                                                    </div>
-                                                                `;
+                                                            // NFC tags for site (list all generated tags)
+                                                            if (data.nfc_tags && data.nfc_tags.length > 0) {
+                                                                let nfcHtml = '<div class="list-group">';
+                                                                data.nfc_tags.forEach(item => {
+                                                                    nfcHtml += `<div class="list-group-item d-flex justify-content-between align-items-center">` +
+                                                                                `<div><code class="p-2 bg-light border rounded">${item.tag}</code></div>` +
+                                                                                `<div><button type="button" class="btn btn-sm btn-outline-secondary copy-site-nfc" data-tag="${item.tag}">Copy</button> <a href="${item.file}" class="btn btn-sm btn-secondary" download>Download</a></div>` +
+                                                                            `</div>`;
+                                                                });
+                                                                nfcHtml += '</div>';
                                                                 $('#nfc_tags_detail').html(nfcHtml);
                                                                 $('.copy-site-nfc').on('click', function(){
                                                                     const tag = $(this).data('tag');
@@ -680,7 +738,7 @@
                                                                     });
                                                                 });
                                                             } else {
-                                                                $('#nfc_tags_detail').html('<span class="text-muted">No NFC tag generated</span>');
+                                                                $('#nfc_tags_detail').html('<span class="text-muted">No NFC tags generated</span>');
                                                             }
 
             $('#checkpoints_detail').html(checkpointsHtml);
