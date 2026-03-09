@@ -110,17 +110,7 @@ class LocationAPIController extends Controller
             $siteCoords['lng']
         );
 
-        // Prefer a per-site radius if configured on the site record; otherwise fall back to global config.
-        $siteRadius = null;
-        if (isset($site->radius) && is_numeric($site->radius) && (float) $site->radius > 0) {
-            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 200);
-        }
-
-        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 500);
-
-        // Always use the configured global margin; per-site margin is not supported here.
-        $margin = (float) config('services.site_geofence.margin_meters', 200);
-        $allowedMeters = $baseRadius + $margin;
+        $allowedMeters = 1000;
 
         // Debug log to aid troubleshooting of geofence decisions
         // Log::debug('GeoFence radii (location API)', [
@@ -144,14 +134,11 @@ class LocationAPIController extends Controller
             ];
         }
 
-        $guardMessage = 'You are outside your shift site radius for ' . ($site->site_name ?? 'this site')
-            . '. Please return to site. Distance: ' . round($distanceMeters, 1)
-            . 'm (allowed: ' . round($allowedMeters, 1) . 'm).';
+        $guardMessage = 'You are outside your shift site radius for ' . ($site->site_name ?? 'this site');
 
         $displayName = trim(($user->first_name ?? $user->name ?? 'Guard') . ' ' . ($user->last_name ?? ''));
         $dashboardMessage = $displayName . ' is outside the shift site radius at '
-            . now()->format('Y-m-d H:i:s') . '. Site: ' . ($site->site_name ?? 'N/A')
-            . ', Distance: ' . round($distanceMeters, 1) . 'm, Allowed: ' . round($allowedMeters, 1) . 'm.';
+            . now()->format('Y-m-d H:i:s') . '. Site: ' . ($site->site_name ?? 'N/A');
 
         Notify::toDashboard(
             null,

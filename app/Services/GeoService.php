@@ -23,7 +23,9 @@ class GeoService
             return null;
         }
 
-        $cacheKey = 'geo_coords_v4_' . md5(strtolower($fullQuery));
+        // Bump version to v5 so previously cached (potentially wrong postcode-centroid)
+        // results are discarded and re-geocoded with the improved strategy.
+        $cacheKey = 'geo_coords_v5_' . md5(strtolower($fullQuery));
 
         return Cache::remember($cacheKey, 86400, function () use ($fullQuery, $postal, $addressClean) {
             $apiKey = config('services.google_maps.key');
@@ -31,56 +33,65 @@ class GeoService
                 return null;
             }
 
-            // Tier 1 — UK postcode first.
-            // UK postcodes (e.g. "FY3 9YZ") are extremely precise and unambiguous.
-            // Trying the postcode first avoids Google misreading a building/company name
-            // prefix (e.g. "Atos building") as the primary search term and snapping to
-            // a city centroid instead of the actual street.
             $isUkPostcode = $postal !== ''
                 && preg_match('/^[A-Z]{1,2}\d{1,2}[A-Z]?\s*\d[A-Z]{2}$/i', $postal);
 
-            if ($isUkPostcode) {
+            // Tier 1 — full address + postal_code component constraint.
+            // This is the most specific query: Google anchors results to the exact
+            // postcode sector while still resolving the full street/building address.
+            // NOTE: We intentionally do NOT fall back to postcode-only first because
+            // postcode centroids (e.g. "CB25 9TL") cover large areas and return a
+            // point far from the actual building.
+            if ($postal !== '') {
+                $result = $this->geocodeRequest($fullQuery, 'GB', $apiKey, $postal);
+                if ($result !== null) {
+                    $locType = $result['location_type'] ?? '';
+                    // ROOFTOP / RANGE_INTERPOLATED = exact match — use immediately.
+                    if (in_array($locType, ['ROOFTOP', 'RANGE_INTERPOLATED'])) {
+                        return $result;
+                    }
+                    // Keep this as a candidate but continue trying for something better.
+                    $candidate = $result;
+                } else {
+                    $candidate = null;
+                }
+            } else {
+                $candidate = null;
+            }
+
+            // Tier 2 — full address, country:GB only (no postcode component).
+            // Sometimes removing the postcode component lets Google resolve an address
+            // that it couldn't pin down when restricted to a specific postal area.
+            $result2 = $this->geocodeRequest($fullQuery, 'GB', $apiKey);
+            if ($result2 !== null) {
+                $locType2 = $result2['location_type'] ?? '';
+                if (in_array($locType2, ['ROOFTOP', 'RANGE_INTERPOLATED'])) {
+                    return $result2;
+                }
+                // Prefer this over the Tier 1 candidate if it is at least as precise.
+                if ($candidate === null) {
+                    $candidate = $result2;
+                }
+            }
+
+            // Tier 3 — if we already have a candidate (GEOMETRIC_CENTER / APPROXIMATE),
+            // return it because it is still better than a raw postcode centroid.
+            if ($candidate !== null) {
+                return $candidate;
+            }
+
+            // Tier 4 — postcode only. Last resort: at least centres the map somewhere
+            // near the right town/district when the address fails completely.
+            if ($postal !== '' && $isUkPostcode) {
                 $postcodeResult = $this->geocodeRequest($postal, 'GB', $apiKey);
                 if ($postcodeResult !== null) {
                     return $postcodeResult;
                 }
             }
 
-            // Tier 2: full address constrained by postal_code component.
-            // Anchoring to the postcode prevents Google from snapping to a business
-            // name (e.g. "Atos") registered at a different location in its Places DB.
-            if ($postal !== '') {
-                $result = $this->geocodeRequest($fullQuery, 'GB', $apiKey, $postal);
-                if ($result !== null) {
-                    return $result;
-                }
-            }
-
-            // Tier 3: full address + country:GB only (no postcode component).
-            $result = $this->geocodeRequest($fullQuery, 'GB', $apiKey);
-
-            if ($result !== null) {
-                $locType = $result['location_type'] ?? '';
-
-                // ROOFTOP / RANGE_INTERPOLATED = precise match → keep it.
-                if (in_array($locType, ['ROOFTOP', 'RANGE_INTERPOLATED'])) {
-                    return $result;
-                }
-
-                // GEOMETRIC_CENTER / APPROXIMATE = try postcode as a final fallback.
-                if ($postal !== '' && !$isUkPostcode) {
-                    $postcodeResult = $this->geocodeRequest($postal, 'GB', $apiKey);
-                    if ($postcodeResult !== null) {
-                        return $postcodeResult;
-                    }
-                }
-
-                // Use the imprecise result rather than nothing.
-                return $result;
-            }
-
-            // Tier 4: strip building name — try address-only (no postcode prefix).
-            if ($addressClean !== '' && $postal !== '') {
+            // Tier 5 — address without postcode suffix (handles cases where the
+            // combined query confuses the geocoder).
+            if ($addressClean !== '') {
                 return $this->geocodeRequest($addressClean, 'GB', $apiKey);
             }
 

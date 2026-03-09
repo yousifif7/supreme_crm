@@ -87,15 +87,19 @@ class SiteController extends Controller
             $site->employeeTypes()->sync($pivotData);
         }
 
-        // ✅ Save Checkpoints
+        // ✅ Save Checkpoints (auto-generate NFC tag per checkpoint if not provided)
         if ($request->has('checkpoints')) {
             foreach ($request->checkpoints as $checkpoint) {
+                $nfcTag = !empty($checkpoint['nfc_tag'])
+                    ? $checkpoint['nfc_tag']
+                    : 'NFC-CP-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
+
                 $site->checkpoints()->create([
                     'name'      => $checkpoint['name'],
                     'latitude'  => $checkpoint['latitude'] ?? null,
                     'longitude' => $checkpoint['longitude'] ?? null,
                     'qr_code'   => $checkpoint['qr_code'] ?? null,
-                    'nfc_tag'   => $checkpoint['nfc_tag'] ?? null,
+                    'nfc_tag'   => $nfcTag,
                     'required'  => $checkpoint['required'] ?? false,
                 ]);
             }
@@ -408,7 +412,7 @@ class SiteController extends Controller
     }
 
     /**
-     * Generate an additional NFC tag for a site and save it as a file
+     * Regenerate the single NFC tag for a site (overwrites existing)
      */
     public function generateNfc($id)
     {
@@ -421,20 +425,17 @@ class SiteController extends Controller
         $nfcTag = 'NFC-SITE-' . strtoupper(substr(sha1(uniqid((string) rand(), true)), 0, 10));
 
         try {
-            $nfcDir = $this->getNfcDir();
-            if (!File::exists($nfcDir)) File::makeDirectory($nfcDir, 0755, true);
-            $filename = 'site_' . $site->id . '_' . time() . '_' . substr(sha1($nfcTag),0,6) . '.txt';
-            file_put_contents($nfcDir . DIRECTORY_SEPARATOR . $filename, $nfcTag);
+            // Overwrite the single site NFC tag in the DB
+            $site->update(['nfc_tag' => $nfcTag]);
 
-            // If DB nfc_tag is empty, keep compatibility by setting it to the first tag
-            if (empty($site->nfc_tag)) {
-                $site->update(['nfc_tag' => $nfcTag]);
-            }
-
-            return response()->json(['message' => 'NFC generated', 'tag' => $nfcTag, 'nfc_tags' => $this->getNfcTagsForSite($site->id)]);
+            return response()->json([
+                'message'  => 'NFC tag regenerated',
+                'tag'      => $nfcTag,
+                'nfc_tags' => [['tag' => $nfcTag]],
+            ]);
         } catch (\Exception $e) {
-            Log::warning('Failed to generate NFC for site ' . $site->id . ': ' . $e->getMessage());
-            return response()->json(['error' => 'Failed to generate NFC'], 500);
+            Log::warning('Failed to regenerate NFC for site ' . $site->id . ': ' . $e->getMessage());
+            return response()->json(['error' => 'Failed to regenerate NFC'], 500);
         }
     }
 

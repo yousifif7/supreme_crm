@@ -715,7 +715,7 @@ class ShiftApiController extends Controller
             ]);
         }
         
-        /*
+        
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $request->input('location.latitude'),
@@ -725,7 +725,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-        */
+        
 
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
@@ -814,7 +814,7 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
-        /*
+        
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -824,7 +824,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-*/
+
         if ($shiftDate->is_assign !== 2) {
             // Provide more detailed guidance to the client about why booking on is blocked
             if ($shiftDate->is_assign == 1) {
@@ -1009,7 +1009,7 @@ class ShiftApiController extends Controller
                 'message' => 'You have not booked on for this shift, so you cannot book off.'
             ], 400);
         }
-/*
+
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -1019,7 +1019,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-*/
+
         // Prevent booking off if the shift is not in a started state or already ended
         if ($shiftDate->is_assign === 4) {
             return response()->json([
@@ -1273,29 +1273,65 @@ class ShiftApiController extends Controller
                 return response()->json(['message' => 'Invalid QR code. Please scan the correct QR code for this site.'], 422);
             }
         } elseif ($method === 'nfc') {
-            // Allow multiple NFC tags stored as files under public/nfcForSites/site_{id}_*.txt
             $matched = false;
 
-            // First check filesystem tags
-            $nfcDir = public_path('nfcForSites');
-            if (file_exists($nfcDir)) {
-                $pattern = $nfcDir . DIRECTORY_SEPARATOR . 'site_' . $site->id . '_*.txt';
-                foreach (glob($pattern) as $path) {
-                    try {
-                        $tag = trim(file_get_contents($path));
-                        if ($tag === $scanData) {
-                            $matched = true;
-                            break;
+            // 1. Check against site's NFC tag (DB — primary, single tag per site)
+            if (!empty($site->nfc_tag) && trim($site->nfc_tag) === $scanData) {
+                $matched = true;
+            }
+
+            // 2. Backward-compatibility: check legacy filesystem tags
+            if (!$matched) {
+                $nfcDir = public_path('nfcForSites');
+                if (file_exists($nfcDir)) {
+                    $pattern = $nfcDir . DIRECTORY_SEPARATOR . 'site_' . $site->id . '_*.txt';
+                    foreach (glob($pattern) as $path) {
+                        try {
+                            $tag = trim(file_get_contents($path));
+                            if ($tag === $scanData) {
+                                $matched = true;
+                                break;
+                            }
+                        } catch (\Exception $e) {
+                            // ignore
                         }
-                    } catch (\Exception $e) {
-                        // ignore
                     }
                 }
             }
 
-            // Fallback: check DB field (backwards compatibility)
-            if (!$matched && !empty($site->nfc_tag) && $scanData === $site->nfc_tag) {
-                $matched = true;
+            // 3. If still no match, check each checkpoint's NFC tag.
+            //    The scanned data must match a checkpoint NFC tag AND the guard must
+            //    be within proximity of that checkpoint's coordinates.
+            if (!$matched) {
+                $guardLat = (float) $request->location['latitude'];
+                $guardLng = (float) $request->location['longitude'];
+                // Use the site's configured radius (minimum 50 m) for checkpoint proximity.
+                $proximityRadius = max(50, (float) ($site->radius ?? 50));
+
+                $geoService = app(GeoService::class);
+                $checkpoints = $site->checkpoints;
+
+                foreach ($checkpoints as $cp) {
+                    if (empty($cp->nfc_tag) || trim($cp->nfc_tag) !== $scanData) {
+                        continue;
+                    }
+
+                    // Accept if checkpoint has no stored coordinates (cannot validate proximity)
+                    if ($cp->latitude === null || $cp->longitude === null) {
+                        $matched = true;
+                        break;
+                    }
+
+                    $dist = $geoService->distanceInMeters(
+                        $guardLat, $guardLng,
+                        (float) $cp->latitude, (float) $cp->longitude
+                    );
+
+                    if ($dist <= $proximityRadius) {
+                        $matched = true;
+                        break;
+                    }
+                }
             }
 
             if (!$matched) {
@@ -1371,7 +1407,7 @@ class ShiftApiController extends Controller
         if (!$shiftDateForGeo) {
             return response()->json(['message' => 'Shift not found for this patrol.'], 404);
         }
-/*
+
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $validated['location']['latitude'],
@@ -1381,7 +1417,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-*/
+
         // If the guard currently has a different patrol in progress, mark that one completed
         $staffShiftIds = ShiftDate::where('staff_id', Auth::id())->pluck('id')->toArray();
         $other = Patrol::where('status', 'in_progress')
@@ -1510,7 +1546,7 @@ class ShiftApiController extends Controller
             }
         }
 
-        /*
+        
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $request->input('location.latitude'),
@@ -1520,7 +1556,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-            */
+            
 
         $patrol->update([
             'summary' => $request->summary,
@@ -1589,10 +1625,10 @@ class ShiftApiController extends Controller
             }
         }
 
-        // $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
-        // if ($geoFenceError) {
-        //     return $geoFenceError;
-        // }
+        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
+        if ($geoFenceError) {
+            return $geoFenceError;
+        }
 
         $geoService = new GeoService();
         $resolvedAddress = null;
@@ -2877,29 +2913,7 @@ public function workHours(Request $request)
 
         $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
 
-        // Prefer a per-site radius if configured on the site record; otherwise fall back to global config.
-        $siteRadius = null;
-        if (isset($site->radius) && is_numeric($site->radius) && (float) $site->radius > 0) {
-            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 100);
-        }
-
-        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 300);
-
-        // Always use the configured global margin; per-site margin is not supported.
-        $margin = (float) config('services.site_geofence.margin_meters', 100);
-
-        // Final allowed distance is the base radius plus margin (always apply margin even when site radius exists).
-        $allowedMeters = $baseRadius + $margin;
-
-        // Helpful logging for debugging radius decisions
-        Log::debug('GeoFence radii', [
-            'site_id' => $site->id ?? null,
-            'site_radius' => $siteRadius,
-            'base_radius' => $baseRadius,
-            'margin' => $margin,
-            'allowed_meters' => $allowedMeters,
-            'distance_meters' => $distanceMeters,
-        ]);
+        $allowedMeters = 1000;
 
         if ($distanceMeters > $allowedMeters) {
             return response()->json([

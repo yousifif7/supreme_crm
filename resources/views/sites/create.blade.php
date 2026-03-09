@@ -124,6 +124,7 @@
                                                          <th>Name</th>
                                                          <th>Latitude</th>
                                                          <th>Longitude</th>
+                                                         <th>NFC Tag</th>
                                                          <th>Action</th>
                                                      </tr>
                                                  </thead>
@@ -407,6 +408,9 @@
                 <input type="text" class="form-control" 
                        name="checkpoints[${index}][longitude]" 
                        value="${lng}" readonly>
+            </td>
+            <td>
+                <span class="text-muted small fst-italic">Auto-generated</span>
             </td>
             <td>
                 <button type="button" class="btn btn-sm btn-danger" 

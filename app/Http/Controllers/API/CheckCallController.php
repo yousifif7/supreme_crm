@@ -77,11 +77,15 @@ class CheckCallController extends Controller
         if ($shiftdate->is_assign !== 3 && $shiftdate->status !== 'booked_on') {
             return response()->json(['message' => 'You must book on for this shift before completing the check call.'], 422);
         }
-        
+
         $lat = $data['location']['latitude'];
         $lng = $data['location']['longitude'];
 
-        // ...existing code...
+        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
+        if ($geoFenceError) {
+            return $geoFenceError;
+        }
+
 
         // Try to resolve human-readable address from coordinates (GeoService caches results)
         $geoService = new GeoService();
@@ -1123,29 +1127,9 @@ class CheckCallController extends Controller
 
         $distanceMeters = $geoService->distanceInMeters($guardLat, $guardLng, $siteCoords['lat'], $siteCoords['lng']);
 
-        // Prefer a per-site radius if configured on the site record; otherwise fall back to global config.
-        $siteRadius = null;
-        if (isset($site->radius) && is_numeric($site->radius) && (float) $site->radius > 0) {
-            $siteRadius = (float) $site->radius + (float) config('services.site_geofence.radius_meters', 100);
-        }
-
-        $baseRadius = $siteRadius ?? (float) config('services.site_geofence.radius_meters', 300);
-
-        // Always use the configured global margin; per-site margin is not supported.
-        $margin = (float) config('services.site_geofence.margin_meters', 100);
-
-        // Final allowed distance is the base radius plus margin (always apply margin even when site radius exists).
-        $allowedMeters = $baseRadius + $margin;
+        $allowedMeters = 1000;
 
         // Helpful logging for debugging radius decisions
-        Log::debug('GeoFence radii (checkcall)', [
-            'site_id' => $site->id ?? null,
-            'site_radius' => $siteRadius,
-            'base_radius' => $baseRadius,
-            'margin' => $margin,
-            'allowed_meters' => $allowedMeters,
-            'distance_meters' => $distanceMeters,
-        ]);
 
         if ($distanceMeters > $allowedMeters) {
             return response()->json([
