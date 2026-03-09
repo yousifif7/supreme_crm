@@ -9,22 +9,16 @@ class Kernel extends ConsoleKernel
 {
 
     protected $commands = [
-        \App\Console\Commands\ProcessShiftNotifications::class,
-        \App\Console\Commands\TestSiaRequest::class,
+        \App\Console\Commands\CheckSiaLicences::class,
     ];
 
     protected function schedule(Schedule $schedule): void
     {
-        // Schedule the shift notification command to run every minute.
-        // Use withoutOverlapping to avoid concurrent runs.
-        $schedule->command('shifts:process-notifications')
-            ->everyMinute()
+        // Run SIA licence check once daily at 16:00 UK time (handles GMT/BST)
+        $schedule->command('sia:check')
+            ->dailyAt('16:00')
+            ->timezone('Europe/London')
             ->withoutOverlapping()
-            ->runInBackground();
-        
-        // Cleanup stuck connections every 5 minutes
-        $schedule->command('db:cleanup-connections')
-            ->everyFiveMinutes()
             ->runInBackground();
     }
 

@@ -34,28 +34,45 @@ class SiaReportController extends Controller
     /**
      * Show: detailed view of a single run.
      */
-    public function show(string $runId)
+    public function show(Request $request, string $runId)
     {
-        $entries = SiaCheckReport::where('run_id', $runId)
-            ->orderBy('checked_at')
-            ->get();
+        // Base query for this run
+        $baseQuery = SiaCheckReport::where('run_id', $runId);
 
-        if ($entries->isEmpty()) {
+        $allEntries = (clone $baseQuery)->orderBy('checked_at')->get();
+
+        if ($allEntries->isEmpty()) {
             abort(404, 'Run not found');
         }
 
-        $runDate = $entries->first()->checked_at;
+        $runDate = $allEntries->first()->checked_at;
 
-        // Summary stats for the run header
+        // Summary stats for the run header (calculated from full run regardless of filters)
         $stats = [
-            'total_scanned' => $entries->count(),
-            'total_changed' => $entries->where('changed', true)->count(),
-            'activated'     => $entries->where('changed', true)->where('status_after', 'Active')->count(),
-            'deactivated'   => $entries->where('changed', true)->where('status_after', 'Inactive')->count(),
-            'errors'        => $entries->whereNotNull('error')->count(),
+            'total_scanned' => $allEntries->count(),
+            'total_changed' => $allEntries->where('changed', true)->count(),
+            'activated'     => $allEntries->where('changed', true)->where('status_after', 'Active')->count(),
+            'deactivated'   => $allEntries->where('changed', true)->where('status_after', 'Inactive')->count(),
+            'errors'        => $allEntries->whereNotNull('error')->count(),
         ];
 
-        return view('reports.sia_report_detail', compact('entries', 'runId', 'runDate', 'stats'));
+        // Apply optional search filter (employee name or licence)
+        $q = trim((string)$request->input('q', ''));
+        $perPage = (int)$request->input('per_page', 50);
+
+        $query = SiaCheckReport::where('run_id', $runId);
+        if ($q !== '') {
+            $query->where(function ($r) use ($q) {
+                $r->where('employee_name', 'like', "%{$q}%")
+                  ->orWhere('sia_licence', 'like', "%{$q}%");
+            });
+        }
+
+        $perPage = max(10, min(200, $perPage));
+
+        $entries = $query->orderBy('checked_at')->paginate($perPage)->withQueryString();
+
+        return view('reports.sia_report_detail', compact('entries', 'runId', 'runDate', 'stats', 'q'));
     }
 
     /**
@@ -102,5 +119,37 @@ class SiaReportController extends Controller
         };
 
         return response()->stream($callback, 200, $headers);
+    }
+
+
+    /**
+     * Delete all SIA check report rows that match the provided run_id.
+     * This is the explicit delete action used by the reports UI.
+     */
+    public function deleteRun(string $runId)
+    {
+        $deleted = SiaCheckReport::where('run_id', $runId)->delete();
+
+        if (request()->wantsJson()) {
+            return response()->json(['deleted' => $deleted]);
+        }
+
+        return redirect()->route('reports.sia')->with('status', "$deleted reports deleted for run_id: $runId");
+    }
+
+    /**
+     * Debug endpoint: return counts and a sample row for a run_id.
+     * Protected by auth in routes; remove when debugging is complete.
+     */
+    public function debugRun(string $runId)
+    {
+        $count = SiaCheckReport::where('run_id', $runId)->count();
+        $sample = SiaCheckReport::where('run_id', $runId)->first();
+
+        return response()->json([
+            'run_id' => $runId,
+            'count' => $count,
+            'sample' => $sample,
+        ]);
     }
 }

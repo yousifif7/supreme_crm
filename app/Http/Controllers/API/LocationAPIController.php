@@ -86,12 +86,12 @@ class LocationAPIController extends Controller
             return ['outside_site' => false];
         }
 
-        Log::info('Using site address for geocoding (location API)', [
-            'shift_date_id' => $shiftDate->id ?? null,
-            'site_id' => $site->id ?? null,
-            'site_address' => $address,
-            'site_postcode' => $postCode,
-        ]);
+        // Log::info('Using site address for geocoding (location API)', [
+        //     'shift_date_id' => $shiftDate->id ?? null,
+        //     'site_id' => $site->id ?? null,
+        //     'site_address' => $address,
+        //     'site_postcode' => $postCode,
+        // ]);
 
         $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null);
         if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
@@ -123,14 +123,14 @@ class LocationAPIController extends Controller
         $allowedMeters = $baseRadius + $margin;
 
         // Debug log to aid troubleshooting of geofence decisions
-        Log::debug('GeoFence radii (location API)', [
-            'site_id' => $site->id ?? null,
-            'site_radius' => $siteRadius,
-            'base_radius' => $baseRadius,
-            'margin' => $margin,
-            'allowed_meters' => $allowedMeters,
-            'distance_meters' => $distanceMeters,
-        ]);
+        // Log::debug('GeoFence radii (location API)', [
+        //     'site_id' => $site->id ?? null,
+        //     'site_radius' => $siteRadius,
+        //     'base_radius' => $baseRadius,
+        //     'margin' => $margin,
+        //     'allowed_meters' => $allowedMeters,
+        //     'distance_meters' => $distanceMeters,
+        // ]);
 
         if ($distanceMeters <= $allowedMeters) {
             return ['outside_site' => false];

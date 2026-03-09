@@ -871,57 +871,80 @@ document.addEventListener('click', () => {
             }
         };
 
-        // Auto-trigger SIA check once a day from the browser (no cron needed).
-        // triggerSiaCheck already guards with a 24-hour localStorage key, so
-        // subsequent page loads within the same day are instant no-ops.
-        // Now that the endpoint only dispatches queued jobs it returns in ms
-        // and the heavy work happens in the background — safe to call here.
-        // If the user visits before 16:00 local time, schedule the check to
-        // run exactly at 16:00 today. No cron required — purely client-side.
+        // Auto-trigger SIA check once a day at 16:00 Europe/London from the browser.
+        // Open browser DevTools → Console to see [SIA] debug lines.
         setTimeout(async function () {
             try {
                 const now = new Date();
-                // build today's 16:00 local time
-                const target = new Date(now);
-                target.setHours(16, 0, 0, 0);
+
+                // Build today's 16:00 in Europe/London (handles GMT/BST automatically)
+                const ukParts = new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'Europe/London',
+                    year: 'numeric', month: '2-digit', day: '2-digit'
+                }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+
+                const londonTargetUtc = Date.UTC(
+                    parseInt(ukParts.year), parseInt(ukParts.month) - 1, parseInt(ukParts.day),
+                    16, 0, 0, 0
+                );
+
+                const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
+                const londonDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/London' }));
+                const londonOffsetMs = utcDate - londonDate;
+
+                const target = new Date(londonTargetUtc + londonOffsetMs);
+                const msUntilTarget = target.getTime() - now.getTime();
+
+                console.log('[SIA] auto-trigger init. Now (UK):', londonDate.toLocaleTimeString(), '| Target 16:00 UK:', target.toLocaleTimeString(), '| ms until target:', msUntilTarget);
 
                 if (now >= target) {
-                    // it's already 16:00 or later — run the check now
-                    await window.triggerSiaCheck();
+                    console.log('[SIA] past 16:00 UK — triggering now');
+                    const result = await window.triggerSiaCheck();
+                    console.log('[SIA] triggerSiaCheck result:', result);
                     return;
                 }
 
-                // schedule for the remaining milliseconds until 16:00
-                const msUntilTarget = target.getTime() - now.getTime();
+                // Schedule for the remaining milliseconds until 16:00 London
+                console.log('[SIA] before 16:00 — scheduling in', Math.round(msUntilTarget / 60000), 'minutes');
 
-                // Safety: if scheduling fails or the timeout is too large for some
-                // browsers, we fall back to a minute-based poll (every 60s) as a
-                // backup to ensure the check eventually runs.
                 let scheduled = false;
-
                 try {
-                    setTimeout(() => {
-                        try { window.triggerSiaCheck().catch(() => {}); } catch (e) {}
-                        scheduled = true;
+                    setTimeout(async () => {
+                        console.log('[SIA] scheduled timeout fired — triggering now');
+                        try {
+                            const result = await window.triggerSiaCheck();
+                            console.log('[SIA] triggerSiaCheck result:', result);
+                        } catch (e) {
+                            console.error('[SIA] triggerSiaCheck error in scheduled trigger:', e);
+                        }
                     }, msUntilTarget);
+                    scheduled = true;
+                    console.log('[SIA] setTimeout scheduled successfully');
                 } catch (e) {
+                    console.warn('[SIA] setTimeout failed, falling back to poll interval:', e);
                     scheduled = false;
                 }
 
                 if (!scheduled) {
-                    // fallback: poll every minute until 16:00 then trigger
+                    // Fallback: poll every 5 minutes until 16:00 then trigger
                     const pollInterval = setInterval(async () => {
                         const now2 = new Date();
                         if (now2 >= target) {
                             clearInterval(pollInterval);
-                            try { await window.triggerSiaCheck(); } catch (e) { }
+                            console.log('[SIA] poll interval: past 16:00 UK — triggering now');
+                            try {
+                                const result = await window.triggerSiaCheck();
+                                console.log('[SIA] triggerSiaCheck result:', result);
+                            } catch (e) {
+                                console.error('[SIA] triggerSiaCheck error in poll fallback:', e);
+                            }
                         }
-                    },5 * 60 * 1000);
+                    }, 5 * 60 * 1000);
                 }
             } catch (e) {
-                // non-critical background task — fail silently
+                console.warn('[SIA] auto-trigger outer error:', e);
             }
-        }, 15000); // wait 15 s after page load so it doesn't compete with page rendering
+        }, 15000); // wait 15 s after page load
 
         // Helper to open profile change request modal
         async function openProfileChangeModal(id) {

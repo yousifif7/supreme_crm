@@ -255,15 +255,25 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
     Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
 
-    // Web-trigger for SIA licence check. Admins only. Runs synchronously (inline) like shift notifications.
+    // Web-trigger for SIA licence check. Admins/controllers only.
     Route::post('/process-sia-licences', [EmployeeController::class, 'processSia'])
-        ->middleware('auth')
+        ->middleware(['auth', 'role:superadmin|controller|staff_leader|control_room'])
         ->name('process.sia.licences');
 
     // SIA licence check reports
     Route::get('/reports/sia', [SiaReportController::class, 'index'])->name('reports.sia');
     Route::get('/reports/sia/{runId}', [SiaReportController::class, 'show'])->name('reports.sia.show');
+
+        // Debug endpoint to inspect run counts
+        Route::get('/reports/sia/debug/{runId}', [SiaReportController::class, 'debugRun'])
+            ->name('reports.sia.debug')
+            ->middleware('auth');
+
     Route::get('/reports/sia/{runId}/csv', [SiaReportController::class, 'downloadCsv'])->name('reports.sia.csv');
+        // Delete a single run's rows (used by the UI delete button)
+        Route::delete('/reports/sia/{runId}/delete', [SiaReportController::class, 'deleteRun'])
+            ->name('reports.sia.delete')
+            ->middleware('auth', 'role:superadmin');
 
 
     // Documents AJAX endpoints (used by employee modal)

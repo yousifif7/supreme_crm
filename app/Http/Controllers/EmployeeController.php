@@ -1207,6 +1207,8 @@ $validator->after(function ($validator) use ($request) {
         // Dispatch one lightweight job per employee.
         // Stagger by 3 seconds each so the SIA website is not hammered and the
         // queue worker stays cool — 100 employees spreads over ~5 minutes.
+        
+        @set_time_limit(300); // allow up to 5 min for large employee sets
         foreach ($employeeIds as $index => $id) {
             RunSiaCheck::dispatch($id, $runId)->delay(now()->addSeconds($index * 3));
         }

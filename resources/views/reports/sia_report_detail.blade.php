@@ -17,6 +17,15 @@
                 <a href="{{ route('reports.sia') }}" class="btn btn-secondary">
                     <i class="ti ti-arrow-left"></i> Back to Reports
                 </a>
+                <form method="get" action="" class="d-flex gap-2">
+                    <input type="search" name="q" value="{{ $q ?? request('q') }}" class="form-control form-control-sm" placeholder="Search name or licence">
+                    <select name="per_page" class="form-select form-select-sm">
+                        <option value="25" {{ (request('per_page',50) == 25) ? 'selected' : '' }}>25</option>
+                        <option value="50" {{ (request('per_page',50) == 50) ? 'selected' : '' }}>50</option>
+                        <option value="100" {{ (request('per_page',50) == 100) ? 'selected' : '' }}>100</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" type="submit"><i class="ti ti-search"></i></button>
+                </form>
                 <a href="{{ route('reports.sia.csv', $runId) }}" class="btn btn-success">
                     <i class="ti ti-download"></i> Download CSV
                 </a>
@@ -91,23 +100,25 @@
                             <tr class="{{ $entry->error ? 'table-warning' : '' }}">
                                 <td>{{ $entry->employee_name ?? '—' }}</td>
                                 <td><code>{{ $entry->sia_licence ?? '—' }}</code></td>
+                                    <td class="text-center">
+                                        @php($sb = strtolower($entry->status_before ?? ''))
+                                        @if ($sb === 'active')
+                                            <span class="badge bg-success">Active</span>
+                                        @elseif ($sb === 'inactive')
+                                            <span class="badge bg-danger">Inactive</span>
+                                        @else
+                                            <span class="text-muted">{{ $entry->status_before ?? '—' }}</span>
+                                        @endif
+                                    </td>
                                 <td class="text-center">
-                                    @if ($entry->status_before === 'active')
-                                        <span class="badge bg-success">Active</span>
-                                    @elseif ($entry->status_before === 'inactive')
-                                        <span class="badge bg-danger">Inactive</span>
-                                    @else
-                                        <span class="text-muted">{{ $entry->status_before ?? '—' }}</span>
-                                    @endif
-                                </td>
-                                <td class="text-center">
-                                    @if ($entry->status_after === 'active')
-                                        <span class="badge bg-success">Active</span>
-                                    @elseif ($entry->status_after === 'inactive')
-                                        <span class="badge bg-danger">Inactive</span>
-                                    @else
-                                        <span class="text-muted">{{ $entry->status_after ?? '—' }}</span>
-                                    @endif
+                                        @php($sa = strtolower($entry->status_after ?? ''))
+                                        @if ($sa === 'active')
+                                            <span class="badge bg-success">Active</span>
+                                        @elseif ($sa === 'inactive')
+                                            <span class="badge bg-danger">Inactive</span>
+                                        @else
+                                            <span class="text-muted">{{ $entry->status_after ?? '—' }}</span>
+                                        @endif
                                 </td>
                                 <td class="text-center">
                                     @if ($entry->changed)
@@ -130,6 +141,14 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+                <div class="p-3 d-flex align-items-center justify-content-between">
+                    <div>
+                        {!! $entries->onEachSide(1)->links('pagination::bootstrap-5') !!}
+                    </div>
+                    <div class="text-muted small">
+                        Showing {{ $entries->firstItem() ?? 0 }} to {{ $entries->lastItem() ?? 0 }} of {{ $entries->total() }} results
+                    </div>
                 </div>
                 @endif
             </div>
