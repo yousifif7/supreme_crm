@@ -284,14 +284,43 @@ trait LogsChanges
             if ($modelType === 'Patrol') {
                 $patrolName = $model->name ?? ($model->title ?? 'Unnamed Patrol');
                 $patrolDue  = $model->start_time ? (' due ' . $model->start_time) : '';
-                $description .= " (Patrol: {$patrolName}{$patrolDue})";
+                // Resolve site name from common relationships if available
+                $siteName = null;
+                if (isset($model->shift) && isset($model->shift->site->site_name)) {
+                    $siteName = $model->shift->site->site_name;
+                } elseif (isset($model->site) && isset($model->site->site_name)) {
+                    $siteName = $model->site->site_name;
+                } elseif (isset($model->shift_id)) {
+                    try {
+                        $sd = \App\Models\ShiftDate::find($model->shift_id);
+                        if ($sd && isset($sd->shift->site->site_name)) $siteName = $sd->shift->site->site_name;
+                    } catch (\Throwable $_) {
+                        // ignore lookup failures
+                    }
+                }
+                $sitePart = $siteName ? (' at ' . $siteName) : '';
+                $description .= " (Patrol: {$patrolName}{$patrolDue}{$sitePart})";
             }
 
-            // If this is a CheckCall, include the checkcall name and scheduled time
+            // If this is a CheckCall, include the checkcall name, scheduled time and site
             if ($modelType === 'CheckCall') {
                 $ccName = $model->name ?? 'Unnamed CheckCall';
                 $ccDue  = $model->scheduled_time ? (' due ' . $model->scheduled_time) : '';
-                $description .= " (CheckCall: {$ccName}{$ccDue})";
+                $siteName = null;
+                if (isset($model->shift) && isset($model->shift->site->site_name)) {
+                    $siteName = $model->shift->site->site_name;
+                } elseif (isset($model->site) && isset($model->site->site_name)) {
+                    $siteName = $model->site->site_name;
+                } elseif (isset($model->shift_id)) {
+                    try {
+                        $sd = \App\Models\ShiftDate::find($model->shift_id);
+                        if ($sd && isset($sd->shift->site->site_name)) $siteName = $sd->shift->site->site_name;
+                    } catch (\Throwable $_) {
+                        // ignore lookup failures
+                    }
+                }
+                $sitePart = $siteName ? (' at ' . $siteName) : '';
+                $description .= " (CheckCall: {$ccName}{$ccDue}{$sitePart})";
             }
 
             // Use central Logger helper so all logs follow the same format/resolution
@@ -355,18 +384,47 @@ trait LogsChanges
             // Do not include the username inside the description (we store it in the `user_name` column)
             $description = "{$actionTitle} {$label}";
 
-            // If this is a Patrol, include the patrol name and due time for clearer context
+            // If this is a Patrol, include the patrol name, due time and site for clearer context
             if ($modelType === 'Patrol') {
                 $patrolName = $model->name ?? ($model->title ?? 'Unnamed Patrol');
                 $patrolDue  = $model->start_time ? (' due ' . $model->start_time) : '';
-                $description .= " (Patrol: {$patrolName}{$patrolDue})";
+                // Resolve site name if available
+                $siteName = null;
+                if (isset($model->shift) && isset($model->shift->site->site_name)) {
+                    $siteName = $model->shift->site->site_name;
+                } elseif (isset($model->site) && isset($model->site->site_name)) {
+                    $siteName = $model->site->site_name;
+                } elseif (isset($model->shift_id)) {
+                    try {
+                        $sd = \App\Models\ShiftDate::find($model->shift_id);
+                        if ($sd && isset($sd->shift->site->site_name)) $siteName = $sd->shift->site->site_name;
+                    } catch (\Throwable $_) {
+                        // ignore
+                    }
+                }
+                $sitePart = $siteName ? (' at ' . $siteName) : '';
+                $description .= " (Patrol: {$patrolName}{$patrolDue}{$sitePart})";
             }
 
-            // If this is a CheckCall, include the checkcall name and scheduled time
+            // If this is a CheckCall, include the checkcall name, scheduled time and site
             if ($modelType === 'CheckCall') {
                 $ccName = $model->name ?? 'Unnamed CheckCall';
                 $ccDue  = $model->scheduled_time ? (' due ' . $model->scheduled_time) : '';
-                $description .= " (CheckCall: {$ccName}{$ccDue})";
+                $siteName = null;
+                if (isset($model->shift) && isset($model->shift->site->site_name)) {
+                    $siteName = $model->shift->site->site_name;
+                } elseif (isset($model->site) && isset($model->site->site_name)) {
+                    $siteName = $model->site->site_name;
+                } elseif (isset($model->shift_id)) {
+                    try {
+                        $sd = \App\Models\ShiftDate::find($model->shift_id);
+                        if ($sd && isset($sd->shift->site->site_name)) $siteName = $sd->shift->site->site_name;
+                    } catch (\Throwable $_) {
+                        // ignore
+                    }
+                }
+                $sitePart = $siteName ? (' at ' . $siteName) : '';
+                $description .= " (CheckCall: {$ccName}{$ccDue}{$sitePart})";
             }
 
             // Use central Logger helper so all logs follow the same format/resolution

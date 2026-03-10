@@ -715,7 +715,7 @@ class ShiftApiController extends Controller
             ]);
         }
         
-        
+/*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $request->input('location.latitude'),
@@ -725,7 +725,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-        
+    */    
 
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
@@ -814,8 +814,8 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
-        
-        $geoFenceError = $this->ensureWithinShiftSiteRadius(
+/*     
+       $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
             $validated['location']['longitude'],
@@ -824,7 +824,8 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
+		
         if ($shiftDate->is_assign !== 2) {
             // Provide more detailed guidance to the client about why booking on is blocked
             if ($shiftDate->is_assign == 1) {
@@ -1010,6 +1011,7 @@ class ShiftApiController extends Controller
             ], 400);
         }
 
+/*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -1019,7 +1021,8 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
+		
         // Prevent booking off if the shift is not in a started state or already ended
         if ($shiftDate->is_assign === 4) {
             return response()->json([
@@ -1408,6 +1411,7 @@ class ShiftApiController extends Controller
             return response()->json(['message' => 'Shift not found for this patrol.'], 404);
         }
 
+/*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $validated['location']['latitude'],
@@ -1417,7 +1421,8 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
+		
         // If the guard currently has a different patrol in progress, mark that one completed
         $staffShiftIds = ShiftDate::where('staff_id', Auth::id())->pluck('id')->toArray();
         $other = Patrol::where('status', 'in_progress')
@@ -1546,7 +1551,7 @@ class ShiftApiController extends Controller
             }
         }
 
-        
+ /*      
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $request->input('location.latitude'),
@@ -1557,7 +1562,7 @@ class ShiftApiController extends Controller
             return $geoFenceError;
         }
             
-
+*/
         $patrol->update([
             'summary' => $request->summary,
             'total_checkpoints' => $request->total_checkpoints,
@@ -1625,11 +1630,12 @@ class ShiftApiController extends Controller
             }
         }
 
-        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
+/*
+		$geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
         if ($geoFenceError) {
             return $geoFenceError;
         }
-
+*/
         $geoService = new GeoService();
         $resolvedAddress = null;
         try {
@@ -1640,6 +1646,7 @@ class ShiftApiController extends Controller
             Log::warning('GeoService failed: ' . $e->getMessage());
         }
 
+		
         // Ensure location is an array with a `formatted_address` key so watermark code can read it
         $locationForStamp = is_array($resolvedAddress) ? $resolvedAddress : ['formatted_address' => ($resolvedAddress ?? ($shiftDate->shift->site->address ?? 'N/A'))];
 
@@ -2241,27 +2248,69 @@ class ShiftApiController extends Controller
      */
     private function processVideo(string $filePath, array $timestampData): void
     {
+        // Enhanced ffmpeg detection including Windows paths
         $ffmpegBin = null;
-        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
-            if (file_exists($candidate) && is_executable($candidate)) { $ffmpegBin = $candidate; break; }
+        $candidates = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/bin/ffmpeg',
+            'C:/ffmpeg/bin/ffmpeg.exe',
+            'C:/Program Files/ffmpeg/bin/ffmpeg.exe',
+            'ffmpeg' // Will use PATH
+        ];
+        
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) {
+                $ffmpegBin = $candidate;
+                break;
+            }
         }
+        
         if (!$ffmpegBin && function_exists('shell_exec')) {
+            // Try Unix which command
             $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
-            if ($found && is_executable($found)) $ffmpegBin = $found;
+            if ($found && is_executable($found)) {
+                $ffmpegBin = $found;
+            } else {
+                // Try Windows where command
+                $found = trim((string) @shell_exec('where ffmpeg 2>NUL'));
+                if ($found) {
+                    $lines = explode("\n", $found);
+                    $ffmpegBin = trim($lines[0]);
+                }
+            }
         }
+        
         if (!$ffmpegBin) {
-            Log::warning('processVideo: ffmpeg not found', ['path' => $filePath]);
-            return;
+            // Try just 'ffmpeg' - might be in PATH
+            $ffmpegBin = 'ffmpeg';
         }
 
         $originalSize = @filesize($filePath) ?: 0;
-        $targetBitrate = '1000k';
-        if ($originalSize > 50 * 1024 * 1024)      $targetBitrate = '500k';
-        elseif ($originalSize > 20 * 1024 * 1024)  $targetBitrate = '800k';
+        
+        // AGGRESSIVE compression settings - compress regardless of size
+        // Higher CRF = more compression (range: 0-51, 23 is default, we use 30-32 for aggressive compression)
+        $crf = 30;
+        $targetBitrate = '800k';
+        
+        if ($originalSize > 100 * 1024 * 1024) {
+            // Very large files (>100MB): maximum compression
+            $crf = 32;
+            $targetBitrate = '400k';
+        } elseif ($originalSize > 50 * 1024 * 1024) {
+            // Large files (>50MB): high compression
+            $crf = 31;
+            $targetBitrate = '500k';
+        } elseif ($originalSize > 20 * 1024 * 1024) {
+            // Medium files (>20MB): moderate-high compression
+            $crf = 30;
+            $targetBitrate = '600k';
+        }
+        // Small files still get compressed with CRF 30 and 800k bitrate
 
         $locationText = 'Unknown';
         if (is_array($timestampData['location'] ?? null)) {
-            $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
+            $locationText = $timestampData['location']['formatted_address'] ?? $timestampData['location'];
         } else {
             $locationText = (string) ($timestampData['location'] ?? 'Unknown');
         }
@@ -2288,12 +2337,29 @@ class ShiftApiController extends Controller
         imagedestroy($im);
 
         $outputPath = $filePath . '.proc_' . uniqid() . '.mp4';
-        // Single pass: compress (libx264 fast preset) + overlay watermark
+        
+        // Compute bufsize correctly from target bitrate (avoid multiplying '800k' by 2 which causes non-numeric errors)
+        $bufsize = null;
+        if (is_string($targetBitrate) && preg_match('/^(\d+)\s*k$/i', trim($targetBitrate), $m)) {
+            $kb = (int)$m[1];
+            $bufsize = ($kb * 2) . 'k';
+        } else {
+            // fallback: assume numeric value and double it, or default to 1600k
+            if (is_numeric($targetBitrate)) {
+                $bufsize = ((int)$targetBitrate * 2) . 'k';
+            } else {
+                $bufsize = '1600k';
+            }
+        }
+
+        // Enhanced ffmpeg command with aggressive compression + scaling for large resolutions + watermark
+        // Scale down videos wider than 1920px to save space, maintain aspect ratio
         $cmd = escapeshellcmd($ffmpegBin)
             . ' -i ' . escapeshellarg($filePath)
             . ' -i ' . escapeshellarg($textImage)
-            . ' -filter_complex "[0:v][1:v]overlay=10:10"'
-            . ' -c:v libx264 -crf 28 -preset fast -b:v ' . $targetBitrate
+            . ' -filter_complex "[0:v]scale=\'min(1920,iw)\':-2[scaled];[scaled][1:v]overlay=10:10[out]"'
+            . ' -map "[out]" -map 0:a?'
+            . ' -c:v libx264 -crf ' . $crf . ' -preset medium -b:v ' . $targetBitrate . ' -maxrate ' . $targetBitrate . ' -bufsize ' . $bufsize
             . ' -c:a aac -b:a 64k -movflags +faststart '
             . escapeshellarg($outputPath) . ' -y';
 
@@ -2302,12 +2368,22 @@ class ShiftApiController extends Controller
         @unlink($textImage);
 
         if ($ret === 0 && file_exists($outputPath)) {
+            $outputSize = @filesize($outputPath) ?: 0;
+            Log::info('processVideo: success', [
+                'path' => $filePath,
+                'original_size' => $originalSize,
+                'output_size' => $outputSize,
+                'compression_ratio' => $originalSize > 0 ? round(($outputSize / $originalSize) * 100, 2) . '%' : 'N/A'
+            ]);
             @unlink($filePath);
             if (!@rename($outputPath, $filePath)) { @copy($outputPath, $filePath); @unlink($outputPath); }
             @chmod($filePath, 0644);
         } else {
-            Log::warning('processVideo: ffmpeg failed', [
-                'path' => $filePath, 'return' => $ret, 'output' => implode("\n", $out),
+            Log::error('processVideo: ffmpeg failed', [
+                'path' => $filePath,
+                'ffmpeg_bin' => $ffmpegBin,
+                'return_code' => $ret,
+                'output' => implode("\n", $out),
             ]);
             if (file_exists($outputPath)) @unlink($outputPath);
         }

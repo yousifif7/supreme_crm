@@ -81,11 +81,12 @@ class CheckCallController extends Controller
         $lat = $data['location']['latitude'];
         $lng = $data['location']['longitude'];
 
-        $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
-        if ($geoFenceError) {
-            return $geoFenceError;
-        }
-
+ /*
+         $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
+         if ($geoFenceError) {
+             return $geoFenceError;
+         }
+ */
 
         // Try to resolve human-readable address from coordinates (GeoService caches results)
         $geoService = new GeoService();
@@ -655,23 +656,65 @@ class CheckCallController extends Controller
 
     private function processVideo(string $filePath, array $timestampData): void
     {
+        // Enhanced ffmpeg detection including Windows paths
         $ffmpegBin = null;
-        foreach (['/usr/bin/ffmpeg', '/usr/local/bin/ffmpeg', '/bin/ffmpeg'] as $candidate) {
-            if (file_exists($candidate) && is_executable($candidate)) { $ffmpegBin = $candidate; break; }
+        $candidates = [
+            '/usr/bin/ffmpeg',
+            '/usr/local/bin/ffmpeg',
+            '/bin/ffmpeg',
+            'C:/ffmpeg/bin/ffmpeg.exe',
+            'C:/Program Files/ffmpeg/bin/ffmpeg.exe',
+            'ffmpeg' // Will use PATH
+        ];
+        
+        foreach ($candidates as $candidate) {
+            if (file_exists($candidate) && is_executable($candidate)) {
+                $ffmpegBin = $candidate;
+                break;
+            }
         }
+        
         if (!$ffmpegBin && function_exists('shell_exec')) {
+            // Try Unix which command
             $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
-            if ($found && is_executable($found)) $ffmpegBin = $found;
+            if ($found && is_executable($found)) {
+                $ffmpegBin = $found;
+            } else {
+                // Try Windows where command
+                $found = trim((string) @shell_exec('where ffmpeg 2>NUL'));
+                if ($found) {
+                    $lines = explode("\n", $found);
+                    $ffmpegBin = trim($lines[0]);
+                }
+            }
         }
+        
         if (!$ffmpegBin) {
-            Log::warning('processVideo: ffmpeg not found', ['path' => $filePath]);
-            return;
+            // Try just 'ffmpeg' - might be in PATH
+            $ffmpegBin = 'ffmpeg';
         }
 
         $originalSize = @filesize($filePath) ?: 0;
-        $targetBitrate = '1000k';
-        if ($originalSize > 50 * 1024 * 1024)      $targetBitrate = '500k';
-        elseif ($originalSize > 20 * 1024 * 1024)  $targetBitrate = '800k';
+        
+        // AGGRESSIVE compression settings - compress regardless of size
+        // Higher CRF = more compression (range: 0-51, 23 is default, we use 30-32 for aggressive compression)
+        $crf = 30;
+        $targetBitrate = '800k';
+        
+        if ($originalSize > 100 * 1024 * 1024) {
+            // Very large files (>100MB): maximum compression
+            $crf = 32;
+            $targetBitrate = '400k';
+        } elseif ($originalSize > 50 * 1024 * 1024) {
+            // Large files (>50MB): high compression
+            $crf = 31;
+            $targetBitrate = '500k';
+        } elseif ($originalSize > 20 * 1024 * 1024) {
+            // Medium files (>20MB): moderate-high compression
+            $crf = 30;
+            $targetBitrate = '600k';
+        }
+        // Small files still get compressed with CRF 30 and 800k bitrate
 
         $locationText = 'Unknown';
         if (is_array($timestampData['location'] ?? null)) {
@@ -702,11 +745,18 @@ class CheckCallController extends Controller
         imagedestroy($im);
 
         $outputPath = $filePath . '.proc_' . uniqid() . '.mp4';
+        
+        // Prepare bufsize as a valid ffmpeg size string (e.g. "800k" -> "1600k") to avoid non-numeric PHP warnings.
+        $bufsizeStr = $this->doubleBitrateSuffix($targetBitrate);
+
+        // Enhanced ffmpeg command with aggressive compression + scaling for large resolutions + watermark
+        // Scale down videos wider than 1920px to save space, maintain aspect ratio
         $cmd = escapeshellcmd($ffmpegBin)
             . ' -i ' . escapeshellarg($filePath)
             . ' -i ' . escapeshellarg($textImage)
-            . ' -filter_complex "[0:v][1:v]overlay=10:10"'
-            . ' -c:v libx264 -crf 28 -preset fast -b:v ' . $targetBitrate
+            . ' -filter_complex "[0:v]scale=\'min(1920,iw)\':-2[scaled];[scaled][1:v]overlay=10:10[out]"'
+            . ' -map "[out]" -map 0:a?'
+            . ' -c:v libx264 -crf ' . intval($crf) . ' -preset medium -b:v ' . escapeshellarg($targetBitrate) . ' -maxrate ' . escapeshellarg($targetBitrate) . ' -bufsize ' . escapeshellarg($bufsizeStr)
             . ' -c:a aac -b:a 64k -movflags +faststart '
             . escapeshellarg($outputPath) . ' -y';
 
@@ -715,15 +765,74 @@ class CheckCallController extends Controller
         @unlink($textImage);
 
         if ($ret === 0 && file_exists($outputPath)) {
+            $outputSize = @filesize($outputPath) ?: 0;
+            Log::info('processVideo: success', [
+                'path' => $filePath,
+                'original_size' => $originalSize,
+                'output_size' => $outputSize,
+                'compression_ratio' => $originalSize > 0 ? round(($outputSize / $originalSize) * 100, 2) . '%' : 'N/A'
+            ]);
             @unlink($filePath);
             if (!@rename($outputPath, $filePath)) { @copy($outputPath, $filePath); @unlink($outputPath); }
             @chmod($filePath, 0644);
         } else {
-            Log::warning('processVideo: ffmpeg failed', [
-                'path' => $filePath, 'return' => $ret, 'output' => implode("\n", $out),
+            Log::error('processVideo: ffmpeg failed', [
+                'path' => $filePath,
+                'ffmpeg_bin' => $ffmpegBin,
+                'return_code' => $ret,
+                'output' => implode("\n", $out),
             ]);
             if (file_exists($outputPath)) @unlink($outputPath);
         }
+    }
+
+    /**
+     * Attempt to double a bitrate string while preserving suffix (k/M).
+     * Examples:
+     *  - "800k" => "1600k"
+     *  - "1M"   => "2M"
+     *  - "500"  => "1000k" (assumes numeric -> k)
+     *
+     * This prevents numeric-arithmetic against strings like "800k" which
+     * triggers "A non-numeric value encountered" warnings in PHP.
+     *
+     * @param string $bitrate
+     * @return string
+     */
+    private function doubleBitrateSuffix(string $bitrate): string
+    {
+        $b = trim($bitrate);
+        if ($b === '') {
+            return '1600k';
+        }
+
+        // Match e.g. 800k, 1M, 500K, 2m
+        if (preg_match('/^(\d+(?:\.\d+)?)([kKmM])$/', $b, $m)) {
+            $num = (float) $m[1];
+            $suffix = strtolower($m[2]);
+            // Multiply by 2
+            $doubled = $num * 2;
+            // If decimal but effectively integer, cast to int
+            if (intval($doubled) == $doubled) {
+                $doubled = intval($doubled);
+            }
+            return $doubled . $suffix;
+        }
+
+        // If numeric only (e.g. "800"), assume it's kilobits and double to k
+        if (is_numeric($b)) {
+            $num = (int) $b;
+            return ($num * 2) . 'k';
+        }
+
+        // Fallback: try to extract leading number
+        if (preg_match('/^(\d+)/', $b, $m2)) {
+            $num = (int) $m2[1];
+            return ($num * 2) . 'k';
+        }
+
+        // As an ultimate fallback, return original repeated (not ideal but safe)
+        return $b;
     }
 
     private function addTimestampToPdf($pdfPath, $timestampData)
