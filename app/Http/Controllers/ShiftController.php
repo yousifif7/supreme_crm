@@ -1433,10 +1433,10 @@ public function getShifts(Request $request)
     }
 
     $from = Carbon::parse($request->from_shift ?? now()->subMonths(1))->startOfDay();
-    $to   = Carbon::parse($request->to_shift ?? now()->addMonths(2))->endOfDay();
+    $to   = Carbon::parse($request->to_shift ?? now()->addMonths(11))->endOfDay();
 
     // cap range to avoid huge queries
-    $maxDays = 90;
+    $maxDays = 365;
     if ($to->diffInDays($from) > $maxDays) {
         $to = $from->copy()->addDays($maxDays)->endOfDay();
     }

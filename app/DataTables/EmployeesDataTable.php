@@ -42,30 +42,37 @@ class EmployeesDataTable extends DataTable
             //             <span class="text-primary fw-bold">Active</span>';
             // })
             ->editColumn('sia_licence', function ($employee) {
-                // Determine raw status from DB (could be 'Valid'/'Invalid' or 'Active'/'Inactive')
-                $raw = $employee->sia_status ?? null;
-
-                // Normalize for display: map 'valid' -> 'Active', 'invalid' -> 'Inactive'
+                // Determine SIA status strictly from expiry date: Active if expiry in future, otherwise Inactive
                 $displayStatus = 'Inactive';
-                if ($raw) {
-                    $rl = strtolower($raw);
-                    if (in_array($rl, ['valid', 'active'])) $displayStatus = 'Active';
-                    elseif (in_array($rl, ['invalid', 'inactive'])) $displayStatus = 'Inactive';
-                    else $displayStatus = ucfirst($raw);
-                } else {
-                    // Optional: fallback to expiry date if status is not set
-                    if (isset($employee->sia_expiry)) {
-                        $displayStatus = \Carbon\Carbon::parse($employee->sia_expiry)->isFuture() ? 'Active' : 'Inactive';
+                $expiryRaw = $employee->sia_expiry ?? null;
+
+                if (!empty($expiryRaw)) {
+                    $parsed = null;
+                    $formats = ['Y-m-d H:i:s', 'Y-m-d', 'd/m/Y', 'm/d/Y'];
+                    foreach ($formats as $fmt) {
+                        try {
+                            $dt = Carbon::createFromFormat($fmt, $expiryRaw);
+                            if ($dt && $dt->format($fmt) === $dt->format($fmt)) {
+                                $parsed = $dt;
+                                break;
+                            }
+                        } catch (\Exception $_) {
+                            // try next format
+                        }
+                    }
+
+                    // Last resort: let Carbon try to parse generally
+                    if (!$parsed) {
+                        try { $parsed = Carbon::parse($expiryRaw); } catch (\Exception $_) { $parsed = null; }
+                    }
+
+                    if ($parsed) {
+                        $displayStatus = $parsed->isFuture() ? 'Active' : 'Inactive';
                     }
                 }
 
-                // Set CSS class based on normalized display status
-                $class = match (strtolower($displayStatus)) {
-                    'active' => 'text-primary',
-                    'inactive' => 'text-danger',
-                    'invalid' => 'text-warning',
-                    default => 'text-muted',
-                };
+                // CSS class based on normalized display status
+                $class = $displayStatus === 'Active' ? 'text-primary' : 'text-danger';
 
                 return '<p class="mb-0 fw-semibold">' . e($employee->sia_licence) . '</p>'
                     . '<span class="' . $class . ' fw-bold">' . e($displayStatus) . '</span>';
