@@ -671,13 +671,14 @@
                                             <button class="btn btn-outline-secondary" id="prevWeekBtn">
                                                 <i class="ti ti-chevron-left"></i>
                                             </button>
+                                            <button class="btn btn-outline-secondary" id="todayBtn">Today</button>
                                            
                                             <button class="btn btn-outline-secondary" id="nextWeekBtn">
                                                 <i class="ti ti-chevron-right"></i>
                                             </button>
 
                                             <!-- New buttons for view modes -->
-                                            <button class="btn btn-outline-secondary" id="todayBtn">Today</button>
+                                            <button class="btn btn-outline-secondary" id="viewDayBtn">Day</button>
                                             <button class="btn btn-outline-secondary" id="viewWeekBtn">Week</button>
                                             <button class="btn btn-outline-secondary" id="viewMonthBtn">Month</button>
                                         </div>
