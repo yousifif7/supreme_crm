@@ -2,17 +2,35 @@
 @section('title', 'SPL Connect - Scheduling')
 @section('styles')
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css"
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw=="
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
     <!-- Flatpickr CSS -->
     <style>
-        .gantt-timeline-header,
-        .gantt-row-content {
+        .gantt-header,
+        .gantt-row {
             display: flex;
-            flex: 1;
             width: 100%;
-            min-width: 100%;
         }
+        .gantt-row-content,
+.gantt-timeline-header {
+    flex-shrink: 0;
+}
+        /* .gantt-timeline-header,
+                            .gantt-row-content {
+                                display: grid;
+                                grid-template-columns: repeat(7, 1fr);
+                                flex: 1;
+                            } */
+
+        /* .gantt-timeline-header,
+                                                .gantt-row-content {
+                                                    display: flex;
+                                                    flex: 1;
+                                                    width: 100%;
+                                                    min-width: 100%;
+                                                } */
 
         html {
             font-size: 80%;
@@ -21,7 +39,7 @@
         .gantt-container {
             overflow-x: auto;
             margin-top: 20px;
-            border: 1px solid #dee2e6;
+            /* border: 1px solid #dee2e6; */
             border-radius: 6px;
             width: 100%;
         }
@@ -35,27 +53,28 @@
 
         .gantt-header {
             display: flex;
-            min-width: 100%;
-            background-color: #f8f9fa;
-            border-bottom: 2px solid #dee2e6;
+            width: 100%;
+
         }
 
         .gantt-sidebar-header {
-            width: 150px;
-            min-width: 140px;
-            padding: 10px;
-            font-size: 16px;
+            width: 100px;
+            flex-shrink: 0;
+            padding: 4px;
+            font-size: 10px;
             font-weight: 800;
             color: #212529;
             background-color: #e9ecef;
-            border-right: 1px solid #dee2e6;
-            text-align: center;
+            /* border-right: 1px solid #dee2e6; */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
         .gantt-timeline-header {
             display: flex;
-            flex: 1;
-            font-size: 11px;
+            flex: 1 1 auto;
+            width: 100%;
         }
 
         .gantt-body {
@@ -68,13 +87,13 @@
         .gantt-row {
             display: flex;
             min-height: 96px;
-            border-bottom: 1px solid #dee2e6;
+            /* border-bottom: 1px solid #dee2e6; */
             position: relative;
         }
 
         /* Ensure the row divider is always visible above inner content by
-           drawing it with a pseudo-element. This prevents wide day-columns
-           or inner elements from visually covering the separator. */
+                                                       drawing it with a pseudo-element. This prevents wide day-columns
+                                                       or inner elements from visually covering the separator. */
         .gantt-row::after {
             content: '';
             position: absolute;
@@ -83,103 +102,90 @@
             bottom: 0;
             height: 1px;
             background: #dee2e6;
-            z-index: 1000; /* high enough to appear above row contents but below modals */
+            z-index: 1000;
+            /* high enough to appear above row contents but below modals */
             pointer-events: none;
         }
 
-        .gantt-row:hover {
-            background-color: #f8f9fa;
-        }
+       
 
         .gantt-row-sidebar {
-            width: 150px;
-            min-width: 140px;
-            padding: 14px;
+            width: 100px;
+            flex-shrink: 0;
+            padding: 4px;
             background-color: #fff;
             border-right: 1px solid #dee2e6;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            font-size: 14px;
+            font-size: 10px;
             font-weight: bold;
         }
 
         .gantt-row-content {
-            flex: 1;
+            flex: 1 1 auto;
             position: relative;
             display: flex;
-            z-index: 1; /* keep content below the row divider pseudo-element */
+            /* width: 100%; */
         }
 
         /* Day column: allow JS to set fixed widths per day so a full week
-           can be forced to fit the available container width. Keep
-           box-model and overflow handling here but remove a large CSS
-           min-width that caused overly wide columns on large screens. */
+                                                       can be forced to fit the available container width. Keep
+                                                       box-model and overflow handling here but remove a large CSS
+                                                       min-width that caused overly wide columns on large screens. */
         .day-column {
-            flex: 0 0 auto;
-            width: max-content;
-            min-width: 0;
+
             border-right: 1px solid #dee2e6;
-            position: relative;
             box-sizing: border-box;
-            overflow: visible;
-            z-index: 1;
+            flex: 0 0 auto;
+            flex-shrink: 0
         }
 
         .day-header {
-            flex: 0 0 auto;
-            width: max-content;
-            min-width: 0;
+            width: 100%;
             text-align: center;
-            padding: 8px 6px;
-            font-size: 12px;
+            padding: 6px;
+            font-size: 10px;
             font-weight: 800;
-            color: #343a40;
+            box-sizing: border-box;
+            flex: 0 0 auto;
             background-color: #f8f9fa;
-            border-bottom: 1px solid #dee2e6;
+            /* border-bottom: 2px solid #dee2e6; */
         }
 
         /* day-cell: flex row wrap so bars size to their content */
         .day-cell {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 6px;
+            display: grid;
+            gap: 3px;
             min-height: 100px;
-            position: relative;
-            padding: 8px;
-            align-content: flex-start;
-            box-sizing: border-box;
-            overflow: visible;
+            padding: 6px;
+            border: 1px solid #dee2e6;
+            align-content: start;
         }
 
         /* Bars grow to fill available row width; at most 4-5 per row in a 760px column */
-        .day-cell>.gantt-bar {
-            flex: 1 1 140px;
-            min-width: 130px;
-            max-width: 100%;
-            box-sizing: border-box;
-            align-self: start;
-        }
+        /* .day-cell>.gantt-bar {
+                                                    flex: 1 1 140px;
+                                                    min-width: 130px;
+                                                    max-width: 100%;
+                                                    box-sizing: border-box;
+                                                    align-self: start;
+                                                } */
 
         /* Bar layout: readable and compact */
         .gantt-bar {
-            background: #4e73df;
-            color: #fff;
+
+            min-height: 40px;
             padding: 4px 6px;
+            width: 100%;
+            min-width: 100px;
             border-radius: 5px;
-            margin-bottom: 0;
             box-sizing: border-box;
             cursor: pointer;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
-            position: relative;
-            overflow: hidden;
-            transition: transform .12s ease, box-shadow .12s ease;
             display: flex;
-            flex-direction: row;
-            align-items: flex-start;
-            white-space: normal;
-            gap: 5px;
-            height: auto;
+            color: #fff;
+            gap: 4px;
+            font-size: 9px;
         }
 
         /* .bar-content holds each piece on its own line */
@@ -191,7 +197,9 @@
             white-space: normal;
             word-break: break-word;
             overflow-wrap: anywhere;
-            line-height: 1.15;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            /* line-height: 1.15; */
             gap: 2px;
         }
 
@@ -202,7 +210,7 @@
             display: block;
             color: inherit;
             margin: 0;
-            font-size: 11px;
+            font-size: 8px;
             font-weight: 500;
         }
 
@@ -211,9 +219,10 @@
             display: flex;
             align-items: center;
             gap: 4px;
+            justify-content: space-between;
             color: inherit;
             margin: 0;
-            font-size: 11px;
+            font-size: 8px;
             font-weight: 600;
             flex-wrap: wrap;
         }
@@ -221,14 +230,14 @@
         /* subcontractor inline when appended to staff-name should be normal weight */
         .gantt-bar .staff-name .subcontractor-inline {
             font-weight: 400;
-            font-size: 11px;
+            font-size: 8px;
             color: inherit;
             margin-left: 4px;
         }
 
         /* small duration text */
         .gantt-bar small {
-            font-size: 10px;
+            font-size: 8px;
             opacity: 0.9;
             color: inherit;
         }
@@ -260,45 +269,51 @@
         /* note icon: dimmed pencil = no note yet */
         .gantt-bar .note-icon {
             cursor: pointer;
-            font-size: 12px;
-            flex-shrink: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0.35;
-            line-height: 1;
+            font-size: 8px;
+            opacity: 0.9;
+            /* flex-shrink: 0;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        opacity: 0.35;
+                        line-height: 1; */
         }
 
         /* view-note icon: amber highlight = note exists */
         .gantt-bar .view-note-icon {
             cursor: pointer;
-            font-size: 12px;
-            flex-shrink: 0;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            line-height: 1;
-            background: rgba(255, 193, 7, 0.30);
-            border-radius: 3px;
-            padding: 1px 2px;
-            outline: 1px solid rgba(255, 193, 7, 0.55);
+            font-size: 8px;
+            opacity: 0.9;
+            /* flex-shrink: 0;
+                        display: inline-flex;
+                        align-items: center;
+                        justify-content: center;
+                        line-height: 1;
+                        background: rgba(255, 193, 7, 0.30);
+                        border-radius: 3px;
+                        padding: 1px 2px;
+                        outline: 1px solid rgba(255, 193, 7, 0.55); */
         }
 
         /* edit icon (pencil) - inline with time row */
         .gantt-bar .edit-shift-icon {
             cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            flex-shrink: 0;
-            opacity: 0.8;
-            color: inherit;
-            vertical-align: middle;
+            font-size: 8px;
+            opacity: 0.9;
+            /* display: inline-flex;
+                        align-items: center;
+                        flex-shrink: 0;
+                        opacity: 0.8;
+                        color: inherit;
+                        vertical-align: middle; */
         }
 
-        .gantt-bar .edit-shift-icon svg {
-            width: 14px;
-            height: 14px;
-        }
+        /*
+                    .gantt-bar .edit-shift-icon svg {
+                        width: 14px;
+                        height: 14px;
+                    } */
+
         /* selected visual */
         .gantt-bar.selected {
             outline: 4px solid rgba(255, 193, 7, 0.95);
@@ -383,11 +398,10 @@
         }
 
         #ganttChart {
-            margin: 0 auto;
-            max-width: 100%;
-            width: 100%;
-        }
-
+    width: 100%;
+    /* min-width: 100%; */
+    display: block;
+}
         .gantt-wrapper {
             width: 100%;
         }
@@ -533,50 +547,6 @@
             z-index: 1;
         }
 
-        /* Responsive tweaks */
-        @media (max-width: 1400px) {
-
-            // Create a safe stub so other code can call window.loadAllShiftsData() before
-            // the real implementation is ready. Calls will be queued and executed once
-            // the real function is assigned below.
-            if ( !window.loadAllShiftsData || window.loadAllShiftsData.__isStub !==true) {
-                window._pendingLoadAllShiftsCalls=window._pendingLoadAllShiftsCalls || [];
-
-                window.loadAllShiftsData=function() {
-                    window._pendingLoadAllShiftsCalls.push(arguments);
-                }
-
-                ;
-                window.loadAllShiftsData.__isStub=true;
-            }
-
-            // Now overwrite with the real function and flush pending calls
-            const _real_loadAllShiftsData=loadAllShiftsData;
-
-            window.loadAllShiftsData=function() {
-                return _real_loadAllShiftsData.apply(this, arguments);
-            }
-
-            ;
-            window.loadAllShiftsData.__isStub=false;
-
-            if (window._pendingLoadAllShiftsCalls && window._pendingLoadAllShiftsCalls.length) {
-                window._pendingLoadAllShiftsCalls.forEach(function(args) {
-                        try {
-                            _real_loadAllShiftsData.apply(window, args);
-                        }
-
-                        catch (e) {
-                            console.debug('flushed loadAllShiftsData call failed', e);
-                        }
-                    });
-                window._pendingLoadAllShiftsCalls=[];
-            }
-
-            .gantt-row {
-                min-height: 140px;
-            }
-        }
 
         @media (max-width: 992px) {
             .gantt-row {
@@ -633,6 +603,30 @@
                 height: auto;
             }
         }
+
+        @media (max-width: 1200px) {
+
+            /* .day-cell {
+                                        grid-template-columns: repeat(3, 1fr);
+                                    } */
+
+        }
+
+        @media (max-width: 768px) {
+
+            /* .day-cell {
+                                        grid-template-columns: repeat(2, 1fr);
+                                    } */
+
+        }
+
+        @media (max-width: 480px) {
+
+            /* .day-cell {
+                                        grid-template-columns: repeat(1, 1fr);
+                                    } */
+
+        }
     </style>
 @endsection
 @section('contents')
@@ -677,13 +671,13 @@
                                             <button class="btn btn-outline-secondary" id="prevWeekBtn">
                                                 <i class="ti ti-chevron-left"></i>
                                             </button>
-                                            <button class="btn btn-outline-secondary" id="todayBtn">Today</button>
+                                           
                                             <button class="btn btn-outline-secondary" id="nextWeekBtn">
                                                 <i class="ti ti-chevron-right"></i>
                                             </button>
 
                                             <!-- New buttons for view modes -->
-                                            <button class="btn btn-outline-secondary" id="viewDayBtn">Day</button>
+                                            <button class="btn btn-outline-secondary" id="todayBtn">Today</button>
                                             <button class="btn btn-outline-secondary" id="viewWeekBtn">Week</button>
                                             <button class="btn btn-outline-secondary" id="viewMonthBtn">Month</button>
                                         </div>
@@ -691,7 +685,7 @@
                                 </div>
                             </div>
 
-                            <div class="gantt-container gantt-wrapper d-flex justify-content-center">
+                            <div class="gantt-container gantt-wrapper">
                                 <div id="ganttChart">
                                     <div class="text-center p-5">
                                         <div class="spinner-border" role="status"></div>
@@ -802,7 +796,7 @@
 
 
     <div class="modal fade" id="noteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Add/Edit Note</h5>
@@ -836,19 +830,39 @@
     </div>
 
     <div class="modal fade" id="viewNoteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Shift Note</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Note For:</strong> <span id="viewNoteType"></span></p>
+                    <p><strong>Note For:</strong> <span id="viewNoteType" class="view-note-type"></span></p>
                     <p><strong>Note:</strong></p>
                     <p id="viewNoteText" class="border rounded p-2 bg-light"></p>
+
+                    <div id="editNoteArea" style="display:none; margin-top:8px;">
+                        <div class="mb-2">
+                            <label for="editNoteType" class="form-label">Note Type</label>
+                            <select id="editNoteType" class="form-select" name="note_type">
+                                <option value="guard">Guard</option>
+                                <option value="control">Control Room</option>
+                                <option value="both">Both</option>
+                            </select>
+                        </div>
+                        <div class="mb-2">
+                            <label for="editNoteText" class="form-label">Note</label>
+                            <textarea id="editNoteText" class="form-control" rows="4"></textarea>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer justify-content-between">
-                    <button type="button" class="btn btn-danger" id="deleteNoteBtn">Delete</button>
+                    <div>
+                        <button type="button" class="btn btn-danger" id="deleteNoteBtn">Delete</button>
+                        <button type="button" class="btn btn-outline-primary" id="editNoteBtn">Edit</button>
+                        <button type="button" class="btn btn-primary d-none" id="saveNoteEditBtn">Save</button>
+                        <button type="button" class="btn btn-secondary d-none" id="cancelEditNoteBtn">Cancel</button>
+                    </div>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                 </div>
             </div>
@@ -904,9 +918,14 @@
                             const el = this;
                             if (window.bootstrap && typeof window.bootstrap.Modal === 'function') {
                                 if (show) {
-                                    try { new window.bootstrap.Modal(el).show(); } catch (e) {}
+                                    try {
+                                        new window.bootstrap.Modal(el).show();
+                                    } catch (e) {}
                                 } else if (hide) {
-                                    try { const inst = window.bootstrap.Modal.getInstance(el); if (inst) inst.hide(); } catch (e) {}
+                                    try {
+                                        const inst = window.bootstrap.Modal.getInstance(el);
+                                        if (inst) inst.hide();
+                                    } catch (e) {}
                                 }
                             }
                         });
@@ -922,106 +941,340 @@
     <script>
         // Prepopulate subcontractor id->name map from server-provided list (if available)
         window._subcontractorMap = window._subcontractorMap || {};
-        @if(isset($subcontractors) && $subcontractors)
-            window._subcontractorMap = @json($subcontractors->mapWithKeys(function($u){ return [$u->id => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))]; }));
+        @if (isset($subcontractors) && $subcontractors)
+            window._subcontractorMap = @json(
+                $subcontractors->mapWithKeys(function ($u) {
+                    return [$u->id => trim(($u->first_name ?? '') . ' ' . ($u->last_name ?? ''))];
+                }));
         @endif
     </script>
 
     <script>
         /**
-         * Layout helper: cap columns per day-cell so bars flow into multiple rows.
-         * Keeps colors and interactivity intact; only affects visual placement.
+         * Layout helper: Sets column widths per day based on maximum bars across all rows for that date.
+         * All cells for the same date get identical width, regardless of their individual bar count.
          */
-        function adjustGanttDayCellColumns() {
-            try {
-                const ganttChartEl = document.getElementById('ganttChart');
-                if (!ganttChartEl) return;
+         function adjustGanttDayCellColumns() {
 
-                const MAX_COL_WIDTH = 760; // hard cap: ~4-5 bars per row
-                const MIN_COL_WIDTH = 160; // at least one bar fits
 
-                const headerDates = Array.from(ganttChartEl.querySelectorAll('.gantt-timeline-header .day-header')).map(h => h.getAttribute('data-date'));
-                if (!headerDates || !headerDates.length) return;
+const ganttChartEl = document.getElementById('ganttChart');
+if (!ganttChartEl) return;
 
-                let totalTimelineWidth = 0;
+const container = document.querySelector('.gantt-container');
+const sidebarWidth = 200; // 2 sidebar columns (Client + Site)
 
-                headerDates.forEach(dateStr => {
-                    const dayCols = Array.from(ganttChartEl.querySelectorAll(`.day-column[data-date="${dateStr}"]`));
-                    if (!dayCols.length) return;
+// Group all day columns by date
+const dateGroups = {};
+const dayCols = ganttChartEl.querySelectorAll(".day-column");
 
-                    // Count max bars in any cell for this date
-                    let maxBars = 0;
-                    dayCols.forEach(dc => {
-                        const cell = dc.querySelector('.day-cell');
-                        if (cell) maxBars = Math.max(maxBars, cell.querySelectorAll('.gantt-bar').length);
-                    });
+dayCols.forEach(dc => {
+    const date = dc.dataset.date;
+    if (!date) return;
 
-                    // Width = bars-per-row * bar-min-width + gaps + padding, capped at MAX_COL_WIDTH
-                    const barsPerRow = Math.min(maxBars, 5); // at most 5 per row
-                    const BAR_MIN = 140; // matches flex basis above
-                    const GAP = 6;      // matches .day-cell gap
-                    const PAD = 16;     // 8px each side
-                    const natural = barsPerRow * BAR_MIN + (barsPerRow - 1) * GAP + PAD;
-                    const desiredWidth = Math.min(MAX_COL_WIDTH, Math.max(MIN_COL_WIDTH, natural));
+    if (!dateGroups[date]) dateGroups[date] = [];
+    dateGroups[date].push(dc);
+});
 
-                    // Apply to all data columns for this date
-                    dayCols.forEach(dc => {
-                        dc.style.flex = `0 0 ${desiredWidth}px`;
-                        dc.style.width = desiredWidth + 'px';
-                        dc.style.minWidth = desiredWidth + 'px';
-                    });
+let totalWidth = 0;
+const columnWidths = [];
 
-                    // Sync the header cell for this date
-                    const headerEl = ganttChartEl.querySelector(`.gantt-timeline-header .day-header[data-date="${dateStr}"]`);
-                    if (headerEl) {
-                        headerEl.style.flex = `0 0 ${desiredWidth}px`;
-                        headerEl.style.width = desiredWidth + 'px';
-                        headerEl.style.minWidth = desiredWidth + 'px';
-                    }
+Object.keys(dateGroups).forEach(date => {
 
-                    totalTimelineWidth += desiredWidth;
-                });
+    const cols = dateGroups[date];
 
-                // Keep timeline and row-content in sync for horizontal scrolling
-                const timelineHeader = ganttChartEl.querySelector('.gantt-timeline-header');
-                const rowContents = ganttChartEl.querySelectorAll('.gantt-row-content');
-                if (timelineHeader) timelineHeader.style.minWidth = totalTimelineWidth + 'px';
-                rowContents.forEach(rc => rc.style.minWidth = totalTimelineWidth + 'px');
+    // Find maximum bars in this date column
+    let maxBars = 0;
 
-            } catch (err) {
-                console.debug('adjustGanttDayCellColumns error', err);
+    cols.forEach(dc => {
+        const cell = dc.querySelector(".day-cell");
+        if (!cell) return;
+
+        const barCount = cell.querySelectorAll(".gantt-bar").length;
+        maxBars = Math.max(maxBars, barCount);
+    });
+
+    // Determine grid layout
+    let gridColumns = 1;
+    if (maxBars <= 2) gridColumns = 2;
+    else if (maxBars <= 4) gridColumns = 2;
+    else if (maxBars <= 8) gridColumns = 4;
+    else gridColumns = 4;
+
+    cols.forEach(dc => {
+        const cell = dc.querySelector(".day-cell");
+        if (cell) {
+            cell.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
+        }
+    });
+
+    // Calculate column width
+    const barMinWidth = 105;
+    const gap = 3;
+
+    let columnWidth;
+
+    if (maxBars === 0) {
+        columnWidth = 245;
+    } else {
+        columnWidth = Math.min(
+            Math.max(gridColumns * barMinWidth + (gridColumns - 1) * gap, 150),
+            760
+        );
+    }
+
+    columnWidths.push({ date, width: columnWidth });
+    totalWidth += columnWidth;
+
+});
+
+// 🔴 Stretch chart if container is larger
+if (container) {
+
+    const containerWidth = container.clientWidth - sidebarWidth;
+
+    if (totalWidth < containerWidth) {
+
+        const extra = containerWidth - totalWidth;
+        const extraPerDay = Math.floor(extra / columnWidths.length);
+
+        columnWidths.forEach(c => {
+            c.width += extraPerDay;
+        });
+
+        // --- View-note edit handlers: Edit / Cancel / Save ---
+        $(document).on('click', '#editNoteBtn', function() {
+            $('#editNoteArea').show();
+            $('#viewNoteText').hide();
+            $('#editNoteBtn').addClass('d-none');
+            $('#saveNoteEditBtn').removeClass('d-none');
+            $('#cancelEditNoteBtn').removeClass('d-none');
+        });
+
+        $(document).on('click', '#cancelEditNoteBtn', function() {
+            const orig = $('#viewNoteModal').data('orig-note') || '';
+            const origType = $('#viewNoteModal').data('orig-type') || '';
+            $('#editNoteText').val(orig);
+            $('#editNoteType').val(origType);
+            $('#editNoteArea').hide();
+            $('#viewNoteText').show();
+            $('#editNoteBtn').removeClass('d-none');
+            $('#saveNoteEditBtn').addClass('d-none');
+            $('#cancelEditNoteBtn').addClass('d-none');
+        });
+
+        $(document).on('click', '#saveNoteEditBtn', function(e) {
+            e.preventDefault();
+            const btn = $(this);
+            // prevent duplicate submissions across multiple handlers
+            if (btn.data('saving')) return;
+            btn.data('saving', true);
+
+            const shiftId = $('#shiftId').val() || $('#deleteNoteBtn').data('shift-id');
+            if (!shiftId) {
+                btn.data('saving', false);
+                return;
             }
+            const note = $('#editNoteText').val();
+            const note_type = $('#editNoteType').val();
+
+            btn.prop('disabled', true).text('Saving...');
+
+            $.ajax({
+                url: `/shift-dates/${shiftId}/note`,
+                type: 'POST',
+                data: {
+                    _token: $('meta[name="csrf-token"]').attr('content'),
+                    note: note,
+                    note_type: note_type
+                },
+                success: function(resp) {
+                    // resp.note may be a string or an object {note: 'text', ...}
+                    let updatedNote;
+                    if (resp && resp.note) {
+                        updatedNote = (typeof resp.note === 'object') ? (resp.note.note || '') : resp.note;
+                    } else {
+                        updatedNote = note;
+                    }
+                    const updatedType = (resp && resp.note_type) ? resp.note_type : note_type;
+
+                    $('#viewNoteText').text(updatedNote).show();
+                    $('#viewNoteType').text(updatedType);
+                    $('#editNoteArea').hide();
+                    $('#editNoteBtn').removeClass('d-none');
+                    $('#saveNoteEditBtn').addClass('d-none');
+                    $('#cancelEditNoteBtn').addClass('d-none');
+                    $('#viewNoteModal').data('orig-note', updatedNote);
+                    $('#viewNoteModal').data('orig-type', updatedType);
+                    try { showToast('Note saved!', 'success', 4000); } catch (e) {}
+
+                    // pass normalized note object to refreshShiftBar
+                    if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, { id: (resp && resp.id) ? resp.id : null, note: updatedNote });
+                },
+                error: function(xhr) {
+                    try { showToast('Error saving note','error',5000); } catch (e) {}
+                    console.error(xhr.responseText);
+                },
+                complete: function() {
+                    btn.prop('disabled', false).text('Save');
+                    btn.data('saving', false);
+                }
+            });
+        });
+
+        totalWidth = containerWidth;
+    }
+}
+
+// Apply widths
+columnWidths.forEach(col => {
+
+    const cols = dateGroups[col.date];
+
+    cols.forEach(dc => {
+        dc.style.width = col.width + "px";
+        dc.style.minWidth = col.width + "px";
+        dc.style.flex = "0 0 " + col.width + "px";
+    });
+
+    const headerEl = ganttChartEl.querySelector(`.day-header[data-date="${col.date}"]`);
+
+    if (headerEl) {
+        headerEl.style.width = col.width + "px";
+        headerEl.style.minWidth = col.width + "px";
+        headerEl.style.flex = "0 0 " + col.width + "px";
+    }
+
+});
+
+// Update timeline
+const header = ganttChartEl.querySelector(".gantt-timeline-header");
+const rows = ganttChartEl.querySelectorAll(".gantt-row-content");
+
+if (header) {
+    header.style.width = totalWidth + "px";
+    header.style.minWidth = totalWidth + "px";
+    header.style.flex = "0 0 " + totalWidth + "px";
+    header.style.display = "flex";
+}
+
+rows.forEach(r => {
+    r.style.width = totalWidth + "px";
+    r.style.minWidth = totalWidth + "px";
+    r.style.flex = "0 0 " + totalWidth + "px";
+    r.style.display = "flex";
+});
+
+// Force chart stretch
+ganttChartEl.style.width = "100%";
+
+
+}
+
+        /**
+         * Alternative layout function that also groups by date
+         */
+
+
+        /**
+         * Fit week to screen width (equal distribution)
+         */
+         function fitWeekToScreen() {
+
+const container = document.querySelector('.gantt-container');
+const timeline = document.querySelector('.gantt-timeline-header');
+const days = document.querySelectorAll('.day-column');
+const headers = document.querySelectorAll('.day-header');
+
+if (!container || !days.length) return;
+
+const containerWidth = container.clientWidth - 200;
+
+const dayWidth = Math.floor(containerWidth / days.length);
+const minDayWidth = 110;
+
+const finalDayWidth = Math.max(dayWidth, minDayWidth);
+
+days.forEach(day => {
+
+    day.style.width = finalDayWidth + "px";
+    day.style.minWidth = finalDayWidth + "px";
+    day.style.flex = "0 0 " + finalDayWidth + "px";
+
+});
+
+headers.forEach(header => {
+
+    header.style.width = finalDayWidth + "px";
+    header.style.minWidth = finalDayWidth + "px";
+    header.style.flex = "0 0 " + finalDayWidth + "px";
+
+});
+
+const totalWidth = finalDayWidth * days.length;
+
+if (timeline) {
+
+    timeline.style.width = totalWidth + "px";
+    timeline.style.minWidth = totalWidth + "px";
+    timeline.style.flex = "0 0 " + totalWidth + "px";
+    timeline.style.display = "flex";
+
+}
+}
+
+        /**
+         * Simple per-cell grid adjustment (kept for compatibility)
+         */
+        function adjustDayCells() {
+            document.querySelectorAll('.day-cell').forEach(cell => {
+                const shifts = cell.querySelectorAll('.gantt-bar').length;
+                let columns = 1;
+                if (shifts === 2) columns = 2;
+                else if (shifts <= 4) columns = 2;
+                else columns = 4;
+                cell.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+            });
         }
 
-        // Debounced resize handler
-        (function() {
-            let t;
-            window.addEventListener('resize', function() {
-                clearTimeout(t);
-                t = setTimeout(adjustGanttDayCellColumns, 120);
-            });
+        // Initialize on DOM ready
+        document.addEventListener("DOMContentLoaded", () => {
+            setTimeout(() => {
+                fitWeekToScreen();
+                adjustGanttDayCellColumns();
+            }, 100);
 
-            // Observe DOM changes inside ganttChart (bars added/removed) and adjust
+            setTimeout(() => {
+                fitWeekToScreen();
+                adjustGanttDayCellColumns();
+            }, 500);
+        });
+
+        // Debounced resize handler
+        let resizeTimer;
+        window.addEventListener("resize", () => {
+            clearTimeout(resizeTimer);
+            resizeTimer = setTimeout(() => {
+                fitWeekToScreen();
+                adjustGanttDayCellColumns();
+            }, 150);
+        });
+
+        // MutationObserver for dynamic content changes
+        (function() {
             const ganttEl = document.getElementById('ganttChart');
             if (ganttEl && window.MutationObserver) {
-                const mo = new MutationObserver(function() {
+                const mo = new MutationObserver(() => {
                     adjustGanttDayCellColumns();
-                    // ensure any collapse buttons are removed
-                    try { $('.gantt-cell-more-btn').remove(); } catch(e) {}
+                    // Clean up any collapse buttons
+                    try {
+                        $('.gantt-cell-more-btn').remove();
+                    } catch (e) {}
                 });
-                mo.observe(ganttEl, { childList: true, subtree: true });
+                mo.observe(ganttEl, {
+                    childList: true,
+                    subtree: true
+                });
             }
-
-            // Ensure adjustments run after initial load and when DOM ready
-            document.addEventListener('DOMContentLoaded', function() {
-                // remove old collapse handlers/buttons if present
-                try {
-                    $(document).off('click', '.gantt-cell-more-btn');
-                    $('.gantt-cell-more-btn').remove();
-                    $('.gantt-bar-collapsed').removeClass('gantt-bar-collapsed').show();
-                } catch (e) {}
-                setTimeout(adjustGanttDayCellColumns, 50);
-            });
         })();
     </script>
 
@@ -1037,68 +1290,71 @@
         document.addEventListener('DOMContentLoaded', function() {
 
 
-                                    // bind specifically to the Multi-Edit modal's controls to avoid
-                                    // collisions with other modals that reuse the same IDs
-                                    const modal = document.getElementById('multiEditModal');
-                        if (!modal) return;
+            // bind specifically to the Multi-Edit modal's controls to avoid
+            // collisions with other modals that reuse the same IDs
+            const modal = document.getElementById('multiEditModal');
+            if (!modal) return;
 
-                        const staffSelect = modal.querySelector('#staff_id');
-                        const subSelect = modal.querySelector('#subcontractor');
+            const staffSelect = modal.querySelector('#staff_id');
+            const subSelect = modal.querySelector('#subcontractor');
 
-                        // global helper so delegated listeners work even if elements are initialised later
-                        window.fetchSubcontractorsForModal = window.fetchSubcontractorsForModal || function(modalEl, userId) {
-                            try {
-                                console.log('multi-edit: fetchSubcontractorsForModal', userId);
-                                if (!modalEl) return;
-                                const sub = modalEl.querySelector('#subcontractor');
-                                if (!sub) return;
-                                // reset
-                                sub.innerHTML = '<option value="">--choose--</option>';
-                                if (!userId) return;
+            // global helper so delegated listeners work even if elements are initialised later
+            window.fetchSubcontractorsForModal = window.fetchSubcontractorsForModal || function(modalEl, userId) {
+                try {
+                    console.log('multi-edit: fetchSubcontractorsForModal', userId);
+                    if (!modalEl) return;
+                    const sub = modalEl.querySelector('#subcontractor');
+                    if (!sub) return;
+                    // reset
+                    sub.innerHTML = '<option value="">--choose--</option>';
+                    if (!userId) return;
 
-                                fetch(`/subcontractors/for-employee/${userId}`)
-                                    .then(function (res) { return res.json(); })
-                                    .then(function (json) {
-                                        const rows = (json && json.data) ? json.data : [];
-                                        rows.forEach(function (r) {
-                                            const opt = document.createElement('option');
-                                            opt.value = r.id ?? r.user_id ?? '';
-                                            const name = (r.first_name ?? r.company_name ?? '') + (r.last_name ? ' ' + r.last_name : '');
-                                            opt.textContent = name || (r.email ?? '');
-                                            sub.appendChild(opt);
-                                        });
+                    fetch(`/subcontractors/for-employee/${userId}`)
+                        .then(function(res) {
+                            return res.json();
+                        })
+                        .then(function(json) {
+                            const rows = (json && json.data) ? json.data : [];
+                            rows.forEach(function(r) {
+                                const opt = document.createElement('option');
+                                opt.value = r.id ?? r.user_id ?? '';
+                                const name = (r.first_name ?? r.company_name ?? '') + (r.last_name ?
+                                    ' ' + r.last_name : '');
+                                opt.textContent = name || (r.email ?? '');
+                                sub.appendChild(opt);
+                            });
 
-                                        if (window.jQuery && jQuery(sub).data('select2')) {
-                                            jQuery(sub).trigger('change');
-                                        }
-                                    })
-                                    .catch(function (err) {
-                                        console.error('Failed to load subcontractors for employee', err);
-                                    });
-                            } catch (e) {
-                                console.error('fetchSubcontractorsForModal error', e);
+                            if (window.jQuery && jQuery(sub).data('select2')) {
+                                jQuery(sub).trigger('change');
                             }
-                        };
-
-                        // Delegated native change listener (catches dynamic elements)
-                        document.addEventListener('change', function(e) {
-                            const el = e.target;
-                            if (!el) return;
-                            if (el.id === 'staff_id') {
-                                const m = el.closest('#multiEditModal');
-                                if (m) window.fetchSubcontractorsForModal(m, el.value);
-                            }
+                        })
+                        .catch(function(err) {
+                            console.error('Failed to load subcontractors for employee', err);
                         });
+                } catch (e) {
+                    console.error('fetchSubcontractorsForModal error', e);
+                }
+            };
 
-                        // Delegated Select2 listener via jQuery
-                        try {
-                            if (window.jQuery) {
-                                jQuery(document).on('select2:select', '#multiEditModal #staff_id', function() {
-                                    const m = jQuery(this).closest('#multiEditModal')[0];
-                                    window.fetchSubcontractorsForModal(m, jQuery(this).val());
-                                });
-                            }
-                        } catch (e) {}
+            // Delegated native change listener (catches dynamic elements)
+            document.addEventListener('change', function(e) {
+                const el = e.target;
+                if (!el) return;
+                if (el.id === 'staff_id') {
+                    const m = el.closest('#multiEditModal');
+                    if (m) window.fetchSubcontractorsForModal(m, el.value);
+                }
+            });
+
+            // Delegated Select2 listener via jQuery
+            try {
+                if (window.jQuery) {
+                    jQuery(document).on('select2:select', '#multiEditModal #staff_id', function() {
+                        const m = jQuery(this).closest('#multiEditModal')[0];
+                        window.fetchSubcontractorsForModal(m, jQuery(this).val());
+                    });
+                }
+            } catch (e) {}
 
             // Persist current filters so background refreshes don't reset user's view
             window._ganttCurrentFilters = window._ganttCurrentFilters || {};
@@ -1322,18 +1578,33 @@
                                         location.reload();
                                     },
                                     error: function(err) {
-                                        console.error('Override failed:', err);
-                                        let msg = 'Failed to override shift. Try again.';
+                                        console.error('Override failed:',
+                                            err);
+                                        let msg =
+                                            'Failed to override shift. Try again.';
                                         try {
                                             if (err && err.responseJSON) {
-                                                if (err.responseJSON.error) msg = err.responseJSON.error;
-                                                else if (err.responseJSON.message) msg = err.responseJSON.message;
-                                                else if (typeof err.responseJSON === 'string') msg = err.responseJSON;
-                                            } else if (err && err.responseText) {
+                                                if (err.responseJSON.error)
+                                                    msg = err.responseJSON
+                                                    .error;
+                                                else if (err.responseJSON
+                                                    .message) msg = err
+                                                    .responseJSON.message;
+                                                else if (typeof err
+                                                    .responseJSON ===
+                                                    'string') msg = err
+                                                    .responseJSON;
+                                            } else if (err && err
+                                                .responseText) {
                                                 try {
-                                                    const parsed = JSON.parse(err.responseText);
-                                                    if (parsed.error) msg = parsed.error;
-                                                    else if (parsed.message) msg = parsed.message;
+                                                    const parsed = JSON
+                                                        .parse(err
+                                                            .responseText);
+                                                    if (parsed.error) msg =
+                                                        parsed.error;
+                                                    else if (parsed.message)
+                                                        msg = parsed
+                                                        .message;
                                                 } catch (e) {
                                                     msg = err.responseText;
                                                 }
@@ -1343,10 +1614,15 @@
                                         }
                                         showToast(msg, 'error', 7000);
 
-                                        if (err && err.responseJSON && err.responseJSON.trace) {
-                                            console.debug('Override trace:', err.responseJSON.trace);
-                                        } else if (err && err.responseText) {
-                                            console.debug('Override responseText:', err.responseText);
+                                        if (err && err.responseJSON && err
+                                            .responseJSON.trace) {
+                                            console.debug('Override trace:',
+                                                err.responseJSON.trace);
+                                        } else if (err && err
+                                            .responseText) {
+                                            console.debug(
+                                                'Override responseText:',
+                                                err.responseText);
                                         }
                                     },
                                     complete: function() {
@@ -1513,23 +1789,28 @@
                     const shiftStaffId = shift.staff_id || shift.staffId || shift.staff || null;
                     const shiftClientId = shift.client_id || shift.clientId || shift.client || null;
                     const shiftSiteId = shift.site_id || shift.siteId || shift.site || null;
-                    const shiftStatus = (typeof shift.status !== 'undefined') ? shift.status : (shift.state || null);
-                    const shiftStartRaw = shift.start_date || shift.shift_date || shift.startDate || shift.start || null;
+                    const shiftStatus = (typeof shift.status !== 'undefined') ? shift.status : (shift
+                        .state || null);
+                    const shiftStartRaw = shift.start_date || shift.shift_date || shift.startDate || shift
+                        .start || null;
 
                     if (filters.staff && parseInt(shiftStaffId, 10) !== parseInt(filters.staff, 10))
                         return false;
 
                     if (filters.client_id) {
-                        if (shiftClientId === null || parseInt(shiftClientId, 10) !== parseInt(filters.client_id, 10))
+                        if (shiftClientId === null || parseInt(shiftClientId, 10) !== parseInt(filters
+                                .client_id, 10))
                             return false;
                     }
 
                     if (filters.site) {
-                        if (shiftSiteId === null || parseInt(shiftSiteId, 10) !== parseInt(filters.site, 10))
+                        if (shiftSiteId === null || parseInt(shiftSiteId, 10) !== parseInt(filters.site,
+                                10))
                             return false;
                     }
 
-                    if (filters.status && (shiftStatus === null || parseInt(shiftStatus, 10) !== parseInt(filters.status, 10)))
+                    if (filters.status && (shiftStatus === null || parseInt(shiftStatus, 10) !== parseInt(
+                            filters.status, 10)))
                         return false;
 
                     const shiftStart = shiftStartRaw ? new Date(shiftStartRaw) : null;
@@ -1577,7 +1858,8 @@
                 }
 
                 try {
-                    const activeButton = safeView === 'day' ? '#viewDayBtn' : (safeView === 'week' ? '#viewWeekBtn' : '#viewMonthBtn');
+                    const activeButton = safeView === 'day' ? '#viewDayBtn' : (safeView === 'week' ?
+                        '#viewWeekBtn' : '#viewMonthBtn');
                     setActiveGanttView(activeButton);
                 } catch (err) {}
             }
@@ -1623,7 +1905,8 @@
                     params.delete('ganttDate');
                 }
 
-                const nextUrl = `${url.pathname}${params.toString() ? `?${params.toString()}` : ''}${url.hash || ''}`;
+                const nextUrl =
+                    `${url.pathname}${params.toString() ? `?${params.toString()}` : ''}${url.hash || ''}`;
                 window.history.replaceState({}, '', nextUrl);
             }
 
@@ -1668,7 +1951,9 @@
             }, 150));
 
             // Checkbox spacing is now handled by flex layout; no padding override needed.
-            function getBarLeftPadding() { return ''; }
+            function getBarLeftPadding() {
+                return '';
+            }
 
             $('#multiSelectBtn').on('click', function() {
                 selectionMode = !selectionMode;
@@ -1704,7 +1989,8 @@
                 if (ganttView === 'day') {
                     // move one calendar day and normalise to start/end of that day
                     currentWeekStart.setDate(currentWeekStart.getDate() - 1);
-                    currentWeekStart = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate());
+                    currentWeekStart = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(),
+                        currentWeekStart.getDate());
                     currentWeekEnd = new Date(currentWeekStart);
                     currentWeekEnd.setHours(23, 59, 59, 999);
                 } else if (ganttView === 'week') {
@@ -1723,7 +2009,8 @@
                 if (ganttView === 'day') {
                     // move one calendar day and normalise to start/end of that day
                     currentWeekStart.setDate(currentWeekStart.getDate() + 1);
-                    currentWeekStart = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate());
+                    currentWeekStart = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(),
+                        currentWeekStart.getDate());
                     currentWeekEnd = new Date(currentWeekStart);
                     currentWeekEnd.setHours(23, 59, 59, 999);
                 } else if (ganttView === 'week') {
@@ -1805,17 +2092,28 @@
                             const out = Object.assign({}, s);
 
                             // client id: prefer top-level, then embedded shift.client_id, then shift.site.client_id
-                            out.client_id = out.client_id || out.clientId || (out.shift && out.shift.client_id) || (out.shift && out.shift.client && out.shift.client.id) || (out.shift && out.shift.site && out.shift.site.client_id) || (out.client && out.client.id) || out.client || null;
+                            out.client_id = out.client_id || out.clientId || (out.shift && out
+                                    .shift.client_id) || (out.shift && out.shift.client && out
+                                    .shift.client.id) || (out.shift && out.shift.site && out
+                                    .shift.site.client_id) || (out.client && out.client.id) ||
+                                out.client || null;
 
                             // site id/name: prefer top-level, then embedded shift.site_id / shift.site
-                            out.site_id = out.site_id || out.siteId || (out.shift && out.shift.site_id) || (out.shift && out.shift.site && out.shift.site.id) || (out.site && out.site.id) || out.site || null;
-                            out.site_name = out.site_name || out.siteName || (out.shift && out.shift.site && (out.shift.site.site_name || out.shift.site.name)) || out.site_name || out.siteName || null;
+                            out.site_id = out.site_id || out.siteId || (out.shift && out.shift
+                                .site_id) || (out.shift && out.shift.site && out.shift.site
+                                .id) || (out.site && out.site.id) || out.site || null;
+                            out.site_name = out.site_name || out.siteName || (out.shift && out
+                                .shift.site && (out.shift.site.site_name || out.shift.site
+                                    .name)) || out.site_name || out.siteName || null;
 
                             // start date: prefer several possible names
-                            out.start_date = out.start_date || out.shift_date || out.shiftStart || out.startDate || (out.shift && out.shift.shift_date) || (out.shift && out.shift.start_date) || null;
+                            out.start_date = out.start_date || out.shift_date || out
+                                .shiftStart || out.startDate || (out.shift && out.shift
+                                    .shift_date) || (out.shift && out.shift.start_date) || null;
 
                             // client display name
-                            out.client_name = out.client_name || out.clientName || (out.shift && out.shift.client_name) || out.client_name || null;
+                            out.client_name = out.client_name || out.clientName || (out.shift &&
+                                out.shift.client_name) || out.client_name || null;
 
                             return out;
                         });
@@ -1839,7 +2137,8 @@
                     return;
                 }
 
-                const activeFilters = (filters !== null && typeof filters === 'object') ? filters : (window._ganttCurrentFilters || {});
+                const activeFilters = (filters !== null && typeof filters === 'object') ? filters : (window
+                    ._ganttCurrentFilters || {});
                 const shiftsToRender = filteredData || applyFiltersToShifts(allShiftsData, activeFilters);
 
                 if (shiftsToRender.length === 0) {
@@ -1849,17 +2148,19 @@
 
                 let startDate, endDate;
                 if (activeFilters.from_shift || activeFilters.to_shift) {
-                    startDate = activeFilters.from_shift ? new Date(activeFilters.from_shift) : new Date(Math.min(...
+                    startDate = activeFilters.from_shift ? new Date(activeFilters.from_shift) : new Date(Math.min(
+                        ...
                         shiftsToRender.map(s => new Date(s.start_date))));
-                    endDate = activeFilters.to_shift ? new Date(activeFilters.to_shift) : new Date(Math.max(...shiftsToRender
+                    endDate = activeFilters.to_shift ? new Date(activeFilters.to_shift) : new Date(Math.max(...
+                        shiftsToRender
                         .map(s => new Date(s.start_date))));
                 } else {
                     if (ganttView === 'day') {
                         // ensure full-day range so shifts with 00:00 timestamps are included
                         startDate = new Date(currentWeekStart);
-                        startDate.setHours(0,0,0,0);
+                        startDate.setHours(0, 0, 0, 0);
                         endDate = new Date(currentWeekStart);
-                        endDate.setHours(23,59,59,999);
+                        endDate.setHours(23, 59, 59, 999);
                     } else if (ganttView === 'week') {
                         startDate = new Date(currentWeekStart);
                         endDate = new Date(currentWeekStart);
@@ -1874,278 +2175,296 @@
 
                 renderGanttChart(shiftsToRender, startDate, endDate);
                 updateWeekDisplay();
-                  filterGanttChart($('#ganttSearch').val())
+                filterGanttChart($('#ganttSearch').val())
             }
 
-        function renderGanttChart(data, startDate, endDate) {
-    const sites = {};
-    
-            // Use ISO date strings (YYYY-MM-DD) for comparisons to avoid timezone pitfalls
-            const startISO = formatDate(new Date(startDate));
-            const endISO = formatDate(new Date(endDate));
+            function renderGanttChart(data, startDate, endDate) {
+                const sites = {};
 
-            // Filter shifts that fall within the date range
-            data.forEach(shift => {
-                const shiftDateStr = formatDate(new Date(shift.start_date));
+                // Use ISO date strings (YYYY-MM-DD) for comparisons to avoid timezone pitfalls
+                const startISO = formatDate(new Date(startDate));
+                const endISO = formatDate(new Date(endDate));
 
-                // Only process shifts within the date range (string compare of ISO dates is safe)
-                if (shiftDateStr >= startISO && shiftDateStr <= endISO) {
-                    if (!sites[shift.site_id]) sites[shift.site_id] = {
-                        id: shift.site_id,
-                        name: shift.site_name,
-                        client_name: shift.client_name,
-                        shifts: []
-                    };
-                    sites[shift.site_id].shifts.push(shift);
+                // Filter shifts that fall within the date range
+                data.forEach(shift => {
+                    const shiftDateStr = formatDate(new Date(shift.start_date));
+
+                    // Only process shifts within the date range (string compare of ISO dates is safe)
+                    if (shiftDateStr >= startISO && shiftDateStr <= endISO) {
+                        if (!sites[shift.site_id]) sites[shift.site_id] = {
+                            id: shift.site_id,
+                            name: shift.site_name,
+                            client_name: shift.client_name,
+                            shifts: []
+                        };
+                        sites[shift.site_id].shifts.push(shift);
+                    }
+                });
+
+                // If no sites have shifts in the date range, show empty chart
+                if (Object.keys(sites).length === 0) {
+                    $('#ganttChart').html(
+                        '<div class="alert alert-info text-center">No shifts found in the selected date range.</div>'
+                    );
+                    return;
                 }
-            });
 
-    // If no sites have shifts in the date range, show empty chart
-    if (Object.keys(sites).length === 0) {
-        $('#ganttChart').html('<div class="alert alert-info text-center">No shifts found in the selected date range.</div>');
-        return;
-    }
+                // After grouping shifts into sites, order by client so clients with the
+                // nearest upcoming shifts appear first. Within each client, sites are
+                // ordered by their nearest shift and shifts are ordered by start time.
+                function parseShiftDateTime(shift) {
+                    // Prefer backend-provided full datetime if available
+                    if (shift.start_datetime) {
+                        let s = String(shift.start_datetime);
+                        // Backend uses m-d-YTH:i:s (e.g. 10-31-2025T14:00:00). Convert to YYYY-MM-DD for reliable parsing.
+                        const m = s.match(/^(\d{2})-(\d{2})-(\d{4})T(.*)$/);
+                        if (m) s = `${m[3]}-${m[1]}-${m[2]}T${m[4]}`;
+                        const parsed = Date.parse(s);
+                        if (!isNaN(parsed)) return parsed;
+                    }
 
-    // After grouping shifts into sites, order by client so clients with the
-    // nearest upcoming shifts appear first. Within each client, sites are
-    // ordered by their nearest shift and shifts are ordered by start time.
-    function parseShiftDateTime(shift) {
-        // Prefer backend-provided full datetime if available
-        if (shift.start_datetime) {
-            let s = String(shift.start_datetime);
-            // Backend uses m-d-YTH:i:s (e.g. 10-31-2025T14:00:00). Convert to YYYY-MM-DD for reliable parsing.
-            const m = s.match(/^(\d{2})-(\d{2})-(\d{4})T(.*)$/);
-            if (m) s = `${m[3]}-${m[1]}-${m[2]}T${m[4]}`;
-            const parsed = Date.parse(s);
-            if (!isNaN(parsed)) return parsed;
-        }
+                    // Fallback: combine date + time fields
+                    const datePart = shift.start_date || shift.shift_date || shift.shiftDate || '';
+                    const timePart = shift.start_time || shift.startTime || shift.start || '00:00';
+                    if (!datePart) return Infinity;
 
-        // Fallback: combine date + time fields
-        const datePart = shift.start_date || shift.shift_date || shift.shiftDate || '';
-        const timePart = shift.start_time || shift.startTime || shift.start || '00:00';
-        if (!datePart) return Infinity;
+                    let d = String(datePart);
+                    // Normalize MM-DD-YYYY -> YYYY-MM-DD if necessary
+                    const m2 = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                    if (m2) d = `${m2[3]}-${m2[1]}-${m2[2]}`;
 
-        let d = String(datePart);
-        // Normalize MM-DD-YYYY -> YYYY-MM-DD if necessary
-        const m2 = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-        if (m2) d = `${m2[3]}-${m2[1]}-${m2[2]}`;
+                    const dt = new Date(d + ' ' + timePart);
+                    const t = dt.getTime();
+                    return isNaN(t) ? Infinity : t;
+                }
 
-        const dt = new Date(d + ' ' + timePart);
-        const t = dt.getTime();
-        return isNaN(t) ? Infinity : t;
-    }
+                // Sort shifts within each site by start datetime (keep this for cell placement)
+                Object.values(sites).forEach(site => {
+                    site.shifts.sort((a, b) => parseShiftDateTime(a) - parseShiftDateTime(b));
+                });
 
-    // Sort shifts within each site by start datetime (keep this for cell placement)
-    Object.values(sites).forEach(site => {
-        site.shifts.sort((a, b) => parseShiftDateTime(a) - parseShiftDateTime(b));
-    });
+                // Group sites by client - but only sites that have shifts in the range
+                const clients = {};
+                Object.values(sites).forEach(site => {
+                    // Skip sites with no shifts (shouldn't happen due to earlier filter, but just in case)
+                    if (site.shifts.length === 0) return;
 
-    // Group sites by client - but only sites that have shifts in the range
-    const clients = {};
-    Object.values(sites).forEach(site => {
-        // Skip sites with no shifts (shouldn't happen due to earlier filter, but just in case)
-        if (site.shifts.length === 0) return;
-        
-        // Determine a client key - prefer client_id from a shift (allow numeric 0), else fallback to client_name
-        const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0]
-                .client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId
-                ) : undefined;
-        const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ?
-            String(clientIdField) : (site.client_name || 'unknown_client');
-        if (!clients[clientKey]) clients[clientKey] = {
-            id: clientKey,
-            name: site.client_name || clientKey,
-            sites: []
-        };
-        // attach a reference to client_name for safety
-        site.client_name = site.client_name || clients[clientKey].name;
-        clients[clientKey].sites.push(site);
-    });
+                    // Determine a client key - prefer client_id from a shift (allow numeric 0), else fallback to client_name
+                    const clientIdField = (site.shifts && site.shifts.length) ? (typeof site.shifts[0]
+                        .client_id !== 'undefined' ? site.shifts[0].client_id : site.shifts[0].clientId
+                    ) : undefined;
+                    const clientKey = (typeof clientIdField !== 'undefined' && clientIdField !== null) ?
+                        String(clientIdField) : (site.client_name || 'unknown_client');
+                    if (!clients[clientKey]) clients[clientKey] = {
+                        id: clientKey,
+                        name: site.client_name || clientKey,
+                        sites: []
+                    };
+                    // attach a reference to client_name for safety
+                    site.client_name = site.client_name || clients[clientKey].name;
+                    clients[clientKey].sites.push(site);
+                });
 
-    // Compute newest created_at per site and per client, then sort clients by newest created_at (desc)
-    function parseCreatedAt(shift) {
-        const s = shift.created_at || shift.createdAt || shift.createdAtDate || null;
-        if (!s) return -Infinity;
-        const parsed = Date.parse(String(s));
-        return isNaN(parsed) ? -Infinity : parsed;
-    }
+                // Compute newest created_at per site and per client, then sort clients by newest created_at (desc)
+                function parseCreatedAt(shift) {
+                    const s = shift.created_at || shift.createdAt || shift.createdAtDate || null;
+                    if (!s) return -Infinity;
+                    const parsed = Date.parse(String(s));
+                    return isNaN(parsed) ? -Infinity : parsed;
+                }
 
-    Object.values(clients).forEach(client => {
-        client.sites.forEach(site => {
-            // compute site._latest as the maximum created_at across its shifts
-            let latest = -Infinity;
-            site.shifts.forEach(sh => {
-                const t = parseCreatedAt(sh);
-                if (t > latest) latest = t;
-            });
-            site._latest = latest;
-        });
-        // sort sites by newest created_at first
-        client.sites.sort((a, b) => b._latest - a._latest);
-        // client._latest is the newest time among its sites
-        client._latest = client.sites.length ? client.sites[0]._latest : -Infinity;
-    });
+                Object.values(clients).forEach(client => {
+                    client.sites.forEach(site => {
+                        // compute site._latest as the maximum created_at across its shifts
+                        let latest = -Infinity;
+                        site.shifts.forEach(sh => {
+                            const t = parseCreatedAt(sh);
+                            if (t > latest) latest = t;
+                        });
+                        site._latest = latest;
+                    });
+                    // sort sites by newest created_at first
+                    client.sites.sort((a, b) => b._latest - a._latest);
+                    // client._latest is the newest time among its sites
+                    client._latest = client.sites.length ? client.sites[0]._latest : -Infinity;
+                });
 
-    // Order clients by their newest created_at (newest first)
-    const orderedClients = Object.values(clients).sort((c1, c2) => c2._latest - c1._latest);
+                // Order clients by their newest created_at (newest first)
+                const orderedClients = Object.values(clients).sort((c1, c2) => c2._latest - c1._latest);
 
-    // Flatten ordered sites in client order
-    const orderedSites = [];
-    orderedClients.forEach(client => client.sites.forEach(site => orderedSites.push(site)));
+                // Flatten ordered sites in client order
+                const orderedSites = [];
+                orderedClients.forEach(client => client.sites.forEach(site => orderedSites.push(site)));
 
-    // Remove any sites that ended up with no shifts in the current date range
-    const filteredOrderedSites = orderedSites.filter(site => {
-        return site.shifts && site.shifts.length && site.shifts.some(sh => {
-            const d = formatDate(new Date(sh.start_date));
-            return d >= startISO && d <= endISO;
-        });
-    });
+                // Remove any sites that ended up with no shifts in the current date range
+                const filteredOrderedSites = orderedSites.filter(site => {
+                    return site.shifts && site.shifts.length && site.shifts.some(sh => {
+                        const d = formatDate(new Date(sh.start_date));
+                        return d >= startISO && d <= endISO;
+                    });
+                });
 
-    // Header
-    let headerHtml = `<div class="gantt-header">
+                // Header
+                let headerHtml = `<div class="gantt-header">
         <div class="gantt-sidebar-header">Client Name</div>
         <div class="gantt-sidebar-header">Site Name</div>
         <div class="gantt-timeline-header">`;
-    const currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-        const dateStr = formatDate(currentDate);
-        const dayName = currentDate.toLocaleDateString('en-US', {
-            weekday: 'short'
-        });
-        const dayNum = currentDate.getDate();
-        const monthName = currentDate.toLocaleDateString('en-US', {
-            month: 'short'
-        });
-        headerHtml +=
-            `<div class="day-header" data-date="${dateStr}">${dayName}<br>${monthName} ${dayNum}</div>`;
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    headerHtml += `</div></div>`;
+                const currentDate = new Date(startDate);
+                while (currentDate <= endDate) {
+                    const dateStr = formatDate(currentDate);
+                    const dayName = currentDate.toLocaleDateString('en-US', {
+                        weekday: 'short'
+                    });
+                    const dayNum = currentDate.getDate();
+                    const monthName = currentDate.toLocaleDateString('en-US', {
+                        month: 'short'
+                    });
+                    headerHtml +=
+                        `<div class="day-header" data-date="${dateStr}">${dayName}<br>${monthName} ${dayNum}</div>`;
+                    currentDate.setDate(currentDate.getDate() + 1);
+                }
+                headerHtml += `</div></div>`;
 
-    // Body
-    let bodyHtml = `<div class="gantt-body">`;
-    // Use filteredOrderedSites so rows with no shifts are not rendered
-    filteredOrderedSites.forEach(site => {
-        bodyHtml += `<div class="gantt-row" data-site-id="${site.id}">
+                // Body
+                let bodyHtml = `<div class="gantt-body">`;
+                // Use filteredOrderedSites so rows with no shifts are not rendered
+                filteredOrderedSites.forEach(site => {
+                    bodyHtml += `<div class="gantt-row" data-site-id="${site.id}">
             <div class="gantt-row-sidebar"><strong>${site.client_name}</strong></div>
             <div class="gantt-row-sidebar"><strong>${site.name}</strong> <small class="text-muted">${site.shifts.length} shift(s)</small></div>
             <div class="gantt-row-content">`;
-        const dayDate = new Date(startDate);
-        while (dayDate <= endDate) {
-            const dateStr = formatDate(dayDate);
-            bodyHtml += `<div class="day-column" data-date="${dateStr}">
+                    const dayDate = new Date(startDate);
+                    while (dayDate <= endDate) {
+                        const dateStr = formatDate(dayDate);
+                        bodyHtml += `<div class="day-column" data-date="${dateStr}">
                 <div class="day-cell" id="cell-${site.id}-${dateStr}"></div>
              </div>`;
-            dayDate.setDate(dayDate.getDate() + 1);
-        }
-        bodyHtml += `</div></div>`;
-    });
-    bodyHtml += `</div>`;
-
-    $('#ganttChart').html(headerHtml + bodyHtml);
-
-    $('.gantt-container').toggleClass('selection-mode', selectionMode);
-
-    $('#toggle-subcontractors-all').off('click').on('click', function() {
-        // Toggle subcontractor display idempotently: always restore original staff name,
-        // then append the shift-level subcontractor once when showing. Show the name
-        // only inside the `staff-name` element wrapped in brackets; keep the separate
-        // `.subcontractor-name` div hidden to avoid duplication.
-        const $btn = $(this);
-        const currentlyVisible = $btn.data('subs-visible') === true;
-        $('.gantt-bar').each(function() {
-            const $bar = $(this);
-            const orig = $bar.attr('data-orig-staff') || '';
-            let sub = $bar.attr('data-sub-name') || '';
-            const $staff = $bar.find('.staff-name').first();
-            if (!sub) {
-                // try id->name map
-                const sid = $bar.attr('data-sub-id');
-                if (sid && window._subcontractorMap && window._subcontractorMap[sid]) sub = window._subcontractorMap[sid];
-            }
-            if (!sub) return; // nothing to do
-
-            const cleanSub = String(sub).replace(/^\(|\)$/g, '').trim();
-            // Always restore the original (clean) staff name first to avoid cumulative appends
-            if (currentlyVisible) {
-                // Currently visible -> hide subcontractors (restore original text)
-                $staff.html(escapeHtml(orig || ''));
-                $bar.find('.subcontractor-name').hide();
-            } else {
-                // Showing subcontractors: place name in brackets on the staff line
-                if (cleanSub) {
-                    $staff.html(escapeHtml(orig || '') + ' <span class="subcontractor-inline">(' + escapeHtml(cleanSub) + ')</span>');
-                }
-                // ensure separate div is hidden to avoid duplication
-                $bar.find('.subcontractor-name').hide();
-            }
-        });
-        $btn.data('subs-visible', !currentlyVisible);
-        $btn.text(!currentlyVisible ? 'Hide Subcontractors' : 'Show Subcontractors');
-    });
-
-    // Place shifts only for sites that were rendered (those with shifts in range)
-    filteredOrderedSites.forEach(site => {
-        const shiftsByDate = {};
-        site.shifts.forEach(shift => {
-            const dateStr = formatDate(new Date(shift.start_date));
-            if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
-            shiftsByDate[dateStr].push(shift);
-        });
-
-        Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
-            const cell = $(`#cell-${site.id}-${dateStr}`);
-            if (!cell.length) {
-                // Debug: cell missing (row might not have been rendered for this site/date)
-                try { console.debug('renderGanttChart: missing cell for', site.id, dateStr); } catch (e) {}
-                return;
-            }
-
-            shifts.forEach((shift) => {
-                // Prefer backend-provided cleaned/raw staff name when available, otherwise fall back to client-side cleaning
-                const backendStaffRaw = shift.staff_name_raw || shift.staff_name || '';
-                const backendStaffClean = shift.staff_name_clean || shift.staff_name || '';
-                // compute parenthesised fallback only if needed
-                const parenthesisedMatches = (shift.staff_name || backendStaffRaw) ? ( (shift.staff_name || backendStaffRaw).match(/\([^)]*\)/g) ) : null;
-                const parenthesisedTag = (parenthesisedMatches && parenthesisedMatches.length) ? parenthesisedMatches[0] : '';
-
-                let displayStaff = backendStaffClean || '';
-                if (!displayStaff) {
-                    // client-side cleaning as fallback
-                    let tmp = backendStaffRaw || '';
-                    while (/\([^()]*\)/.test(tmp)) {
-                        tmp = tmp.replace(/\s*\([^()]*\)/g, '');
+                        dayDate.setDate(dayDate.getDate() + 1);
                     }
-                    displayStaff = tmp.replace(/\s+/g, ' ').trim();
-                }
+                    bodyHtml += `</div></div>`;
+                });
+                bodyHtml += `</div>`;
 
-                // Resolve subcontractor name: prefer backend-provided subcontractor_name, then subcontractor_id map, then parenthesised tag
-                const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
-                let subcontractorName = shift.subcontractor_name || shift.subcontractor || null;
-                if (!subcontractorName && subcontractorId && window._subcontractorMap && window._subcontractorMap[subcontractorId]) {
-                    subcontractorName = window._subcontractorMap[subcontractorId];
-                }
-                subcontractorName = subcontractorName || parenthesisedTag || '';
+                $('#ganttChart').html(headerHtml + bodyHtml);
 
-                // bar HTML: stacked rows (service, time, duration, staff)
-                const bar = $(`
+                $('.gantt-container').toggleClass('selection-mode', selectionMode);
+
+                $('#toggle-subcontractors-all').off('click').on('click', function() {
+                    // Toggle subcontractor display idempotently: always restore original staff name,
+                    // then append the shift-level subcontractor once when showing. Show the name
+                    // only inside the `staff-name` element wrapped in brackets; keep the separate
+                    // `.subcontractor-name` div hidden to avoid duplication.
+                    const $btn = $(this);
+                    const currentlyVisible = $btn.data('subs-visible') === true;
+                    $('.gantt-bar').each(function() {
+                        const $bar = $(this);
+                        const orig = $bar.attr('data-orig-staff') || '';
+                        let sub = $bar.attr('data-sub-name') || '';
+                        const $staff = $bar.find('.staff-name').first();
+                        if (!sub) {
+                            // try id->name map
+                            const sid = $bar.attr('data-sub-id');
+                            if (sid && window._subcontractorMap && window._subcontractorMap[sid])
+                                sub = window._subcontractorMap[sid];
+                        }
+                        if (!sub) return; // nothing to do
+
+                        const cleanSub = String(sub).replace(/^\(|\)$/g, '').trim();
+                        // Always restore the original (clean) staff name first to avoid cumulative appends
+                        if (currentlyVisible) {
+                            // Currently visible -> hide subcontractors (restore original text)
+                            $staff.html(escapeHtml(orig || ''));
+                            $bar.find('.subcontractor-name').hide();
+                        } else {
+                            // Showing subcontractors: place name in brackets on the staff line
+                            if (cleanSub) {
+                                $staff.html(escapeHtml(orig || '') +
+                                    ' <span class="subcontractor-inline">(' + escapeHtml(
+                                        cleanSub) + ')</span>');
+                            }
+                            // ensure separate div is hidden to avoid duplication
+                            $bar.find('.subcontractor-name').hide();
+                        }
+                    });
+                    $btn.data('subs-visible', !currentlyVisible);
+                    $btn.text(!currentlyVisible ? 'Hide Subcontractors' : 'Show Subcontractors');
+                });
+
+                // Place shifts only for sites that were rendered (those with shifts in range)
+                filteredOrderedSites.forEach(site => {
+                    const shiftsByDate = {};
+                    site.shifts.forEach(shift => {
+                        const dateStr = formatDate(new Date(shift.start_date));
+                        if (!shiftsByDate[dateStr]) shiftsByDate[dateStr] = [];
+                        shiftsByDate[dateStr].push(shift);
+                    });
+
+                    Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
+                        const cell = $(`#cell-${site.id}-${dateStr}`);
+                        if (!cell.length) {
+                            // Debug: cell missing (row might not have been rendered for this site/date)
+                            try {
+                                console.debug('renderGanttChart: missing cell for', site.id,
+                                    dateStr);
+                            } catch (e) {}
+                            return;
+                        }
+
+                        shifts.forEach((shift) => {
+                            // Prefer backend-provided cleaned/raw staff name when available, otherwise fall back to client-side cleaning
+                            const backendStaffRaw = shift.staff_name_raw || shift
+                                .staff_name || '';
+                            const backendStaffClean = shift.staff_name_clean || shift
+                                .staff_name || '';
+                            // compute parenthesised fallback only if needed
+                            const parenthesisedMatches = (shift.staff_name ||
+                                backendStaffRaw) ? ((shift.staff_name ||
+                                backendStaffRaw).match(/\([^)]*\)/g)) : null;
+                            const parenthesisedTag = (parenthesisedMatches &&
+                                    parenthesisedMatches.length) ? parenthesisedMatches[0] :
+                                '';
+
+                            let displayStaff = backendStaffClean || '';
+                            if (!displayStaff) {
+                                // client-side cleaning as fallback
+                                let tmp = backendStaffRaw || '';
+                                while (/\([^()]*\)/.test(tmp)) {
+                                    tmp = tmp.replace(/\s*\([^()]*\)/g, '');
+                                }
+                                displayStaff = tmp.replace(/\s+/g, ' ').trim();
+                            }
+
+                            // Resolve subcontractor name: prefer backend-provided subcontractor_name, then subcontractor_id map, then parenthesised tag
+                            const subcontractorId = shift.subcontractor_id || shift
+                                .subcontractorId || null;
+                            let subcontractorName = shift.subcontractor_name || shift
+                                .subcontractor || null;
+                            if (!subcontractorName && subcontractorId && window
+                                ._subcontractorMap && window._subcontractorMap[
+                                    subcontractorId]) {
+                                subcontractorName = window._subcontractorMap[
+                                    subcontractorId];
+                            }
+                            subcontractorName = subcontractorName || (subcontractorId ? parenthesisedTag : '');
+
+                            // bar HTML: stacked rows (service, time, duration, staff)
+                            const bar = $(`
                     <div class="gantt-bar shift-${shift.color_class}" data-shift-id="${shift.id}"
                         title="${escapeHtml(shift.title || '')} (${escapeHtml(shift.formatted_time || '')}) - ${escapeHtml(displayStaff || '')}">
                         <input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" aria-label="Select shift ${shift.id}">
                         <div class="bar-content">
                             ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
-                            <div class="time-text" style="display:flex;align-items:center;gap:3px;">
+                            <div class="time-text">
                                 <span>${escapeHtml(shift.formatted_time || '')}</span>
+                               <div>
                                 ${shift.note 
-                                    ? `<span class="view-note-icon" data-shift-id="${shift.id}" title="View note">📋</span>` 
-                                    : `<span class="note-icon" data-shift-id="${shift.id}" title="Add note">✏️</span>`
+                                    ? `<span class="view-note-icon" data-shift-id="${shift.id}" title="View note"><i class="fa-solid fa-copy"></i></span>` 
+                                    : `<span class="note-icon" data-shift-id="${shift.id}" title="Add note"><i class="fa-solid fa-square-plus"></i></span>`
                                 }
                                 <span class="edit-shift-icon" data-shift-id="${shift.id}" title="Edit shift">
-                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
-                                        <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
-                                    </svg>
+                                   <i class="fa-solid fa-pen-to-square"></i>
                                 </span>
+                                </div>
                             </div>
                             <div class="staff-name">${escapeHtml(displayStaff)}</div>
                             ${subcontractorName ? `<div class="subcontractor-name" style="display:none;">${escapeHtml(subcontractorName)}</div>` : ''}
@@ -2153,279 +2472,367 @@
 
                 `);
 
-                const idStr = String(shift.id);
-                if (selectedShiftIds.has(idStr)) bar.addClass('selected');
+                            const idStr = String(shift.id);
+                            if (selectedShiftIds.has(idStr)) bar.addClass('selected');
 
-                // persist original staff and resolved subcontractor on the bar
-                try {
-                    bar.attr('data-orig-staff', displayStaff || '');
-                    bar.attr('data-sub-name', subcontractorName || '');
-                    // keep subcontractor id too so client-side map lookup can work when name is missing
-                    if (subcontractorId) bar.attr('data-sub-id', subcontractorId);
-
-                    // bind edit icon handler for this bar
-                    try {
-                        bar.find('.edit-shift-icon').on('click', function(e) {
-                            e.stopPropagation();
-                            const sid = $(this).data('shift-id');
-                            $('#shift_id').val(sid);
-                            try { $('#edit_shift-form')[0].reset(); } catch (err) {}
-                            const editUrls = [
-                                `${baseUrl}/editshift/${sid}`,
-                                `${baseUrl}/shift-dates/${sid}/edit`,
-                                `${baseUrl}/shifts/${sid}`
-                            ];
-                            // Show modal immediately with a non-destructive spinner overlay to improve perceived responsiveness.
+                            // persist original staff and resolved subcontractor on the bar
                             try {
-                                if ($('#edit_shift .modal-spinner').length === 0) {
-                                    $('#edit_shift .modal-content').append('<div class="modal-spinner" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:1051;"><div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading...</div></div></div>');
-                                }
-                                $('#edit_shift').modal('show');
+                                bar.attr('data-orig-staff', displayStaff || '');
+                                if (subcontractorName) bar.attr('data-sub-name', subcontractorName || '');
+                                // keep subcontractor id too so client-side map lookup can work when name is missing
+                                if (subcontractorId) bar.attr('data-sub-id',
+                                    subcontractorId);
+
+                                // bind edit icon handler for this bar
+                                try {
+                                    bar.find('.edit-shift-icon').on('click', function(e) {
+                                        e.stopPropagation();
+                                        const sid = $(this).data('shift-id');
+                                        $('#shift_id').val(sid);
+                                        try {
+                                            $('#edit_shift-form')[0].reset();
+                                        } catch (err) {}
+                                        const editUrls = [
+                                            `${baseUrl}/editshift/${sid}`,
+                                            `${baseUrl}/shift-dates/${sid}/edit`,
+                                            `${baseUrl}/shifts/${sid}`
+                                        ];
+                                        // Show modal immediately with a non-destructive spinner overlay to improve perceived responsiveness.
+                                        try {
+                                            if ($('#edit_shift .modal-spinner')
+                                                .length === 0) {
+                                                $('#edit_shift .modal-content')
+                                                    .append(
+                                                        '<div class="modal-spinner" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:1051;"><div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading...</div></div></div>'
+                                                    );
+                                            }
+                                            $('#edit_shift').modal('show');
+                                        } catch (e) {}
+
+                                        const populate = function(data) {
+                                            try {
+                                                if (data.shift_date) $(
+                                                    '#shift_date').val(data
+                                                    .shift_date);
+                                                if (data.start_time) $(
+                                                    '#start_shift').val(data
+                                                    .start_time);
+                                                if (data.end_time) $(
+                                                    '#end_shift').val(data
+                                                    .end_time);
+                                                if (data.guard_rate) $(
+                                                    '#guard_rate').val(data
+                                                    .guard_rate);
+                                                if (data.book_on) $('#book_on')
+                                                    .val(data.book_on);
+                                                if (data.book_off) $(
+                                                    '#book_off').val(data
+                                                    .book_off);
+                                                if (typeof data.status_id !==
+                                                    'undefined') $('#status_id')
+                                                    .val(data.status_id);
+                                                if (typeof data.staff_id !==
+                                                    'undefined') $('#staff_id')
+                                                    .val(data.staff_id).trigger(
+                                                        'change');
+                                                if (typeof data
+                                                    .subcontractor_id !==
+                                                    'undefined') $(
+                                                        '#subcontractor').val(
+                                                        data.subcontractor_id)
+                                                    .trigger('change');
+                                            } catch (err) {
+                                                console.debug(err);
+                                            }
+                                            try {
+                                                $('#edit_shift .modal-spinner')
+                                                    .remove();
+                                            } catch (e) {}
+                                            $('#edit_shift').modal('show');
+                                        };
+
+                                        (function tryNext(i) {
+                                            if (i >= editUrls.length) {
+                                                try {
+                                                    $('#edit_shift .modal-spinner')
+                                                        .remove();
+                                                } catch (e) {}
+                                                $('#edit_shift').modal('show');
+                                                return;
+                                            }
+                                            $.get(editUrls[i]).done(function(
+                                                resp) {
+                                                if (resp &&
+                                                    typeof resp ===
+                                                    'object') populate(
+                                                    resp);
+                                                else if (typeof resp ===
+                                                    'string' && resp
+                                                    .indexOf(
+                                                        '<form') !== -1
+                                                ) {
+                                                    try {
+                                                        $('#edit_shift')
+                                                            .replaceWith(
+                                                                resp);
+                                                    } catch (e) {}
+                                                    try {
+                                                        $('#edit_shift .modal-spinner')
+                                                            .remove();
+                                                    } catch (e) {}
+                                                    $('#edit_shift')
+                                                        .modal('show');
+                                                } else {
+                                                    try {
+                                                        const parsed =
+                                                            JSON.parse(
+                                                                resp);
+                                                        populate(
+                                                            parsed);
+                                                    } catch (e) {
+                                                        try {
+                                                            $('#edit_shift .modal-spinner')
+                                                                .remove();
+                                                        } catch (er) {}
+                                                        $('#edit_shift')
+                                                            .modal(
+                                                                'show');
+                                                    }
+                                                }
+                                            }).fail(function() {
+                                                tryNext(i + 1);
+                                            });
+                                        })(0);
+                                    });
+                                } catch (err) {}
                             } catch (e) {}
 
-                            const populate = function(data) {
-                                try {
-                                    if (data.shift_date) $('#shift_date').val(data.shift_date);
-                                    if (data.start_time) $('#start_shift').val(data.start_time);
-                                    if (data.end_time) $('#end_shift').val(data.end_time);
-                                    if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
-                                    if (data.book_on) $('#book_on').val(data.book_on);
-                                    if (data.book_off) $('#book_off').val(data.book_off);
-                                    if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
-                                    if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
-                                    if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
-                                } catch (err) { console.debug(err); }
-                                try { $('#edit_shift .modal-spinner').remove(); } catch (e) {}
-                                $('#edit_shift').modal('show');
-                            };
+                            cell.append(bar);
 
-                            (function tryNext(i){
-                                if (i >= editUrls.length) { try { $('#edit_shift .modal-spinner').remove(); } catch (e) {} $('#edit_shift').modal('show'); return; }
-                                $.get(editUrls[i]).done(function(resp){
-                                    if (resp && typeof resp === 'object') populate(resp);
-                                    else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
-                                        try { $('#edit_shift').replaceWith(resp); } catch (e) {}
-                                        try { $('#edit_shift .modal-spinner').remove(); } catch (e) {}
-                                        $('#edit_shift').modal('show');
-                                    } else {
-                                        try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { try { $('#edit_shift .modal-spinner').remove(); } catch (er) {} $('#edit_shift').modal('show'); }
+                            // Ensure bar fills the grid cell and can shrink if needed
+                            bar.css({
+                                'box-sizing': 'border-box',
+                                // Explicitly reserve space for the checkbox when selection mode is on.
+                                'padding-left': getBarLeftPadding()
+                            });
+
+                            // checkbox initial state
+                            const cb = bar.find('.multi-shift-checkbox');
+                            cb.prop('checked', selectedShiftIds.has(idStr));
+
+                            // stop propagation so clicking checkbox doesn't trigger bar navigation
+                            cb.on('click', function(e) {
+                                e.stopPropagation();
+                            });
+
+                            // checkbox change: update selected set and visual
+                            cb.on('change', function() {
+                                const checked = !!$(this).prop('checked');
+                                const idLocal = String($(this).data('id'));
+                                const theBar = $(this).closest('.gantt-bar');
+                                if (checked) {
+                                    selectedShiftIds.add(idLocal);
+                                    theBar.addClass('selected');
+                                } else {
+                                    selectedShiftIds.delete(idLocal);
+                                    theBar.removeClass('selected');
+                                }
+                            });
+
+                            // bar click behavior
+                            bar.on('click', function(e) {
+                                const shiftIdLocal = $(this).data('shift-id');
+                                if (selectionMode) {
+                                    const cbLocal = $(this).find(
+                                        '.multi-shift-checkbox');
+                                    const newState = !cbLocal.prop('checked');
+                                    cbLocal.prop('checked', newState).trigger(
+                                        'change');
+                                    e.stopPropagation();
+                                    return;
+                                }
+                                const target = e.target;
+                                if (target && ($(target).closest(
+                                            '.multi-shift-checkbox').length || $(
+                                            target).closest('.note-icon').length ||
+                                        $(target).closest('.view-note-icon').length
+                                    )) return;
+                                if (shiftIdLocal) window.open(
+                                    `${baseUrl}/shift-dates/${shiftIdLocal}/view`,
+                                    '_blank');
+                            });
+
+                            // notes: open modals, stop propagation so no navigation
+                            bar.find('.note-icon').on('click', function(e) {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const shiftIdLocal = $(this).data('shift-id');
+                                $('#shiftId').val(shiftIdLocal);
+                                $('#noteForm')[0].reset();
+                                $('#noteType').val('guard');
+                                $('#noteText').val('');
+                                $('#noteModal').modal('show');
+                            });
+
+                            bar.find('.view-note-icon').on('click', function(e) {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                const shiftIdLocal = $(this).data('shift-id');
+                                $('#shiftId').val(shiftIdLocal);
+                                $.get(`/shift-dates/${shiftIdLocal}/note`, function(
+                                    data) {
+                                    if (data && data.note) {
+                                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                        $('#viewNoteText').text(noteText).show();
+                                        $('#viewNoteType').text(noteType);
+                                        $('#editNoteText').val(noteText);
+                                        $('#editNoteType').val(noteType);
+                                        $('#viewNoteModal').data('orig-note', noteText);
+                                        $('#viewNoteModal').data('orig-type', noteType);
+                                        // Store both shift-date id and note id to be safe
+                                        $('#deleteNoteBtn').data('shift-id',
+                                            shiftIdLocal);
+                                        if (data.id) $('#deleteNoteBtn')
+                                            .data('note-id', data.id);
+                                        $('#editNoteArea').hide();
+                                        $('#editNoteBtn').removeClass('d-none');
+                                        $('#saveNoteEditBtn').addClass('d-none');
+                                        $('#cancelEditNoteBtn').addClass('d-none');
+                                        $('#viewNoteModal').modal('show');
                                     }
-                                }).fail(function() { tryNext(i+1); });
-                            })(0);
+                                });
+                            });
                         });
-                    } catch (err) {}
-                } catch (e) {}
-
-                cell.append(bar);
-
-                // Ensure bar fills the grid cell and can shrink if needed
-                bar.css({
-                    'box-sizing': 'border-box',
-                    // Explicitly reserve space for the checkbox when selection mode is on.
-                    'padding-left': getBarLeftPadding()
-                });
-
-                // checkbox initial state
-                const cb = bar.find('.multi-shift-checkbox');
-                cb.prop('checked', selectedShiftIds.has(idStr));
-
-                // stop propagation so clicking checkbox doesn't trigger bar navigation
-                cb.on('click', function(e) {
-                    e.stopPropagation();
-                });
-
-                // checkbox change: update selected set and visual
-                cb.on('change', function() {
-                    const checked = !!$(this).prop('checked');
-                    const idLocal = String($(this).data('id'));
-                    const theBar = $(this).closest('.gantt-bar');
-                    if (checked) {
-                        selectedShiftIds.add(idLocal);
-                        theBar.addClass('selected');
-                    } else {
-                        selectedShiftIds.delete(idLocal);
-                        theBar.removeClass('selected');
-                    }
-                });
-
-                // bar click behavior
-                bar.on('click', function(e) {
-                    const shiftIdLocal = $(this).data('shift-id');
-                    if (selectionMode) {
-                        const cbLocal = $(this).find(
-                            '.multi-shift-checkbox');
-                        const newState = !cbLocal.prop('checked');
-                        cbLocal.prop('checked', newState).trigger(
-                            'change');
-                        e.stopPropagation();
-                        return;
-                    }
-                    const target = e.target;
-                    if (target && ($(target).closest(
-                                '.multi-shift-checkbox').length || $(
-                                target).closest('.note-icon').length ||
-                            $(target).closest('.view-note-icon').length
-                        )) return;
-                    if (shiftIdLocal) window.open(
-                        `${baseUrl}/shift-dates/${shiftIdLocal}/view`,
-                        '_blank');
-                });
-
-                // notes: open modals, stop propagation so no navigation
-                bar.find('.note-icon').on('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const shiftIdLocal = $(this).data('shift-id');
-                    $('#shiftId').val(shiftIdLocal);
-                    $('#noteForm')[0].reset();
-                    $('#noteType').val('guard');
-                    $('#noteText').val('');
-                    $('#noteModal').modal('show');
-                });
-
-                bar.find('.view-note-icon').on('click', function(e) {
-                    e.stopPropagation();
-                    e.preventDefault();
-                    const shiftIdLocal = $(this).data('shift-id');
-                    $('#shiftId').val(shiftIdLocal);
-                    $.get(`/shift-dates/${shiftIdLocal}/note`, function(
-                        data) {
-                        if (data && data.note) {
-                            $('#viewNoteText').text(data.note);
-                            $('#viewNoteType').text(data
-                                .note_type);
-                            // Store both shift-date id and note id to be safe
-                            $('#deleteNoteBtn').data('shift-id',
-                                shiftIdLocal);
-                            if (data.id) $('#deleteNoteBtn')
-                                .data('note-id', data.id);
-                            $('#viewNoteModal').modal('show');
-                        }
                     });
                 });
-            });
-        });
-    });
 
-    // After placing bars: sync padding-left with current selection mode.
-    $('#ganttChart .day-cell > .gantt-bar').each(function() {
-        $(this).css('padding-left', getBarLeftPadding());
-    });
+                // After placing bars: sync padding-left with current selection mode.
+                $('#ganttChart .day-cell > .gantt-bar').each(function() {
+                    $(this).css('padding-left', getBarLeftPadding());
+                });
 
-    // Responsive sizing: bigger baseline so content remains visible
-    (function adjustGanttSizing() {
-        const ganttChartEl = document.getElementById('ganttChart');
-        if (!ganttChartEl) return;
+                // Responsive sizing: bigger baseline so content remains visible
+                (function adjustGanttSizing() {
+                    const ganttChartEl = document.getElementById('ganttChart');
+                    if (!ganttChartEl) return;
 
-        const dayHeaders = ganttChartEl.querySelectorAll('.day-header');
-        const totalDays = dayHeaders.length || 1;
+                    const dayHeaders = ganttChartEl.querySelectorAll('.day-header');
+                    const totalDays = dayHeaders.length || 1;
 
-        const sidebarHeaders = ganttChartEl.querySelectorAll('.gantt-sidebar-header');
-        let sidebarTotalWidth = 0;
-        if (sidebarHeaders && sidebarHeaders.length > 0) {
-            sidebarHeaders.forEach(h => {
-                sidebarTotalWidth += h.getBoundingClientRect().width;
-            });
-        } else {
-            sidebarTotalWidth = 300;
-        }
+                    const sidebarHeaders = ganttChartEl.querySelectorAll('.gantt-sidebar-header');
+                    let sidebarTotalWidth = 0;
+                    if (sidebarHeaders && sidebarHeaders.length > 0) {
+                        sidebarHeaders.forEach(h => {
+                            sidebarTotalWidth += h.getBoundingClientRect().width;
+                        });
+                    } else {
+                        sidebarTotalWidth = 300;
+                    }
 
-        const container = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
-        const containerWidth = Math.max(container.clientWidth, window.innerWidth - 40);
+                    const container = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
+                    const containerWidth = Math.max(container.clientWidth, window.innerWidth - 40);
 
-        let timelineAvailableWidth = containerWidth - sidebarTotalWidth;
-        if (timelineAvailableWidth < 400) timelineAvailableWidth = Math.max(containerWidth * 0.6,
-            400);
+                    let timelineAvailableWidth = containerWidth - sidebarTotalWidth;
+                    if (timelineAvailableWidth < 400) timelineAvailableWidth = Math.max(containerWidth * 0.6,
+                        400);
 
-        const minDayWidth = 110;
-        const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
-        let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
-        if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+                    const minDayWidth = 110;
+                    const daysToFitOnScreen = (ganttView === 'month') ? Math.min(totalDays, 10) : totalDays;
+                    let dayWidth = Math.floor(timelineAvailableWidth / Math.max(1, daysToFitOnScreen));
+                    if (dayWidth < minDayWidth) dayWidth = minDayWidth;
 
-        // Sync sidebar row widths to the header sidebar width
-        const rowSidebars = ganttChartEl.querySelectorAll('.gantt-row-sidebar');
-        rowSidebars.forEach(sb => {
-            sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect().width + 'px' : '160px');
-            sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect().width + 'px' : '160px');
-            sb.style.boxSizing = 'border-box';
-        });
+                    // Sync sidebar row widths to the header sidebar width
+                    const rowSidebars = ganttChartEl.querySelectorAll('.gantt-row-sidebar');
+                    rowSidebars.forEach(sb => {
+                        sb.style.width = (sidebarHeaders[0] ? sidebarHeaders[0].getBoundingClientRect()
+                            .width + 'px' : '160px');
+                        sb.style.minWidth = (sidebarHeaders[0] ? sidebarHeaders[0]
+                            .getBoundingClientRect().width + 'px' : '160px');
+                        sb.style.boxSizing = 'border-box';
+                    });
 
-        // Column/header widths are driven by content via adjustGanttDayCellColumns().
-        // Call it now so header and columns align after initial render.
-        if (typeof adjustGanttDayCellColumns === 'function') adjustGanttDayCellColumns();
+                    // Column/header widths are driven by content via adjustGanttDayCellColumns().
+                    // Call it now so header and columns align after initial render.
+                    if (typeof adjustGanttDayCellColumns === 'function') adjustGanttDayCellColumns();
 
-        if (initialLoad) {
-            const wrapper = document.querySelector('.gantt-container') || ganttChartEl.parentElement;
-            try { wrapper.scrollLeft = 0; } catch (err) {}
-            initialLoad = false;
-        }
-    })();
-}
-
-          function filterGanttChart(searchTerm) {
-    if (!searchTerm) {
-        // Show all shift bars and rows
-        $('.gantt-bar').show();
-        $('.gantt-row').show();
-        // Update shift counts in sidebar
-        $('.gantt-row').each(function() {
-            const siteId = $(this).data('site-id');
-            const visibleShifts = $(this).find('.gantt-bar:visible').length;
-            $(this).find('.text-muted').text(`${visibleShifts} shift(s)`);
-        });
-        return;
-    }
-    
-    const term = String(searchTerm).toLowerCase();
-    $('.gantt-row').each(function() {
-        const row = $(this);
-        const siteText = row.find('.gantt-row-sidebar').text().toLowerCase();
-        const shiftBars = row.find('.gantt-bar');
-        let anyVisible = false;
-
-        // Check if site/client name matches
-        const siteMatches = siteText.includes(term);
-
-        // Show/hide individual shift bars based on search
-        shiftBars.each(function() {
-            const $bar = $(this);
-            const orig = $bar.attr('data-orig-staff') || '';
-            let sub = $bar.attr('data-sub-name') || '';
-            // if name missing but id present, try client-side map
-            if (!sub) {
-                const sid = $bar.attr('data-sub-id');
-                if (sid && window._subcontractorMap && window._subcontractorMap[sid]) sub = window._subcontractorMap[sid];
+                    if (initialLoad) {
+                        const wrapper = document.querySelector('.gantt-container') || ganttChartEl
+                            .parentElement;
+                        try {
+                            wrapper.scrollLeft = 0;
+                        } catch (err) {}
+                        initialLoad = false;
+                    }
+                })();
             }
 
-            // Build searchable text from bar contents and attributes
-            const barContentText = ($bar.find('.bar-content').text() || '').trim();
-            const barTitle = ($bar.attr('title') || '').trim();
-            const combined = (orig + ' ' + sub + ' ' + barContentText + ' ' + barTitle).toLowerCase();
+            function filterGanttChart(searchTerm) {
+                if (!searchTerm) {
+                    // Show all shift bars and rows
+                    $('.gantt-bar').show();
+                    $('.gantt-row').show();
+                    // Update shift counts in sidebar
+                    $('.gantt-row').each(function() {
+                        const siteId = $(this).data('site-id');
+                        const visibleShifts = $(this).find('.gantt-bar:visible').length;
+                        $(this).find('.text-muted').text(`${visibleShifts} shift(s)`);
+                    });
+                    return;
+                }
 
-            const staffMatch = combined.includes(term);
+                const term = String(searchTerm).toLowerCase();
+                $('.gantt-row').each(function() {
+                    const row = $(this);
+                    const siteText = row.find('.gantt-row-sidebar').text().toLowerCase();
+                    const shiftBars = row.find('.gantt-bar');
+                    let anyVisible = false;
 
-            if (siteMatches || staffMatch) {
-                $bar.show();
-                anyVisible = true;
-            } else {
-                $bar.hide();
+                    // Check if site/client name matches
+                    const siteMatches = siteText.includes(term);
+
+                    // Show/hide individual shift bars based on search
+                    shiftBars.each(function() {
+                        const $bar = $(this);
+                        const orig = $bar.attr('data-orig-staff') || '';
+                        let sub = $bar.attr('data-sub-name') || '';
+                        // if name missing but id present, try client-side map
+                        if (!sub) {
+                            const sid = $bar.attr('data-sub-id');
+                            if (sid && window._subcontractorMap && window._subcontractorMap[sid])
+                                sub = window._subcontractorMap[sid];
+                        }
+
+                        // Build searchable text from bar contents and attributes
+                        const barContentText = ($bar.find('.bar-content').text() || '').trim();
+                        const barTitle = ($bar.attr('title') || '').trim();
+                        const combined = (orig + ' ' + sub + ' ' + barContentText + ' ' + barTitle)
+                            .toLowerCase();
+
+                        const staffMatch = combined.includes(term);
+
+                        if (siteMatches || staffMatch) {
+                            $bar.show();
+                            anyVisible = true;
+                        } else {
+                            $bar.hide();
+                        }
+                    });
+
+                    // Show/hide entire row based on whether any shift is visible
+                    if (anyVisible) {
+                        row.show();
+                        // Update shift count in sidebar
+                        const visibleShifts = row.find('.gantt-bar:visible').length;
+                        row.find('.text-muted').text(`${visibleShifts} shift(s)`);
+                    } else {
+                        row.hide();
+                    }
+                });
+
+                // Also check if we need to show empty rows (sites with no matching shifts but matching site/client name)
+                // This is already handled in the loop above
             }
-        });
-        
-        // Show/hide entire row based on whether any shift is visible
-        if (anyVisible) {
-            row.show();
-            // Update shift count in sidebar
-            const visibleShifts = row.find('.gantt-bar:visible').length;
-            row.find('.text-muted').text(`${visibleShifts} shift(s)`);
-        } else {
-            row.hide();
-        }
-    });
-    
-    // Also check if we need to show empty rows (sites with no matching shifts but matching site/client name)
-    // This is already handled in the loop above
-}
 
             function formatDate(date) {
                 // Use local date to avoid timezone issues
@@ -2606,11 +3013,13 @@
                     }
                 },
                 error: function(xhr) {
-                    const msg = xhr?.responseJSON?.message || 'Something went wrong during bulk delete.';
+                    const msg = xhr?.responseJSON?.message ||
+                        'Something went wrong during bulk delete.';
                     toast_danger(msg);
                 },
                 complete: function() {
-                    deleteButton.prop('disabled', selectedShiftIds.length === 0).text('Delete Selected');
+                    deleteButton.prop('disabled', selectedShiftIds.length === 0).text(
+                        'Delete Selected');
                 }
             });
         });
@@ -2826,7 +3235,7 @@
                 dropdownParent: $('#filterModal'), // make sure this matches your modal ID
                 minimumResultsForSearch: 0 // force search bar for single select
             })
-            
+
             $('.select2_site').select2({
                 placeholder: "--choose--",
                 allowClear: true,
@@ -2966,7 +3375,8 @@
                             $siteSelect.trigger('change');
                         }
                     } catch (err) {
-                        /* ignore */ }
+                        /* ignore */
+                    }
                 },
                 error: function(xhr, status, error) {
                     console.error('Fetch error:', error);
@@ -3035,12 +3445,23 @@
                 $('#shiftId').val(shiftId);
                 $.get(`/shift-dates/${shiftId}/note`, function(data) {
                     if (data && data.note) {
-                        $('#viewNoteText').text(data.note);
-                        $('#viewNoteType').text(data.note_type);
+                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                        $('#viewNoteText').text(noteText).show();
+                        $('#viewNoteType').text(noteType);
+                        $('#editNoteText').val(noteText);
+                        $('#editNoteType').val(noteType);
+                        $('#viewNoteModal').data('orig-note', noteText);
+                        $('#viewNoteModal').data('orig-type', noteType);
 
                         // store both note ID and shift-date ID on the Delete button
                         if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
                         $('#deleteNoteBtn').data('shift-id', shiftId);
+
+                        $('#editNoteArea').hide();
+                        $('#editNoteBtn').removeClass('d-none');
+                        $('#saveNoteEditBtn').addClass('d-none');
+                        $('#cancelEditNoteBtn').addClass('d-none');
 
                         $('#viewNoteModal').modal('show');
                     }
@@ -3077,25 +3498,42 @@
                             let $existingIcon = $bar.find('.note-icon, .view-note-icon');
                             if ($existingIcon.length) {
                                 // replace class and rebind handlers
-                                $existingIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css({'color': '', 'opacity': ''}).html('📋');
+                                $existingIcon.off('click').removeClass('note-icon').addClass(
+                                    'view-note-icon').css({
+                                    'color': '',
+                                    'opacity': ''
+                                }).html('📋');
                                 // bind view-note click
                                 $existingIcon.on('click', function(e) {
                                     e.stopPropagation();
                                     const sid = $(this).data('shift-id');
                                     $('#shiftId').val(sid);
                                     $.get(`/shift-dates/${sid}/note`, function(data) {
-                                        if (data && data.note) {
-                                            $('#viewNoteText').text(data.note);
-                                            $('#viewNoteType').text(data.note_type);
-                                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
-                                            $('#deleteNoteBtn').data('shift-id', sid);
-                                            $('#viewNoteModal').modal('show');
-                                        }
-                                    });
+                                            if (data && data.note) {
+                                                const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                                                const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                                $('#viewNoteText').text(noteText).show();
+                                                $('#viewNoteType').text(noteType);
+                                                $('#editNoteText').val(noteText);
+                                                $('#editNoteType').val(noteType);
+                                                $('#viewNoteModal').data('orig-note', noteText);
+                                                $('#viewNoteModal').data('orig-type', noteType);
+                                                if (data.id) $('#deleteNoteBtn').data(
+                                                    'note-id', data.id);
+                                                $('#deleteNoteBtn').data('shift-id', sid);
+                                                $('#editNoteArea').hide();
+                                                $('#editNoteBtn').removeClass('d-none');
+                                                $('#saveNoteEditBtn').addClass('d-none');
+                                                $('#cancelEditNoteBtn').addClass('d-none');
+                                                $('#viewNoteModal').modal('show');
+                                            }
+                                        });
                                 });
                             } else {
                                 // create and append icon, then bind
-                                const $newIcon = $(`<span class="view-note-icon" data-shift-id="${shiftId}" title="View note">📋</span>`);
+                                const $newIcon = $(
+                                    `<span class="view-note-icon" data-shift-id="${shiftId}" title="View note">📋</span>`
+                                );
                                 $bar.append($newIcon);
                                 $newIcon.on('click', function(e) {
                                     e.stopPropagation();
@@ -3103,17 +3541,30 @@
                                     $('#shiftId').val(sid);
                                     $.get(`/shift-dates/${sid}/note`, function(data) {
                                         if (data && data.note) {
-                                            $('#viewNoteText').text(data.note);
-                                            $('#viewNoteType').text(data.note_type);
-                                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                                            const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                                            const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                            $('#viewNoteText').text(noteText).show();
+                                            $('#viewNoteType').text(noteType);
+                                            $('#editNoteText').val(noteText);
+                                            $('#editNoteType').val(noteType);
+                                            $('#viewNoteModal').data('orig-note', noteText);
+                                            $('#viewNoteModal').data('orig-type', noteType);
+                                            if (data.id) $('#deleteNoteBtn').data(
+                                                'note-id', data.id);
                                             $('#deleteNoteBtn').data('shift-id', sid);
+                                            $('#editNoteArea').hide();
+                                            $('#editNoteBtn').removeClass('d-none');
+                                            $('#saveNoteEditBtn').addClass('d-none');
+                                            $('#cancelEditNoteBtn').addClass('d-none');
                                             $('#viewNoteModal').modal('show');
                                         }
                                     });
                                 });
                             }
                         }
-                    } catch (e) { console.debug('bar icon update failed', e); }
+                    } catch (e) {
+                        console.debug('bar icon update failed', e);
+                    }
                     // Force reload of shifts so the Gantt chart re-renders with authoritative data
                     if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
                         try {
@@ -3151,11 +3602,15 @@
                         if (nid) ids.push(parseInt(nid, 10));
                     });
                     if (ids.length) lastNoteId = Math.max(...ids);
-                } catch (e) { lastNoteId = 0; }
+                } catch (e) {
+                    lastNoteId = 0;
+                }
             }
 
             function pollNotes() {
-                $.get('/shift-dates/notes/updates', { after: lastNoteId })
+                $.get('/shift-dates/notes/updates', {
+                        after: lastNoteId
+                    })
                     .done(function(res) {
                         if (!res || !res.notes || !res.notes.length) return;
                         res.notes.forEach(function(note) {
@@ -3200,7 +3655,8 @@
                             currentInterval = baseInterval;
                         }).fail(function() {
                             // failure -> exponential backoff
-                            currentInterval = Math.min(maxInterval, Math.max(currentInterval * 2, baseInterval));
+                            currentInterval = Math.min(maxInterval, Math.max(currentInterval * 2,
+                                baseInterval));
                         }).always(function() {
                             setTimeout(scheduleNextPoll, currentInterval);
                         });
@@ -3292,10 +3748,11 @@
                     const viewIcon = $(`.view-note-icon[data-shift-id="${idStr}"]`);
                     const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
 
-                        if (noteData) {
+                    if (noteData) {
                         // Ensure a view-note-icon exists and handlers are bound correctly
                         if (noteIcon.length) {
-                            noteIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css('color', '#0d6efd').html('📝');
+                            noteIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css('color',
+                                '#0d6efd').html('📝');
                             // bind view-note click
                             noteIcon.on('click', function(e) {
                                 e.stopPropagation();
@@ -3303,22 +3760,32 @@
                                 $('#shiftId').val(sid);
                                 $.get(`/shift-dates/${sid}/note`, function(data) {
                                     if (data && data.note) {
-                                        $('#viewNoteText').text(data.note);
-                                        $('#viewNoteType').text(data.note_type);
+                                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                        $('#viewNoteText').text(noteText).show();
+                                        $('#viewNoteType').text(noteType);
+                                        $('#editNoteText').val(noteText);
+                                        $('#editNoteType').val(noteType);
+                                        $('#viewNoteModal').data('orig-note', noteText);
+                                        $('#viewNoteModal').data('orig-type', noteType);
                                         if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
                                         $('#deleteNoteBtn').data('shift-id', sid);
+                                        $('#editNoteArea').hide();
+                                        $('#editNoteBtn').removeClass('d-none');
+                                        $('#saveNoteEditBtn').addClass('d-none');
+                                        $('#cancelEditNoteBtn').addClass('d-none');
                                         $('#viewNoteModal').modal('show');
                                     }
                                 });
                             });
                         }
-                            // also set bar-level data attribute if note id present
-                            try {
-                                const $bar = $(`.gantt-bar[data-shift-id="${idStr}"]`);
-                                if ($bar && $bar.length && noteData.id) $bar.attr('data-note-id', noteData.id);
-                                // ensure edit icon exists when note state updates
-                                if ($bar && $bar.length && $bar.find('.edit-shift-icon').length === 0) {
-                                    const $editIcon = $(`
+                        // also set bar-level data attribute if note id present
+                        try {
+                            const $bar = $(`.gantt-bar[data-shift-id="${idStr}"]`);
+                            if ($bar && $bar.length && noteData.id) $bar.attr('data-note-id', noteData.id);
+                            // ensure edit icon exists when note state updates
+                            if ($bar && $bar.length && $bar.find('.edit-shift-icon').length === 0) {
+                                const $editIcon = $(`
                                         <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
                                             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                                                 <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
@@ -3326,73 +3793,95 @@
                                             </svg>
                                         </span>
                                     `);
-                                    $bar.append($editIcon);
-                                    $editIcon.on('click', function(e) {
-                                        e.stopPropagation();
-                                        const sid = $(this).data('shift-id');
-                                        $('#shift_id').val(sid);
-                                        try { $('#edit_shift-form')[0].reset(); } catch (err) {}
-                                        const editUrls = [
-                                            `${baseUrl}/shifts/${sid}/edit`,
-                                            `${baseUrl}/shift-dates/${sid}/edit`,
-                                            `${baseUrl}/shifts/${sid}`
-                                        ];
-                                        const populate = function(data) {
-                                            try {
-                                                if (data.shift_date) $('#shift_date').val(data.shift_date);
-                                                if (data.start_time) $('#start_shift').val(data.start_time);
-                                                if (data.end_time) $('#end_shift').val(data.end_time);
-                                                if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
-                                                if (data.book_on) $('#book_on').val(data.book_on);
-                                                if (data.book_off) $('#book_off').val(data.book_off);
-                                                if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
-                                                if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
-                                                if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
-                                            } catch (err) { console.debug(err); }
+                                $bar.append($editIcon);
+                                $editIcon.on('click', function(e) {
+                                    e.stopPropagation();
+                                    const sid = $(this).data('shift-id');
+                                    $('#shift_id').val(sid);
+                                    try {
+                                        $('#edit_shift-form')[0].reset();
+                                    } catch (err) {}
+                                    const editUrls = [
+                                        `${baseUrl}/shifts/${sid}/edit`,
+                                        `${baseUrl}/shift-dates/${sid}/edit`,
+                                        `${baseUrl}/shifts/${sid}`
+                                    ];
+                                    const populate = function(data) {
+                                        try {
+                                            if (data.shift_date) $('#shift_date').val(data.shift_date);
+                                            if (data.start_time) $('#start_shift').val(data.start_time);
+                                            if (data.end_time) $('#end_shift').val(data.end_time);
+                                            if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
+                                            if (data.book_on) $('#book_on').val(data.book_on);
+                                            if (data.book_off) $('#book_off').val(data.book_off);
+                                            if (typeof data.status_id !== 'undefined') $('#status_id').val(data
+                                                .status_id);
+                                            if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data
+                                                .staff_id).trigger('change');
+                                            if (typeof data.subcontractor_id !== 'undefined') $(
+                                                '#subcontractor').val(data.subcontractor_id).trigger(
+                                                'change');
+                                        } catch (err) {
+                                            console.debug(err);
+                                        }
+                                        $('#edit_shift').modal('show');
+                                    };
+                                    (function tryNext(i) {
+                                        if (i >= editUrls.length) {
                                             $('#edit_shift').modal('show');
-                                        };
-                                        (function tryNext(i){
-                                            if (i >= editUrls.length) { $('#edit_shift').modal('show'); return; }
-                                            $.get(editUrls[i]).done(function(resp){
-                                                if (resp && typeof resp === 'object') populate(resp);
-                                                else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
-                                                    try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                                            return;
+                                        }
+                                        $.get(editUrls[i]).done(function(resp) {
+                                            if (resp && typeof resp === 'object') populate(resp);
+                                            else if (typeof resp === 'string' && resp.indexOf(
+                                                    '<form') !== -1) {
+                                                try {
+                                                    $('#edit_shift').replaceWith(resp);
+                                                } catch (e) {}
+                                                $('#edit_shift').modal('show');
+                                            } else {
+                                                try {
+                                                    const parsed = JSON.parse(resp);
+                                                    populate(parsed);
+                                                } catch (e) {
                                                     $('#edit_shift').modal('show');
-                                                } else {
-                                                    try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { $('#edit_shift').modal('show'); }
                                                 }
-                                            }).fail(function() { tryNext(i+1); });
-                                        })(0);
-                                    });
-                                }
-                            } catch (e) {}
+                                            }
+                                        }).fail(function() {
+                                            tryNext(i + 1);
+                                        });
+                                    })(0);
+                                });
+                            }
+                        } catch (e) {}
 
-                            } else {
-                            // No note -> show inactive note-icon and bind add-note handler
-                            if (viewIcon.length) {
-                                viewIcon.off('click').removeClass('view-note-icon').addClass('note-icon').css('color', '#555').html('📝');
-                                viewIcon.on('click', function(e) {
-                                    e.stopPropagation();
-                                    const sid = $(this).data('shift-id');
-                                    $('#shiftId').val(sid);
-                                    $('#noteForm')[0].reset();
-                                    $('#noteType').val('guard');
-                                    $('#noteText').val('');
-                                    $('#noteModal').modal('show');
-                                });
-                            }
-                            if (noteIcon.length) {
-                                noteIcon.off('click').css('color', '#555');
-                                noteIcon.on('click', function(e) {
-                                    e.stopPropagation();
-                                    const sid = $(this).data('shift-id');
-                                    $('#shiftId').val(sid);
-                                    $('#noteForm')[0].reset();
-                                    $('#noteType').val('guard');
-                                    $('#noteText').val('');
-                                    $('#noteModal').modal('show');
-                                });
-                            }
+                    } else {
+                        // No note -> show inactive note-icon and bind add-note handler
+                        if (viewIcon.length) {
+                            viewIcon.off('click').removeClass('view-note-icon').addClass('note-icon').css('color', '#555')
+                                .html('📝');
+                            viewIcon.on('click', function(e) {
+                                e.stopPropagation();
+                                const sid = $(this).data('shift-id');
+                                $('#shiftId').val(sid);
+                                $('#noteForm')[0].reset();
+                                $('#noteType').val('guard');
+                                $('#noteText').val('');
+                                $('#noteModal').modal('show');
+                            });
+                        }
+                        if (noteIcon.length) {
+                            noteIcon.off('click').css('color', '#555');
+                            noteIcon.on('click', function(e) {
+                                e.stopPropagation();
+                                const sid = $(this).data('shift-id');
+                                $('#shiftId').val(sid);
+                                $('#noteForm')[0].reset();
+                                $('#noteType').val('guard');
+                                $('#noteText').val('');
+                                $('#noteModal').modal('show');
+                            });
+                        }
                     }
                     return;
                 }
@@ -3443,10 +3932,20 @@
                                     $('#shiftId').val(sid);
                                     $.get(`/shift-dates/${sid}/note`, function(data) {
                                         if (data && data.note) {
-                                            $('#viewNoteText').text(data.note);
-                                            $('#viewNoteType').text(data.note_type);
+                                            const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                                            const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                            $('#viewNoteText').text(noteText).show();
+                                            $('#viewNoteType').text(noteType);
+                                            $('#editNoteText').val(noteText);
+                                            $('#editNoteType').val(noteType);
+                                            $('#viewNoteModal').data('orig-note', noteText);
+                                            $('#viewNoteModal').data('orig-type', noteType);
                                             if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
                                             $('#deleteNoteBtn').data('shift-id', sid);
+                                            $('#editNoteArea').hide();
+                                            $('#editNoteBtn').removeClass('d-none');
+                                            $('#saveNoteEditBtn').addClass('d-none');
+                                            $('#cancelEditNoteBtn').addClass('d-none');
                                             $('#viewNoteModal').modal('show');
                                         }
                                     });
@@ -3470,7 +3969,9 @@
                                     e.stopPropagation();
                                     const sid = $(this).data('shift-id');
                                     $('#shift_id').val(sid);
-                                    try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+                                    try {
+                                        $('#edit_shift-form')[0].reset();
+                                    } catch (err) {}
                                     const editUrls = [
                                         `${baseUrl}/shifts/${sid}/edit`,
                                         `${baseUrl}/shift-dates/${sid}/edit`,
@@ -3484,23 +3985,42 @@
                                             if (data.guard_rate) $('#guard_rate').val(data.guard_rate);
                                             if (data.book_on) $('#book_on').val(data.book_on);
                                             if (data.book_off) $('#book_off').val(data.book_off);
-                                            if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
-                                            if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
-                                            if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
-                                        } catch (err) { console.debug(err); }
+                                            if (typeof data.status_id !== 'undefined') $('#status_id').val(data
+                                                .status_id);
+                                            if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data
+                                                .staff_id).trigger('change');
+                                            if (typeof data.subcontractor_id !== 'undefined') $(
+                                                '#subcontractor').val(data.subcontractor_id).trigger(
+                                                'change');
+                                        } catch (err) {
+                                            console.debug(err);
+                                        }
                                         $('#edit_shift').modal('show');
                                     };
-                                    (function tryNext(i){
-                                        if (i >= editUrls.length) { $('#edit_shift').modal('show'); return; }
-                                        $.get(editUrls[i]).done(function(resp){
+                                    (function tryNext(i) {
+                                        if (i >= editUrls.length) {
+                                            $('#edit_shift').modal('show');
+                                            return;
+                                        }
+                                        $.get(editUrls[i]).done(function(resp) {
                                             if (resp && typeof resp === 'object') populate(resp);
-                                            else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
-                                                try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                                            else if (typeof resp === 'string' && resp.indexOf(
+                                                    '<form') !== -1) {
+                                                try {
+                                                    $('#edit_shift').replaceWith(resp);
+                                                } catch (e) {}
                                                 $('#edit_shift').modal('show');
                                             } else {
-                                                try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { $('#edit_shift').modal('show'); }
+                                                try {
+                                                    const parsed = JSON.parse(resp);
+                                                    populate(parsed);
+                                                } catch (e) {
+                                                    $('#edit_shift').modal('show');
+                                                }
                                             }
-                                        }).fail(function() { tryNext(i+1); });
+                                        }).fail(function() {
+                                            tryNext(i + 1);
+                                        });
                                     })(0);
                                 });
                             }
@@ -3583,8 +4103,10 @@
             const idStr = String(shift.id || shift.shift_id || shift.shiftId);
             const backendStaffRaw2 = shift.staff_name_raw || shift.staff_name || '';
             const backendStaffClean2 = shift.staff_name_clean || shift.staff_name || '';
-            const parenthesisedMatches2 = (shift.staff_name || backendStaffRaw2) ? ( (shift.staff_name || backendStaffRaw2).match(/\([^)]*\)/g) ) : null;
-            const parenthesisedTag2 = (parenthesisedMatches2 && parenthesisedMatches2.length) ? parenthesisedMatches2[0] : '';
+            const parenthesisedMatches2 = (shift.staff_name || backendStaffRaw2) ? ((shift.staff_name || backendStaffRaw2)
+                .match(/\([^)]*\)/g)) : null;
+            const parenthesisedTag2 = (parenthesisedMatches2 && parenthesisedMatches2.length) ? parenthesisedMatches2[0] :
+                '';
 
             let displayStaff2 = backendStaffClean2 || '';
             if (!displayStaff2) {
@@ -3597,10 +4119,11 @@
 
             const subcontractorId = shift.subcontractor_id || shift.subcontractorId || null;
             let subcontractorName2 = shift.subcontractor_name || shift.subcontractor || null;
-            if (!subcontractorName2 && subcontractorId && window._subcontractorMap && window._subcontractorMap[subcontractorId]) {
+            if (!subcontractorName2 && subcontractorId && window._subcontractorMap && window._subcontractorMap[
+                    subcontractorId]) {
                 subcontractorName2 = window._subcontractorMap[subcontractorId];
             }
-            subcontractorName2 = subcontractorName2 || parenthesisedTag2 || '';
+            subcontractorName2 = subcontractorName2 || (subcontractorId ? parenthesisedTag2 : '');
             const hasNote = !!(shift.note || (shift.note && shift.note.note));
 
             const $bar = $(`
@@ -3646,10 +4169,20 @@
                 $('#shiftId').val(sid);
                 $.get(`/shift-dates/${sid}/note`, function(data) {
                     if (data && data.note) {
-                        $('#viewNoteText').text(data.note);
-                        $('#viewNoteType').text(data.note_type);
+                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                        $('#viewNoteText').text(noteText).show();
+                        $('#viewNoteType').text(noteType);
+                        $('#editNoteText').val(noteText);
+                        $('#editNoteType').val(noteType);
+                        $('#viewNoteModal').data('orig-note', noteText);
+                        $('#viewNoteModal').data('orig-type', noteType);
                         if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
                         $('#deleteNoteBtn').data('shift-id', sid);
+                        $('#editNoteArea').hide();
+                        $('#editNoteBtn').removeClass('d-none');
+                        $('#saveNoteEditBtn').addClass('d-none');
+                        $('#cancelEditNoteBtn').addClass('d-none');
                         $('#viewNoteModal').modal('show');
                     }
                 });
@@ -3660,7 +4193,9 @@
                 e.stopPropagation();
                 const sid = $(this).data('shift-id');
                 $('#shift_id').val(sid);
-                try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+                try {
+                    $('#edit_shift-form')[0].reset();
+                } catch (err) {}
 
                 const editUrls = [
                     `${baseUrl}/shifts/${sid}/edit`,
@@ -3677,23 +4212,39 @@
                         if (data.book_on) $('#book_on').val(data.book_on);
                         if (data.book_off) $('#book_off').val(data.book_off);
                         if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
-                        if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
-                        if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
-                    } catch (err) { console.debug(err); }
+                        if (typeof data.staff_id !== 'undefined') $('#staff_id').val(data.staff_id).trigger(
+                            'change');
+                        if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data
+                            .subcontractor_id).trigger('change');
+                    } catch (err) {
+                        console.debug(err);
+                    }
                     $('#edit_shift').modal('show');
                 };
 
-                (function tryNext(i){
-                    if (i >= editUrls.length) { $('#edit_shift').modal('show'); return; }
-                    $.get(editUrls[i]).done(function(resp){
+                (function tryNext(i) {
+                    if (i >= editUrls.length) {
+                        $('#edit_shift').modal('show');
+                        return;
+                    }
+                    $.get(editUrls[i]).done(function(resp) {
                         if (resp && typeof resp === 'object') populate(resp);
                         else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
-                            try { $('#edit_shift').replaceWith(resp); } catch (e) {}
+                            try {
+                                $('#edit_shift').replaceWith(resp);
+                            } catch (e) {}
                             $('#edit_shift').modal('show');
                         } else {
-                            try { const parsed = JSON.parse(resp); populate(parsed); } catch (e) { $('#edit_shift').modal('show'); }
+                            try {
+                                const parsed = JSON.parse(resp);
+                                populate(parsed);
+                            } catch (e) {
+                                $('#edit_shift').modal('show');
+                            }
                         }
-                    }).fail(function() { tryNext(i+1); });
+                    }).fail(function() {
+                        tryNext(i + 1);
+                    });
                 })(0);
             });
 
@@ -3703,7 +4254,7 @@
                 $bar.attr('data-orig-staff', displayStaff2 || backendStaffRaw2 || shift.staff_name || '');
                 // keep a raw backup if needed
                 $bar.attr('data-staff-raw', backendStaffRaw2 || shift.staff_name || '');
-                $bar.attr('data-sub-name', subcontractorName2 || '');
+                if (subcontractorName2) $bar.attr('data-sub-name', subcontractorName2 || '');
             } catch (err) {
                 // ignore
             }
@@ -3745,7 +4296,8 @@
             const formData = $('#edit_shift-form').serialize();
 
             const submitData = (useOverride = false) => {
-                const url = useOverride ? `${baseUrl}/updateshift/${shiftId}/override` : `${baseUrl}/updateshift/${shiftId}`;
+                const url = useOverride ? `${baseUrl}/updateshift/${shiftId}/override` :
+                    `${baseUrl}/updateshift/${shiftId}`;
                 $.ajax({
                     url: url,
                     type: 'POST',
@@ -3754,17 +4306,28 @@
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                     },
                     success: function(response) {
-                        try { $('#edit_shift').modal('hide'); } catch (e) {}
-                        showToast(response.success || response.message || 'Shift updated successfully!', 'success', 1200);
+                        try {
+                            $('#edit_shift').modal('hide');
+                        } catch (e) {}
+                        showToast(response.success || response.message ||
+                            'Shift updated successfully!', 'success', 1200);
                         // Full page reload to ensure Gantt is fully in sync with server
-                        try { setTimeout(function(){ window.location.reload(); }, 600); } catch (e) { window.location.reload(); }
+                        try {
+                            setTimeout(function() {
+                                window.location.reload();
+                            }, 600);
+                        } catch (e) {
+                            window.location.reload();
+                        }
                     },
                     error: function(xhr) {
                         if (xhr.status === 422 && xhr.responseJSON?.errors) {
                             let messages = Object.values(xhr.responseJSON.errors).flat();
                             if (messages.length) {
                                 if (window.isSuperAdmin && !useOverride) {
-                                    showRestrictionToast(messages[0], function() { submitData(true); });
+                                    showRestrictionToast(messages[0], function() {
+                                        submitData(true);
+                                    });
                                 } else {
                                     toast_danger(messages[0]);
                                 }
@@ -3773,7 +4336,9 @@
                             }
                         } else if (xhr.responseJSON?.error) {
                             if (window.isSuperAdmin && !useOverride) {
-                                showRestrictionToast(xhr.responseJSON.error, function() { submitData(true); });
+                                showRestrictionToast(xhr.responseJSON.error, function() {
+                                    submitData(true);
+                                });
                             } else {
                                 toast_danger(xhr.responseJSON.error);
                             }
@@ -3790,127 +4355,168 @@
 
     <script>
         // --- Edit modal subcontractor & Select2 wiring (from shift-detail) ---
-        $(document).ready(function() { try {
-            if ($.fn.select2) {
-                $('.selec2_assign_modal').each(function() {
-                    if (!$(this).hasClass('select2-hidden-accessible')) {
-                        var opts = { dropdownParent: $('#edit_shift'), width: '100%' };
-                        if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
-                        try { $(this).select2(opts); } catch (e) { console.warn('[scheduling] select2 init failed', e); }
-                    }
-                });
-            }
-
-            function populateEditSubcontractorsAssign(staffId, preserveValue) {
-                var $modal = $('#edit_shift');
-                var $sub = $modal.find('#subcontractor');
-                if (!$sub.length) return;
-                $sub.prop('disabled', true).html('<option value="">Loading...</option>');
-
-                if (!staffId) {
-                    $sub.html('<option value="">--choose--</option>').prop('disabled', false).trigger('change');
-                    return;
+        $(document).ready(function() {
+            try {
+                if ($.fn.select2) {
+                    $('.selec2_assign_modal').each(function() {
+                        if (!$(this).hasClass('select2-hidden-accessible')) {
+                            var opts = {
+                                dropdownParent: $('#edit_shift'),
+                                width: '100%'
+                            };
+                            if (typeof window.customMatcher === 'function') opts.matcher = window
+                                .customMatcher;
+                            try {
+                                $(this).select2(opts);
+                            } catch (e) {
+                                console.warn('[scheduling] select2 init failed', e);
+                            }
+                        }
+                    });
                 }
 
-                $.ajax({
-                    url: `${baseUrl}/subcontractors/for-employee/${staffId}`,
-                    method: 'GET',
-                    dataType: 'json'
-                }).done(function(res) {
-                    $sub.empty().append('<option value="">--choose--</option>');
-                    if (res && res.data && res.data.length) {
-                        res.data.forEach(function(s) {
-                            var label = s.company_name || (s.first_name ? (s.first_name + ' ' + (s.last_name||'')) : ('Subcontractor ' + s.id));
-                            $sub.append(`<option value="${s.id}">${label}</option>`);
+                function populateEditSubcontractorsAssign(staffId, preserveValue) {
+                    var $modal = $('#edit_shift');
+                    var $sub = $modal.find('#subcontractor');
+                    if (!$sub.length) return;
+                    $sub.prop('disabled', true).html('<option value="">Loading...</option>');
+
+                    if (!staffId) {
+                        $sub.html('<option value="">--choose--</option>').prop('disabled', false).trigger('change');
+                        return;
+                    }
+
+                    $.ajax({
+                        url: `${baseUrl}/subcontractors/for-employee/${staffId}`,
+                        method: 'GET',
+                        dataType: 'json'
+                    }).done(function(res) {
+                        $sub.empty().append('<option value="">--choose--</option>');
+                        if (res && res.data && res.data.length) {
+                            res.data.forEach(function(s) {
+                                var label = s.company_name || (s.first_name ? (s.first_name + ' ' +
+                                    (s.last_name || '')) : ('Subcontractor ' + s.id));
+                                $sub.append(`<option value="${s.id}">${label}</option>`);
+                            });
+                        }
+
+                        if (typeof preserveValue !== 'undefined' && preserveValue) {
+                            try {
+                                $sub.val(preserveValue);
+                            } catch (e) {}
+                        }
+
+                        $sub.prop('disabled', false);
+                        if ($sub.hasClass('select2-hidden-accessible')) $sub.trigger('change.select2');
+                        else $sub.trigger('change');
+                    }).fail(function() {
+                        $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+                    });
+                }
+
+                // avoid duplicate handlers
+                $('#edit_shift').off('change', '#staff_id');
+                $('#edit_shift').off('select2:select', '#staff_id');
+
+                // init subcontractor select2 if present
+                (function initSubSelect() {
+                    var $modal = $('#edit_shift');
+                    var $sub = $modal.find('#subcontractor');
+                    if (!$sub.length) return;
+                    try {
+                        if ($.fn.select2 && !$sub.hasClass('select2-hidden-accessible')) {
+                            $sub.select2({
+                                dropdownParent: $modal,
+                                width: '100%',
+                                minimumResultsForSearch: 0
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('[scheduling] subcontractor select2 init failed', e);
+                    }
+                })();
+
+                var _editSubDebounce = null;
+
+                function debouncedPopulate(staffId, preserve) {
+                    clearTimeout(_editSubDebounce);
+                    _editSubDebounce = setTimeout(function() {
+                        populateEditSubcontractorsAssign(staffId, preserve);
+                    }, 120);
+                }
+
+                $('#edit_shift').on('change', '#staff_id', function() {
+                    var staffId = $(this).val();
+                    debouncedPopulate(staffId);
+                });
+                $('#edit_shift').on('select2:select', '#staff_id', function() {
+                    var staffId = $(this).val();
+                    debouncedPopulate(staffId);
+                });
+
+                $('#edit_shift').find('#staff_id').off('.editStaff').on('change.editStaff', function() {
+                    var staffId = $(this).val();
+                    debouncedPopulate(staffId);
+                }).on('select2:select.editStaff', function() {
+                    var staffId = $(this).val();
+                    debouncedPopulate(staffId);
+                });
+
+                $('#edit_shift').on('shown.bs.modal', function() {
+                    var $modal = $('#edit_shift');
+                    var staffId = $modal.find('#staff_id').val();
+                    var preserve = $modal.find('#subcontractor').val();
+
+                    var doInit = function() {
+                        if (staffId) debouncedPopulate(staffId, preserve);
+                    };
+
+                    if (window.requestIdleCallback) {
+                        requestIdleCallback(doInit, {
+                            timeout: 200
                         });
+                    } else {
+                        setTimeout(doInit, 80);
                     }
 
-                    if (typeof preserveValue !== 'undefined' && preserveValue) {
-                        try { $sub.val(preserveValue); } catch (e) {}
-                    }
+                    $modal.find('#staff_id').one('focus.editLazy click.editLazy', function() {
+                        var $el = $(this);
+                        if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                            try {
+                                var opts = {
+                                    dropdownParent: $modal,
+                                    width: '100%'
+                                };
+                                if (typeof window.customMatcher === 'function') opts.matcher =
+                                    window.customMatcher;
+                                $el.select2(opts);
+                            } catch (e) {
+                                console.warn('[scheduling] lazy select2 init failed', e);
+                            }
+                        }
+                    });
 
-                    $sub.prop('disabled', false);
-                    if ($sub.hasClass('select2-hidden-accessible')) $sub.trigger('change.select2');
-                    else $sub.trigger('change');
-                }).fail(function() {
-                    $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+                    $modal.find('#subcontractor').one('focus.editLazy click.editLazy', function() {
+                        var $el = $(this);
+                        if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                            try {
+                                $el.select2({
+                                    dropdownParent: $modal,
+                                    width: '100%',
+                                    minimumResultsForSearch: 0
+                                });
+                            } catch (e) {
+                                console.warn('[scheduling] lazy subcontractor select2 init failed',
+                                    e);
+                            }
+                        }
+                    });
                 });
+
+            } catch (e) {
+                console.error('[scheduling edit_shift] wiring failed', e);
             }
-
-            // avoid duplicate handlers
-            $('#edit_shift').off('change', '#staff_id');
-            $('#edit_shift').off('select2:select', '#staff_id');
-
-            // init subcontractor select2 if present
-            (function initSubSelect() {
-                var $modal = $('#edit_shift');
-                var $sub = $modal.find('#subcontractor');
-                if (!$sub.length) return;
-                try {
-                    if ($.fn.select2 && !$sub.hasClass('select2-hidden-accessible')) {
-                        $sub.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 });
-                    }
-                } catch (e) { console.warn('[scheduling] subcontractor select2 init failed', e); }
-            })();
-
-            var _editSubDebounce = null;
-            function debouncedPopulate(staffId, preserve) {
-                clearTimeout(_editSubDebounce);
-                _editSubDebounce = setTimeout(function() { populateEditSubcontractorsAssign(staffId, preserve); }, 120);
-            }
-
-            $('#edit_shift').on('change', '#staff_id', function() {
-                var staffId = $(this).val();
-                debouncedPopulate(staffId);
-            });
-            $('#edit_shift').on('select2:select', '#staff_id', function() {
-                var staffId = $(this).val();
-                debouncedPopulate(staffId);
-            });
-
-            $('#edit_shift').find('#staff_id').off('.editStaff').on('change.editStaff', function() {
-                var staffId = $(this).val();
-                debouncedPopulate(staffId);
-            }).on('select2:select.editStaff', function() {
-                var staffId = $(this).val();
-                debouncedPopulate(staffId);
-            });
-
-            $('#edit_shift').on('shown.bs.modal', function() {
-                var $modal = $('#edit_shift');
-                var staffId = $modal.find('#staff_id').val();
-                var preserve = $modal.find('#subcontractor').val();
-
-                var doInit = function() {
-                    if (staffId) debouncedPopulate(staffId, preserve);
-                };
-
-                if (window.requestIdleCallback) {
-                    requestIdleCallback(doInit, {timeout: 200});
-                } else {
-                    setTimeout(doInit, 80);
-                }
-
-                $modal.find('#staff_id').one('focus.editLazy click.editLazy', function() {
-                    var $el = $(this);
-                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
-                        try {
-                            var opts = { dropdownParent: $modal, width: '100%' };
-                            if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
-                            $el.select2(opts);
-                        } catch (e) { console.warn('[scheduling] lazy select2 init failed', e); }
-                    }
-                });
-
-                $modal.find('#subcontractor').one('focus.editLazy click.editLazy', function() {
-                    var $el = $(this);
-                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
-                        try { $el.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 }); } catch (e) { console.warn('[scheduling] lazy subcontractor select2 init failed', e); }
-                    }
-                });
-            });
-
-        } catch (e) { console.error('[scheduling edit_shift] wiring failed', e); } });
+        });
     </script>
 
 @endsection
