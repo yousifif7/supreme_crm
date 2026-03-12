@@ -2755,58 +2755,72 @@ public function getTodayShifts()
         return view('security_boards.shift-detail', compact('shiftDate', 'subcontractors', 'siteLat', 'siteLng'));
     }
 
-public function patrolUpdate(Request $request, $id)
-{
-    $patrol = Patrol::findOrFail($id);
+    public function patrolUpdate(Request $request, $id)
+    {
+        $patrol = Patrol::findOrFail($id);
 
-    $request->validate([
-        'name' => 'required|string|max:255',
-        'start_time' => 'required_unless:status,pending|nullable|regex:/^\d{1,2}:\d{2}(:\d{2})?$/',
-        'status' => 'required|in:pending,in_progress,completed,missed',
-        'approval_status' => 'nullable|in:pending,approved,rejected',
-    ]);
+        $request->validate([
+            'name' => 'required|string|max:255',
+            'start_time' => 'required_unless:status,pending|nullable|regex:/^\d{1,2}:\d{2}(:\d{2})?$/',
+            'status' => 'required|in:pending,in_progress,completed,missed',
+            'approval_status' => 'nullable|in:pending,approved,rejected',
+        ]);
 
-    $status = $request->input('status');
+        $status = $request->input('status');
 
-    $patrolDate = $patrol->date ?? Carbon::now()->toDateString();
-
-    $updateData = [
-        'name' => $request->input('name'),
-        'status' => $status,
-    ];
-
-    if ($status === 'pending' && $patrol->status !== 'pending') {
-        // Use patrol date + current time
-        $timeNow = Carbon::now()->format('H:i:s');
-        $updateData['start_time'] = $patrolDate . ' ' . $timeNow;
-    } else {
-        $raw = $request->input('start_time'); // e.g. "05:00" or "05:00:00"
-        if ($raw !== null) {
-            $timePart = (strlen($raw) === 5) ? $raw . ':00' : $raw;
-            $updateData['start_time'] = $patrolDate . ' ' . $timePart;
+        // Get the shift for notifications
+        $shift = ShiftDate::find($patrol->shift_id);
+        
+        // Preserve the date from the patrol's existing start_time
+        // The date was correctly determined when the patrol was created
+        if ($patrol->start_time) {
+            try {
+                $patrolDate = Carbon::parse($patrol->start_time)->toDateString();
+            } catch (\Exception $e) {
+                $patrolDate = $shift?->shift_date ?? Carbon::now()->toDateString();
+            }
+        } else {
+            $patrolDate = $shift?->shift_date ?? Carbon::now()->toDateString();
         }
+
+        $updateData = [
+            'name' => $request->input('name'),
+            'status' => $status,
+        ];
+
+        if ($status === 'pending' && $patrol->status !== 'pending') {
+            // Use patrol date + current time
+            $timeNow = Carbon::now()->format('H:i:s');
+            $updateData['start_time'] = $patrolDate . ' ' . $timeNow;
+        } else {
+            $raw = $request->input('start_time'); // e.g. "05:00" or "05:00:00"
+            if ($raw !== null) {
+                $timePart = (strlen($raw) === 5) ? $raw . ':00' : $raw;
+                // Simply combine the existing date with the new time
+                // Don't recalculate which day it should be - that was done during creation
+                $updateData['start_time'] = $patrolDate . ' ' . $timePart;
+            }
+        }
+
+        if ($request->has('approval_status')) {
+            $updateData['approval_status'] = $request->input('approval_status');
+        }
+
+        $patrol->update($updateData);
+        $patrol->refresh();
+
+        send_push_notification(
+            $shift?->user_id,
+            'Patrol updated',
+            'An admin has updated your patrol! check on your app now.',
+            ['patrol' => $patrol],
+        );
+
+        return response()->json([
+            'success' => true,
+            'patrol' => $patrol
+        ]);
     }
-
-    if ($request->has('approval_status')) {
-        $updateData['approval_status'] = $request->input('approval_status');
-    }
-
-    $patrol->update($updateData);
-    $patrol->refresh();
-
-    $shift = ShiftDate::find($patrol->shift_id);
-    send_push_notification(
-        $shift?->user_id,
-        'Patrol updated',
-        'An admin has updated your patrol! check on your app now.',
-        ['patrol' => $patrol],
-    );
-
-    return response()->json([
-        'success' => true,
-        'patrol' => $patrol
-    ]);
-}
 
     public function patrolDestroy($id)
     {
