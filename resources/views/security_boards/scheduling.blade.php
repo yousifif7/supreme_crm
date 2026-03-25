@@ -13,24 +13,26 @@
             display: flex;
             width: 100%;
         }
+
         .gantt-row-content,
-.gantt-timeline-header {
-    flex-shrink: 0;
-}
-        /* .gantt-timeline-header,
-                            .gantt-row-content {
-                                display: grid;
-                                grid-template-columns: repeat(7, 1fr);
-                                flex: 1;
-                            } */
+        .gantt-timeline-header {
+            flex-shrink: 0;
+        }
 
         /* .gantt-timeline-header,
-                                                .gantt-row-content {
-                                                    display: flex;
-                                                    flex: 1;
-                                                    width: 100%;
-                                                    min-width: 100%;
-                                                } */
+                                .gantt-row-content {
+                                    display: grid;
+                                    grid-template-columns: repeat(7, 1fr);
+                                    flex: 1;
+                                } */
+
+        /* .gantt-timeline-header,
+                                                    .gantt-row-content {
+                                                        display: flex;
+                                                        flex: 1;
+                                                        width: 100%;
+                                                        min-width: 100%;
+                                                    } */
 
         html {
             font-size: 80%;
@@ -92,8 +94,8 @@
         }
 
         /* Ensure the row divider is always visible above inner content by
-                                                       drawing it with a pseudo-element. This prevents wide day-columns
-                                                       or inner elements from visually covering the separator. */
+                                                           drawing it with a pseudo-element. This prevents wide day-columns
+                                                           or inner elements from visually covering the separator. */
         .gantt-row::after {
             content: '';
             position: absolute;
@@ -107,7 +109,7 @@
             pointer-events: none;
         }
 
-       
+
 
         .gantt-row-sidebar {
             width: 100px;
@@ -130,9 +132,9 @@
         }
 
         /* Day column: allow JS to set fixed widths per day so a full week
-                                                       can be forced to fit the available container width. Keep
-                                                       box-model and overflow handling here but remove a large CSS
-                                                       min-width that caused overly wide columns on large screens. */
+                                                           can be forced to fit the available container width. Keep
+                                                           box-model and overflow handling here but remove a large CSS
+                                                           min-width that caused overly wide columns on large screens. */
         .day-column {
 
             border-right: 1px solid #dee2e6;
@@ -156,7 +158,7 @@
         /* day-cell: flex row wrap so bars size to their content */
         .day-cell {
             display: grid;
-            gap: 3px;
+            gap: 5px;
             min-height: 100px;
             padding: 6px;
             border: 1px solid #dee2e6;
@@ -165,12 +167,12 @@
 
         /* Bars grow to fill available row width; at most 4-5 per row in a 760px column */
         /* .day-cell>.gantt-bar {
-                                                    flex: 1 1 140px;
-                                                    min-width: 130px;
-                                                    max-width: 100%;
-                                                    box-sizing: border-box;
-                                                    align-self: start;
-                                                } */
+                                                        flex: 1 1 140px;
+                                                        min-width: 130px;
+                                                        max-width: 100%;
+                                                        box-sizing: border-box;
+                                                        align-self: start;
+                                                    } */
 
         /* Bar layout: readable and compact */
         .gantt-bar {
@@ -178,7 +180,7 @@
             min-height: 40px;
             padding: 4px 6px;
             width: 100%;
-            min-width: 100px;
+            /* min-width: 100px; */
             border-radius: 5px;
             box-sizing: border-box;
             cursor: pointer;
@@ -186,6 +188,22 @@
             color: #fff;
             gap: 4px;
             font-size: 9px;
+        }
+
+        #ganttChart.day-view .day-cell {
+            grid-template-columns: repeat(auto-fill, 160px);
+            justify-content: flex-start;
+
+        }
+
+        #ganttChart.day-view .day-column {
+            width: 100%;
+        }
+
+        #ganttChart.day-view .gantt-bar {
+            width: 160px;
+            min-width: 160px;
+            max-width: 160px;
         }
 
         /* .bar-content holds each piece on its own line */
@@ -272,11 +290,11 @@
             font-size: 8px;
             opacity: 0.9;
             /* flex-shrink: 0;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        opacity: 0.35;
-                        line-height: 1; */
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            opacity: 0.35;
+                            line-height: 1; */
         }
 
         /* view-note icon: amber highlight = note exists */
@@ -285,14 +303,14 @@
             font-size: 8px;
             opacity: 0.9;
             /* flex-shrink: 0;
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        line-height: 1;
-                        background: rgba(255, 193, 7, 0.30);
-                        border-radius: 3px;
-                        padding: 1px 2px;
-                        outline: 1px solid rgba(255, 193, 7, 0.55); */
+                            display: inline-flex;
+                            align-items: center;
+                            justify-content: center;
+                            line-height: 1;
+                            background: rgba(255, 193, 7, 0.30);
+                            border-radius: 3px;
+                            padding: 1px 2px;
+                            outline: 1px solid rgba(255, 193, 7, 0.55); */
         }
 
         /* edit icon (pencil) - inline with time row */
@@ -301,18 +319,18 @@
             font-size: 8px;
             opacity: 0.9;
             /* display: inline-flex;
-                        align-items: center;
-                        flex-shrink: 0;
-                        opacity: 0.8;
-                        color: inherit;
-                        vertical-align: middle; */
+                            align-items: center;
+                            flex-shrink: 0;
+                            opacity: 0.8;
+                            color: inherit;
+                            vertical-align: middle; */
         }
 
         /*
-                    .gantt-bar .edit-shift-icon svg {
-                        width: 14px;
-                        height: 14px;
-                    } */
+                        .gantt-bar .edit-shift-icon svg {
+                            width: 14px;
+                            height: 14px;
+                        } */
 
         /* selected visual */
         .gantt-bar.selected {
@@ -398,10 +416,11 @@
         }
 
         #ganttChart {
-    width: 100%;
-    /* min-width: 100%; */
-    display: block;
-}
+            width: 100%;
+            /* min-width: 100%; */
+            display: block;
+        }
+
         .gantt-wrapper {
             width: 100%;
         }
@@ -547,6 +566,109 @@
             z-index: 1;
         }
 
+        @media (min-width:1600px) {
+
+            .gantt-bar .service-type,
+            .gantt-bar .duration-text,
+            .gantt-bar .staff-name {
+                font-size: 13px
+            }
+
+            .gantt-bar .time-text {
+                font-size: 12px
+            }
+
+            .gantt-bar .note-icon {
+                font-size: 10px
+            }
+ .gantt-bar .view-note-icon{
+          font-size: 10px;
+ }
+            .gantt-bar .edit-shift-icon {
+                font-size: 10px
+            }
+
+            #scheduling .status-summary div {
+                font-size: 16px
+            }
+
+            .gantt-sidebar-header {
+                font-size: 13px
+            }
+
+            .gantt-row-sidebar {
+                font-size: 13px
+            }
+
+            #currentWeekDisplay {
+                font-size: 14px
+            }
+
+            .gantt-legend-item {
+                font-size: 14px
+            }
+
+            .gantt-legend-color {
+                width: 18px;
+                height: 18px;
+            }
+
+            .day-header {
+                font-size: 13px
+            }
+        }
+
+        @media (min-width:3000px) {
+
+            .gantt-bar .service-type,
+            .gantt-bar .duration-text,
+            .gantt-bar .staff-name {
+                font-size: 16px
+            }
+
+            .gantt-bar .time-text {
+                font-size: 13px
+            }
+
+            .gantt-bar .note-icon {
+                font-size: 13px
+            }
+ .gantt-bar .view-note-icon{
+          font-size: 13px
+ }
+            .gantt-bar .edit-shift-icon {
+                font-size: 13px
+            }
+
+            #scheduling .status-summary div {
+                font-size: 16px
+            }
+
+            .gantt-sidebar-header {
+                font-size: 15px
+            }
+
+            .gantt-row-sidebar {
+                font-size: 13px
+            }
+
+            #currentWeekDisplay {
+                font-size: 16px
+            }
+
+            .gantt-legend-item {
+                font-size: 16px
+            }
+
+            .gantt-legend-color {
+                width: 20px;
+                height: 20px;
+            }
+
+            .day-header {
+                font-size: 16px
+            }
+        }
 
         @media (max-width: 992px) {
             .gantt-row {
@@ -607,24 +729,24 @@
         @media (max-width: 1200px) {
 
             /* .day-cell {
-                                        grid-template-columns: repeat(3, 1fr);
-                                    } */
+                                            grid-template-columns: repeat(3, 1fr);
+                                        } */
 
         }
 
         @media (max-width: 768px) {
 
             /* .day-cell {
-                                        grid-template-columns: repeat(2, 1fr);
-                                    } */
+                                            grid-template-columns: repeat(2, 1fr);
+                                        } */
 
         }
 
         @media (max-width: 480px) {
 
             /* .day-cell {
-                                        grid-template-columns: repeat(1, 1fr);
-                                    } */
+                                            grid-template-columns: repeat(1, 1fr);
+                                        } */
 
         }
     </style>
@@ -672,7 +794,7 @@
                                                 <i class="ti ti-chevron-left"></i>
                                             </button>
                                             <button class="btn btn-outline-secondary" id="todayBtn">Today</button>
-                                           
+
                                             <button class="btn btn-outline-secondary" id="nextWeekBtn">
                                                 <i class="ti ti-chevron-right"></i>
                                             </button>
@@ -955,221 +1077,232 @@
          * Layout helper: Sets column widths per day based on maximum bars across all rows for that date.
          * All cells for the same date get identical width, regardless of their individual bar count.
          */
-         function adjustGanttDayCellColumns() {
-
-
-const ganttChartEl = document.getElementById('ganttChart');
-if (!ganttChartEl) return;
-
-const container = document.querySelector('.gantt-container');
-const sidebarWidth = 200; // 2 sidebar columns (Client + Site)
-
-// Group all day columns by date
-const dateGroups = {};
-const dayCols = ganttChartEl.querySelectorAll(".day-column");
-
-dayCols.forEach(dc => {
-    const date = dc.dataset.date;
-    if (!date) return;
-
-    if (!dateGroups[date]) dateGroups[date] = [];
-    dateGroups[date].push(dc);
-});
-
-let totalWidth = 0;
-const columnWidths = [];
-
-Object.keys(dateGroups).forEach(date => {
-
-    const cols = dateGroups[date];
-
-    // Find maximum bars in this date column
-    let maxBars = 0;
-
-    cols.forEach(dc => {
-        const cell = dc.querySelector(".day-cell");
-        if (!cell) return;
-
-        const barCount = cell.querySelectorAll(".gantt-bar").length;
-        maxBars = Math.max(maxBars, barCount);
-    });
-
-    // Determine grid layout
-    let gridColumns = 1;
-    if (maxBars <= 2) gridColumns = 2;
-    else if (maxBars <= 4) gridColumns = 2;
-    else if (maxBars <= 8) gridColumns = 4;
-    else gridColumns = 4;
-
-    cols.forEach(dc => {
-        const cell = dc.querySelector(".day-cell");
-        if (cell) {
-            cell.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
-        }
-    });
-
-    // Calculate column width
-    const barMinWidth = 105;
-    const gap = 3;
-
-    let columnWidth;
-
-    if (maxBars === 0) {
-        columnWidth = 245;
-    } else {
-        columnWidth = Math.min(
-            Math.max(gridColumns * barMinWidth + (gridColumns - 1) * gap, 150),
-            760
-        );
-    }
-
-    columnWidths.push({ date, width: columnWidth });
-    totalWidth += columnWidth;
-
-});
-
-// 🔴 Stretch chart if container is larger
-if (container) {
-
-    const containerWidth = container.clientWidth - sidebarWidth;
-
-    if (totalWidth < containerWidth) {
-
-        const extra = containerWidth - totalWidth;
-        const extraPerDay = Math.floor(extra / columnWidths.length);
-
-        columnWidths.forEach(c => {
-            c.width += extraPerDay;
-        });
-
-        // --- View-note edit handlers: Edit / Cancel / Save ---
-        $(document).on('click', '#editNoteBtn', function() {
-            $('#editNoteArea').show();
-            $('#viewNoteText').hide();
-            $('#editNoteBtn').addClass('d-none');
-            $('#saveNoteEditBtn').removeClass('d-none');
-            $('#cancelEditNoteBtn').removeClass('d-none');
-        });
-
-        $(document).on('click', '#cancelEditNoteBtn', function() {
-            const orig = $('#viewNoteModal').data('orig-note') || '';
-            const origType = $('#viewNoteModal').data('orig-type') || '';
-            $('#editNoteText').val(orig);
-            $('#editNoteType').val(origType);
-            $('#editNoteArea').hide();
-            $('#viewNoteText').show();
-            $('#editNoteBtn').removeClass('d-none');
-            $('#saveNoteEditBtn').addClass('d-none');
-            $('#cancelEditNoteBtn').addClass('d-none');
-        });
-
-        $(document).on('click', '#saveNoteEditBtn', function(e) {
-            e.preventDefault();
-            const btn = $(this);
-            // prevent duplicate submissions across multiple handlers
-            if (btn.data('saving')) return;
-            btn.data('saving', true);
-
-            const shiftId = $('#shiftId').val() || $('#deleteNoteBtn').data('shift-id');
-            if (!shiftId) {
-                btn.data('saving', false);
+        function adjustGanttDayCellColumns() {
+            if (document.querySelector('#ganttChart').classList.contains('day-view')) {
                 return;
             }
-            const note = $('#editNoteText').val();
-            const note_type = $('#editNoteType').val();
 
-            btn.prop('disabled', true).text('Saving...');
+            const ganttChartEl = document.getElementById('ganttChart');
+            if (!ganttChartEl) return;
 
-            $.ajax({
-                url: `/shift-dates/${shiftId}/note`,
-                type: 'POST',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content'),
-                    note: note,
-                    note_type: note_type
-                },
-                success: function(resp) {
-                    // resp.note may be a string or an object {note: 'text', ...}
-                    let updatedNote;
-                    if (resp && resp.note) {
-                        updatedNote = (typeof resp.note === 'object') ? (resp.note.note || '') : resp.note;
-                    } else {
-                        updatedNote = note;
-                    }
-                    const updatedType = (resp && resp.note_type) ? resp.note_type : note_type;
+            const container = document.querySelector('.gantt-container');
+            const sidebarWidth = 200; // 2 sidebar columns (Client + Site)
 
-                    $('#viewNoteText').text(updatedNote).show();
-                    $('#viewNoteType').text(updatedType);
-                    $('#editNoteArea').hide();
-                    $('#editNoteBtn').removeClass('d-none');
-                    $('#saveNoteEditBtn').addClass('d-none');
-                    $('#cancelEditNoteBtn').addClass('d-none');
-                    $('#viewNoteModal').data('orig-note', updatedNote);
-                    $('#viewNoteModal').data('orig-type', updatedType);
-                    try { showToast('Note saved!', 'success', 4000); } catch (e) {}
+            // Group all day columns by date
+            const dateGroups = {};
+            const dayCols = ganttChartEl.querySelectorAll(".day-column");
 
-                    // pass normalized note object to refreshShiftBar
-                    if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, { id: (resp && resp.id) ? resp.id : null, note: updatedNote });
-                },
-                error: function(xhr) {
-                    try { showToast('Error saving note','error',5000); } catch (e) {}
-                    console.error(xhr.responseText);
-                },
-                complete: function() {
-                    btn.prop('disabled', false).text('Save');
-                    btn.data('saving', false);
-                }
+            dayCols.forEach(dc => {
+                const date = dc.dataset.date;
+                if (!date) return;
+
+                if (!dateGroups[date]) dateGroups[date] = [];
+                dateGroups[date].push(dc);
             });
-        });
 
-        totalWidth = containerWidth;
-    }
-}
+            let totalWidth = 0;
+            const columnWidths = [];
 
-// Apply widths
-columnWidths.forEach(col => {
+            Object.keys(dateGroups).forEach(date => {
 
-    const cols = dateGroups[col.date];
+                const cols = dateGroups[date];
 
-    cols.forEach(dc => {
-        dc.style.width = col.width + "px";
-        dc.style.minWidth = col.width + "px";
-        dc.style.flex = "0 0 " + col.width + "px";
-    });
+                // Find maximum bars in this date column
+                let maxBars = 0;
 
-    const headerEl = ganttChartEl.querySelector(`.day-header[data-date="${col.date}"]`);
+                cols.forEach(dc => {
+                    const cell = dc.querySelector(".day-cell");
+                    if (!cell) return;
 
-    if (headerEl) {
-        headerEl.style.width = col.width + "px";
-        headerEl.style.minWidth = col.width + "px";
-        headerEl.style.flex = "0 0 " + col.width + "px";
-    }
+                    const barCount = cell.querySelectorAll(".gantt-bar").length;
+                    maxBars = Math.max(maxBars, barCount);
+                });
 
-});
+                // Determine grid layout
+                let gridColumns = Math.min(maxBars, 4);
+                if (gridColumns === 0) gridColumns = 1;
 
-// Update timeline
-const header = ganttChartEl.querySelector(".gantt-timeline-header");
-const rows = ganttChartEl.querySelectorAll(".gantt-row-content");
+                cols.forEach(dc => {
+                    const cell = dc.querySelector(".day-cell");
+                    if (cell) {
+                        cell.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
+                    }
+                });
 
-if (header) {
-    header.style.width = totalWidth + "px";
-    header.style.minWidth = totalWidth + "px";
-    header.style.flex = "0 0 " + totalWidth + "px";
-    header.style.display = "flex";
-}
+                // Calculate column width
+                const barMinWidth = 140;
+                const gap = 5;
 
-rows.forEach(r => {
-    r.style.width = totalWidth + "px";
-    r.style.minWidth = totalWidth + "px";
-    r.style.flex = "0 0 " + totalWidth + "px";
-    r.style.display = "flex";
-});
+                let columnWidth;
 
-// Force chart stretch
-ganttChartEl.style.width = "100%";
+                if (maxBars === 0) {
+                    columnWidth = 245;
+                } else {
+                    columnWidth = Math.min(
+                        Math.max(gridColumns * barMinWidth + (gridColumns - 1) * gap, 150),
+                        900
+                    );
+                }
+
+                columnWidths.push({
+                    date,
+                    width: columnWidth
+                });
+                totalWidth += columnWidth;
+
+            });
+
+            // 🔴 Stretch chart if container is larger
+            if (container) {
+
+                const containerWidth = container.clientWidth - sidebarWidth;
+
+                if (totalWidth < containerWidth) {
+
+                    const extra = containerWidth - totalWidth;
+                    const extraPerDay = Math.floor(extra / columnWidths.length);
+
+                    columnWidths.forEach(c => {
+                        c.width += extraPerDay;
+                    });
+
+                    // --- View-note edit handlers: Edit / Cancel / Save ---
+                    $(document).on('click', '#editNoteBtn', function() {
+                        $('#editNoteArea').show();
+                        $('#viewNoteText').hide();
+                        $('#editNoteBtn').addClass('d-none');
+                        $('#saveNoteEditBtn').removeClass('d-none');
+                        $('#cancelEditNoteBtn').removeClass('d-none');
+                    });
+
+                    $(document).on('click', '#cancelEditNoteBtn', function() {
+                        const orig = $('#viewNoteModal').data('orig-note') || '';
+                        const origType = $('#viewNoteModal').data('orig-type') || '';
+                        $('#editNoteText').val(orig);
+                        $('#editNoteType').val(origType);
+                        $('#editNoteArea').hide();
+                        $('#viewNoteText').show();
+                        $('#editNoteBtn').removeClass('d-none');
+                        $('#saveNoteEditBtn').addClass('d-none');
+                        $('#cancelEditNoteBtn').addClass('d-none');
+                    });
+
+                    $(document).on('click', '#saveNoteEditBtn', function(e) {
+                        e.preventDefault();
+                        const btn = $(this);
+                        // prevent duplicate submissions across multiple handlers
+                        if (btn.data('saving')) return;
+                        btn.data('saving', true);
+
+                        const shiftId = $('#shiftId').val() || $('#deleteNoteBtn').data('shift-id');
+                        if (!shiftId) {
+                            btn.data('saving', false);
+                            return;
+                        }
+                        const note = $('#editNoteText').val();
+                        const note_type = $('#editNoteType').val();
+
+                        btn.prop('disabled', true).text('Saving...');
+
+                        $.ajax({
+                            url: `/shift-dates/${shiftId}/note`,
+                            type: 'POST',
+                            data: {
+                                _token: $('meta[name="csrf-token"]').attr('content'),
+                                note: note,
+                                note_type: note_type
+                            },
+                            success: function(resp) {
+                                // resp.note may be a string or an object {note: 'text', ...}
+                                let updatedNote;
+                                if (resp && resp.note) {
+                                    updatedNote = (typeof resp.note === 'object') ? (resp.note.note ||
+                                        '') : resp.note;
+                                } else {
+                                    updatedNote = note;
+                                }
+                                const updatedType = (resp && resp.note_type) ? resp.note_type :
+                                    note_type;
+
+                                $('#viewNoteText').text(updatedNote).show();
+                                $('#viewNoteType').text(updatedType);
+                                $('#editNoteArea').hide();
+                                $('#editNoteBtn').removeClass('d-none');
+                                $('#saveNoteEditBtn').addClass('d-none');
+                                $('#cancelEditNoteBtn').addClass('d-none');
+                                $('#viewNoteModal').data('orig-note', updatedNote);
+                                $('#viewNoteModal').data('orig-type', updatedType);
+                                try {
+                                    showToast('Note saved!', 'success', 4000);
+                                } catch (e) {}
+
+                                // pass normalized note object to refreshShiftBar
+                                if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, {
+                                    id: (resp && resp.id) ? resp.id : null,
+                                    note: updatedNote
+                                });
+                            },
+                            error: function(xhr) {
+                                try {
+                                    showToast('Error saving note', 'error', 5000);
+                                } catch (e) {}
+                                console.error(xhr.responseText);
+                            },
+                            complete: function() {
+                                btn.prop('disabled', false).text('Save');
+                                btn.data('saving', false);
+                            }
+                        });
+                    });
+
+                    totalWidth = containerWidth;
+                }
+            }
+
+            // Apply widths
+            columnWidths.forEach(col => {
+
+                const cols = dateGroups[col.date];
+
+                cols.forEach(dc => {
+                    dc.style.width = col.width + "px";
+                    dc.style.minWidth = col.width + "px";
+                    dc.style.flex = "0 0 " + col.width + "px";
+                });
+
+                const headerEl = ganttChartEl.querySelector(`.day-header[data-date="${col.date}"]`);
+
+                if (headerEl) {
+                    headerEl.style.width = col.width + "px";
+                    headerEl.style.minWidth = col.width + "px";
+                    headerEl.style.flex = "0 0 " + col.width + "px";
+                }
+
+            });
+
+            // Update timeline
+            const header = ganttChartEl.querySelector(".gantt-timeline-header");
+            const rows = ganttChartEl.querySelectorAll(".gantt-row-content");
+
+            if (header) {
+                header.style.width = totalWidth + "px";
+                header.style.minWidth = totalWidth + "px";
+                header.style.flex = "0 0 " + totalWidth + "px";
+                header.style.display = "flex";
+            }
+
+            rows.forEach(r => {
+                r.style.width = totalWidth + "px";
+                r.style.minWidth = totalWidth + "px";
+                r.style.flex = "0 0 " + totalWidth + "px";
+                r.style.display = "flex";
+            });
+
+            // Force chart stretch
+            ganttChartEl.style.width = "100%";
 
 
-}
+        }
 
         /**
          * Alternative layout function that also groups by date
@@ -1179,49 +1312,6 @@ ganttChartEl.style.width = "100%";
         /**
          * Fit week to screen width (equal distribution)
          */
-         function fitWeekToScreen() {
-
-const container = document.querySelector('.gantt-container');
-const timeline = document.querySelector('.gantt-timeline-header');
-const days = document.querySelectorAll('.day-column');
-const headers = document.querySelectorAll('.day-header');
-
-if (!container || !days.length) return;
-
-const containerWidth = container.clientWidth - 200;
-
-const dayWidth = Math.floor(containerWidth / days.length);
-const minDayWidth = 110;
-
-const finalDayWidth = Math.max(dayWidth, minDayWidth);
-
-days.forEach(day => {
-
-    day.style.width = finalDayWidth + "px";
-    day.style.minWidth = finalDayWidth + "px";
-    day.style.flex = "0 0 " + finalDayWidth + "px";
-
-});
-
-headers.forEach(header => {
-
-    header.style.width = finalDayWidth + "px";
-    header.style.minWidth = finalDayWidth + "px";
-    header.style.flex = "0 0 " + finalDayWidth + "px";
-
-});
-
-const totalWidth = finalDayWidth * days.length;
-
-if (timeline) {
-
-    timeline.style.width = totalWidth + "px";
-    timeline.style.minWidth = totalWidth + "px";
-    timeline.style.flex = "0 0 " + totalWidth + "px";
-    timeline.style.display = "flex";
-
-}
-}
 
         /**
          * Simple per-cell grid adjustment (kept for compatibility)
@@ -1229,10 +1319,8 @@ if (timeline) {
         function adjustDayCells() {
             document.querySelectorAll('.day-cell').forEach(cell => {
                 const shifts = cell.querySelectorAll('.gantt-bar').length;
-                let columns = 1;
-                if (shifts === 2) columns = 2;
-                else if (shifts <= 4) columns = 2;
-                else columns = 4;
+                let columns = Math.min(shifts, 4);
+                if (columns === 0) columns = 1;
                 cell.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
             });
         }
@@ -1240,12 +1328,12 @@ if (timeline) {
         // Initialize on DOM ready
         document.addEventListener("DOMContentLoaded", () => {
             setTimeout(() => {
-                fitWeekToScreen();
+
                 adjustGanttDayCellColumns();
             }, 100);
 
             setTimeout(() => {
-                fitWeekToScreen();
+
                 adjustGanttDayCellColumns();
             }, 500);
         });
@@ -1255,7 +1343,7 @@ if (timeline) {
         window.addEventListener("resize", () => {
             clearTimeout(resizeTimer);
             resizeTimer = setTimeout(() => {
-                fitWeekToScreen();
+
                 adjustGanttDayCellColumns();
             }, 150);
         });
@@ -1863,6 +1951,13 @@ if (timeline) {
                         '#viewWeekBtn' : '#viewMonthBtn');
                     setActiveGanttView(activeButton);
                 } catch (err) {}
+
+                const chart = document.querySelector('#ganttChart');
+
+                if (chart) {
+                    chart.classList.remove('day-view', 'week-view', 'month-view');
+                    chart.classList.add(`${safeView}-view`);
+                }
             }
 
             function persistCurrentGanttViewState() {
@@ -2446,7 +2541,8 @@ if (timeline) {
                                 subcontractorName = window._subcontractorMap[
                                     subcontractorId];
                             }
-                            subcontractorName = subcontractorName || (subcontractorId ? parenthesisedTag : '');
+                            subcontractorName = subcontractorName || (subcontractorId ?
+                                parenthesisedTag : '');
 
                             // bar HTML: stacked rows (service, time, duration, staff)
                             const bar = $(`
@@ -2479,7 +2575,8 @@ if (timeline) {
                             // persist original staff and resolved subcontractor on the bar
                             try {
                                 bar.attr('data-orig-staff', displayStaff || '');
-                                if (subcontractorName) bar.attr('data-sub-name', subcontractorName || '');
+                                if (subcontractorName) bar.attr('data-sub-name',
+                                    subcontractorName || '');
                                 // keep subcontractor id too so client-side map lookup can work when name is missing
                                 if (subcontractorId) bar.attr('data-sub-id',
                                     subcontractorId);
@@ -2683,23 +2780,34 @@ if (timeline) {
                                 $.get(`/shift-dates/${shiftIdLocal}/note`, function(
                                     data) {
                                     if (data && data.note) {
-                                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
-                                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
-                                        $('#viewNoteText').text(noteText).show();
+                                        const noteText = (typeof data
+                                                .note === 'object' && data
+                                                .note.note) ? data.note
+                                            .note : data.note;
+                                        const noteType = data.note_type || (
+                                            data.note && data.note
+                                            .note_type) || 'guard';
+                                        $('#viewNoteText').text(noteText)
+                                            .show();
                                         $('#viewNoteType').text(noteType);
                                         $('#editNoteText').val(noteText);
                                         $('#editNoteType').val(noteType);
-                                        $('#viewNoteModal').data('orig-note', noteText);
-                                        $('#viewNoteModal').data('orig-type', noteType);
+                                        $('#viewNoteModal').data(
+                                            'orig-note', noteText);
+                                        $('#viewNoteModal').data(
+                                            'orig-type', noteType);
                                         // Store both shift-date id and note id to be safe
                                         $('#deleteNoteBtn').data('shift-id',
                                             shiftIdLocal);
                                         if (data.id) $('#deleteNoteBtn')
                                             .data('note-id', data.id);
                                         $('#editNoteArea').hide();
-                                        $('#editNoteBtn').removeClass('d-none');
-                                        $('#saveNoteEditBtn').addClass('d-none');
-                                        $('#cancelEditNoteBtn').addClass('d-none');
+                                        $('#editNoteBtn').removeClass(
+                                            'd-none');
+                                        $('#saveNoteEditBtn').addClass(
+                                            'd-none');
+                                        $('#cancelEditNoteBtn').addClass(
+                                            'd-none');
                                         $('#viewNoteModal').modal('show');
                                     }
                                 });
@@ -3446,7 +3554,8 @@ if (timeline) {
                 $('#shiftId').val(shiftId);
                 $.get(`/shift-dates/${shiftId}/note`, function(data) {
                     if (data && data.note) {
-                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note
+                            .note : data.note;
                         const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
                         $('#viewNoteText').text(noteText).show();
                         $('#viewNoteType').text(noteType);
@@ -3510,25 +3619,31 @@ if (timeline) {
                                     const sid = $(this).data('shift-id');
                                     $('#shiftId').val(sid);
                                     $.get(`/shift-dates/${sid}/note`, function(data) {
-                                            if (data && data.note) {
-                                                const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
-                                                const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
-                                                $('#viewNoteText').text(noteText).show();
-                                                $('#viewNoteType').text(noteType);
-                                                $('#editNoteText').val(noteText);
-                                                $('#editNoteType').val(noteType);
-                                                $('#viewNoteModal').data('orig-note', noteText);
-                                                $('#viewNoteModal').data('orig-type', noteType);
-                                                if (data.id) $('#deleteNoteBtn').data(
-                                                    'note-id', data.id);
-                                                $('#deleteNoteBtn').data('shift-id', sid);
-                                                $('#editNoteArea').hide();
-                                                $('#editNoteBtn').removeClass('d-none');
-                                                $('#saveNoteEditBtn').addClass('d-none');
-                                                $('#cancelEditNoteBtn').addClass('d-none');
-                                                $('#viewNoteModal').modal('show');
-                                            }
-                                        });
+                                        if (data && data.note) {
+                                            const noteText = (typeof data.note ===
+                                                    'object' && data.note.note) ? data
+                                                .note.note : data.note;
+                                            const noteType = data.note_type || (data
+                                                    .note && data.note.note_type) ||
+                                                'guard';
+                                            $('#viewNoteText').text(noteText).show();
+                                            $('#viewNoteType').text(noteType);
+                                            $('#editNoteText').val(noteText);
+                                            $('#editNoteType').val(noteType);
+                                            $('#viewNoteModal').data('orig-note',
+                                                noteText);
+                                            $('#viewNoteModal').data('orig-type',
+                                                noteType);
+                                            if (data.id) $('#deleteNoteBtn').data(
+                                                'note-id', data.id);
+                                            $('#deleteNoteBtn').data('shift-id', sid);
+                                            $('#editNoteArea').hide();
+                                            $('#editNoteBtn').removeClass('d-none');
+                                            $('#saveNoteEditBtn').addClass('d-none');
+                                            $('#cancelEditNoteBtn').addClass('d-none');
+                                            $('#viewNoteModal').modal('show');
+                                        }
+                                    });
                                 });
                             } else {
                                 // create and append icon, then bind
@@ -3542,14 +3657,20 @@ if (timeline) {
                                     $('#shiftId').val(sid);
                                     $.get(`/shift-dates/${sid}/note`, function(data) {
                                         if (data && data.note) {
-                                            const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
-                                            const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                            const noteText = (typeof data.note ===
+                                                    'object' && data.note.note) ? data
+                                                .note.note : data.note;
+                                            const noteType = data.note_type || (data
+                                                    .note && data.note.note_type) ||
+                                                'guard';
                                             $('#viewNoteText').text(noteText).show();
                                             $('#viewNoteType').text(noteType);
                                             $('#editNoteText').val(noteText);
                                             $('#editNoteType').val(noteType);
-                                            $('#viewNoteModal').data('orig-note', noteText);
-                                            $('#viewNoteModal').data('orig-type', noteType);
+                                            $('#viewNoteModal').data('orig-note',
+                                                noteText);
+                                            $('#viewNoteModal').data('orig-type',
+                                                noteType);
                                             if (data.id) $('#deleteNoteBtn').data(
                                                 'note-id', data.id);
                                             $('#deleteNoteBtn').data('shift-id', sid);
@@ -3761,8 +3882,10 @@ if (timeline) {
                                 $('#shiftId').val(sid);
                                 $.get(`/shift-dates/${sid}/note`, function(data) {
                                     if (data && data.note) {
-                                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
-                                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                        const noteText = (typeof data.note === 'object' && data.note.note) ?
+                                            data.note.note : data.note;
+                                        const noteType = data.note_type || (data.note && data.note
+                                            .note_type) || 'guard';
                                         $('#viewNoteText').text(noteText).show();
                                         $('#viewNoteType').text(noteType);
                                         $('#editNoteText').val(noteText);
@@ -3933,8 +4056,10 @@ if (timeline) {
                                     $('#shiftId').val(sid);
                                     $.get(`/shift-dates/${sid}/note`, function(data) {
                                         if (data && data.note) {
-                                            const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
-                                            const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                                            const noteText = (typeof data.note === 'object' && data.note
+                                                .note) ? data.note.note : data.note;
+                                            const noteType = data.note_type || (data.note && data.note
+                                                .note_type) || 'guard';
                                             $('#viewNoteText').text(noteText).show();
                                             $('#viewNoteType').text(noteType);
                                             $('#editNoteText').val(noteText);
@@ -4170,7 +4295,8 @@ if (timeline) {
                 $('#shiftId').val(sid);
                 $.get(`/shift-dates/${sid}/note`, function(data) {
                     if (data && data.note) {
-                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note
+                            .note : data.note;
                         const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
                         $('#viewNoteText').text(noteText).show();
                         $('#viewNoteType').text(noteType);

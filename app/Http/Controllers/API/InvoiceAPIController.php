@@ -124,7 +124,8 @@ class InvoiceAPIController extends Controller
         });
 
         return response()->json([
-            'invoices' => $invoices->items(),
+			//'invoices' => $invoices->items(),
+			'invoices' => [],
             'pagination' => [
                 'current_page' => $invoices->currentPage(),
                 'last_page' => $invoices->lastPage(),
