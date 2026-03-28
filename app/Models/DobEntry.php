@@ -2,10 +2,12 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 
 class DobEntry extends Model
 {
+    use BelongsToAdmin;
 
     protected $table = 'dob_entries';
 
@@ -16,6 +18,7 @@ class DobEntry extends Model
     protected $appends = ['formatted_address'];
 
     protected $fillable = [
+        'admin_id',
         'user_id',
         'shift_id',
         'entry_type',

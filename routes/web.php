@@ -55,78 +55,6 @@ Route::get('/dashboard', function () {
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
 
-// function softDeleteEmailsForUsersAndEmployees(array $emails): array
-// {
-//     // Normalize emails to improve matching (trim + lowercase + unique)
-//     $emails = array_values(array_unique(array_filter(array_map(function ($e) {
-//         $e = trim((string) $e);
-//         return $e === '' ? null : mb_strtolower($e);
-//     }, $emails))));
-
-//     if (count($emails) === 0) {
-//         return [
-//             'users_updated' => 0,
-//             'employees_updated' => 0,
-//             'emails_count' => 0,
-//         ];
-//     }
-
-//     // Use transactions so both tables update consistently
-//     return DB::transaction(function () use ($emails) {
-//         $now = now();
-//         $nowStr = $now->toDateTimeString();
-
-//         // Find matched user IDs (not deleted)
-//         $matchedUserIds = DB::table('users')
-//             ->whereNull('deleted_at')
-//             ->whereIn(DB::raw('LOWER(email)'), $emails)
-//             ->pluck('id')
-//             ->toArray();
-
-//         // Important: update only rows not already soft-deleted
-//         $usersUpdated = DB::table('users')
-//             ->whereNull('deleted_at')
-//             ->whereIn(DB::raw('LOWER(email)'), $emails)
-//             ->update(['deleted_at' => $nowStr]);
-
-//         // Soft-delete employees that either match email OR are linked to matched users
-//         $employeeQuery = DB::table('employees')->whereNull('deleted_at')->where(function ($q) use ($emails, $matchedUserIds) {
-//             $q->whereIn(DB::raw('LOWER(email)'), $emails);
-//             if (!empty($matchedUserIds)) {
-//                 $q->orWhereIn('user_id', $matchedUserIds);
-//             }
-//         });
-
-//         $employeesUpdated = $employeeQuery->update(['deleted_at' => $nowStr]);
-
-//         return [
-//             'users_updated' => $usersUpdated,
-//             'employees_updated' => $employeesUpdated,
-//             'emails_count' => count($emails),
-//         ];
-//     });
-// }
-
-// Route::post('/maintenance/soft-delete-emails', function (Request $request) {
-
-
-//     // If you want to pass emails from the request:
-//     // $emails = $request->input('emails', []);
-
-//     // Or hardcode the list (your list below):
-//     $emails = [
-//         'abdulhaseebishi_r1@gmail.com',
-//     ];
-
-//     $result = softDeleteEmailsForUsersAndEmployees($emails);
-
-//     return response()->json([
-//         'ok' => true,
-//         'result' => $result,
-//         'timestamp' => now()->toDateTimeString(),
-//     ]);
-// });
-
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
 
 // Site tracking view (public)
@@ -165,22 +93,34 @@ Route::prefix('notifications')->group(function () {
     // JSON endpoint for web (session-authenticated) poller
     Route::get('/json', function(Request $request) {
         $user = auth()->user();
-        // Admin-like roles see system notifications (legacy uses user_id=1)
-        if ($user->hasAnyRole(['superadmin','controller','staff_leader','control_room'])) {
-            $notifications = \App\Models\Notification::where('user_id', 1)
+        if ($user->hasRole('admin')) {
+            // BelongsToAdmin global scope auto-applies WHERE admin_id = auth()->id()
+            $notifications = \App\Models\Notification::orderBy('created_at', 'desc')
+                ->limit($request->input('limit', 25))
+                ->get();
+        } elseif ($user->hasAnyRole(['superadmin', 'controller', 'staff_leader', 'control_room'])) {
+            // System/legacy notifications — bypass admin scope, use user_id=1 sentinel
+            $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')
+                ->where('user_id', 1)
                 ->orderBy('created_at', 'desc')
                 ->limit($request->input('limit', 25))
                 ->get();
         } else {
+            // Security staff / employees — fetch by employee_id or user_id
+            // Must bypass scope because their notifications may have admin_id set (derived from shift owner)
             $employee = \App\Models\Employee::where('user_id', $user->id)->first();
             if ($employee) {
-                $notifications = \App\Models\Notification::where('employee_id', $employee->id)
-                    ->orWhere('user_id', $user->id)
+                $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')
+                    ->where(function ($q) use ($employee, $user) {
+                        $q->where('employee_id', $employee->id)
+                          ->orWhere('user_id', $user->id);
+                    })
                     ->orderBy('created_at', 'desc')
                     ->limit($request->input('limit', 25))
                     ->get();
             } else {
-                $notifications = \App\Models\Notification::where('user_id', $user->id)
+                $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')
+                    ->where('user_id', $user->id)
                     ->orderBy('created_at', 'desc')
                     ->limit($request->input('limit', 25))
                     ->get();

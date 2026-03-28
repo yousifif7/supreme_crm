@@ -168,12 +168,19 @@
 
                         <!-- /Horizontal Single -->
                         @php
-                            $notifications = \App\Models\Notification::where('user_id', 1)
-                                ->orderBy('created_at', 'desc')->limit(25)
-                                ->get();
+                            $__notifUser = auth()->user();
+                            if ($__notifUser && $__notifUser->hasRole('admin')) {
+                                // BelongsToAdmin scope auto-filters to WHERE admin_id = auth()->id()
+                                $notifications = \App\Models\Notification::orderBy('created_at', 'desc')->limit(25)->get();
+                            } else {
+                                // superadmin, controller, staff_leader, control_room — system notifications
+                                $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')
+                                    ->where('user_id', 1)
+                                    ->orderBy('created_at', 'desc')->limit(25)->get();
+                            }
                         @endphp
                         <div class="d-flex align-items-center">
-                            @hasanyrole('superadmin|controller|staff_leader|control_room')
+                            @hasanyrole('superadmin|controller|staff_leader|control_room|admin')
                             <div class="me-1 notification_item" style="padding:7px;">
                                 <a href="" class="btn btn-menubar position-relative me-1" id="notificationBell"
                                     data-bs-toggle="dropdown">

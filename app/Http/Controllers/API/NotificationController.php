@@ -112,9 +112,10 @@ class NotificationController extends Controller
 
     public function markAllRead()
     {
-        // \Log::info('Mark all read hit');
-        Notification::where('read', false)
-            ->update(['read' => true]);
+        // BelongsToAdmin global scope is active here, so for admin role this
+        // will add WHERE admin_id = auth()->id() automatically.
+        // For superadmin it updates all. For others (staff_leader etc.) WHERE admin_id IS NULL.
+        Notification::where('read', false)->update(['read' => true]);
 
         return redirect()->back()->with('success', 'All notifications marked as read.');
     }

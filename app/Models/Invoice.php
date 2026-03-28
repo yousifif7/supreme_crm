@@ -4,12 +4,14 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToAdmin;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToAdmin;
 
     protected $fillable = [
+        'admin_id',
         'invoice_number',
         'type',
         'client_id',

@@ -40,12 +40,6 @@ class EmployeeController extends Controller
     
     public function index(EmployeesDataTable $dataTable)
     {
-        $employeeUserIds = Employee::pluck('user_id')->filter()->toArray();
-
-        User::role('security_staff')
-            ->whereNotIn('id', $employeeUserIds)
-            ->delete();
-
         $departments = Department::all();
         $visa_types = VisaType::all();
         $employee_types = EmployeeType::all();
@@ -876,8 +870,8 @@ $validator->after(function ($validator) use ($request) {
         $employee = Employee::findOrFail($id);
         $empUser = User::role('security_staff')->find($employee->user_id);
 
-        // If current user is superadmin, perform immediate delete
-        if (Auth::user() && Auth::user()->hasRole('superadmin')) {
+        // If current user is superadmin or admin, perform immediate delete
+        if (Auth::user() && (Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('admin'))) {
             Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
             if ($empUser) $empUser->delete();
             $employee->forceDelete();
@@ -962,7 +956,7 @@ $validator->after(function ($validator) use ($request) {
     public function approvePendingDelete($id)
     {
         $pd = PendingDelete::findOrFail($id);
-        if (! (Auth::user() && Auth::user()->hasRole('superadmin'))) {
+        if (! (Auth::user() && (Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('admin')))) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -988,7 +982,7 @@ $validator->after(function ($validator) use ($request) {
     public function rejectPendingDelete($id)
     {
         $pd = PendingDelete::findOrFail($id);
-        if (! (Auth::user() && Auth::user()->hasRole('superadmin'))) {
+        if (! (Auth::user() && (Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('admin')))) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
         $pd->status = 'rejected';

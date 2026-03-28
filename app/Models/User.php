@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Models\Profile;
 use App\Traits\LogsChanges;
+use App\Traits\BelongsToAdmin;
 use App\Models\Conversation;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
@@ -16,7 +17,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable, HasRoles, LogsChanges, HasApiTokens;
+    use HasFactory, Notifiable, HasRoles, LogsChanges, HasApiTokens, BelongsToAdmin;
 
     /**
      * The attributes that are mass assignable.
@@ -24,6 +25,7 @@ class User extends Authenticatable
      * @var list<string>
      */
     protected $fillable = [
+        'admin_id',
         'name',
         'first_name',
         'last_name',

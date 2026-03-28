@@ -7,14 +7,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use App\Models\Log;
 use App\Models\User;
-
+use App\Traits\BelongsToAdmin;
 use App\Traits\LogsChanges;
 
 class Client extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
 
-    protected $fillable = ['user_id', 'client_name', 'username', 'password', 'address', 'contact_number', 'contact_person', 'email', 'invoice_terms', 'payment_terms', 'doc_1', 'doc_2', 'doc_3', 'contract_start', 'contract_end', 'company_id', 'guard_rate', 'office_rate', 'vat', 'manager_id'];
+    protected $fillable = ['admin_id', 'user_id', 'client_name', 'username', 'password', 'address', 'contact_number', 'contact_person', 'email', 'invoice_terms', 'payment_terms', 'doc_1', 'doc_2', 'doc_3', 'contract_start', 'contract_end', 'company_id', 'guard_rate', 'office_rate', 'vat', 'manager_id'];
 
     public function site(): HasMany
     {

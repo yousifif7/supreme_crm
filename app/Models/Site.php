@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Traits\LogsChanges;
+use App\Traits\BelongsToAdmin;
 use App\Models\TrainingMaterial;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,8 +11,9 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Site extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
     protected $fillable = [
+        'admin_id',
         'client_id', 'site_name', 'guard_names', 'address', 'post_code', 'site_code', 'contact_number', 'contact_person', 'note', 'manager_1_id', 'manager_2_id', 'start_time', 'end_time', 'break_time', 'guard_rate', 'office_rate', 'billable_rate', 'payable_rate', 'has_qr', 'nfc_tag', 'radius'
     ];
 

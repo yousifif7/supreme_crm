@@ -3,13 +3,15 @@
 namespace App\Models;
 
 use App\Traits\LogsChanges;
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class DocumentationUpload extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
     protected $fillable = [
+        'admin_id',
         'vehicle_id',
         'mot_certificate_path',
         'insurance_certificate_path',

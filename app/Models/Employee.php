@@ -3,15 +3,17 @@
 namespace App\Models;
 
 use App\Traits\LogsChanges;
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Employee extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
 
     protected $fillable = [
+        'admin_id',
         'user_id',
         'status',
         'fore_name',

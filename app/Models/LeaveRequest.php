@@ -3,11 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Traits\BelongsToAdmin;
 
 class LeaveRequest extends Model
 {
-    //
+    use BelongsToAdmin;
+
     protected $fillable = [
+        'admin_id',
         'user_id',           // links to the app user
         'employee_id',       // direct link to Employee for payroll
         'start_date',

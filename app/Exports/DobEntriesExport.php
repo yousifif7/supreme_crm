@@ -12,8 +12,9 @@ class DobEntriesExport implements FromCollection, WithHeadings
     public function collection()
     {
         return DobEntry::get()->map(function($dob) {
-            $user = User::find($dob->user_id);
-            $shiftdate= ShiftDate::find($dob->shift_id);
+            // Bypass BelongsToAdmin scope for lookup — the DobEntry itself is already scoped.
+            $user = User::withoutAdminScope()->find($dob->user_id);
+            $shiftdate = ShiftDate::withoutAdminScope()->find($dob->shift_id);
             return [
                 'ID' => $dob->id,
                 'User' => $user ? $user->first_name . ' ' . $user->last_name : 'Unknown',

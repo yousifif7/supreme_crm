@@ -2,13 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 
 class TrainingMaterial extends Model
 {
-
+    use BelongsToAdmin;
 
     protected $fillable = [
+        'admin_id',
         'title',
         'type',
         'description',

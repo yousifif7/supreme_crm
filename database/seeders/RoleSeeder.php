@@ -16,9 +16,10 @@ class RoleSeeder extends Seeder
     {
         // Create superadmin role if not exists
         $role = Role::firstOrCreate(['name' => 'superadmin']);
-        $role1 = Role::firstOrCreate(['name' => 'client']);
-        $role2 = Role::firstOrCreate(['name' => 'security_staff']);
-        $role2 = Role::firstOrCreate(['name' => 'subcontractor']);
+        Role::firstOrCreate(['name' => 'admin']);
+        Role::firstOrCreate(['name' => 'client']);
+        Role::firstOrCreate(['name' => 'security_staff']);
+        Role::firstOrCreate(['name' => 'subcontractor']);
 
         // Assign all existing permissions to superadmin
         $allPermissions = Permission::all();

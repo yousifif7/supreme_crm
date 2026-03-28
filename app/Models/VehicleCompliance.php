@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToAdmin;
 use App\Traits\LogsChanges;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class VehicleCompliance extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
     protected $fillable = [
+        'admin_id',
         'vehicle_id',
         'mot_certificate_number',
         'mot_expiry_date',

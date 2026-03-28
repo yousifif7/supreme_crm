@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Services\GeoService;
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 
 class IncidentReport extends Model
 {
-    //
+    use BelongsToAdmin;
 
     protected $casts = [
         'location' => 'array',
@@ -15,6 +16,7 @@ class IncidentReport extends Model
     protected $appends = ['formatted_address'];
 
     protected $fillable = [
+        'admin_id',
         'user_id',
         'shift_id',
         'category',

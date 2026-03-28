@@ -295,7 +295,14 @@ class ReportController extends Controller
         $date = $request->input('shift_date');
         $export = $request->input('export'); // 'pdf' or 'excel'
 
+        // Admin scoping: ShiftBooking has no admin_id column, so we scope through
+        // the 'shift' (ShiftDate) relationship which has BelongsToAdmin applied.
+        // superadmin sees all; admin sees their own; others see admin_id IS NULL records.
         $bookings = ShiftBooking::with(['shift.shift.site.client', 'user'])
+            ->when(
+                !auth()->user()->hasRole('superadmin'),
+                fn($q) => $q->whereHas('shift')  // BelongsToAdmin scope on ShiftDate auto-filters
+            )
             ->when(
                 $clientId,
                 fn($q) =>
@@ -353,7 +360,13 @@ class ReportController extends Controller
         $sites = Site::pluck('site_name', 'id');
 
         // Base query
-        $query = PatrolCheckPoint::with('site');
+        // PatrolCheckPoint has no admin_id; scope through 'site' (Site has BelongsToAdmin).
+        // superadmin sees all; admin sees their sites' checkpoints; others see unowned sites.
+        $query = PatrolCheckPoint::with('site')
+            ->when(
+                !auth()->user()->hasRole('superadmin'),
+                fn($q) => $q->whereHas('site')  // BelongsToAdmin scope on Site auto-filters
+            );
 
         if ($selectedSite) {
             $query->where('site_id', $selectedSite);
@@ -875,6 +888,9 @@ class ReportController extends Controller
         $availabilities = collect();
 
         // Prefer explicit weekday selection (`days[]`) if provided
+        // Availability has no admin_id; scope through 'user' (User has BelongsToAdmin).
+        $isSuperAdmin = auth()->user()->hasRole('superadmin');
+
         if (!empty($days)) {
             // sanitize to integers 0..6
             $days = array_values(array_filter(array_map('intval', (array)$days), function ($v) {
@@ -882,6 +898,7 @@ class ReportController extends Controller
             }));
 
             $query = \App\Models\Availability::with('user')
+                ->when(!$isSuperAdmin, fn($q) => $q->whereHas('user'))  // BelongsToAdmin on User auto-filters
                 ->when($employeeId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('id', $employeeId)))
                 ->when($clientId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('client_id', $clientId)))
                 ->whereIn('day_of_week', $days);
@@ -906,6 +923,7 @@ class ReportController extends Controller
                 $daysInRange = array_values(array_unique($daysInRange));
 
                 $query = \App\Models\Availability::with('user')
+                    ->when(!$isSuperAdmin, fn($q) => $q->whereHas('user'))  // BelongsToAdmin on User auto-filters
                     ->when($employeeId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('id', $employeeId)))
                     ->when($clientId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('client_id', $clientId)))
                     ->whereIn('day_of_week', $daysInRange);
@@ -927,6 +945,7 @@ class ReportController extends Controller
         // return all availability rows for that employee.
         if ($availabilities->isEmpty() && $employeeId && empty($days) && empty($startDate) && empty($endDate)) {
             $query = \App\Models\Availability::with('user')
+                ->when(!$isSuperAdmin, fn($q) => $q->whereHas('user'))  // BelongsToAdmin on User auto-filters
                 ->when($employeeId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('id', $employeeId)))
                 ->when($clientId, fn($q) => $q->whereHas('user', fn($qq) => $qq->where('client_id', $clientId)));
 

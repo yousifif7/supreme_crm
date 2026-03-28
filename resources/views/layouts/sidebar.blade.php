@@ -351,7 +351,7 @@
                           @endhasrole
 
 
-                        @hasrole('superadmin')     
+                        @hasrole('superadmin|admin')     
                           <li class="{{ request()->is('logs*') ? 'active' : '' }}">
                               <a href="{{ url('logs') }}">
                                   <i class="bi bi-clock"></i>

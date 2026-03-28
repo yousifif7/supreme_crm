@@ -51,7 +51,7 @@
                                             </div>
                                         </div>
 
-                                        @hasanyrole('superadmin')       
+                                        @hasanyrole('superadmin|admin')       
                                         <div class="col-md-4">
                                             <div class="mb-3">
                                                 <label class="form-label">Shift Date</label>

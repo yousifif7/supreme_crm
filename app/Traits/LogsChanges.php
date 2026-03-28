@@ -330,8 +330,9 @@ trait LogsChanges
                 // fallback: create directly if Logger fails
                 try {
                     $model->logs()->create([
-                        'user_name' => $username,
-                        'action' => $actionTitle,
+                        'admin_id'    => \App\Helpers\Logger::resolveAdminId($model),
+                        'user_name'   => $username,
+                        'action'      => $actionTitle,
                         'description' => $description,
                     ]);
                 } catch (\Throwable $__) {
@@ -433,8 +434,9 @@ trait LogsChanges
             } catch (\Throwable $_) {
                 try {
                     $model->logs()->create([
-                        'user_name' => $username,
-                        'action' => $actionTitle,
+                        'admin_id'    => \App\Helpers\Logger::resolveAdminId($model),
+                        'user_name'   => $username,
+                        'action'      => $actionTitle,
                         'description' => $description,
                     ]);
                 } catch (\Throwable $__) {

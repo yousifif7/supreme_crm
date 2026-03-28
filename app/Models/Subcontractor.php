@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use App\Traits\LogsChanges;
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Subcontractor extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
     protected $table = "sub_contractors";
     protected $fillable = [
+        'admin_id',
         'user_id',
         'company_name',
         'company_address',

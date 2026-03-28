@@ -3,14 +3,15 @@
 namespace App\Models;
 
 use App\Traits\LogsChanges;
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class ShiftDate extends Model
 {
-    use SoftDeletes, LogsChanges;
+    use SoftDeletes, LogsChanges, BelongsToAdmin;
     protected $table = 'shift_dates';
-    protected  $fillable = ['staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', 'status', 'invoiced', 'invoice_id', 'require_media', 'guard_rate', 'subcontractor_id'];
+    protected  $fillable = ['admin_id', 'staff_id', 'shift_id', 'training_id', 'shift_date', 'start_time', 'end_time', 'total_hours', 'break_time', 'absentee_end', 'absentee_start_time', 'absentee_end_time', 'is_assign', 'status', 'invoiced', 'invoice_id', 'require_media', 'guard_rate', 'subcontractor_id'];
 
 
     const STATUS_PENDING       = 0;
