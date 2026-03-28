@@ -544,7 +544,13 @@ class ShiftApiController extends Controller
         $holidayHours = max(0, $holidayHours ?? 0);
         $sspPaidDays = max(0, $sspPaidDays ?? 0);
 
+        // Derive admin_id from the guard's user record so the owning admin can see this request
+        $adminId = \App\Models\User::withoutGlobalScope('admin_scope')
+            ->where('id', $user->id)
+            ->value('admin_id');
+
         $leave = LeaveRequest::create([
+            'admin_id'         => $adminId,
             'user_id'          => $user->id,
             'employee_id'      => $employee->id,
             'shift_id'         => $request->shift_id,

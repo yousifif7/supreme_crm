@@ -170,7 +170,7 @@
                                               <span class="text-danger form-error" id="editerror_break_time"></span>
                                           </div>
 
-                                          @hasrole('superadmin')
+                                          @hasanyrole('superadmin|admin')
                                           <div class="col-md-6 mb-3">
                                               <label class="form-label">Guard Rate</label>
                                               <input type="text" name="guard_rate" id="guard_rate"
@@ -183,7 +183,7 @@
                                                   class="form-control" placeholder="Office Rate">
                                               <span class="text-danger form-error" id="editerror_office_rate"></span>
                                           </div>
-                                          @endhasrole
+                                          @endhasanyrole
                                           <div class="col-md-12 mb-3">
                                               <label class="form-label">
                                                   Name of the Guards
@@ -194,7 +194,7 @@
                                                   placeholder="Enter names and info of guards..."></textarea>
                                               <span class="text-danger form-error" id="editerror_guard_names"></span>
                                           </div>
-                                          @hasrole('superadmin')
+                                          @hasanyrole('superadmin|admin')
                                           <div class="col-md-6 mb-3">
                                               <label class="form-label">Expenses </label>
                                               <input type="text" name="billable_rate" id="billable_rate"
@@ -208,7 +208,7 @@
                                                   class="form-control numeric-input" placeholder="Payable">
                                               <span class="text-danger form-error" id="editerror_payable_rate"></span>
                                           </div>
-                                          @endhasrole
+                                          @endhasanyrole
                                           <div class="card bg-light-500 shadow-none">
                                               <div
                                                   class="card-body d-flex align-items-center justify-content-between flex-wrap row-gap-3">

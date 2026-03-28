@@ -61,7 +61,10 @@ class ChatController extends Controller
                 return response()->json($conversation, 200);
             }
 
-            $conversation = Conversation::create(['type' => 'direct']);
+            $conversation = Conversation::create([
+                'type' => 'direct',
+                'admin_id' => auth()->user()->hasRole('admin') ? auth()->id() : null,
+            ]);
             $conversation->participants()->attach([$request->user_id_1, $request->user_id_2]);
 
             $user = User::find(Auth::id());
@@ -75,7 +78,22 @@ class ChatController extends Controller
 
     public function index()
     {
-        $users = User::where('id', '!=', Auth::id())->get();
+        $authUser = Auth::user();
+
+        if ($authUser->hasRole('admin')) {
+            // For admin: show their own staff (BelongsToAdmin scope fires on User)
+            // plus include superadmin so admins can chat with head office
+            $ownStaff = User::where('id', '!=', $authUser->id)->get();
+            $superadmins = User::withoutGlobalScope('admin_scope')
+                ->role('superadmin')
+                ->where('id', '!=', $authUser->id)
+                ->get();
+            $users = $ownStaff->merge($superadmins)->unique('id')->values();
+        } else {
+            // superadmin, controllers, staff etc. — see all users (scope handles naturally)
+            $users = User::where('id', '!=', $authUser->id)->get();
+        }
+
         return view('chat.index', compact('users'));
     }
 
@@ -151,8 +169,12 @@ class ChatController extends Controller
             $iconPath = null;
         }
 
+        // Tag the conversation with the creating admin's ID for isolation
+        $adminId = $currentUser->hasRole('admin') ? $currentUser->id : null;
+
         if ($isGroup) {
             $conversation = Conversation::create([
+                'admin_id' => $adminId,
                 'type' => 'group',
                 'name' => $request->name,
                 'icon_path' => $iconPath,
@@ -170,7 +192,7 @@ class ChatController extends Controller
                 return redirect()->back()->with('message', 'Conversation already exists.');
             }
 
-            $conversation = Conversation::create(['type' => 'direct']);
+            $conversation = Conversation::create(['admin_id' => $adminId, 'type' => 'direct']);
             $conversation->participants()->attach([$currentUser->id, $otherUserId]);
         }
 
@@ -189,7 +211,11 @@ class ChatController extends Controller
             }
         ])
             ->whereHas('participants', function ($query) use ($user) {
-                $query->where('conversation_user.user_id', $user->id);
+                // Bypass BelongsToAdmin scope on User — the admin's own record has
+                // admin_id = NULL (they ARE the admin, not assigned to one), so the
+                // scope would add WHERE users.admin_id = X which never matches themselves.
+                $query->withoutGlobalScope('admin_scope')
+                      ->where('conversation_user.user_id', $user->id);
             })
             ->when($search, function ($query) use ($search) {
                 $query->where(function ($q) use ($search) {

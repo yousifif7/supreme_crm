@@ -99,13 +99,26 @@ class UserController extends Controller
         // Cache this expensive lookup for a short period (5m) to improve dashboard response
         // Use a derived-table JOIN to let the database compute MAX(id) per user efficiently.
         $cutoff24 = Carbon::now()->subMinutes(60);
-        $cacheKeyUsers = 'dashboard_user_locations_' . $cutoff24->toDateString();
-        $userLocations = Cache::remember($cacheKeyUsers, 300, function () use ($cutoff24) {
+        $dashboardAuthUser = auth()->user();
+        $dashboardAdminId = ($dashboardAuthUser && $dashboardAuthUser->hasRole('admin')) ? $dashboardAuthUser->id : null;
+
+        // Cache key includes admin ID so different admins never share cached map data
+        $cacheKeyUsers = 'dashboard_user_locations_' . ($dashboardAdminId ?? 'all') . '_' . $cutoff24->toDateString();
+        $userLocations = Cache::remember($cacheKeyUsers, 300, function () use ($cutoff24, $dashboardAdminId) {
             $latest = DB::table('locations')
                 ->selectRaw('user_id, MAX(id) as max_id')
                 ->whereNotNull('user_id')
                 ->where('created_at', '>=', $cutoff24)
                 ->groupBy('user_id');
+
+            // For admin: restrict map pins to users belonging to this admin only
+            if ($dashboardAdminId !== null) {
+                $adminUserIds = DB::table('users')
+                    ->where('admin_id', $dashboardAdminId)
+                    ->pluck('id')
+                    ->toArray();
+                $latest->whereIn('user_id', $adminUserIds);
+            }
 
             $locations = Location::select('locations.id', 'locations.user_id', 'locations.latitude', 'locations.longitude', 'locations.accuracy', 'locations.on_duty', 'locations.created_at')
                 ->joinSub($latest, 'latest', function ($join) {
@@ -147,7 +160,7 @@ class UserController extends Controller
             ->get();
 
         // Cache site locations for a slightly longer period (5 minutes)
-        $cacheKeySites = 'dashboard_site_locations_' . now()->startOfDay()->toDateString();
+        $cacheKeySites = 'dashboard_site_locations_' . ($dashboardAdminId ?? 'all') . '_' . now()->startOfDay()->toDateString();
         $siteLocations = Cache::remember($cacheKeySites, 300, function () use ($sites) {
             return $sites->map(function ($site) {
                 return [

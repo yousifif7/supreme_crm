@@ -292,7 +292,7 @@ class InvoiceService
         }
 
         // Fetch all ShiftDate rows that belong to this subcontractor within the date range.
-        $shiftDatesQuery = ShiftDate::with('shift')
+        $shiftDatesQuery = ShiftDate::with(['shift.site', 'staff.employee'])
             ->where('is_assign', 4)
             ->whereDate('shift_date', '>=', $dateFrom)
             ->whereDate('shift_date', '<=', $dateTo);
@@ -379,11 +379,12 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Subcontractor payroll: pay using guard_rate on shift date → site guard_rate → site payable_rate → shift employee_rate → subcontractor default
+            // Same rate priority as security staff invoice:
+            // shift_date.guard_rate → site.guard_rate → site.payable_rate → shift.employee_rate → subcontractor default rate
             $hourlyRate = $shiftDate->guard_rate
-                ?? $shiftDate->shift->site->guard_rate
-                ?? $shiftDate->shift->site->payable_rate
-                ?? $shiftDate->shift->employee_rate
+                ?? ($shiftDate->shift->site->guard_rate ?? null)
+                ?? ($shiftDate->shift->site->payable_rate ?? null)
+                ?? ($shiftDate->shift->employee_rate ?? null)
                 ?? $subDefaultRate
                 ?? 0;
 

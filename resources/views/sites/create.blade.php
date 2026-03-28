@@ -163,7 +163,7 @@
                                              </select>
                                              <span class="text-danger form-error" id="error_break_time"></span>
                                          </div>
-                                         @hasrole('admin')
+                                         @hasanyrole('superadmin|admin')
                                          <div class="col-md-6 mb-3">
                                              <label class="form-label">Guard Rate</label>
                                              <input type="text" name="guard_rate"
@@ -178,7 +178,7 @@
                                                  placeholder="Office Rate">
                                              <span class="text-danger form-error" id="error_office_rate"></span>
                                          </div>
-                                         @endhasrole
+                                         @endhasanyrole
                                          <div class="col-md-12 mb-3">
                                              <label class="form-label">
                                                  Name of the Guards

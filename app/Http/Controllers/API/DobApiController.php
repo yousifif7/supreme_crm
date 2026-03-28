@@ -79,7 +79,13 @@ class DobApiController extends Controller
      */
     private function createApiDobEntryFromPayload(array $payload, $user, $employee)
     {
+        // Derive admin_id from the guard's user record so the owning admin can see this entry
+        $adminId = \App\Models\User::withoutGlobalScope('admin_scope')
+            ->where('id', $user->id)
+            ->value('admin_id');
+
         $entry = DobEntry::create([
+            'admin_id' => $adminId,
             'user_id' => $user->id,
             'shift_id' => $payload['shift_id'],
             'entry_type' => $payload['entry_type'],

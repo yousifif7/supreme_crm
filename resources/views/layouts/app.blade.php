@@ -171,7 +171,8 @@
                             $__notifUser = auth()->user();
                             if ($__notifUser && $__notifUser->hasRole('admin')) {
                                 // BelongsToAdmin scope auto-filters to WHERE admin_id = auth()->id()
-                                $notifications = \App\Models\Notification::orderBy('created_at', 'desc')->limit(25)->get();
+                                // user_id=1 sentinel excludes guard-targeted notifications (guards have user_id = their own id)
+                                $notifications = \App\Models\Notification::where('user_id', 1)->orderBy('created_at', 'desc')->limit(25)->get();
                             } else {
                                 // superadmin, controller, staff_leader, control_room — system notifications
                                 $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')

@@ -11,8 +11,8 @@ use Illuminate\Database\Eloquent\Builder;
  * Attach this trait to any Eloquent model that should be scoped per admin user.
  *
  * Scoping rules (applied automatically via a global scope):
- *   - superadmin  → no filter, sees ALL records across all admins
  *   - admin       → sees only records where admin_id = their own user ID
+ *   - superadmin  → sees only records where admin_id IS NULL (system/global records)
  *   - all others  → sees only records where admin_id IS NULL
  *
  * When an admin user creates a record the admin_id is automatically set
@@ -59,18 +59,14 @@ trait BelongsToAdmin
 
             $user = Auth::user();
 
-            if ($user->hasRole('superadmin')) {
-                // Superadmin sees everything – no constraint.
-                return;
-            }
-
             if ($user->hasRole('admin')) {
                 // Admin sees only their own records.
                 $builder->where($builder->getModel()->getTable() . '.admin_id', $user->id);
                 return;
             }
 
-            // Every other role sees only records that are NOT owned by any admin.
+            // Superadmin and every other role sees only system-level records (admin_id IS NULL).
+            // Admins' data is private to them only.
             $builder->whereNull($builder->getModel()->getTable() . '.admin_id');
         });
     }

@@ -95,7 +95,9 @@ Route::prefix('notifications')->group(function () {
         $user = auth()->user();
         if ($user->hasRole('admin')) {
             // BelongsToAdmin global scope auto-applies WHERE admin_id = auth()->id()
-            $notifications = \App\Models\Notification::orderBy('created_at', 'desc')
+            // user_id=1 sentinel excludes guard-targeted notifications (guards have user_id = their own id)
+            $notifications = \App\Models\Notification::where('user_id', 1)
+                ->orderBy('created_at', 'desc')
                 ->limit($request->input('limit', 25))
                 ->get();
         } elseif ($user->hasAnyRole(['superadmin', 'controller', 'staff_leader', 'control_room'])) {

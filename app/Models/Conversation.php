@@ -6,8 +6,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class Conversation extends Model
 {
-    //
     protected $fillable = [
+        'admin_id',
         'type',
         'name',
         'icon_path'

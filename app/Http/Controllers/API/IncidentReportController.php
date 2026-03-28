@@ -47,8 +47,15 @@ class IncidentReportController extends Controller
         $employee = Employee::where('user_id', $user->id)->first();
 
         $data['police_notified'] = filter_var($request->input('police_notified'), FILTER_VALIDATE_BOOLEAN);
+
+        // Derive admin_id from the guard's user record so the owning admin can see this report
+        $adminId = \App\Models\User::withoutGlobalScope('admin_scope')
+            ->where('id', $user->id)
+            ->value('admin_id');
+
         // Create Incident Report
         $report = IncidentReport::create([
+            'admin_id' => $adminId,
             'user_id' => $user->id,
             'shift_id' => $data['shift_id'],
             'category' => $data['category'],
