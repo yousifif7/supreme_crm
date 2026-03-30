@@ -1368,7 +1368,6 @@ public function getShifts(Request $request)
     // Apply it manually here.
     $authUser = Auth::user();
     $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
-    $isSuperAdmin = $authUser && $authUser->hasRole('superadmin');
 
     $query = \App\Models\ShiftDate::query()
         ->select([
@@ -1452,7 +1451,7 @@ public function getShifts(Request $request)
     // Admin scoping (scope bypassed because URL starts with /api/)
     if ($adminId !== null) {
         $query->where('shift_dates.admin_id', $adminId);
-    } elseif (!$isSuperAdmin) {
+    } else {
         $query->whereNull('shift_dates.admin_id');
     }
 
@@ -1673,7 +1672,6 @@ public function getShiftsWithStaff()
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
     $authUser = Auth::user();
     $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
-    $isSuperAdmin = $authUser && $authUser->hasRole('superadmin');
 
     $startDefault = now()->subMonths(2)->startOfDay();
     $endDefault   = now()->addMonths(1)->endOfDay();
@@ -1715,7 +1713,7 @@ public function getShiftsWithStaff()
     // Admin scoping
     if ($adminId !== null) {
         $shiftDates->where('shift_dates.admin_id', $adminId);
-    } elseif (!$isSuperAdmin) {
+    } else {
         $shiftDates->whereNull('shift_dates.admin_id');
     }
 
@@ -1783,7 +1781,6 @@ public function getShiftsBySite()
 
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
     $adminId = ($user && $user->hasRole('admin')) ? $user->id : null;
-    $isSuperAdmin = $user && $user->hasRole('superadmin');
 
     $startDefault = now()->subMonths(2)->startOfDay();
     $endDefault   = now()->addMonths(1)->endOfDay();
@@ -1820,7 +1817,7 @@ public function getShiftsBySite()
     // Admin scoping
     if ($adminId !== null) {
         $query->where('shift_dates.admin_id', $adminId);
-    } elseif (!$isSuperAdmin) {
+    } else {
         $query->whereNull('shift_dates.admin_id');
     }
 
@@ -1891,7 +1888,6 @@ public function getTodayShifts()
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
     $authUser = Auth::user();
     $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
-    $isSuperAdmin = $authUser && $authUser->hasRole('superadmin');
 
     $today     = now()->toDateString(); // Y-m-d
     $todayDay  = now()->format('D');    // Mon, Tue...
@@ -1933,7 +1929,7 @@ public function getTodayShifts()
     // Admin scoping
     if ($adminId !== null) {
         $rows->where('shift_dates.admin_id', $adminId);
-    } elseif (!$isSuperAdmin) {
+    } else {
         $rows->whereNull('shift_dates.admin_id');
     }
 

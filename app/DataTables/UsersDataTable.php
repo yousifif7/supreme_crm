@@ -74,7 +74,7 @@ class UsersDataTable extends DataTable
         ->with(['roles'])
         ->select('users.*')
         ->whereDoesntHave('roles', function ($q) {
-            $q->whereIn('name', ['client', 'subcontractor', 'security_staff']);
+            $q->whereIn('name', ['client', 'subcontractor', 'security_staff','admin']);
         });
 
     if ($this->filter === 'archived') {
@@ -82,7 +82,7 @@ class UsersDataTable extends DataTable
             ->with(['roles'])
             ->select('users.*')
             ->whereDoesntHave('roles', function ($q) {
-                $q->whereIn('name', ['client', 'sub_contractor', 'security_staff']);
+                $q->whereIn('name', ['client', 'sub_contractor', 'security_staff','admin']);
             });
     }
 

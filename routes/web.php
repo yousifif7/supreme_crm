@@ -101,9 +101,8 @@ Route::prefix('notifications')->group(function () {
                 ->limit($request->input('limit', 25))
                 ->get();
         } elseif ($user->hasAnyRole(['superadmin', 'controller', 'staff_leader', 'control_room'])) {
-            // System/legacy notifications — bypass admin scope, use user_id=1 sentinel
-            $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')
-                ->where('user_id', 1)
+            // System notifications only — BelongsToAdmin scope applies: superadmin gets WHERE admin_id IS NULL
+            $notifications = \App\Models\Notification::where('user_id', 1)
                 ->orderBy('created_at', 'desc')
                 ->limit($request->input('limit', 25))
                 ->get();

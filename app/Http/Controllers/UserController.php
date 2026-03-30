@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\Validator;
 
 class UserController extends Controller
@@ -196,11 +197,21 @@ class UserController extends Controller
 
     public function store(Request $request)
     {
+        $authUser = auth()->user();
+        $adminId   = $authUser->hasRole('admin') ? $authUser->id : null;
+
+        $emailRule = Rule::unique('users', 'email')
+            ->whereNull('deleted_at')
+            ->when($adminId !== null,
+                fn ($q) => $q->where('admin_id', $adminId),
+                fn ($q) => $q->whereNull('admin_id')
+            );
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             // 'username' => 'required|string|unique:users,username',
-            'email' => 'required|email:dns|unique:users,email,NULL,id,deleted_at,NULL',
+            'email' => ['required', 'email:dns', $emailRule],
             'password' => 'required|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
@@ -274,11 +285,22 @@ class UserController extends Controller
             return response()->json(['error' => 'User not found.'], 404);
         }
 
+        $authUser   = auth()->user();
+        $adminId    = $authUser->hasRole('admin') ? $authUser->id : null;
+
+        $emailRule = Rule::unique('users', 'email')
+            ->ignore($id)
+            ->whereNull('deleted_at')
+            ->when($adminId !== null,
+                fn ($q) => $q->where('admin_id', $adminId),
+                fn ($q) => $q->whereNull('admin_id')
+            );
+
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
             // 'username' => 'required|string|unique:users,username,' . $id,
-            'email' => 'required|email:dns|unique:users,email,' . $id . ',id,deleted_at,NULL',
+            'email' => ['required', 'email:dns', $emailRule],
             'password' => 'nullable|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',

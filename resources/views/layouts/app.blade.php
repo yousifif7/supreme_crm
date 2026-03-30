@@ -174,9 +174,9 @@
                                 // user_id=1 sentinel excludes guard-targeted notifications (guards have user_id = their own id)
                                 $notifications = \App\Models\Notification::where('user_id', 1)->orderBy('created_at', 'desc')->limit(25)->get();
                             } else {
-                                // superadmin, controller, staff_leader, control_room — system notifications
-                                $notifications = \App\Models\Notification::withoutGlobalScope('admin_scope')
-                                    ->where('user_id', 1)
+                                // superadmin, controller, staff_leader, control_room — system notifications only
+                                // BelongsToAdmin scope applies: superadmin gets WHERE admin_id IS NULL
+                                $notifications = \App\Models\Notification::where('user_id', 1)
                                     ->orderBy('created_at', 'desc')->limit(25)->get();
                             }
                         @endphp
@@ -827,133 +827,7 @@ document.addEventListener('click', () => {
             }
         })();
         
-        // Expose manual trigger for SIA check (call from console or other scripts)
-        window.triggerSiaCheck = async function ({ force = false } = {}) {
-            const KEY = 'sia_check_last_v1';
-            const DAY_MS = 24 * 60 * 60 * 1000;
-            const LOCK_KEY = 'sia_check_lock_v1';
-            const ENDPOINT = "{{ route('process.sia.licences') }}";
-            const CSRF = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-
-            try {
-                if (!force) {
-                    const last = parseInt(localStorage.getItem(KEY) || '0', 10);
-                    if (Date.now() - last < DAY_MS) {
-                        return { skipped: true, reason: 'recent' };
-                    }
-                }
-
-                const now = Date.now();
-                const lock = localStorage.getItem(LOCK_KEY);
-                if (lock && (now - parseInt(lock, 10) < 60 * 1000)) {
-                    return { skipped: true, reason: 'locked' };
-                }
-
-                try { localStorage.setItem(LOCK_KEY, now.toString()); } catch (e) { /* ignore */ }
-
-                const res = await fetch(ENDPOINT, {
-                    method: 'POST',
-                    credentials: 'same-origin',
-                    headers: {
-                        'Accept': 'application/json',
-                        'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': CSRF
-                    },
-                    body: JSON.stringify({ triggered_by: 'manual' })
-                });
-
-                if (!res.ok) {
-                    const txt = await res.text().catch(() => null);
-                    throw new Error('Server error ' + res.status + ' ' + (txt || ''));
-                }
-
-                const json = await res.json().catch(() => null);
-                try { localStorage.setItem(KEY, Date.now().toString()); } catch (e) { /* ignore */ }
-                try { localStorage.removeItem(LOCK_KEY); } catch (e) { /* ignore */ }
-
-                return { ok: true, json };
-            } catch (err) {
-                console.error('triggerSiaCheck failed', err);
-                try { localStorage.removeItem(LOCK_KEY); } catch (e) { /* ignore */ }
-                throw err;
-            }
-        };
-
-        // Auto-trigger SIA check once a day at 16:00 Europe/London from the browser.
-        // Open browser DevTools → Console to see [SIA] debug lines.
-        setTimeout(async function () {
-            try {
-                const now = new Date();
-
-                // Build today's 16:00 in Europe/London (handles GMT/BST automatically)
-                const ukParts = new Intl.DateTimeFormat('en-GB', {
-                    timeZone: 'Europe/London',
-                    year: 'numeric', month: '2-digit', day: '2-digit'
-                }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
-
-                const londonTargetUtc = Date.UTC(
-                    parseInt(ukParts.year), parseInt(ukParts.month) - 1, parseInt(ukParts.day),
-                    16, 0, 0, 0
-                );
-
-                const utcDate = new Date(now.toLocaleString('en-US', { timeZone: 'UTC' }));
-                const londonDate = new Date(now.toLocaleString('en-US', { timeZone: 'Europe/London' }));
-                const londonOffsetMs = utcDate - londonDate;
-
-                const target = new Date(londonTargetUtc + londonOffsetMs);
-                const msUntilTarget = target.getTime() - now.getTime();
-
-                console.log('[SIA] auto-trigger init. Now (UK):', londonDate.toLocaleTimeString(), '| Target 16:00 UK:', target.toLocaleTimeString(), '| ms until target:', msUntilTarget);
-
-                if (now >= target) {
-                    console.log('[SIA] past 16:00 UK — triggering now');
-                    const result = await window.triggerSiaCheck();
-                    console.log('[SIA] triggerSiaCheck result:', result);
-                    return;
-                }
-
-                // Schedule for the remaining milliseconds until 16:00 London
-                console.log('[SIA] before 16:00 — scheduling in', Math.round(msUntilTarget / 60000), 'minutes');
-
-                let scheduled = false;
-                try {
-                    setTimeout(async () => {
-                        console.log('[SIA] scheduled timeout fired — triggering now');
-                        try {
-                            const result = await window.triggerSiaCheck();
-                            console.log('[SIA] triggerSiaCheck result:', result);
-                        } catch (e) {
-                            console.error('[SIA] triggerSiaCheck error in scheduled trigger:', e);
-                        }
-                    }, msUntilTarget);
-                    scheduled = true;
-                    console.log('[SIA] setTimeout scheduled successfully');
-                } catch (e) {
-                    console.warn('[SIA] setTimeout failed, falling back to poll interval:', e);
-                    scheduled = false;
-                }
-
-                if (!scheduled) {
-                    // Fallback: poll every 5 minutes until 16:00 then trigger
-                    const pollInterval = setInterval(async () => {
-                        const now2 = new Date();
-                        if (now2 >= target) {
-                            clearInterval(pollInterval);
-                            console.log('[SIA] poll interval: past 16:00 UK — triggering now');
-                            try {
-                                const result = await window.triggerSiaCheck();
-                                console.log('[SIA] triggerSiaCheck result:', result);
-                            } catch (e) {
-                                console.error('[SIA] triggerSiaCheck error in poll fallback:', e);
-                            }
-                        }
-                    }, 5 * 60 * 1000);
-                }
-            } catch (e) {
-                console.warn('[SIA] auto-trigger outer error:', e);
-            }
-        }, 15000); // wait 15 s after page load
-
+        
         // Helper to open profile change request modal
         async function openProfileChangeModal(id) {
             try {
