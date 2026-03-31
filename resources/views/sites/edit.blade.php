@@ -270,6 +270,36 @@
 
                                       </div>
                                   </div>
+                                  
+                                  <div class="col-md-12 mt-3">
+                                      <label class="form-label">Staff-specific Rates</label>
+                                      <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                                          <div class="me-2" style="flex:0 0 220px; min-width:160px;">
+                                              <select id="site_staff_select" class="form-select staff-select2 w-100">
+                                                  <option value="">--choose staff--</option>
+                                              </select>
+                                          </div>
+                                          <div class="me-2" style="flex:0 0 140px;">
+                                              <input type="text" id="site_staff_rate_input" class="form-control numeric-input" placeholder="Rate" style="width:140px;">
+                                          </div>
+                                          <div>
+                                              <button type="button" id="add_site_staff_rate" class="btn btn-primary">Add</button>
+                                          </div>
+                                      </div>
+                                      <div class="table-responsive">
+                                          <table class="table table-sm table-bordered" id="site_staff_rates_table">
+                                              <thead>
+                                                  <tr>
+                                                      <th>Staff</th>
+                                                      <th style="width:140px">Rate</th>
+                                                      <th style="width:120px">Action</th>
+                                                  </tr>
+                                              </thead>
+                                              <tbody id="site_staff_rates_list"></tbody>
+                                          </table>
+                                      </div>
+                                      <input type="hidden" name="staff_rates" id="staff_rates_input">
+                                  </div>
                               </div>
                           </div>
                           <div class="modal-footer">

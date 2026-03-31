@@ -26,6 +26,7 @@ use App\Models\ShiftBooking;
 use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
+use App\Models\SiteStaffRate;
 use App\Exports\PatrolsExport;
 use App\Models\CheckpointScan;
 use App\Models\PatrolCheckPoint;
@@ -664,6 +665,17 @@ class ShiftController extends Controller
 
                     $lastCreated = null;
                     for ($q = 0; $q < $quantity; $q++) {
+                        // Resolve guard rate, preferring site-specific staff override when present
+                        $resolvedGuardRate = $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0;
+                        if (!empty($shift->staff_id) && !empty($shift->site_id)) {
+                            $siteOverride = SiteStaffRate::where('site_id', $shift->site_id)
+                                ->where('user_id', $shift->staff_id)
+                                ->value('guard_rate');
+                            if (!is_null($siteOverride)) {
+                                $resolvedGuardRate = $siteOverride;
+                            }
+                        }
+
                         $shiftDate = ShiftDate::create([
                             'shift_id'    => $shift->id,
                             'staff_id'    => $shift->staff_id ?? null,
@@ -677,7 +689,7 @@ class ShiftController extends Controller
                                 $request->start_shift[$i],
                                 $request->end_shift[$i]
                             ),
-                            'guard_rate'  => $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0,
+                            'guard_rate'  => $resolvedGuardRate,
                             'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                         ]);
 
@@ -1097,6 +1109,27 @@ class ShiftController extends Controller
             foreach ($checkcalls as $checkCall) {
                 $checkCall->employee_id = $request->input('staff_id');
                 $checkCall->save();
+            }
+        }
+
+        // If staff changed and no explicit guard_rate provided, resolve site-specific override
+        if ($staffChanged && !array_key_exists('guard_rate', $data)) {
+            $parentShift = $shift->shift ?? null;
+            $parentSiteId = $parentShift->site_id ?? null;
+            $newUserId = $data['staff_id'] ?? $shift->staff_id;
+            if ($parentSiteId && $newUserId) {
+                $siteOverride = SiteStaffRate::where('site_id', $parentSiteId)
+                    ->where('user_id', $newUserId)
+                    ->value('guard_rate');
+                if (!is_null($siteOverride)) {
+                    $data['guard_rate'] = $siteOverride;
+                } else {
+                    // fallback to employee record guard_rate
+                    $emp = Employee::where('user_id', $newUserId)->first();
+                    if ($emp && !empty($emp->guard_rate)) {
+                        $data['guard_rate'] = $emp->guard_rate;
+                    }
+                }
             }
         }
 
@@ -3649,6 +3682,17 @@ public function getTodayShifts()
             foreach ($period as $date) {
                 if (!in_array($date->format('D'), $selectedDays)) continue;
 
+                // resolve guard rate, prefer site-specific staff override
+                $resolvedGuardRate = $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0;
+                if (!empty($shift->staff_id) && !empty($shift->site_id)) {
+                    $siteOverride = SiteStaffRate::where('site_id', $shift->site_id)
+                        ->where('user_id', $shift->staff_id)
+                        ->value('guard_rate');
+                    if (!is_null($siteOverride)) {
+                        $resolvedGuardRate = $siteOverride;
+                    }
+                }
+
                 $shiftDate = ShiftDate::create([
                     'shift_id'    => $shift->id,
                     'staff_id'    => $shift->staff_id ?? null,
@@ -3662,7 +3706,7 @@ public function getTodayShifts()
                         $request->start_shift[$i],
                         $request->end_shift[$i]
                     ),
-                    'guard_rate'  => $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0,
+                    'guard_rate'  => $resolvedGuardRate,
                 ]);
 
                 $shiftDatesCreated++;

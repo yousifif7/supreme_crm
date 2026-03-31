@@ -49,6 +49,9 @@ class SiteController extends Controller
             'employee_types.*' => 'integer|exists:employee_types,id',
             'employee_guard_rate' => 'nullable|array',
             'employee_office_rate' => 'nullable|array',
+            'staff_rates' => 'nullable|array',
+            'staff_rates.*.user_id' => 'nullable|integer|exists:users,id',
+            'staff_rates.*.guard_rate' => 'nullable|numeric',
 
             // ✅ Checkpoints validation
             'checkpoints'                => 'nullable|array',
@@ -101,6 +104,25 @@ class SiteController extends Controller
                     'qr_code'   => $checkpoint['qr_code'] ?? null,
                     'nfc_tag'   => $nfcTag,
                     'required'  => $checkpoint['required'] ?? false,
+                ]);
+            }
+        }
+
+        // ✅ Save staff-specific rates (if provided). Accept either an array or JSON string.
+        if ($request->has('staff_rates')) {
+            $rates = $request->input('staff_rates', []);
+            if (is_string($rates)) {
+                $decoded = json_decode($rates, true);
+                $rates = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($rates)) {
+                $rates = [];
+            }
+            foreach ($rates as $r) {
+                if (empty($r['user_id'])) continue;
+                $site->staffRates()->create([
+                    'user_id' => $r['user_id'],
+                    'guard_rate' => $r['guard_rate'] ?? null,
                 ]);
             }
         }
@@ -162,6 +184,9 @@ class SiteController extends Controller
             'employee_types.*' => 'integer|exists:employee_types,id',
             'employee_guard_rate' => 'nullable|array',
             'employee_office_rate' => 'nullable|array',
+            'staff_rates' => 'nullable|array',
+            'staff_rates.*.user_id' => 'nullable|integer|exists:users,id',
+            'staff_rates.*.guard_rate' => 'nullable|numeric',
 
             // checkpoints validation
             'checkpoints'   => 'nullable|array',
@@ -286,18 +311,49 @@ class SiteController extends Controller
             $site->checkpoints()->delete();
         }
 
+        // ✅ Sync staff-specific rates if submitted. If present, replace existing entries.
+        if ($request->has('staff_rates')) {
+            $rates = $request->input('staff_rates', []);
+            if (is_string($rates)) {
+                $decoded = json_decode($rates, true);
+                $rates = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($rates)) {
+                $rates = [];
+            }
+            // remove existing
+            $site->staffRates()->delete();
+            foreach ($rates as $r) {
+                if (empty($r['user_id'])) continue;
+                $site->staffRates()->create([
+                    'user_id' => $r['user_id'],
+                    'guard_rate' => $r['guard_rate'] ?? null,
+                ]);
+            }
+        }
+
         return response()->json(['message' => 'Site updated successfully']);
     }
 
     public function edit($id)
     {
-        $site = Site::with('employeeTypes','checkpoints')->find($id);
+        $site = Site::with('employeeTypes','checkpoints','staffRates')->find($id);
         // Attach NFC tags read from filesystem (not stored exclusively in DB)
         try {
             $site->nfc_tags = $this->getNfcTagsForSite($site->id);
         } catch (\Exception $e) {
             $site->nfc_tags = [];
         }
+
+        $staffs = User::role('security_staff')->orderBy('first_name','asc')->get(['id','first_name','last_name']);
+        $staffRates = $site->staffRates->map(function ($r) {
+            return [
+                'id' => $r->id,
+                'user_id' => $r->user_id,
+                'guard_rate' => $r->guard_rate,
+                'name' => optional($r->user)->first_name . ' ' . optional($r->user)->last_name,
+            ];
+        })->toArray();
 
         return response()->json([
             'site' => $site,
@@ -308,7 +364,9 @@ class SiteController extends Controller
                     'guard_rate' => $type->pivot->guard_rate,
                     'office_rate' => $type->pivot->office_rate,
                 ];
-            })
+            }),
+            'staffs' => $staffs,
+            'staff_rates' => $staffRates,
         ]);
     }
     public function delete($id)

@@ -483,12 +483,14 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Staff payroll: pay using guard_rate on shift date → site guard_rate → site payable_rate → shift employee_rate
-            $hourlyRate = $shiftDate->guard_rate
-                ?? $shiftDate->shift->site->guard_rate
-                ?? $shiftDate->shift->site->payable_rate
-                ?? $shiftDate->shift->employee_rate
-                ?? 0;
+            // Staff payroll: prefer the historical rate stored on the ShiftDate to preserve
+            // past billing when rates are edited later. If no ShiftDate guard_rate exists,
+            // fall back to the site's guard_rate. No further fallbacks are used here.
+            if (!is_null($shiftDate->guard_rate)) {
+                $hourlyRate = $shiftDate->guard_rate;
+            } else {
+                $hourlyRate = $shiftDate->shift->site->guard_rate ?? 0;
+            }
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;

@@ -11,6 +11,17 @@
             display: flex;
             align-items: center;
         }
+        /* Ensure Select2 dropdowns appear above Bootstrap modals */
+        .select2-container--open .select2-dropdown {
+            z-index: 3000 !important;
+        }
+
+        /* Tame highlighted option styles in case of theme conflicts */
+        .select2-container--default .select2-results__option--highlighted[aria-selected],
+        .select2-container--default .select2-results__option--highlighted {
+            background-color: #f8f9fa !important;
+            color: #212529 !important;
+        }
     </style>
 @endsection
 @section('contents')
@@ -342,6 +353,14 @@
             minuteIncrement: 5,
             allowInput: true
         });
+        
+        $('.staff-select2').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '220px',
+                dropdownParent: $('#edit_site .modal-content'), // append inside modal content
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
     });
 
         // Delegated handlers for site actions (prevents inline onclick reference errors)
@@ -488,7 +507,20 @@
                 e.preventDefault();
 
                 $("[id^='editerror_']").text('');
+                // Ensure staff rates are added to the form as array inputs so Laravel
+                // validation receives `staff_rates` as an array (staff_rates[0][user_id], ...)
                 let form = $(this)[0];
+                // remove any previously added dynamic inputs
+                $(form).find('.dynamic-staff-rate').remove();
+                if (Array.isArray(editSiteStaffRates) && editSiteStaffRates.length) {
+                    editSiteStaffRates.forEach(function(r, idx) {
+                        const uid = r.user_id ?? (r.user ? r.user.id : '') ?? '';
+                        const rate = r.guard_rate ?? '';
+                        // append hidden inputs to the form
+                        $(form).append($('<input>', { type: 'hidden', name: `staff_rates[${idx}][user_id]`, value: uid }).addClass('dynamic-staff-rate'));
+                        $(form).append($('<input>', { type: 'hidden', name: `staff_rates[${idx}][guard_rate]`, value: rate }).addClass('dynamic-staff-rate'));
+                    });
+                }
                 let formData = new FormData(form);
                 let submitButton = $('#editsite'); // Your submit button should have this ID
 
@@ -588,6 +620,55 @@
 
                     // ✅ Init map with site + checkpoints
                     initEditMap(lat, lng, data.site.checkpoints || []);
+                    // Populate staff select and rates list (use safe select2 re-init)
+                    try {
+                        const $staffSelect = $('#site_staff_select');
+                        // clear existing options
+                        $staffSelect.find('option').remove();
+                        // add placeholder option
+                        $staffSelect.append(new Option('--choose staff--', ''));
+
+                        if (Array.isArray(data.staffs) && data.staffs.length) {
+                            data.staffs.forEach(s => {
+                                const name = ((s.first_name || '') + ' ' + (s.last_name || '')).trim() || (s.name || '');
+                                $staffSelect.append(new Option(name, s.id));
+                            });
+                        }
+
+                        // destroy existing select2 instance if any, then init so it picks up new options
+                        try {
+                            if ($staffSelect.hasClass('select2-hidden-accessible')) {
+                                $staffSelect.select2('destroy');
+                            }
+                        } catch (ee) { /* ignore */ }
+
+                        $staffSelect.select2({
+                            placeholder: '--choose staff--',
+                            allowClear: true,
+                            width: 'style',
+                            dropdownParent: $('#edit_site .modal-content'),
+                            minimumResultsForSearch: 0
+                        });
+
+                        // Load existing staff rates
+                        editSiteStaffRates = data.staff_rates || [];
+                        renderSiteStaffRates();
+
+                        // bind add button
+                        $('#add_site_staff_rate').off('click').on('click', function() {
+                            const userId = $staffSelect.val();
+                            if (!userId) { toast_danger('Please choose a staff'); return; }
+                            const userName = $staffSelect.find('option:selected').text();
+                            const rate = $('#site_staff_rate_input').val() || null;
+                            if (editSiteStaffRates.find(r => parseInt(r.user_id) === parseInt(userId))) {
+                                toast_danger('A rate is already set for the selected staff');
+                                return;
+                            }
+                            editSiteStaffRates.push({ user_id: parseInt(userId), guard_rate: rate, name: userName });
+                            renderSiteStaffRates();
+                            $('#site_staff_rate_input').val('');
+                        });
+                    } catch (e) { console.error(e); }
                 }
 
                 // Render current site NFC tag in edit modal (single tag per site)
@@ -751,6 +832,7 @@
     if (typeof editMap === 'undefined') var editMap = null;
     if (typeof siteMarker === 'undefined') var siteMarker = null;
     if (typeof checkpointMarkers === 'undefined') var checkpointMarkers = []; // store {marker, index}
+    if (typeof editSiteStaffRates === 'undefined') var editSiteStaffRates = [];
     function initEditMap(lat = 51.505, lng = -0.09, checkpoints = []) {
         if (!editMap) {
             editMap = L.map('editSiteMap').setView([lat, lng], 13);
@@ -796,6 +878,32 @@
 
         setTimeout(() => editMap.invalidateSize(), 300);
     }
+
+    function renderSiteStaffRates() {
+        const $tbody = $('#site_staff_rates_list');
+        $tbody.empty();
+        editSiteStaffRates.forEach((r, idx) => {
+            const name = r.name || (r.user ? (r.user.first_name + ' ' + r.user.last_name) : r.user_id);
+            const rateVal = (r.guard_rate !== undefined && r.guard_rate !== null) ? r.guard_rate : '';
+            $tbody.append(`<tr data-index="${idx}"><td>${name}</td><td><input type="text" class="form-control numeric-input site-staff-rate-input" data-index="${idx}" value="${rateVal}"></td><td><button type="button" class="btn btn-sm btn-danger remove-site-staff-rate" data-index="${idx}">Remove</button></td></tr>`);
+        });
+    }
+
+    // delegated handlers for dynamic staff rates UI
+    $(document).on('click', '.remove-site-staff-rate', function() {
+        const idx = parseInt($(this).data('index'));
+        if (!isNaN(idx)) {
+            editSiteStaffRates.splice(idx, 1);
+            renderSiteStaffRates();
+        }
+    });
+
+    $(document).on('input', '.site-staff-rate-input', function() {
+        const idx = parseInt($(this).data('index'));
+        if (!isNaN(idx) && editSiteStaffRates[idx]) {
+            editSiteStaffRates[idx].guard_rate = $(this).val();
+        }
+    });
 
     function addCheckpoint(name, lat, lng, id = null, nfcTag = null) {
         let index = checkpointMarkers.length;

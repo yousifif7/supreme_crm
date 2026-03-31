@@ -173,6 +173,11 @@ class User extends Authenticatable
         return $this->hasOne(Employee::class);
     }
 
+    public function siteRates()
+    {
+        return $this->hasMany(\App\Models\SiteStaffRate::class, 'user_id');
+    }
+
 
     public function documents()
     {

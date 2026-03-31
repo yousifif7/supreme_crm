@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\LogsChanges;
 use App\Traits\BelongsToAdmin;
 use App\Models\TrainingMaterial;
+use App\Models\SiteStaffRate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -38,6 +39,11 @@ class Site extends Model
 
     public function shifts() {
         return $this->hasMany(Shift::class);
+    }
+    
+    public function staffRates()
+    {
+        return $this->hasMany(SiteStaffRate::class, 'site_id');
     }
     public function logs()
 {
