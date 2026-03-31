@@ -133,7 +133,50 @@ class UserController extends Controller
                 ->whereNotNull('longitude')
                 ->get();
 
-            return $locations->map(function ($l) {
+            // Collect user IDs to fetch any assigned shift for today in a single query
+            $userIds = $locations->pluck('user_id')->unique()->filter()->values()->all();
+
+            $todayShiftDates = [];
+            if (!empty($userIds)) {
+                $todayShiftDates = ShiftDate::whereIn('staff_id', $userIds)
+                    ->whereDate('shift_date', Carbon::today()->toDateString())
+                    ->with(['shift.site'])
+                    ->get()
+                    ->groupBy('staff_id');
+            }
+
+            $now = Carbon::now();
+
+            return $locations->map(function ($l) use ($todayShiftDates, $now) {
+                $assignedShift = null;
+                if (isset($todayShiftDates[$l->user_id])) {
+                    $group = $todayShiftDates[$l->user_id];
+                    if ($group->count() == 1) {
+                        $assignedShift = $group->first();
+                    } else {
+                        foreach ($group as $sd) {
+                            try {
+                                $start = $sd->start_time ? Carbon::parse($sd->start_time) : null;
+                                $end = $sd->end_time ? Carbon::parse($sd->end_time) : null;
+                                if ($start && $end && $now->between($start, $end)) {
+                                    $assignedShift = $sd;
+                                    break;
+                                }
+                            } catch (\Exception $e) {
+                                // ignore parse errors and continue
+                            }
+                        }
+                        if (!$assignedShift) {
+                            $assignedShift = $group->first();
+                        }
+                    }
+                }
+
+                $siteName = null;
+                if ($assignedShift && optional($assignedShift->shift)->site) {
+                    $siteName = optional($assignedShift->shift->site)->site_name;
+                }
+
                 return [
                     'id' => 'user-' . $l->user_id,
                     'latitude' => (float) $l->latitude,
@@ -144,35 +187,45 @@ class UserController extends Controller
                     'accuracy' => $l->accuracy,
                     'on_duty' => (bool) $l->on_duty,
                     'timestamp' => optional($l->created_at)->toDateTimeString(),
+                    'site_name' => $siteName,
+                    'current_shift' => $assignedShift ? [
+                        'id' => $assignedShift->id,
+                        'shift_id' => $assignedShift->shift_id,
+                        'shift_date' => $assignedShift->shift_date,
+                        'start_time' => $assignedShift->start_time,
+                        'end_time' => $assignedShift->end_time,
+                        'site_name' => $siteName,
+                        'site' => optional($assignedShift->shift)->site ? ['site_name' => optional($assignedShift->shift->site)->site_name] : null,
+                    ] : null,
                 ];
             });
         });
 
         // --- Sites (pass postal codes only, no server-side geocoding) ---
         // Only include sites which have shifts with assigned staff in the last 7 days
-        $sevenDaysAgo = Carbon::now()->subDays(1)->startOfDay();
-        $sites = Site::query()
-            ->select('sites.id', 'sites.site_name', 'sites.post_code', 'sites.address')
-            ->join('shifts', 'shifts.site_id', '=', 'sites.id')
-            ->join('shift_dates', 'shift_dates.shift_id', '=', 'shifts.id')
-            ->whereNotNull('shift_dates.staff_id')
-            ->where('shift_dates.shift_date', '>=', $sevenDaysAgo)
-            ->distinct()
-            ->get();
+        // $sevenDaysAgo = Carbon::now()->subDays(1)->startOfDay();
+        // $sites = Site::query()
+        //     ->select('sites.id', 'sites.site_name', 'sites.post_code', 'sites.address')
+        //     ->join('shifts', 'shifts.site_id', '=', 'sites.id')
+        //     ->join('shift_dates', 'shift_dates.shift_id', '=', 'shifts.id')
+        //     ->whereNotNull('shift_dates.staff_id')
+        //     ->where('shift_dates.shift_date', '>=', $sevenDaysAgo)
+        //     ->distinct()
+        //     ->get();
 
-        // Cache site locations for a slightly longer period (5 minutes)
-        $cacheKeySites = 'dashboard_site_locations_' . ($dashboardAdminId ?? 'all') . '_' . now()->startOfDay()->toDateString();
-        $siteLocations = Cache::remember($cacheKeySites, 300, function () use ($sites) {
-            return $sites->map(function ($site) {
-                return [
-                    'id' => 'site-' . $site->id,
-                    'name' => $site->site_name,
-                    'postalcode' => $site->post_code,
-                    'address' => $site->address,
-                    'type' => 'site',
-                ];
-            });
-        });
+        // // Cache site locations for a slightly longer period (5 minutes)
+        // $cacheKeySites = 'dashboard_site_locations_' . ($dashboardAdminId ?? 'all') . '_' . now()->startOfDay()->toDateString();
+        // $siteLocations = Cache::remember($cacheKeySites, 300, function () use ($sites) {
+        //     return $sites->map(function ($site) {
+        //         return [
+        //             'id' => 'site-' . $site->id,
+        //             'name' => $site->site_name,
+        //             'postalcode' => $site->post_code,
+        //             'address' => $site->address,
+        //             'type' => 'site',
+        //         ];
+        //     });
+        // });
 
         $this->weeklyHoursNotification();
 
@@ -180,7 +233,7 @@ class UserController extends Controller
 
         // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations', 'siteLocations'));
+        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations'));
     }
 
     public function index(UsersDataTable $dataTable)

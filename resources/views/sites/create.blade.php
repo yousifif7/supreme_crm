@@ -56,11 +56,13 @@
                                                  placeholder="Enter Site Code">
                                              <span class="text-danger form-error" id="error_site_code"></span>
                                          </div>
-                                        <div class="col-md-6 mb-3">
-                                            <label class="form-label">Radius (meters)</label>
-                                            <input type="number" name="radius" class="form-control numeric-input" id="radius" min="0" step="any" placeholder="Enter radius in meters">
-                                            <span class="text-danger form-error" id="error_radius"></span>
-                                        </div>
+                                         <div class="col-md-6 mb-3">
+                                             <label class="form-label">Radius (meters)</label>
+                                             <input type="number" name="radius" class="form-control numeric-input"
+                                                 id="radius" min="0" step="any"
+                                                 placeholder="Enter radius in meters">
+                                             <span class="text-danger form-error" id="error_radius"></span>
+                                         </div>
                                          <div class="col-md-6 mb-3">
                                              <label class="form-label">Contact Person </label>
                                              <input type="text" name="contact_person" class="form-control"
@@ -142,7 +144,7 @@
                                              <input type="text" class="form-control time-input" name="start_time">
                                              <span class="text-danger form-error" id="error_start_time"></span>
                                          </div>
-                                        <div class="col-md-4 mb-3">
+                                         <div class="col-md-4 mb-3">
                                              <label class="form-label">End Time</label>
                                              <input type="text" name="end_time" class="form-control time-input">
                                              <span class="text-danger form-error" id="error_end_time"></span>
@@ -164,20 +166,20 @@
                                              <span class="text-danger form-error" id="error_break_time"></span>
                                          </div>
                                          @hasanyrole('superadmin|admin')
-                                         <div class="col-md-6 mb-3">
-                                             <label class="form-label">Guard Rate</label>
-                                             <input type="text" name="guard_rate"
-                                                 class="form-control numeric-input guardRate"
-                                                 placeholder="Guard Rate">
-                                             <span class="text-danger form-error" id="error_guard_rate"></span>
-                                         </div>
-                                         <div class="col-md-6 mb-3">
-                                             <label class="form-label">Site Rate </label>
-                                             <input type="text" name="office_rate"
-                                                 class="form-control numeric-input siteRate"
-                                                 placeholder="Office Rate">
-                                             <span class="text-danger form-error" id="error_office_rate"></span>
-                                         </div>
+                                             <div class="col-md-6 mb-3">
+                                                 <label class="form-label">Guard Rate</label>
+                                                 <input type="text" name="guard_rate"
+                                                     class="form-control numeric-input guardRate"
+                                                     placeholder="Guard Rate">
+                                                 <span class="text-danger form-error" id="error_guard_rate"></span>
+                                             </div>
+                                             <div class="col-md-6 mb-3">
+                                                 <label class="form-label">Site Rate </label>
+                                                 <input type="text" name="office_rate"
+                                                     class="form-control numeric-input siteRate"
+                                                     placeholder="Office Rate">
+                                                 <span class="text-danger form-error" id="error_office_rate"></span>
+                                             </div>
                                          @endhasanyrole
                                          <div class="col-md-12 mb-3">
                                              <label class="form-label">
@@ -201,6 +203,49 @@
                                                  class="form-control numeric-input" placeholder="Payable">
                                              <span class="text-danger form-error" id="error_payable_rate"></span>
                                          </div>
+                                                                                  <div class="col-md-12 mt-3">
+                                             <div
+                                                 class="card-body d-flex align-items-center justify-content-between flex-wrap row-gap-3">
+                                                 <h6>Staff-Specific Rates</h6>
+
+                                             </div>
+                                             <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                                                 <div class="me-2" style="flex:0 0 220px; min-width:160px;">
+                                                     @php $create_staffs = \App\Models\User::role('security_staff')->get(); @endphp
+                                                     <select id="create_site_staff_select"
+                                                         class="form-select create-staff-select2 w-100">
+                                                         <option value="">--choose staff--</option>
+                                                         @foreach ($create_staffs as $s)
+                                                             <option value="{{ $s->id }}">{{ $s->first_name }}
+                                                                 {{ $s->last_name }}</option>
+                                                         @endforeach
+                                                     </select>
+                                                 </div>
+                                                 <div class="me-2" style="flex:0 0 140px;">
+                                                     <input type="text" id="create_site_staff_rate_input"
+                                                         class="form-control numeric-input" placeholder="Rate"
+                                                         style="width:140px;">
+                                                 </div>
+                                                 <div>
+                                                     <button type="button" id="create_add_site_staff_rate"
+                                                         class="btn btn-primary">Add</button>
+                                                 </div>
+                                             </div>
+                                             <div class="table-responsive">
+                                                 <table class="table table-sm table-bordered"
+                                                     id="create_site_staff_rates_table">
+                                                     <thead>
+                                                         <tr>
+                                                             <th>Staff</th>
+                                                             <th style="width:140px">Rate</th>
+                                                             <th style="width:120px">Action</th>
+                                                         </tr>
+                                                     </thead>
+                                                     <tbody id="create_site_staff_rates_list"></tbody>
+                                                 </table>
+                                             </div>
+                                         </div>
+                                         <br>
                                          <div class="card bg-light-500 shadow-none">
                                              <div
                                                  class="card-body d-flex align-items-center justify-content-between flex-wrap row-gap-3">
@@ -247,8 +292,13 @@
                                                  </tbody>
                                              </table>
                                          </div>
+
+                                         <br>
                                      </div>
                                  </div>
+
+
+
                              </div>
                          </div>
                          <div class="modal-footer">
@@ -268,44 +318,44 @@
  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
  <script>
-    if (typeof createMap === 'undefined') var createMap = null;
-    if (typeof createSiteMarker === 'undefined') var createSiteMarker = null;
-    if (typeof createCheckpointMarkers === 'undefined') var createCheckpointMarkers = []; // store markers + indexes
-    
-    // Geocoding function
-    function geocodeAddress(address, callback) {
-        if (!address || address.trim() === '') {
-            return;
-        }
-        
-        // Using Nominatim (OpenStreetMap's geocoding service)
-        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
-        
-        $.ajax({
-            url: url,
-            method: 'GET',
-            dataType: 'json',
-            headers: {
-                'Accept': 'application/json',
-                'User-Agent': 'YourApp/1.0' // Required by Nominatim
-            },
-            success: function(data) {
-                if (data && data.length > 0) {
-                    const lat = parseFloat(data[0].lat);
-                    const lng = parseFloat(data[0].lon);
-                    callback(lat, lng, data[0]);
-                } else {
-                    console.warn('Address not found:', address);
-                    // Optionally show error to user
-                    // toast_warning('Address not found. Please check the address or set location manually on map.');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error('Geocoding error:', error);
-                // toast_danger('Error geocoding address. Please set location manually on map.');
-            }
-        });
-    }
+     if (typeof createMap === 'undefined') var createMap = null;
+     if (typeof createSiteMarker === 'undefined') var createSiteMarker = null;
+     if (typeof createCheckpointMarkers === 'undefined') var createCheckpointMarkers = []; // store markers + indexes
+
+     // Geocoding function
+     function geocodeAddress(address, callback) {
+         if (!address || address.trim() === '') {
+             return;
+         }
+
+         // Using Nominatim (OpenStreetMap's geocoding service)
+         const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`;
+
+         $.ajax({
+             url: url,
+             method: 'GET',
+             dataType: 'json',
+             headers: {
+                 'Accept': 'application/json',
+                 'User-Agent': 'YourApp/1.0' // Required by Nominatim
+             },
+             success: function(data) {
+                 if (data && data.length > 0) {
+                     const lat = parseFloat(data[0].lat);
+                     const lng = parseFloat(data[0].lon);
+                     callback(lat, lng, data[0]);
+                 } else {
+                     console.warn('Address not found:', address);
+                     // Optionally show error to user
+                     // toast_warning('Address not found. Please check the address or set location manually on map.');
+                 }
+             },
+             error: function(xhr, status, error) {
+                 console.error('Geocoding error:', error);
+                 // toast_danger('Error geocoding address. Please set location manually on map.');
+             }
+         });
+     }
 
      function initCreateMap(lat = 51.505, lng = -0.09, checkpoints = []) {
          if (!createMap) {
@@ -356,22 +406,22 @@
 
          setTimeout(() => createMap.invalidateSize(), 300); // fix resizing bug
      }
-     
+
      // Function to update map location
      function updateMapFromAddress(address) {
          if (!createMap || !createSiteMarker) return;
-         
+
          geocodeAddress(address, function(lat, lng, result) {
              // Update map view
              createMap.setView([lat, lng], 13);
-             
+
              // Update marker position
              createSiteMarker.setLatLng([lat, lng]);
-             
+
              // Update hidden input fields
              $('#latitude').val(lat);
              $('#longitude').val(lng);
-             
+
              // Optional: Show popup with address
              createSiteMarker.bindPopup(`<b>Location:</b><br>${result.display_name || address}`).openPopup();
          });
@@ -434,7 +484,7 @@
          let cp = createCheckpointMarkers.find(c => c.index === index);
          if (cp) {
              createMap.removeLayer(cp.marker);
-            $(`#create_checkpoint_row_${index}`).remove();
+             $(`#create_checkpoint_row_${index}`).remove();
          }
      }
 
@@ -442,127 +492,283 @@
      // DOM Ready + AJAX example
      // =============================
 
-            $(document).ready(function() {
+     $(document).ready(function() {
 
-                // Initialize map for create modal
-                initCreateMap();
-                
-                // Address field change event
-                $('textarea[name="address"]').on('change', function() {
-                    const address = $(this).val().trim();
-                    if (address) {
-                        updateMapFromAddress(address);
-                    }
-                });
-                
-                // Optional: Add debouncing to prevent too many API calls
-                let addressTimeout;
-                $('textarea[name="address"]').on('input', function() {
-                    clearTimeout(addressTimeout);
-                    addressTimeout = setTimeout(() => {
-                        const address = $(this).val().trim();
-                        if (address.length > 5) { // Only search if address is reasonably long
-                            updateMapFromAddress(address);
-                        }
-                    }, 1500); // Wait 1.5 seconds after typing stops
-                });
+         // Initialize map for create modal
+         initCreateMap();
 
-                $('#add_site-form').on('submit', function(e) {
-                    e.preventDefault();
-                    $("[id^='error_']").text('');
+         // Address field change event
+         $('textarea[name="address"]').on('change', function() {
+             const address = $(this).val().trim();
+             if (address) {
+                 updateMapFromAddress(address);
+             }
+         });
 
-                    const form = this;
-                    const formData = new FormData(form);
-                    const submitButton = $('#savesite');
-                    submitButton.prop('disabled', true).html('Saving...');
+         // Optional: Add debouncing to prevent too many API calls
+         let addressTimeout;
+         $('textarea[name="address"]').on('input', function() {
+             clearTimeout(addressTimeout);
+             addressTimeout = setTimeout(() => {
+                 const address = $(this).val().trim();
+                 if (address.length > 5) { // Only search if address is reasonably long
+                     updateMapFromAddress(address);
+                 }
+             }, 1500); // Wait 1.5 seconds after typing stops
+         });
 
-                    if (createSiteMarker) {
-                        const p = createSiteMarker.getLatLng();
-                        $('#latitude').val(p.lat);
-                        $('#longitude').val(p.lng);
-                    }
+         $('#add_site-form').on('submit', function(e) {
+             e.preventDefault();
+             $("[id^='error_']").text('');
 
-                    $.ajax({
-                        url: $(form).attr('action'),
-                        method: 'POST',
-                        data: formData,
-                        processData: false,
-                        contentType: false,
-                        headers: {
-                            'X-CSRF-TOKEN': $('input[name="_token"]').val()
-                        },
-                        success: function(response) {
-                                    // Reset modal form and map state before closing
-                                    resetCreateModal();
-                                    closeBsModal('#add_site');
-                                    toast_success(response.message ||
-                                        'Site created successfully');
-                                    reloadDatatable('#sites-table');
-                        },
-                error: function (xhr) {
-                    if (xhr.status === 422) {
-                        const errors = xhr.responseJSON.errors;
-    
-                        Object.values(errors).forEach(messages => {
-                            messages.forEach(message => {
-                                toast_danger(message);
-                            });
-                        });
-                    } else {
-                        toast_danger('Something went wrong.');
-                    }
-                },
-                        complete: function() {
-                            submitButton.prop('disabled', false).html('Save');
-                        }
-                    });
-                });
+             const form = this;
+             const formData = new FormData(form);
+             const submitButton = $('#savesite');
+             submitButton.prop('disabled', true).html('Saving...');
 
-                // Optional: re-render map on modal show
-                $('#add_site').on('shown.bs.modal', function() {
-                    setTimeout(() => createMap.invalidateSize(), 300);
-                    
-                    // If address field already has value, geocode it
-                    const existingAddress = $('textarea[name="address"]').val().trim();
-                    if (existingAddress) {
-                        updateMapFromAddress(existingAddress);
-                    }
-                });
+             if (createSiteMarker) {
+                 const p = createSiteMarker.getLatLng();
+                 $('#latitude').val(p.lat);
+                 $('#longitude').val(p.lng);
+             }
 
-                // Clear modal state when hidden (also used after successful submit)
-                function resetCreateModal() {
-                    try {
-                        const form = document.getElementById('add_site-form');
-                        if (form) form.reset();
-                    } catch (e) {
-                        // ignore
-                    }
+             $.ajax({
+                 url: $(form).attr('action'),
+                 method: 'POST',
+                 data: formData,
+                 processData: false,
+                 contentType: false,
+                 headers: {
+                     'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                 },
+                 success: function(response) {
+                     // Reset modal form and map state before closing
+                     resetCreateModal();
+                     closeBsModal('#add_site');
+                     toast_success(response.message ||
+                         'Site created successfully');
+                     reloadDatatable('#sites-table');
+                 },
+                 error: function(xhr) {
+                     if (xhr.status === 422) {
+                         const errors = xhr.responseJSON.errors;
 
-                    // Clear checkpoint rows and remove markers from map
-                    try {
-                        if (Array.isArray(createCheckpointMarkers)) {
-                            createCheckpointMarkers.forEach(cp => {
-                                try { if (cp && cp.marker && createMap) createMap.removeLayer(cp.marker); } catch (e) {}
-                            });
-                        }
-                    } catch (e) {}
-                    createCheckpointMarkers = [];
-                    $('#create_checkpointList').empty();
+                         Object.values(errors).forEach(messages => {
+                             messages.forEach(message => {
+                                 toast_danger(message);
+                             });
+                         });
+                     } else {
+                         toast_danger('Something went wrong.');
+                     }
+                 },
+                 complete: function() {
+                     submitButton.prop('disabled', false).html('Save');
+                 }
+             });
+         });
 
-                    // Reset main site marker to default and clear hidden coords
-                    if (createSiteMarker && createMap) {
-                        try { createSiteMarker.setLatLng([51.505, -0.09]); } catch (e) {}
-                    }
-                    $('#latitude').val('');
-                    $('#longitude').val('');
+         // Optional: re-render map on modal show
+         $('#add_site').on('shown.bs.modal', function() {
+             setTimeout(() => createMap.invalidateSize(), 300);
 
-                    // Reset select2/selects
-                    try { $('#clientSelect').val('').trigger('change'); } catch (e) {}
-                }
+             // If address field already has value, geocode it
+             const existingAddress = $('textarea[name="address"]').val().trim();
+             if (existingAddress) {
+                 updateMapFromAddress(existingAddress);
+             }
+         });
 
-                $('#add_site').on('hidden.bs.modal', function() {
-                    resetCreateModal();
-                });
-            });
+         // Clear modal state when hidden (also used after successful submit)
+         function resetCreateModal() {
+             try {
+                 const form = document.getElementById('add_site-form');
+                 if (form) form.reset();
+             } catch (e) {
+                 // ignore
+             }
 
+             // Clear checkpoint rows and remove markers from map
+             try {
+                 if (Array.isArray(createCheckpointMarkers)) {
+                     createCheckpointMarkers.forEach(cp => {
+                         try {
+                             if (cp && cp.marker && createMap) createMap.removeLayer(cp.marker);
+                         } catch (e) {}
+                     });
+                 }
+             } catch (e) {}
+             createCheckpointMarkers = [];
+             $('#create_checkpointList').empty();
+
+             // Reset main site marker to default and clear hidden coords
+             if (createSiteMarker && createMap) {
+                 try {
+                     createSiteMarker.setLatLng([51.505, -0.09]);
+                 } catch (e) {}
+             }
+             $('#latitude').val('');
+             $('#longitude').val('');
+
+             // Reset select2/selects
+             try {
+                 $('#clientSelect').val('').trigger('change');
+             } catch (e) {}
+
+             // Clear any configured create-site staff rates UI/state
+             try {
+                 createSiteStaffRates = [];
+                 $('#create_site_staff_rates_list').empty();
+                 if ($('#create_site_staff_select').length) {
+                     $('#create_site_staff_select').val('').trigger('change');
+                 }
+             } catch (ee) {}
+         }
+
+         $('#add_site').on('hidden.bs.modal', function() {
+             resetCreateModal();
+         });
+
+         // Clear create-site staff rates when resetting modal
+         if (typeof createSiteStaffRates === 'undefined') var createSiteStaffRates = [];
+
+         function renderCreateSiteStaffRates() {
+             const $tbody = $('#create_site_staff_rates_list');
+             $tbody.empty();
+             createSiteStaffRates.forEach((r, idx) => {
+                 const name = r.name || (r.user ? (r.user.first_name + ' ' + r.user.last_name) : r
+                     .user_id);
+                 const rateVal = (r.guard_rate !== undefined && r.guard_rate !== null) ? r.guard_rate :
+                     '';
+                 $tbody.append(
+                     `<tr data-index="${idx}"><td>${name}</td><td><input type="text" class="form-control numeric-input create-site-staff-rate-input" data-index="${idx}" value="${rateVal}"></td><td><button type="button" class="btn btn-sm btn-danger remove-create-site-staff-rate" data-index="${idx}">Remove</button></td></tr>`
+                     );
+             });
+         }
+
+         // Bind add button for create modal
+         $('#create_add_site_staff_rate').off('click').on('click', function() {
+             const $sel = $('#create_site_staff_select');
+             const userId = $sel.val();
+             if (!userId) {
+                 toast_danger('Please choose a staff');
+                 return;
+             }
+             const userName = $sel.find('option:selected').text();
+             const rate = $('#create_site_staff_rate_input').val() || null;
+             if (createSiteStaffRates.find(r => parseInt(r.user_id) === parseInt(userId))) {
+                 toast_danger('A rate is already set for the selected staff');
+                 return;
+             }
+             createSiteStaffRates.push({
+                 user_id: parseInt(userId),
+                 guard_rate: rate,
+                 name: userName
+             });
+             renderCreateSiteStaffRates();
+             $('#create_site_staff_rate_input').val('');
+         });
+
+         // Delegated remove handler
+         $(document).on('click', '.remove-create-site-staff-rate', function() {
+             const idx = parseInt($(this).data('index'));
+             if (!isNaN(idx)) {
+                 createSiteStaffRates.splice(idx, 1);
+                 renderCreateSiteStaffRates();
+             }
+         });
+
+         // Delegated input update handler
+         $(document).on('input', '.create-site-staff-rate-input', function() {
+             const idx = parseInt($(this).data('index'));
+             if (!isNaN(idx) && createSiteStaffRates[idx]) {
+                 createSiteStaffRates[idx].guard_rate = $(this).val();
+             }
+         });
+
+         // Ensure select2 for create staff select
+         try {
+             if ($('#create_site_staff_select').hasClass('select2-hidden-accessible')) {
+                 $('#create_site_staff_select').select2('destroy');
+             }
+         } catch (ee) {}
+         try {
+             $('#create_site_staff_select').select2({
+                 placeholder: '--choose staff--',
+                 allowClear: true,
+                 width: 'style',
+                 dropdownParent: $('#add_site .modal-content'),
+                 minimumResultsForSearch: 0
+             });
+         } catch (ee) {}
+
+         // Include staff rates in add_site form submit
+         $('#add_site-form').off('submit').on('submit', function(e) {
+             e.preventDefault();
+             $("[id^='error_']").text('');
+
+             const form = this;
+             // remove any previously added dynamic inputs for create
+             $(form).find('.dynamic-create-staff-rate').remove();
+             if (Array.isArray(createSiteStaffRates) && createSiteStaffRates.length) {
+                 createSiteStaffRates.forEach(function(r, idx) {
+                     const uid = r.user_id ?? (r.user ? r.user.id : '') ?? '';
+                     const rate = r.guard_rate ?? '';
+                     $(form).append($('<input>', {
+                         type: 'hidden',
+                         name: `staff_rates[${idx}][user_id]`,
+                         value: uid
+                     }).addClass('dynamic-create-staff-rate'));
+                     $(form).append($('<input>', {
+                         type: 'hidden',
+                         name: `staff_rates[${idx}][guard_rate]`,
+                         value: rate
+                     }).addClass('dynamic-create-staff-rate'));
+                 });
+             }
+
+             const formData = new FormData(form);
+             const submitButton = $('#savesite');
+             submitButton.prop('disabled', true).html('Saving...');
+
+             if (createSiteMarker) {
+                 const p = createSiteMarker.getLatLng();
+                 $('#latitude').val(p.lat);
+                 $('#longitude').val(p.lng);
+             }
+
+             $.ajax({
+                 url: $(form).attr('action'),
+                 method: 'POST',
+                 data: formData,
+                 processData: false,
+                 contentType: false,
+                 headers: {
+                     'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                 },
+                 success: function(response) {
+                     // Reset modal form and map state before closing
+                     resetCreateModal();
+                     closeBsModal('#add_site');
+                     toast_success(response.message || 'Site created successfully');
+                     reloadDatatable('#sites-table');
+                 },
+                 error: function(xhr) {
+                     if (xhr.status === 422) {
+                         const errors = xhr.responseJSON.errors;
+                         Object.values(errors).forEach(messages => {
+                             messages.forEach(message => {
+                                 toast_danger(message);
+                             });
+                         });
+                     } else {
+                         toast_danger('Something went wrong.');
+                     }
+                 },
+                 complete: function() {
+                     submitButton.prop('disabled', false).html('Save');
+                 }
+             });
+         });
+     });
  </script>

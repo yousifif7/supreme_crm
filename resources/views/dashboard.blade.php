@@ -212,12 +212,15 @@
                                         <td>
                                             @if ($checkCall->status == 'pending')
                                                 <button class="btn btn-success btn-sm"
-                                                    onclick="updateStatus({{ $checkCall->id }}, 'completed')">Completed</button>
+                                                    title="Mark as completed" aria-label="Mark as completed"
+                                                    onclick="updateStatus({{ $checkCall->id }}, 'completed')"><i class="fas fa-check"></i></button>
                                                 <button class="btn btn-danger btn-sm"
-                                                    onclick="updateStatus({{ $checkCall->id }}, 'missed')">Missed</button>
+                                                    title="Mark as missed" aria-label="Mark as missed"
+                                                    onclick="updateStatus({{ $checkCall->id }}, 'missed')"><i class="fas fa-times"></i></button>
                                             @endif
                                             <button class="btn btn-secondary btn-sm"
-                                                onclick="openCommentModal({{ $checkCall->id }})">Comment</button>
+                                                title="Comment" aria-label="Comment"
+                                                onclick="openCommentModal({{ $checkCall->id }})"><i class="fas fa-comment"></i></button>
                                         </td>
                                     </tr>
                                 @empty
@@ -247,14 +250,14 @@
                                 <textarea name="comment" class="form-control" rows="4" placeholder="Write your comment here..."></textarea>
                             </div>
                             <div class="modal-footer">
-                                <button type="submit" class="btn btn-primary">Submit Comment</button>
+                                <button type="submit" class="btn btn-primary" title="Submit comment" aria-label="Submit comment"><i class="fas fa-paper-plane"></i></button>
                             </div>
                         </div>
                     </form>
                 </div>
             </div>
 
-            <div class="col-xxl-6 col-12 col-xl-6 d-flex">
+            <div class="col-xxl-12 col-12 col-xl-12 d-flex">
                 <div class="card flex-fill">
                     <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                         <h5 class="mb-2"><b>Today Shifts (Live)</b></h5>
@@ -266,11 +269,11 @@
                             <table class="table table-nowrap mb-0">
                                 <thead class="sticky-top bg-white">
                                     <tr class="text-center">
-                                        <th>TIME</th>
-                                        <th>PERSON</th>
-                                        <th>IN</th>
-                                        <th>BREAK</th>
-                                        <th>OUT</th>
+                                        <th>Shift Date</th>
+                                        <th>Staff</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th>Site</th>
                                     </tr>
                                 </thead>
 
@@ -280,75 +283,22 @@
                                             $employee = App\Models\User::role('security_staff')
                                                 ->where('id', $shift->staff_id)
                                                 ->first();
+                                            $siteName = data_get($shift, 'shift.site.site_name') 
+                                                ?? data_get($shift, 'site.site_name') 
+                                                ?? data_get($shift, 'shift.client.name') 
+                                                ?? data_get($shift, 'client.name')
+                                                ?? '-';
                                         @endphp
                                         <tr>
+                                            <td class="text-center">{{ \Carbon\Carbon::parse($shift->start_time)->format('d-m-Y') }}</td>
+                                            <td class="text-center">{!! trim(($employee?->first_name ?? '') . ' ' . ($employee?->last_name ?? '')) ?: '<span class="text-gray">Unassigned</span>' !!}</td>
                                             <td class="text-center">{{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }}</td>
-                                            <td class="text-center">{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                            <td class="text-center">X</td>
-                                            <td class="text-center">{{ $shift->break_time }}</td>
                                             <td class="text-center">{{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}</td>
+                                            <td class="text-center">{{ $siteName }}</td>
                                         </tr>
                                     @endforeach
                                 </tbody>
                             </table>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex">
-                <div class="card flex-fill">
-                    <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
-                        <h5 class="mb-2"><b>Upcoming Shifts</b></h5>
-                    </div>
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            @php
-                                use Carbon\Carbon;
-                                use App\Models\ShiftDate;
-
-                                $today = Carbon::today();
-                                $inThreeDays = Carbon::today()->addDays(3);
-
-                                $upcomingShifts = ShiftDate::whereDate('shift_date', '>=', $today)
-                                    ->whereDate('shift_date', '<=', $inThreeDays)
-                                    ->with('staff') // eager load staff if you want to access it
-                                    ->get();
-                            @endphp
-                            <div style="max-height: 300px; overflow-y: auto;">
-                                <table class="table table-nowrap mb-0">
-                                    <thead>
-                                        <tr class="text-center">
-                                            <th>DATE</th>
-                                            <th>PERSON</th>
-                                            <th>IN</th>
-                                            <th>BREAK</th>
-                                            <th>OUT</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @forelse ($upcomingShifts as $shift)
-                                            @php
-                                                $employee = App\Models\User::role('security_staff')
-                                                    ->where('id', $shift->staff_id)
-                                                    ->first();
-                                            @endphp
-                                            <tr class="text-center">
-                                                <td class="text-center">{{ format_date($shift->shift_date) }}</td>
-                                                <td class="text-center">{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                                <td class="text-center">{{ Carbon::parse($shift->start_time)->format('H:i') }}</td>
-                                                <td class="text-center">{{ $shift->break_time ?? '-' }}</td>
-                                                <td class="text-center">{{ Carbon::parse($shift->end_time)->format('H:i') }}</td>
-                                            </tr>
-                                        @empty
-                                            <tr>
-                                                <td colspan="5" class="text-center">No upcoming shifts in the next
-                                                    3
-                                                    days.</td>
-                                            </tr>
-                                        @endforelse
-                                    </tbody>
-                                </table>
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -754,12 +704,9 @@
             8: 'Close Protection',
         };
 
-        const siteIconHTML = '<i class="fas fa-building" style="color:#2c3e50;font-size:16px;"></i>';
-
         let map;
         let customMarkers = [];
         let currentInfoWindow = null;
-        let geocoder;
 
         function initMap() {
             // --- Init map centered on England ---
@@ -773,8 +720,6 @@
                 mapTypeControl: true,
                 streetViewControl: false,
             });
-
-            geocoder = new google.maps.Geocoder();
 
             // --- Add user markers ---
             userLocations.forEach(loc => {
@@ -791,23 +736,18 @@
                 addCustomMarker(latLng, iconUrl, username, serviceName, loc, false);
             });
 
-            // --- Add site markers (geocode postal codes) ---
-            siteLocations.forEach(loc => {
-                if (!loc.address) return;
-
-                geocoder.geocode({
-                    address: loc.address
-                }, (results, status) => {
-                    console.log(results[0].geometry.location)
-                    if (status === 'OK' && results[0]) {
-                        const latLng = results[0].geometry.location;
-                        addCustomMarker(latLng, siteIconHTML, loc.name, 'Site Location', loc, true);
-                    }
-                });
+            // Close any open InfoWindow when user clicks on the map background
+            map.addListener('click', function () {
+                if (currentInfoWindow) {
+                    currentInfoWindow.close();
+                    currentInfoWindow = null;
+                }
             });
+
+            // (Site markers removed for this map)
         }
 
-        function addCustomMarker(latLng, icon, displayName, serviceName, loc, isSite) {
+        function addCustomMarker(latLng, icon, displayName, serviceName, loc) {
             class CustomMarker extends google.maps.OverlayView {
                 constructor(position) {
                     super();
@@ -819,76 +759,79 @@
                     this.div = document.createElement("div");
                     this.div.className = "custom-marker";
 
-                    if (isSite) {
-                        this.div.innerHTML = `<div class="site-marker">${icon}</div>`;
-                    } else {
-                        const iconHTML = icon ?
-                            `<img src="${icon}" alt="${serviceName}" style="width:24px;height:24px;border-radius:50%">` :
-                            `<div style="width:20px;height:20px;background:red;border-radius:50%"></div>`;
+                    const iconHTML = icon ? `<img src="${icon}" alt="${serviceName}" />` : `<div class="default-dot"></div>`;
+                    // Only show the icon on the map; name appears in the info window
+                    this.div.innerHTML = `
+                        <div class="marker-wrapper">
+                            <div class="marker-circle">${iconHTML}</div>
+                        </div>
+                    `;
 
-                        this.div.innerHTML = `
-                    <div class="pin">
-                        <div class="circle">${iconHTML}</div>
-                        <div class="triangle"></div>
-                        <span class="username">${displayName}</span>
-                    </div>
-                `;
-                    }
+                    this.div.style.cursor = 'pointer';
+                    let closeTimeout = null;
 
-                    this.div.addEventListener("click", () => {
+                    const showInfo = () => {
+                        if (closeTimeout) { clearTimeout(closeTimeout); closeTimeout = null; }
+                        const siteNameRaw = loc.site_name || (loc.shift && (loc.shift.site_name || (loc.shift.site && loc.shift.site.site_name))) || (loc.current_shift && (loc.current_shift.site_name || (loc.current_shift.site && loc.current_shift.site.site_name))) || (loc.site && loc.site.site_name) || null;
+                        const siteLine = siteNameRaw ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Site:</strong> ${siteNameRaw}</div>` : '';
+                        const serviceLine = serviceName ? `<div style="font-size:13px;color:#444;margin-bottom:4px;"><strong>Service:</strong> ${serviceName}</div>` : '';
+                        const onDutyLine = `<div style="font-size:13px;color:#444;margin-bottom:2px;"><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>`;
+                        const lastSeenLine = `<div style="font-size:13px;color:#444;"><strong>Last seen:</strong> ${loc.timestamp ?? ''}</div>`;
+
+                        const content = `
+                            <div style="min-width:160px;max-width:260px;font-family:Segoe UI, sans-serif;color:#222;padding:6px 8px;position:relative;">
+                                <button class="iw-close-btn" style="position:absolute;left:8px;top:6px;border:0;background:transparent;font-size:16px;line-height:1;color:#666;cursor:pointer;padding:0;margin:0;">&times;</button>
+                                <div style="margin-left:28px;font-weight:700;margin-bottom:4px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${displayName}</div>
+                                ${siteLine}
+                                ${serviceLine}
+                                ${onDutyLine}
+                                ${lastSeenLine}
+                            </div>
+                        `;
+
                         if (currentInfoWindow) currentInfoWindow.close();
-
-                        const content = isSite ?
-                            `
-        <div style="
-            max-width: 180px;
-            font-family: 'Segoe UI', sans-serif;
-            font-size: 12px;
-            line-height: 1.3;
-            padding: 6px 10px;
-            border-radius: 8px;
-            background: #fefefe;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            color: #34495e;
-        ">
-            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color:#2c3e50;">
-                <i class="fas fa-building" style="margin-right:4px;color:#2980b9;"></i>
-                ${loc.name}
-            </div>
-            <div><strong>Postal Code:</strong> ${loc.postalcode}</div>
-        </div>
-    ` :
-                            `
-        <div style="
-            max-width: 200px;
-            font-family: 'Segoe UI', sans-serif;
-            font-size: 12px;
-            line-height: 1.3;
-            padding: 6px 10px;
-            border-radius: 8px;
-            background: #fefefe;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            color: #34495e;
-        ">
-            <div style="font-weight: 600; font-size: 13px; margin-bottom: 4px; color:#2c3e50;">
-                ${displayName}
-            </div>
-            <div><strong>Service:</strong> ${serviceName}</div>
-            <div><strong>Accuracy:</strong> ${loc.accuracy ?? 'N/A'} m</div>
-            <div><strong>On Duty:</strong> ${loc.on_duty ? 'Yes' : 'No'}</div>
-            <div><strong>Timestamp:</strong> ${loc.timestamp ?? ''}</div>
-        </div>
-    `;
-
-                        currentInfoWindow = new google.maps.InfoWindow({
-                            content: content,
-                            position: latLng
-                        });
-
+                        currentInfoWindow = new google.maps.InfoWindow({ content: content, pixelOffset: new google.maps.Size(0, -30) });
+                        currentInfoWindow.setPosition(this.position);
                         currentInfoWindow.open(map);
-                        currentInfoWindow.addListener("closeclick", () => currentInfoWindow = null);
-                    });
 
+                        // Make the InfoWindow "sticky" so hovering between marker and the InfoWindow
+                        // doesn't immediately close it. Attach listeners after DOM ready.
+                        google.maps.event.addListenerOnce(currentInfoWindow, 'domready', function () {
+                            const iwOuter = document.querySelector('.gm-style-iw');
+                            if (!iwOuter) return;
+                            // try to find a stable container to attach mouse events
+                            let iwContainer = iwOuter.closest('.gm-style') || iwOuter.parentElement || iwOuter;
+
+                            // Attempt to hide the default Google close button (reduces empty space)
+                            try {
+                                const defaultClose = iwContainer.querySelector('[title="Close"]') || iwContainer.querySelector('.gm-ui-hover-effect');
+                                if (defaultClose) { defaultClose.style.display = 'none'; }
+                            } catch (e) {
+                                // ignore if structure differs
+                            }
+
+                            // No hover-based hide/show; InfoWindow opens on click and is closed
+                            // via the inline close button or by clicking the map background.
+
+                            // Wire up our inline close button (inside the content)
+                            const ourClose = iwContainer.querySelector('.iw-close-btn') || iwOuter.querySelector('.iw-close-btn');
+                            if (ourClose) {
+                                ourClose.addEventListener('click', function (ev) {
+                                    ev.stopPropagation();
+                                    if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
+                                });
+                            }
+                        });
+                    };
+
+                    const hideInfo = () => {
+                        closeTimeout = setTimeout(() => {
+                            if (currentInfoWindow) { currentInfoWindow.close(); currentInfoWindow = null; }
+                        }, 400);
+                    };
+
+                    // Only open InfoWindow on click (no hover)
+                    this.div.addEventListener('click', (e) => { e.stopPropagation(); showInfo(); });
 
                     const panes = this.getPanes();
                     panes.overlayMouseTarget.appendChild(this.div);
@@ -899,7 +842,7 @@
                     const pos = projection.fromLatLngToDivPixel(this.position);
                     if (pos && this.div) {
                         this.div.style.left = pos.x + "px";
-                        this.div.style.top = (pos.y - (isSite ? 10 : 20)) + "px";
+                        this.div.style.top = (pos.y - 18) + "px";
                     }
                 }
 
@@ -921,69 +864,46 @@
             cursor: pointer;
             transform: translate(-50%, -100%);
             display: flex;
-            align-items: flex-end;
+            align-items: center;
+            pointer-events: auto;
+            z-index: 10;
         }
 
-        .pin-wrapper {
-            position: relative;
+        .marker-wrapper {
             display: flex;
-            flex-direction: row;
-            align-items: flex-end;
+            align-items: center;
+            gap: 8px;
         }
 
-        .pin {
-            position: relative;
-            width: 32px;
-            height: 32px;
-        }
-
-        .circle {
+        .marker-circle {
             width: 32px;
             height: 32px;
             border-radius: 50%;
-            border: 2px solid #fff;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
-            z-index: 2;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+            background: linear-gradient(180deg, #ffffff 0%, #f3f6f9 100%);
+            overflow: hidden;
+            border: 2px solid rgba(255,255,255,0.9);
         }
 
-        .circle img {
-            width: 24px;
-            height: 24px;
-        }
+        .marker-circle img { width: 24px; height: 24px; display:block }
 
-        .triangle {
-            position: absolute;
-            bottom: -8px;
-            /* points below the circle */
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-top: 8px solid red;
-            /* same as circle */
-            z-index: 1;
-        }
-
-        .username {
-            margin-left: 6px;
-            font-size: 12px;
-            font-weight: 600;
-            color: #000;
+        .marker-label {
+            background: rgba(255,255,255,0.96);
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #233142;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+            max-width: 180px;
             white-space: nowrap;
-            text-shadow: 1px 1px 2px rgba(255, 255, 255, 0.8);
+            text-overflow: ellipsis;
+            overflow: hidden;
         }
 
-        .site-marker {
-            font-size: 16px;
-            color: #2c3e50;
-            cursor: pointer;
-            transform: translate(-50%, -50%);
-        }
+        .default-dot { width: 12px; height: 12px; border-radius: 50%; background: #2c3e50 }
     </style>
 
     <!-- Google Maps JS API (with Visualization library for heatmap) -->

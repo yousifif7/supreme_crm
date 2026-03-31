@@ -2466,11 +2466,10 @@ public function getTodayShifts()
         // }
 
         $checkcalls = $shiftDate->checkCalls;
-        
-        if($checkcalls && $checkcalls->isNotEmpty()){
+        if ($checkcalls && $checkcalls->isNotEmpty()) {
             foreach ($checkcalls as $checkcall) {
-                if($checkcall->status !=='completed'){
-                    $checkcall->employee_id = $request->staff_id;
+                if ($checkcall->status !== 'completed') {
+                    $checkcall->employee_id = $shiftDate->staff_id;
                     $checkcall->save();
                 }
             }
@@ -3004,16 +3003,8 @@ public function getTodayShifts()
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        $staffId   = $request->staff_id ?? null;
-        // Allow missing Employee record: prefer Employee but tolerate absence.
-        $staffUser = null;
-        $staffEmployeeId = null; // employee table id (may be null)
-        $staffUserId = $staffId; // users.id
-        if ($request->filled('staff_id')) {
-            $staffUser = Employee::where('user_id', $staffId)->first();
-            $staffEmployeeId = $staffUser?->id;
-            $staffUserId = $staffId;
-        }
+        // Support scalar staff_id (apply to all) or an array keyed by shift id
+        $staffInput = $request->input('staff_id', null);
 
         $updatedShifts = [];
         $errors = [];
@@ -3022,22 +3013,61 @@ public function getTodayShifts()
             $shiftDate = ShiftDate::findOrFail($shiftId);
             $shift     = Shift::findOrFail($shiftDate->shift_id);
 
-            // ====== 1️⃣ Check for approved leave ======
-            if ($staffId) {
-                $shiftStart = $this->combineDateTime($shiftDate->shift_date, ($request->start_times[$shiftId] ?? $shiftDate->start_time));
-                $shiftEnd   = $this->combineDateTime($shiftDate->shift_date, ($request->end_times[$shiftId] ?? $shiftDate->end_time));
+            // Determine if a staff change was provided for this specific shift.
+            $staffProvided = false;
+            $newStaffUserId = $shiftDate->staff_id; // default: preserve
+            $newStaffEmployee = null;
+            $newStaffEmployeeId = null;
 
-                // Handle overnight shift
-                if ($shiftEnd->lte($shiftStart)) {
-                    $shiftEnd->addDay();
+            if (is_array($staffInput)) {
+                // Only treat a per-shift entry as an explicit change when the
+                // value is non-empty. Empty/null indicates "no change" from
+                // the frontend and should not unassign staff.
+                if (array_key_exists($shiftId, $staffInput)) {
+                    $val = $staffInput[$shiftId];
+                    if ($val !== null && $val !== '') {
+                        $staffProvided = true;
+                        $newStaffUserId = (int)$val;
+                        $newStaffEmployee = Employee::where('user_id', $newStaffUserId)->first();
+                        $newStaffEmployeeId = $newStaffEmployee?->id;
+                    } else {
+                        // treat empty as not provided -> preserve existing
+                        $staffProvided = false;
+                    }
                 }
+            } else {
+                // Scalar case: only apply when a non-empty staff_id was supplied
+                if ($request->filled('staff_id')) {
+                    $staffProvided = true;
+                    $newStaffUserId = (int)$staffInput;
+                    $newStaffEmployee = Employee::where('user_id', $newStaffUserId)->first();
+                    $newStaffEmployeeId = $newStaffEmployee?->id;
+                }
+            }
 
-                $leave = LeaveRequest::where('user_id', $staffId)
+            // shift time values
+            $newStart = $request->start_times[$shiftId] ?? $shiftDate->start_time;
+            $newEnd   = $request->end_times[$shiftId] ?? $shiftDate->end_time;
+            $newDate  = $request->shift_dates[$shiftId] ?? $shiftDate->shift_date;
+
+            // use provided book_on/book_off if available
+            $bookOn  = $request->book_on[$shiftId] ?? null;
+            $bookOff = $request->book_off[$shiftId] ?? null;
+
+            $newShiftStart = $this->combineDateTime($shiftDate->shift_date, $newStart);
+            $newShiftEnd   = $this->combineDateTime($shiftDate->shift_date, $newEnd);
+            if ($newShiftEnd->lte($newShiftStart)) {
+                $newShiftEnd->addDay();
+            }
+
+            // If staff change provided and a user id present, check leave
+            if ($staffProvided && $newStaffUserId) {
+                $leave = LeaveRequest::where('user_id', $newStaffUserId)
                     ->where('status', 'approved')
-                    ->where(function ($query) use ($shiftStart, $shiftEnd) {
-                        $query->where(function ($q) use ($shiftStart, $shiftEnd) {
-                            $q->where('start_date', '<=', $shiftEnd)
-                                ->where('end_date', '>=', $shiftStart);
+                    ->where(function ($query) use ($newShiftStart, $newShiftEnd) {
+                        $query->where(function ($q) use ($newShiftStart, $newShiftEnd) {
+                            $q->where('start_date', '<=', $newShiftEnd)
+                                ->where('end_date', '>=', $newShiftStart);
                         });
                     })
                     ->first();
@@ -3051,27 +3081,11 @@ public function getTodayShifts()
                 }
             }
 
-            // Use provided start/end times if available
-            $newStart = $request->start_times[$shiftId] ?? $shiftDate->start_time;
-            $newEnd   = $request->end_times[$shiftId] ?? $shiftDate->end_time;
-            $newDate = $request->shift_dates[$shiftId] ?? $shiftDate->shift_date;
-
-            // Use provided book_on/book_off if available
-            $bookOn  = $request->book_on[$shiftId] ?? null;
-            $bookOff = $request->book_off[$shiftId] ?? null;
-
-            $newShiftStart = $this->combineDateTime($shiftDate->shift_date, $newStart);
-            $newShiftEnd   = $this->combineDateTime($shiftDate->shift_date, $newEnd);
-            if ($newShiftEnd->lte($newShiftStart)) {
-                $newShiftEnd->addDay();
-            }
-
-            // Only perform restriction and overlap checks when a staff_id was provided
-            if ($staffId) {
-                // Calculate total hours for restriction checks
+            // Only perform restriction and overlap checks when a staff change with a user id was provided
+            if ($staffProvided && $newStaffUserId) {
                 $selectedDays = explode(',', trim($shift->days, '"[]"'));
                 $newShiftHours = $this->calculateTotalWorkingHours(
-                    $staffEmployeeId,
+                    $newStaffEmployeeId,
                     $shift->from_shift,
                     $shift->to_shift,
                     $shift->start_shift,
@@ -3081,9 +3095,8 @@ public function getTodayShifts()
                     'H:i:s'
                 );
 
-                // Apply restrictions
                 applyRestrictions(
-                    $staffUser,
+                    $newStaffEmployee,
                     $validator,
                     'staff_id',
                     $newShiftHours,
@@ -3096,8 +3109,7 @@ public function getTodayShifts()
                     continue;
                 }
 
-                // Check for overlapping shifts
-                $overlap = ShiftDate::where('staff_id', $staffUser?->user_id ?? $staffUserId)
+                $overlap = ShiftDate::where('staff_id', $newStaffUserId)
                     ->where(function ($query) use ($newShiftStart, $newShiftEnd) {
                         $query->whereRaw('TIMESTAMP(shift_date, start_time) < ?', [$newShiftEnd])
                             ->whereRaw('TIMESTAMP(shift_date, end_time) > ?', [$newShiftStart]);
@@ -3110,20 +3122,18 @@ public function getTodayShifts()
                 }
             }
 
-            // Update shift times and dates
+            // Update times/dates
             $shiftDate->start_time          = $newStart;
             $shiftDate->end_time            = $newEnd;
             $shiftDate->absentee_start_time = $bookOn;
             $shiftDate->absentee_end_time   = $bookOff;
-            // Normalize incoming date to Y-m-d to avoid storing different formats
             try {
                 $normalized = \Carbon\Carbon::parse($newDate)->format('Y-m-d');
             } catch (\Exception $e) {
-                $normalized = $newDate; // fallback to raw value
+                $normalized = $newDate;
             }
-            $shiftDate->shift_date          = $normalized;
+            $shiftDate->shift_date = $normalized;
 
-            // Normalize time format for hours calculation
             $startCalc = strlen($newStart) === 5 ? $newStart . ':00' : $newStart;
             $endCalc   = strlen($newEnd) === 5 ? $newEnd . ':00' : $newEnd;
             $shiftDate->total_hours = $this->calculateTotalHours($startCalc, $endCalc, 'H:i:s');
@@ -3142,30 +3152,25 @@ public function getTodayShifts()
                 }
             }
 
-            // Only update staff and is_assign when staff is actually being changed
+            // Only update staff when an explicit change was provided for this shift
             $oldStaffId = $shiftDate->staff_id;
-            $newStaffId = $staffUser?->user_id ?? $staffUserId;
-
-            if ($newStaffId != $oldStaffId) {
-                // Delete any existing bookings before reassigning
-                ShiftBooking::where('shift_id', $shiftDate->id)->delete();
-
-                // Staff is being changed - set to dispatched
-                $shiftDate->staff_id = $newStaffId;
-                $shiftDate->is_assign = 1;
-                $shiftDate->status = 'pending';
+            if ($staffProvided) {
+                $newStaffId = $newStaffUserId;
+                if ($newStaffId != $oldStaffId) {
+                    ShiftBooking::where('shift_id', $shiftDate->id)->delete();
+                    $shiftDate->staff_id = $newStaffId;
+                    $shiftDate->is_assign = $newStaffId ? 1 : 0;
+                    $shiftDate->status = 'pending';
+                }
             }
-            // If same staff, preserve current is_assign and status
 
             $shiftDate->save();
 
-            // After saving a changed shift, reschedule related patrols & checkcalls
             try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
 
-            // Push notification only if staff was assigned
-            if (!empty($newStaffId)) {
+            if ($staffProvided && !empty($newStaffUserId)) {
                 send_push_notification(
-                    $newStaffId,
+                    $newStaffUserId,
                     'Shift assigned',
                     'An admin assigned a shift for you, You have to respond!',
                     ['type' => 'shift', 'shiftId' => $shiftDate->id]
@@ -3173,6 +3178,19 @@ public function getTodayShifts()
             }
 
             $updatedShifts[] = $shiftDate->id;
+
+            // Update checkcalls only when a staff change was provided
+            if ($staffProvided) {
+                $checkcalls = $shiftDate->checkCalls;
+                if ($checkcalls && $checkcalls->isNotEmpty()) {
+                    foreach ($checkcalls as $checkcall) {
+                        if ($checkcall->status !== 'completed') {
+                            $checkcall->employee_id = $shiftDate->staff_id;
+                            $checkcall->save();
+                        }
+                    }
+                }
+            }
         }
 
         if (!empty($errors) && empty($updatedShifts)) {
@@ -3340,11 +3358,10 @@ public function getTodayShifts()
         );
 
         $checkcalls = $shiftDate->checkCalls;
-        
-        if($checkcalls && $checkcalls->isNotEmpty()){
+        if ($checkcalls && $checkcalls->isNotEmpty()) {
             foreach ($checkcalls as $checkcall) {
-                if($checkcall->status !=='completed'){
-                    $checkcall->employee_id = $request->staff_id;
+                if ($checkcall->status !== 'completed') {
+                    $checkcall->employee_id = $shiftDate->staff_id;
                     $checkcall->save();
                 }
             }
@@ -3453,18 +3470,17 @@ public function getTodayShifts()
             );
 
             $updatedShifts[] = $shiftDate->id;
-
-        $checkcalls = $shift->checkCalls;
-
-        if($checkcalls && $checkcalls->isNotEmpty()){
-            foreach ($checkcalls as $checkcall) {
-                if($checkcall->status !=='completed'){
-                    $checkcall->employee_id = $request->staff_id;
-                    $checkcall->save();
+            // Update pending checkcalls for this saved shift
+            $checkcalls = $shiftDate->checkCalls;
+            if ($checkcalls && $checkcalls->isNotEmpty()) {
+                foreach ($checkcalls as $checkcall) {
+                    if ($checkcall->status !== 'completed') {
+                        $checkcall->employee_id = $shiftDate->staff_id;
+                        $checkcall->save();
+                    }
                 }
             }
         }
-    }
 
         return response()->json([
             'updated' => $updatedShifts,
@@ -3492,6 +3508,13 @@ public function getTodayShifts()
         }
 
         $data = $validator->validated();
+        // If staff_id was provided but empty/null, treat it as "no change"
+        // so we don't accidentally unassign when the frontend omits the
+        // value or sends an empty string.
+        if (array_key_exists('staff_id', $data) && ($data['staff_id'] === null || $data['staff_id'] === '')) {
+            unset($data['staff_id']);
+        }
+
         $data['absentee_start_time'] = $data['book_on'] ?? null;
         $data['absentee_end_time']   = $data['book_off'] ?? null;
         $data['start_time']          = $data['start_shift'];
@@ -3556,11 +3579,10 @@ public function getTodayShifts()
         }
 
         $checkcalls = $shift->checkCalls;
-        
-        if($checkcalls && $checkcalls->isNotEmpty()){
+        if ($checkcalls && $checkcalls->isNotEmpty()) {
             foreach ($checkcalls as $checkcall) {
-                if($checkcall->status !=='completed'){
-                    $checkcall->employee_id = $request->staff_id;
+                if ($checkcall->status !== 'completed') {
+                    $checkcall->employee_id = $shift->staff_id;
                     $checkcall->save();
                 }
             }
@@ -3848,11 +3870,11 @@ public function getTodayShifts()
         }
         
         // Update ShiftDate fields
-        // Only change is_assign when staff is actually being changed
-        if (array_key_exists('staff_id', $data)) {
+        // Only change is_assign when a non-empty staff_id was actually provided
+        if (array_key_exists('staff_id', $data) && $request->filled('staff_id')) {
             $oldStaffId = $shiftDate->staff_id;
             $newStaffId = $data['staff_id'];
-            
+
             if ($newStaffId && $newStaffId != $oldStaffId) {
                 // Staff is being changed to a new person - set to dispatched
                 // Check ban: cannot assign banned staff
@@ -3867,17 +3889,8 @@ public function getTodayShifts()
                 $shiftDate->staff_id = $newStaffId;
                 $shiftDate->is_assign = 1;
                 $shiftDate->status = 'pending';
-
-            } elseif (!$newStaffId && $oldStaffId) {
-                // Staff is being removed - delete bookings and set to unassigned
-                ShiftBooking::where('shift_id', $shiftDate->id)->delete();
-                $shiftDate->staff_id = null;
-                $shiftDate->is_assign = 0;
-                $shiftDate->status = 'pending';
-            } elseif ($newStaffId && $newStaffId == $oldStaffId) {
-                // Same staff - don't change is_assign, just keep current status
-                // No changes needed
             }
+            // Note: empty/nullable staff_id is treated as "no change" now.
         }
         
         if (array_key_exists('start_shift', $data) && $data['start_shift']) {

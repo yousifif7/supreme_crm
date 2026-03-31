@@ -361,6 +361,13 @@
                 dropdownParent: $('#edit_site .modal-content'), // append inside modal content
                 minimumResultsForSearch: 0 // force search bar for single select
             })
+        $('.create-staff-select2').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '220px',
+                dropdownParent: $('#add_site .modal-content'), // append inside modal content
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
     });
 
         // Delegated handlers for site actions (prevents inline onclick reference errors)

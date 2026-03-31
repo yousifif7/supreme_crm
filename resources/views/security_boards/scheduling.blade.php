@@ -39,11 +39,70 @@
         }
 
         .gantt-container {
-            overflow-x: auto;
+            overflow-x: scroll;
+            overflow-y: auto;
             margin-top: 20px;
             /* border: 1px solid #dee2e6; */
             border-radius: 6px;
             width: 100%;
+            -webkit-overflow-scrolling: touch;
+            /* Match top scrollbar colors/thickness for Firefox */
+            scrollbar-color: #d32f2f #fff0f0;
+            scrollbar-width: thin;
+            /* Reserve gutter so layout doesn't shift when scrollbars appear */
+            scrollbar-gutter: stable both-edges;
+        }
+        /* Top horizontal scrollbar placed above the Gantt chart.
+           This provides an independent visual horizontal scroller with
+           a bold red thumb. Width is synced to the Gantt timeline by JS. */
+        .gantt-top-scroll-wrapper {
+            overflow-x: scroll;
+            overflow-y: hidden;
+            height: 18px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            -webkit-overflow-scrolling: touch;
+            scrollbar-color: #d32f2f #fff0f0;
+            scrollbar-width: thin;
+            scrollbar-gutter: stable;
+        }
+
+        .gantt-top-scroll-inner {
+            /* hide the decorative red bar while keeping the inner spacer for scroll width */
+            height: 2px;
+            background: transparent;
+            border-radius: 6px;
+            font-weight: 700;
+            pointer-events: none;
+        }
+
+        /* WebKit scrollbar styling for the top scroller */
+        .gantt-top-scroll-wrapper::-webkit-scrollbar {
+            height: 14px;
+        }
+        .gantt-top-scroll-wrapper::-webkit-scrollbar-track {
+            background: #fff0f0;
+        }
+        .gantt-top-scroll-wrapper::-webkit-scrollbar-thumb {
+            background: linear-gradient(90deg, #d32f2f, #b71c1c);
+            border-radius: 10px;
+            border: 3px solid #fff0f0;
+        }
+
+        /* Bottom (native) Gantt scrollbar: match top scroller appearance */
+        .gantt-container::-webkit-scrollbar {
+            height: 14px;
+        }
+        .gantt-container::-webkit-scrollbar-track {
+            background: #fff0f0;
+        }
+        .gantt-container::-webkit-scrollbar-thumb {
+            background: linear-gradient(90deg, #d32f2f, #b71c1c);
+            border-radius: 10px;
+            border: 3px solid #fff0f0;
+        }
+        .gantt-container::-webkit-scrollbar-thumb:hover {
+            filter: brightness(0.95);
         }
 
         /* active toggle */
@@ -806,6 +865,11 @@
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+
+                            <!-- Top synchronized scrollbar (click/drag to scroll timeline) -->
+                            <div id="ganttTopScroll" class="gantt-top-scroll-wrapper" aria-hidden="false" title="Scroll timeline">
+                                <div id="ganttTopScrollInner" class="gantt-top-scroll-inner"></div>
                             </div>
 
                             <div class="gantt-container gantt-wrapper">
@@ -4644,6 +4708,67 @@
                 console.error('[scheduling edit_shift] wiring failed', e);
             }
         });
+    </script>
+
+    <script>
+        (function() {
+            function updateGanttTopScrollbarWidth() {
+                var ganttContainer = document.querySelector('.gantt-container');
+                var topScrollInner = document.getElementById('ganttTopScrollInner');
+                var topScrollWrapper = document.getElementById('ganttTopScroll');
+                if (!ganttContainer || !topScrollInner || !topScrollWrapper) return;
+                var width = ganttContainer.scrollWidth || 0;
+                var timelineHeader = ganttContainer.querySelector('.gantt-timeline-header');
+                if (timelineHeader && timelineHeader.scrollWidth > width) width = timelineHeader.scrollWidth;
+                topScrollInner.style.width = width + 'px';
+            }
+
+            function syncTopAndGanttScrolls() {
+                var ganttContainer = document.querySelector('.gantt-container');
+                var topScrollWrapper = document.getElementById('ganttTopScroll');
+                if (!ganttContainer || !topScrollWrapper) return;
+                var syncing = false;
+                topScrollWrapper.addEventListener('scroll', function() {
+                    if (syncing) return;
+                    syncing = true;
+                    ganttContainer.scrollLeft = topScrollWrapper.scrollLeft;
+                    setTimeout(function() { syncing = false; }, 10);
+                });
+                ganttContainer.addEventListener('scroll', function() {
+                    if (syncing) return;
+                    syncing = true;
+                    topScrollWrapper.scrollLeft = ganttContainer.scrollLeft;
+                    setTimeout(function() { syncing = false; }, 10);
+                });
+            }
+
+            function initGanttTopScrollbar() {
+                updateGanttTopScrollbarWidth();
+                syncTopAndGanttScrolls();
+                var ganttChart = document.getElementById('ganttChart');
+                if (ganttChart && window.MutationObserver) {
+                    var mo = new MutationObserver(function() { updateGanttTopScrollbarWidth(); });
+                    mo.observe(ganttChart, { childList: true, subtree: true, attributes: true });
+                }
+                if (window.ResizeObserver) {
+                    try {
+                        var ro = new ResizeObserver(function() { updateGanttTopScrollbarWidth(); });
+                        var el = document.querySelector('.gantt-container') || document.getElementById('ganttChart');
+                        if (el) ro.observe(el);
+                    } catch (e) {}
+                }
+                window.addEventListener('resize', function() {
+                    clearTimeout(window._ganttTopScrollResizeTimer);
+                    window._ganttTopScrollResizeTimer = setTimeout(updateGanttTopScrollbarWidth, 150);
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initGanttTopScrollbar);
+            } else {
+                initGanttTopScrollbar();
+            }
+            window.updateGanttTopScrollbar = updateGanttTopScrollbarWidth;
+        })();
     </script>
 
 @endsection
