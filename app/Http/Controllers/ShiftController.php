@@ -1565,21 +1565,28 @@ private function formatGanttData($shiftDates)
         }
         $staffNameClean = preg_replace('/\s+/', ' ', trim($staffNameWithoutSub));
 
-        // Simplified subcontractor resolution: subcontractor_id references Subcontractor model
+        // Simplified subcontractor resolution: only expose subcontractor when a staff
+        // is actually assigned for the shift (i.e. staff_id is not null).
         $resolvedSubcontractorName = '';
-        $resolvedSubcontractorId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
+        $resolvedSubcontractorId = null;
 
-        if (!empty($resolvedSubcontractorId)) {
-            try {
-                $subModel = $this->findSubcontractorByStoredId($resolvedSubcontractorId);
-                if ($subModel) {
-                    $resolvedSubcontractorName = trim($subModel->company_name ?? '') ?: trim($subModel->contact_person ?? '');
-                    if (!$resolvedSubcontractorName && isset($subModel->user) && $subModel->user) {
-                        $resolvedSubcontractorName = trim((($subModel->user->first_name ?? '') . ' ' . ($subModel->user->last_name ?? '')));
+        if (!empty($sd->staff_id)) {
+            $candidateId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
+            if (!empty($candidateId)) {
+                try {
+                    $subModel = $this->findSubcontractorByStoredId($candidateId);
+                    if ($subModel) {
+                        $resolvedSubcontractorName = trim($subModel->company_name ?? '') ?: trim($subModel->contact_person ?? '');
+                        if (!$resolvedSubcontractorName && isset($subModel->user) && $subModel->user) {
+                            $resolvedSubcontractorName = trim((($subModel->user->first_name ?? '') . ' ' . ($subModel->user->last_name ?? '')));
+                        }
                     }
+                } catch (\Throwable $_) {
+                    // ignore resolution errors
                 }
-            } catch (\Throwable $_) {
-                // ignore resolution errors
+
+                // Only expose stored id when staff is assigned
+                $resolvedSubcontractorId = $candidateId;
             }
         }
 
@@ -1706,12 +1713,17 @@ private function formatGanttArray($shiftDates)
         $staffNameClean = trim(preg_replace(['/\s*\([^()]*\)/u', '/\s+/u'], ['', ' '], $staffRaw));
 
         // Resolve subcontractor from pre-loaded maps (no extra queries).
-        $resolvedSubcontractorId   = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
+        // Only include subcontractor info when a staff is assigned to the shift.
+        $resolvedSubcontractorId   = null;
         $resolvedSubcontractorName = '';
-        if (!empty($resolvedSubcontractorId)) {
-            $key = (string) $resolvedSubcontractorId;
-            $subModel = $subById[$key] ?? $subByUserId[$key] ?? null;
-            $resolvedSubcontractorName = $resolveSubName($subModel);
+        if (!empty($sd->staff_id)) {
+            $candidateId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
+            if (!empty($candidateId)) {
+                $key = (string) $candidateId;
+                $subModel = $subById[$key] ?? $subByUserId[$key] ?? null;
+                $resolvedSubcontractorName = $resolveSubName($subModel);
+                $resolvedSubcontractorId = $candidateId;
+            }
         }
 
         $ganttData[] = [

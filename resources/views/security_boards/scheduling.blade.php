@@ -1515,6 +1515,17 @@
             // Persist current filters so background refreshes don't reset user's view
             window._ganttCurrentFilters = window._ganttCurrentFilters || {};
 
+            // Initialize subcontractor-toggle button from persisted state
+            try {
+                var _initSubs = false;
+                try { _initSubs = JSON.parse(localStorage.getItem('gantt_subs_visible') || 'false'); } catch (e) {}
+                var $initBtn = $('#toggle-subcontractors-all');
+                if ($initBtn && $initBtn.length) {
+                    $initBtn.data('subs-visible', !!_initSubs);
+                    $initBtn.text(_initSubs ? 'Hide Subcontractors' : 'Show Subcontractors');
+                }
+            } catch (e) {}
+
             function initDaySelector(shiftGroup) {
                 const dayBoxes = shiftGroup.querySelectorAll('.day-box');
                 const hiddenInput = shiftGroup.querySelector('input[name="days[]"]');
@@ -2502,6 +2513,62 @@
                 filterGanttChart($('#ganttSearch').val())
             }
 
+            // Persist & apply subcontractor visibility across renders/tab switches/zoom
+            function applySubcontractorVisibility(forceState) {
+                try {
+                    var stored = localStorage.getItem('gantt_subs_visible');
+                    var show = typeof forceState !== 'undefined' ? !!forceState : (stored ? JSON.parse(stored) : false);
+                    var $btn = $('#toggle-subcontractors-all');
+                    if ($btn && $btn.length) {
+                        $btn.data('subs-visible', show);
+                        $btn.text(show ? 'Hide Subcontractors' : 'Show Subcontractors');
+                    }
+
+                    $('.gantt-bar').each(function() {
+                        var $bar = $(this);
+                        var orig = $bar.attr('data-orig-staff') || '';
+                        var sub = $bar.attr('data-sub-name') || '';
+                        if (!sub) {
+                            var sid = $bar.attr('data-sub-id');
+                            if (sid && window._subcontractorMap && window._subcontractorMap[sid]) sub = window._subcontractorMap[sid];
+                        }
+
+                        if (!sub) {
+                            // nothing to show for this bar
+                            try { $bar.find('.staff-name').first().html(escapeHtml(orig || '')); } catch (e) {}
+                            $bar.find('.subcontractor-name').hide();
+                            return;
+                        }
+
+                        var cleanSub = String(sub).replace(/^\(|\)$/g, '').trim();
+                        var $staff = $bar.find('.staff-name').first();
+
+                        if (show) {
+                            // Only show subcontractor when a staff is actually assigned (orig != 'Not Assigned')
+                            var origNorm = (orig || '').toString().trim();
+                            if (!origNorm || /^not\s*assigned$/i.test(origNorm)) {
+                                try { $staff.html(escapeHtml(orig || '')); } catch (e) {}
+                                $bar.find('.subcontractor-name').hide();
+                                return;
+                            }
+
+                            try {
+                                $staff.html(escapeHtml(orig || '') + ' <span class="subcontractor-inline">(' + escapeHtml(cleanSub) + ')</span>');
+                            } catch (e) {
+                                // fall back to safe text
+                                $staff.text((orig || '') + ' (' + cleanSub + ')');
+                            }
+                            $bar.find('.subcontractor-name').hide();
+                        } else {
+                            try { $staff.html(escapeHtml(orig || '')); } catch (e) { $staff.text(orig || ''); }
+                            $bar.find('.subcontractor-name').hide();
+                        }
+                    });
+                } catch (e) {
+                    console.debug('applySubcontractorVisibility failed', e);
+                }
+            }
+
             function renderGanttChart(data, startDate, endDate) {
                 const sites = {};
 
@@ -2663,44 +2730,11 @@
                 $('.gantt-container').toggleClass('selection-mode', selectionMode);
 
                 $('#toggle-subcontractors-all').off('click').on('click', function() {
-                    // Toggle subcontractor display idempotently: always restore original staff name,
-                    // then append the shift-level subcontractor once when showing. Show the name
-                    // only inside the `staff-name` element wrapped in brackets; keep the separate
-                    // `.subcontractor-name` div hidden to avoid duplication.
                     const $btn = $(this);
                     const currentlyVisible = $btn.data('subs-visible') === true;
-                    $('.gantt-bar').each(function() {
-                        const $bar = $(this);
-                        const orig = $bar.attr('data-orig-staff') || '';
-                        let sub = $bar.attr('data-sub-name') || '';
-                        const $staff = $bar.find('.staff-name').first();
-                        if (!sub) {
-                            // try id->name map
-                            const sid = $bar.attr('data-sub-id');
-                            if (sid && window._subcontractorMap && window._subcontractorMap[sid])
-                                sub = window._subcontractorMap[sid];
-                        }
-                        if (!sub) return; // nothing to do
-
-                        const cleanSub = String(sub).replace(/^\(|\)$/g, '').trim();
-                        // Always restore the original (clean) staff name first to avoid cumulative appends
-                        if (currentlyVisible) {
-                            // Currently visible -> hide subcontractors (restore original text)
-                            $staff.html(escapeHtml(orig || ''));
-                            $bar.find('.subcontractor-name').hide();
-                        } else {
-                            // Showing subcontractors: place name in brackets on the staff line
-                            if (cleanSub) {
-                                $staff.html(escapeHtml(orig || '') +
-                                    ' <span class="subcontractor-inline">(' + escapeHtml(
-                                        cleanSub) + ')</span>');
-                            }
-                            // ensure separate div is hidden to avoid duplication
-                            $bar.find('.subcontractor-name').hide();
-                        }
-                    });
-                    $btn.data('subs-visible', !currentlyVisible);
-                    $btn.text(!currentlyVisible ? 'Hide Subcontractors' : 'Show Subcontractors');
+                    const newState = !currentlyVisible;
+                    try { localStorage.setItem('gantt_subs_visible', JSON.stringify(newState)); } catch (e) {}
+                    applySubcontractorVisibility(newState);
                 });
 
                 // Place shifts into day cells using HTML string concatenation + innerHTML.
@@ -2754,6 +2788,7 @@
                 // adjustGanttDayCellColumns() exactly once instead of once per bar.
                 window._ganttRendering = false;
                 try { adjustGanttDayCellColumns(); } catch (e) {}
+                try { applySubcontractorVisibility(); } catch (e) {}
 
                 // Responsive sizing: bigger baseline so content remains visible
                 (function adjustGanttSizing() {
@@ -4348,6 +4383,7 @@
 
                 // Ensure padding/size matches selectionMode
                 cell.find('.gantt-bar').css('padding-left', getBarLeftPadding());
+                try { applySubcontractorVisibility(); } catch (e) {}
             } catch (err) {
                 console.error('rerenderDayCell error', err);
             }
