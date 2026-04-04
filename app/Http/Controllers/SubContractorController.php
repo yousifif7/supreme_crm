@@ -111,6 +111,12 @@ class SubContractorController extends Controller
     public function update(Request $request, $id)
     {
         $subcontractor = Subcontractor::findOrFail($id);
+        // Build email uniqueness rule that ignores the linked user id when present
+        if ($subcontractor->user_id) {
+            $emailRule = 'required|email:dns|max:255|unique:users,email,' . $subcontractor->user_id . ',id,deleted_at,NULL';
+        } else {
+            $emailRule = 'required|email:dns|max:255|unique:users,email,NULL,id,deleted_at,NULL';
+        }
 
         $validator = Validator::make($request->all(), [
             'company_name'       => 'required|string|max:255',
@@ -123,7 +129,13 @@ class SubContractorController extends Controller
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
             'contact_person'     => 'nullable|string|max:255',
-            'email'              => 'required|email:dns|max:255',
+            'email'              => $emailRule,
+            'password'           => [
+                'nullable',
+                'string',
+                'min:6',
+                'regex:/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[\W_]).+$/'
+            ],
             'invoice_terms'      => 'nullable|string|max:255',
             'payment_terms'      => 'nullable|string|max:255',
             'department'         => 'nullable|string|max:255',
@@ -132,6 +144,9 @@ class SubContractorController extends Controller
             'pay_rate'           => 'nullable|numeric',
             'commission'         => 'nullable|numeric|min:0|max:100',
             'pmva_trained_officer' => 'nullable',
+        ], [
+            'contact_number.regex' => 'The contact number format is invalid. It should be a valid phone number.',
+            'password.regex' => 'The password must contain at least one uppercase letter, one lowercase letter, one number, and one special character.',
         ]);
 
         if ($validator->fails()) {
@@ -139,10 +154,38 @@ class SubContractorController extends Controller
         }
 
         $data = $validator->validated();
+
+        // Extract optional password for user update, but don't save it on subcontractor
+        $password = $data['password'] ?? null;
+        unset($data['password']);
+
         $subcontractor->update($data);
+
+        // If this subcontractor already has a linked user, update that user's name, first_name, email and password when provided
+        if ($subcontractor->user_id) {
+            $user = User::find($subcontractor->user_id);
+            if ($user) {
+                if (!empty($data['company_name'])) {
+                    $user->name = $data['company_name'];
+                    $user->first_name = $data['company_name'];
+                }
+
+                if (!empty($data['email']) && $data['email'] !== $user->email) {
+                    $user->email = $data['email'];
+                }
+
+                if (!empty($password)) {
+                    // User model will hash the password and store plaintext_password via the mutator
+                    $user->password = $password;
+                }
+
+                $user->save();
+            }
+        }
 
         return response()->json(['message' => 'Subcontractor updated successfully']);
     }
+    
     public function edit($id)
     {
         $subcontractor = Subcontractor::find($id);

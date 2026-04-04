@@ -71,9 +71,8 @@ class InvoiceService
                 'shiftIds' => $shiftDates->pluck('shift_id')->unique()->values()->all(),
                 'shift_samples' => $shiftDates->take(20)->map(function($sd) use ($client) {
                     // Debug: use same billing rate logic as invoice generation
-                    $hourlyRate = $sd->shift->site->office_rate
-                        ?? $sd->shift->site_rate
-                        ?? ($client->office_rate ?? 0);
+                    $hourlyRate = $sd->shift->site_rate
+                        ?? ($sd->shift->site?->office_rate ?? ($client->office_rate ?? 0));
                     $computed = [];
                     try {
                         // For client-facing debug we compute using scheduled shift hours
@@ -114,10 +113,9 @@ class InvoiceService
         $totalAmount = 0; // Track actual billed amount
 
         foreach ($shiftDates as $shiftDate) {
-            // Client invoices: bill using the site's billable rate → office_rate → shift site_rate
-            $hourlyRate = $shiftDate->shift->site->office_rate
-                ?? $shiftDate->shift->site_rate
-                ?? ($client->office_rate ?? 0);
+            // Client invoices: bill using parent shift's site_rate → site.office_rate → client.office_rate
+            $hourlyRate = $shiftDate->shift->site_rate
+                ?? ($shiftDate->shift->site?->office_rate ?? ($client->office_rate ?? 0));
 
             // For client invoices, bill based on scheduled shift times (ignore book on/off)
             $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
@@ -218,10 +216,9 @@ class InvoiceService
 
         foreach ($grouped as $siteId => $datesForSite) {
             foreach ($datesForSite as $shiftDate) {
-                // Client invoices: bill using the site's billable rate → office_rate → shift site_rate
-                $hourlyRate = $shiftDate->shift->site->office_rate
-                    ?? $shiftDate->shift->site_rate
-                    ?? ($client->office_rate ?? 0);
+                // Client invoices: bill using parent shift's site_rate → site.office_rate → client.office_rate
+                $hourlyRate = $shiftDate->shift->site_rate
+                    ?? ($shiftDate->shift->site?->office_rate ?? ($client->office_rate ?? 0));
                 // For client invoices across sites, bill based on scheduled shift times
                 $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
                 $invoiceItems[] = $item;

@@ -238,10 +238,6 @@
     </style>
 @endsection
 @section('contents')
-    @php
-        $staffs = App\Models\User::role('security_staff')->get();
-    @endphp
-
     <div class="page-wrapper">
         <div class="content">
             <!-- Breadcrumb -->
@@ -370,9 +366,6 @@
                                                 </span>
                                             </div>
                                             <div class="box">
-                                                @php
-                                                    $client = App\Models\User::find($shiftDate->shift->client_id);
-                                                @endphp
                                                 <h6>Customer</h6>
                                                 <span id="client_name">{{ $client->name ?? '' }}</span>
                                             </div>
@@ -386,21 +379,6 @@
                                 <div class="col-md-6 col-12">
                                     <div class="book-on_box">
                                         <div class="profile-detail">
-                                            @php
-                                                $firstLocation = App\Models\Location::where(
-                                                    'shiftdate_id',
-                                                    $shiftDate->id,
-                                                )
-                                                    ->orderBy('timestamp', 'asc')
-                                                    ->first();
-
-                                                $lastLocation = App\Models\Location::where(
-                                                    'shiftdate_id',
-                                                    $shiftDate->id,
-                                                )
-                                                    ->orderBy('timestamp', 'desc')
-                                                    ->first();
-                                            @endphp
                                             <div class="avater">
                                                 @if ($firstLocation)
                                                     <div id="map-on-{{ $shiftDate->id }}" class="profile-map"></div>
@@ -519,9 +497,7 @@
                     </div>
                     <div class="tab-pane fade" id="address2" role="tabpanel" aria-labelledby="address-tab2">
                         @if ($shiftDate->staff)
-                            @php
-                                $staff = App\Models\Employee::where('user_id', $shiftDate->staff_id)->first();
-                            @endphp
+                            @php $staff = $employee; @endphp
                             <div class="container-fluid p-3">
                                 <!-- First Row - 3 Images -->
                                 <div class="row mb-4">
@@ -687,15 +663,6 @@
                         @endif
                     </div>
                     <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2">
-                        @php
-                            // Make sure $shiftDate is set and has shift_id before querying
-                            $checkcalls = collect();
-                            if (!empty($shiftDate?->id)) {
-                                $checkcalls = \App\Models\CheckCall::where('shift_id', $shiftDate->id)
-                                    ->orderBy('scheduled_time', 'asc')
-                                    ->get();
-                            }
-                        @endphp
 
                         @if ($checkcalls->isNotEmpty())
                             <table class="table table-bordered table-striped">
@@ -799,12 +766,6 @@
                         @endif
                     </div>
                     <div class="tab-pane fade" id="patrols" role="tabpanel" aria-labelledby="patrols-tab2">
-                        @php
-                            $patrols = App\Models\Patrol::where('shift_id', $shiftDate->id)->orderBy('start_time', 'asc')->get();
-                            $site = \App\Models\Site::with('checkpoints')->find($shiftDate->shift->site_id);
-                            $checkpoints = \App\Models\PatrolCheckPoint::where('site_id', $site->id) // adjust if necessary
-                                ->get(['id', 'name', 'latitude', 'longitude']);                               
-                        @endphp
 
                         @if ($patrols->isNotEmpty())
                             <div class="mb-3 d-flex justify-content-end gap-2">
@@ -857,8 +818,8 @@
                                 <tbody>
                                         @foreach ($patrols as $patrol)
                                         @php
-                                            $patrolMedia =\App\Models\PatrolMedia::where('patrol_id',$patrol->id)->get() ?? collect(); 
-                                            $patrolScans = \App\Models\CheckpointScan::where('patrol_id', $patrol->id)->orderBy('timestamp','desc')->get() ?? collect();
+                                            $patrolMedia  = $patrol->media  ?? collect();
+                                            $patrolScans  = $patrol->scans  ?? collect();
                                         @endphp
                                         <tr>
                                             <td>{{ $patrol->name }}</td>

@@ -23,6 +23,8 @@
                 <th>Employee</th>
                 <th>Notes</th>
                 <th>Date</th>
+                <th>Start</th>
+                <th>End</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -34,6 +36,8 @@
                     <td>{{ $shiftDate->staff->first_name ?? '' }} {{ $shiftDate->staff->last_name ?? '' }}</td>
                     <td>{{ optional($shiftDate->note)->note ?? '-' }}</td>
                     <td>{{ format_date($shiftDate->shift_date) }}</td>
+                    <td>{{ $shiftDate->start_time }}</td>
+                    <td>{{ $shiftDate->end_time }}</td>
                     <td>{!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}</td>
                 </tr>
             @empty

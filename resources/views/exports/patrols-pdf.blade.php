@@ -6,63 +6,65 @@
     <style>
         body {
             font-family: Arial, sans-serif;
-            font-size: 12px;
+            font-size: 11px;
             color: #333;
         }
         .header {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 12px;
             border-bottom: 2px solid #333;
-            padding-bottom: 10px;
+            padding-bottom: 6px;
         }
         .header h1 {
             margin: 0;
-            font-size: 24px;
+            font-size: 20px;
         }
         .header p {
-            margin: 5px 0;
+            margin: 2px 0;
             color: #666;
         }
         .info-section {
-            margin-bottom: 20px;
+            margin-bottom: 10px;
             background: #f5f5f5;
-            padding: 15px;
+            padding: 8px;
             border-radius: 5px;
         }
         .info-section table {
             width: 100%;
         }
         .info-section td {
-            padding: 5px;
+            padding: 3px;
         }
         .info-section td:first-child {
             font-weight: bold;
             width: 150px;
         }
         .patrol-section {
-            margin-bottom: 30px;
-            page-break-inside: avoid;
+            margin-bottom: 10px;
+            page-break-inside: auto;
+            break-inside: auto;
             border: 1px solid #ddd;
-            padding: 15px;
+            padding: 8px;
             border-radius: 5px;
         }
         .patrol-section h3 {
-            margin: 0 0 15px 0;
+            margin: 0 0 8px 0;
             color: #2c3e50;
             border-bottom: 2px solid #3498db;
-            padding-bottom: 5px;
+            padding-bottom: 3px;
+            font-size: 14px;
         }
         .patrol-details {
             display: table;
             width: 100%;
-            margin-bottom: 15px;
+            margin-bottom: 8px;
         }
         .patrol-details .row {
             display: table-row;
         }
         .patrol-details .col {
             display: table-cell;
-            padding: 5px 10px;
+            padding: 3px 6px;
             border-bottom: 1px solid #eee;
         }
         .patrol-details .label {
@@ -82,24 +84,34 @@
         .status-completed { background: #28a745; color: #fff; }
         .status-missed { background: #dc3545; color: #fff; }
         .media-section {
-            margin-top: 15px;
+            margin-top: 8px;
         }
         .media-section h4 {
-            margin: 10px 0 5px 0;
-            font-size: 14px;
+            margin: 6px 0 4px 0;
+            font-size: 12px;
         }
         .media-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            margin-top: 10px;
+            width: 100%;
+            margin-top: 6px;
+        }
+        .media-row {
+            width: 100%;
+            margin-bottom: 6px;
+            white-space: nowrap;
         }
         .media-item {
-            width: 150px;
-            height: 150px;
+            display: inline-block;
+            vertical-align: top;
+            width: 19%;
+            height: 82px;
+            margin-right: 1%;
             border: 1px solid #ddd;
             border-radius: 3px;
             overflow: hidden;
+            box-sizing: border-box;
+        }
+        .media-row .media-item:last-child {
+            margin-right: 0;
         }
         .media-item img {
             width: 100%;
@@ -107,23 +119,24 @@
             object-fit: cover;
         }
         .map-container {
-            margin-top: 15px;
+            margin-top: 8px;
             text-align: center;
         }
         .map-container img {
             max-width: 100%;
+            max-height: 300px;
             border: 1px solid #ddd;
             border-radius: 5px;
         }
         .scans-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10px;
+            margin-top: 6px;
             font-size: 11px;
         }
         .scans-table th, .scans-table td {
             border: 1px solid #ddd;
-            padding: 8px;
+            padding: 4px;
             text-align: left;
         }
         .scans-table th {
@@ -281,20 +294,22 @@
             @if($patrol->media->isNotEmpty())
             <div class="media-section">
                 <h4>Patrol Media ({{ $patrol->media->count() }} files)</h4>
+                @php
+                    $mediaImages = $patrol->media->filter(function ($media) {
+                        return isset($media->base64Image) && $media->base64Image;
+                    })->values();
+                @endphp
                 <div class="media-grid">
-                    @foreach($patrol->media->take(4) as $media)
-                        @if(isset($media->base64Image) && $media->base64Image)
-                        <div class="media-item">
-                            <img src="{{ $media->base64Image }}" alt="Patrol Media">
+                    @foreach($mediaImages->chunk(5) as $row)
+                        <div class="media-row">
+                            @foreach($row as $media)
+                                <div class="media-item">
+                                    <img src="{{ $media->base64Image }}" alt="Patrol Media">
+                                </div>
+                            @endforeach
                         </div>
-                        @endif
                     @endforeach
                 </div>
-                @if($patrol->media->count() > 4)
-                <p style="font-style: italic; color: #666; margin-top: 5px;">
-                    + {{ $patrol->media->count() - 4 }} more files
-                </p>
-                @endif
             </div>
             @endif
 
@@ -311,12 +326,12 @@
                     </div>
                 @endif
             </div>
+
+            {{-- Exact last-location (zoomed) image removed to save space --}}
             @endif
         </div>
         
-        @if(!$loop->last && ($index + 1) % 2 == 0)
-        <div class="page-break"></div>
-        @endif
+        {{-- Removed forced page-breaks so patrols flow continuously across pages --}}
     @endforeach
 
     <div class="footer">

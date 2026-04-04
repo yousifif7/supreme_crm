@@ -900,14 +900,22 @@ $validator->after(function ($validator) use ($request) {
 
         $employees = Employee::whereIn('id', $request->ids)->get();
 
-        // If superadmin: delete directly
-        if (Auth::user() && Auth::user()->hasRole('superadmin')) {
+        // If superadmin or admin: delete directly (no pending requests)
+        if (Auth::user() && (Auth::user()->hasRole('superadmin') || Auth::user()->hasRole('admin'))) {
             $userIds = $employees->pluck('user_id')->toArray();
+            // Soft-delete related user accounts (preserve audit) for security_staff role
             User::role('security_staff')->whereIn('id', $userIds)->delete();
+
+            // Force-delete employee records to remove fully (consistent with single-delete behavior)
             foreach ($employees as $employee) {
-                Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+                try {
+                    $employee->forceDelete();
+                    Logger::log(Auth::user(), 'Delete', 'Staff ' . $employee->fore_name . ' ' . $employee->sur_name . ' Deleted.');
+                } catch (\Throwable $e) {
+                    Log::warning('Failed to forceDelete employee id ' . ($employee->id ?? 'unknown') . ': ' . $e->getMessage());
+                }
             }
-            Employee::whereIn('id', $request->ids)->delete();
+
             return response()->json(['message' => 'Selected employees deleted.']);
         }
 

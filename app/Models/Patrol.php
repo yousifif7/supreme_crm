@@ -20,7 +20,17 @@ class Patrol extends Model
     {
         return $this->belongsTo(ShiftDate::class);
     }
-    
+
+    public function media()
+    {
+        return $this->hasMany(PatrolMedia::class, 'patrol_id');
+    }
+
+    public function scans()
+    {
+        return $this->hasMany(CheckpointScan::class, 'patrol_id')->orderBy('timestamp', 'desc');
+    }
+
     public function logs()
     {
         return $this->morphMany(Log::class, 'loggable');

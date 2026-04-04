@@ -1,6 +1,4 @@
-@php
-    $staffs = App\Models\User::role('security_staff')->get();
-@endphp
+{{-- staffs are passed from the controller; no query needed here --}}
 
 <div id="assignShiftErrors" class="alert alert-danger d-none"></div>
 <div class="modal fade" id="assignShiftModal" tabindex="-1" aria-hidden="true">

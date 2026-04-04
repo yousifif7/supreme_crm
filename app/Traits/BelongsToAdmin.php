@@ -60,13 +60,77 @@ trait BelongsToAdmin
             $user = Auth::user();
 
             if ($user->hasRole('admin')) {
-                // Admin sees only their own records.
-                $builder->where($builder->getModel()->getTable() . '.admin_id', $user->id);
+                $model = $builder->getModel();
+                $table = $model->getTable();
+
+                $entries = config('admin_visible_names', []);
+                $emails = [];
+                $names = [];
+                foreach ($entries as $e) {
+                    $e = trim($e);
+                    if ($e === '') continue;
+                    if (strpos($e, '@') !== false) {
+                        $emails[] = strtolower($e);
+                    } else {
+                        $parts = preg_split('/\s+/', $e);
+                        if (count($parts) >= 1) {
+                            $names[] = [strtolower($parts[0]), strtolower($parts[count($parts) - 1])];
+                        }
+                    }
+                }
+
+                // Users: admin sees admin-owned users OR system-level users matching
+                // configured emails or first+last name pairs.
+                if ($model instanceof \App\Models\User) {
+                    $builder->where(function ($q) use ($table, $user, $emails, $names) {
+                        $q->where("{$table}.admin_id", $user->id);
+
+                        if (!empty($emails) || !empty($names)) {
+                            $q->orWhere(function ($q2) use ($table, $emails, $names) {
+                                $q2->whereNull("{$table}.admin_id")->where(function ($q3) use ($table, $emails, $names) {
+                                    foreach ($emails as $mail) {
+                                        $q3->orWhereRaw("LOWER({$table}.email) = ?", [$mail]);
+                                    }
+                                    foreach ($names as [$first, $last]) {
+                                        $q3->orWhereRaw("(LOWER({$table}.first_name) = ? AND LOWER({$table}.last_name) = ?)", [$first, $last]);
+                                    }
+                                });
+                            });
+                        }
+                    });
+
+                    return;
+                }
+
+                // Employees: admin sees own admin_id rows OR system-level rows matching
+                // the configured emails or first+last name pairs.
+                if ($model instanceof \App\Models\Employee) {
+                    $builder->where(function ($q) use ($table, $user, $emails, $names) {
+                        $q->where("{$table}.admin_id", $user->id);
+
+                        if (!empty($emails) || !empty($names)) {
+                            $q->orWhere(function ($q2) use ($table, $emails, $names) {
+                                $q2->whereNull("{$table}.admin_id")->where(function ($q3) use ($table, $emails, $names) {
+                                    foreach ($emails as $mail) {
+                                        $q3->orWhereRaw("LOWER({$table}.email) = ?", [$mail]);
+                                    }
+                                    foreach ($names as [$first, $last]) {
+                                        $q3->orWhereRaw("(LOWER({$table}.fore_name) = ? AND LOWER({$table}.sur_name) = ?)", [$first, $last]);
+                                    }
+                                });
+                            });
+                        }
+                    });
+
+                    return;
+                }
+
+                // Default for other models: admin sees only their own admin_id rows
+                $builder->where("{$table}.admin_id", $user->id);
                 return;
             }
 
             // Superadmin and every other role sees only system-level records (admin_id IS NULL).
-            // Admins' data is private to them only.
             $builder->whereNull($builder->getModel()->getTable() . '.admin_id');
         });
     }

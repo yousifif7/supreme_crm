@@ -827,7 +827,7 @@ document.addEventListener('click', () => {
             }
         })();
         
-        
+
         // Helper to open profile change request modal
         async function openProfileChangeModal(id) {
             try {

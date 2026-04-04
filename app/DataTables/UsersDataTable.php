@@ -68,26 +68,28 @@ class UsersDataTable extends DataTable
      *
      * @return QueryBuilder<User>
      */
-   public function query(User $model): QueryBuilder
-{
-    $query = $model->newQuery()
-        ->with(['roles'])
-        ->select('users.*')
-        ->whereDoesntHave('roles', function ($q) {
-            $q->whereIn('name', ['client', 'subcontractor', 'security_staff','admin']);
+    public function query(User $model): QueryBuilder
+    {
+        $current = auth()->user();
+
+        if ($this->filter === 'archived') {
+            $query = $model->onlyTrashed()->with(['roles'])->select('users.*');
+        } else {
+            $query = $model->newQuery()->with(['roles'])->select('users.*');
+        }
+
+        // Admins should only see their own user record in the users area.
+        if ($current && $current->hasRole('admin')) {
+            return $query->where('users.id', $current->id);
+        }
+
+        // Non-admins: exclude certain roles from the listing as before.
+        $query->whereDoesntHave('roles', function ($q) {
+            $q->whereIn('name', ['client', 'subcontractor', 'security_staff']);
         });
 
-    if ($this->filter === 'archived') {
-        $query = $model->onlyTrashed()
-            ->with(['roles'])
-            ->select('users.*')
-            ->whereDoesntHave('roles', function ($q) {
-                $q->whereIn('name', ['client', 'sub_contractor', 'security_staff','admin']);
-            });
+        return $query;
     }
-
-    return $query;
-}
 
 
     /**

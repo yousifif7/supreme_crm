@@ -4,6 +4,7 @@ namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class GeoService
 {
@@ -27,7 +28,16 @@ class GeoService
         // forced into the UK even for non-UK addresses.
         $cacheKey = 'geo_coords_v6_' . md5(strtolower($fullQuery));
 
-        return Cache::remember($cacheKey, 86400, function () use ($fullQuery, $postal, $addressClean) {
+        // Detect Open Location / plus-code patterns (e.g. "F357+3Q") and
+        // lift them out so we can try geocoding the plus-code directly. Plus
+        // codes are highly precise and often resolve where free-form
+        // business-name addresses do not.
+        $plusCode = null;
+        if (preg_match('/[23456789CFGHJMPQRVWX]{1,}\+\w{2,}/i', $fullQuery, $m)) {
+            $plusCode = $m[0];
+        }
+
+        return Cache::remember($cacheKey, 86400, function () use ($fullQuery, $postal, $addressClean, $plusCode) {
             $apiKey = config('services.google_maps.key');
             if (!$apiKey) {
                 return null;
@@ -40,6 +50,25 @@ class GeoService
             // the address is actually in the UK. Otherwise geocode globally so that
             // addresses in Pakistan, UAE, etc. are resolved correctly.
             $isLikelyUk = $isUkPostcode || $this->isLikelyUkAddress($fullQuery);
+
+            // Initialize candidate placeholder used by later fallbacks.
+            $candidate = null;
+
+            // Prefer the Places API (findplacefromtext) which matches what
+            // Google Maps UI returns. Try plus-code first (if present), then
+            // the full query. If a Places result is found, treat it as the
+            // authoritative location.
+            if ($plusCode) {
+                $placePlus = $this->placeFindRequest($plusCode, $isLikelyUk ? 'GB' : '', $apiKey);
+                if ($placePlus !== null) {
+                    return $placePlus;
+                }
+            }
+
+            $placeFull = $this->placeFindRequest($fullQuery, $isLikelyUk ? 'GB' : '', $apiKey);
+            if ($placeFull !== null) {
+                return $placeFull;
+            }
 
             if ($isLikelyUk) {
                 // ── UK path ────────────────────────────────────────────────────────
@@ -184,22 +213,114 @@ class GeoService
         $response = Http::get('https://maps.googleapis.com/maps/api/geocode/json', $params);
 
         if (!$response->successful()) {
+            if (config('services.google_maps.debug')) {
+                Log::warning('GeoService geocode HTTP failure', ['query' => $query, 'params' => $params, 'status' => $response->status()]);
+            }
             return null;
         }
 
         $data = $response->json();
+        $status = $data['status'] ?? null;
+        $results = $data['results'] ?? [];
 
-        if (($data['status'] ?? null) !== 'OK' || empty($data['results'][0]['geometry']['location'])) {
+        if ($status !== 'OK' || empty($results[0]['geometry']['location'])) {
+            if (config('services.google_maps.debug')) {
+                Log::info('GeoService geocode response (non-OK or empty)', [
+                    'query' => $query,
+                    'params' => $params,
+                    'status' => $status,
+                    'results_count' => count($results),
+                ]);
+            }
             return null;
         }
 
-        $location = $data['results'][0]['geometry']['location'];
+        $first = $results[0];
+        $location = $first['geometry']['location'] ?? [];
+
+        if (config('services.google_maps.debug')) {
+            Log::info('GeoService geocode result', [
+                'query' => $query,
+                'params' => $params,
+                'status' => $status,
+                'formatted_address' => $first['formatted_address'] ?? null,
+                'place_id' => $first['place_id'] ?? null,
+                'location_type' => $first['geometry']['location_type'] ?? null,
+                'lat' => $location['lat'] ?? null,
+                'lng' => $location['lng'] ?? null,
+                'types' => $first['types'] ?? [],
+            ]);
+        }
 
         return [
             'lat'               => (float) ($location['lat'] ?? 0),
             'lng'               => (float) ($location['lng'] ?? 0),
-            'formatted_address' => $data['results'][0]['formatted_address'] ?? null,
-            'location_type'     => $data['results'][0]['geometry']['location_type'] ?? '',
+            'formatted_address' => $first['formatted_address'] ?? null,
+            'location_type'     => $first['geometry']['location_type'] ?? '',
+            'place_id'          => $first['place_id'] ?? null,
+            'types'             => $first['types'] ?? [],
+        ];
+    }
+
+    /**
+     * Use the Places API findplacefromtext endpoint to locate the query.
+     * Returns the same normalized array as geocodeRequest on success, or null.
+     */
+    private function placeFindRequest(string $query, string $countryRestriction, string $apiKey): ?array
+    {
+        $params = [
+            'input' => $query,
+            'inputtype' => 'textquery',
+            'fields' => 'formatted_address,geometry,place_id,types,plus_code',
+            'key' => $apiKey,
+        ];
+
+        // locationbias supports country:<CC> which helps bias results to a country.
+        if ($countryRestriction !== '') {
+            $params['locationbias'] = 'country:' . $countryRestriction;
+        }
+
+        $response = Http::get('https://maps.googleapis.com/maps/api/place/findplacefromtext/json', $params);
+
+        if (!$response->successful()) {
+            if (config('services.google_maps.debug')) {
+                Log::warning('GeoService places HTTP failure', ['query' => $query, 'params' => $params, 'status' => $response->status()]);
+            }
+            return null;
+        }
+
+        $data = $response->json();
+        $status = $data['status'] ?? null;
+        $candidates = $data['candidates'] ?? [];
+
+        if ($status !== 'OK' || empty($candidates[0]['geometry']['location'])) {
+            if (config('services.google_maps.debug')) {
+                Log::info('GeoService places response (non-OK or empty)', ['query' => $query, 'status' => $status, 'candidates' => count($candidates)]);
+            }
+            return null;
+        }
+
+        $first = $candidates[0];
+        $location = $first['geometry']['location'] ?? [];
+
+        if (config('services.google_maps.debug')) {
+            Log::info('GeoService places result', [
+                'query' => $query,
+                'formatted_address' => $first['formatted_address'] ?? null,
+                'place_id' => $first['place_id'] ?? null,
+                'lat' => $location['lat'] ?? null,
+                'lng' => $location['lng'] ?? null,
+                'types' => $first['types'] ?? [],
+            ]);
+        }
+
+        return [
+            'lat' => (float) ($location['lat'] ?? 0),
+            'lng' => (float) ($location['lng'] ?? 0),
+            'formatted_address' => $first['formatted_address'] ?? null,
+            'location_type' => $first['geometry']['location_type'] ?? '',
+            'place_id' => $first['place_id'] ?? null,
+            'types' => $first['types'] ?? [],
         ];
     }
 

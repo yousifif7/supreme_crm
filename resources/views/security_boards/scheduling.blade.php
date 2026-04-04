@@ -1412,11 +1412,14 @@
             }, 150);
         });
 
-        // MutationObserver for dynamic content changes
+        // MutationObserver for dynamic content changes.
+        // Guard: skip expensive layout recalc while a bulk render is in progress
+        // (renderGanttChart sets window._ganttRendering = true for the duration).
         (function() {
             const ganttEl = document.getElementById('ganttChart');
             if (ganttEl && window.MutationObserver) {
                 const mo = new MutationObserver(() => {
+                    if (window._ganttRendering) return;
                     adjustGanttDayCellColumns();
                     // Clean up any collapse buttons
                     try {
@@ -2231,18 +2234,171 @@
                 });
             }
 
+            // ── Delegated Gantt bar event handlers ────────────────────────────────
+            // Set up ONCE here instead of binding per-bar inside renderGanttChart().
+            // This eliminates 5+ listener attachments × N bars on every render.
+            (function setupGanttDelegation() {
+                const $chart = $('#ganttChart');
+
+                // Bar click: open shift view or toggle multi-select
+                $chart.on('click', '.gantt-bar', function(e) {
+                    if ($(e.target).closest('.multi-shift-checkbox, .note-icon, .view-note-icon, .edit-shift-icon').length) return;
+                    const shiftIdLocal = $(this).data('shift-id');
+                    if (selectionMode) {
+                        const cbLocal = $(this).find('.multi-shift-checkbox');
+                        cbLocal.prop('checked', !cbLocal.prop('checked')).trigger('change');
+                        e.stopPropagation();
+                        return;
+                    }
+                    if (shiftIdLocal) window.open(`${baseUrl}/shift-dates/${shiftIdLocal}/view`, '_blank');
+                });
+
+                // Checkbox click: prevent bubbling to bar click
+                $chart.on('click', '.multi-shift-checkbox', function(e) { e.stopPropagation(); });
+
+                // Checkbox change: update selection Set and visual state
+                $chart.on('change', '.multi-shift-checkbox', function() {
+                    const idLocal = String($(this).data('id'));
+                    const theBar  = $(this).closest('.gantt-bar');
+                    if (this.checked) { selectedShiftIds.add(idLocal); theBar.addClass('selected'); }
+                    else              { selectedShiftIds.delete(idLocal); theBar.removeClass('selected'); }
+                });
+
+                // Edit-shift icon: open and populate edit modal
+                $chart.on('click', '.edit-shift-icon', function(e) {
+                    e.stopPropagation();
+                    const sid = $(this).data('shift-id');
+                    $('#shift_id').val(sid);
+                    try { $('#edit_shift-form')[0].reset(); } catch (err) {}
+                    const editUrls = [
+                        `${baseUrl}/editshift/${sid}`,
+                        `${baseUrl}/shift-dates/${sid}/edit`,
+                        `${baseUrl}/shifts/${sid}`
+                    ];
+                    try {
+                        if ($('#edit_shift .modal-spinner').length === 0) {
+                            $('#edit_shift .modal-content').append(
+                                '<div class="modal-spinner" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:1051;"><div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading...</div></div></div>'
+                            );
+                        }
+                        $('#edit_shift').modal('show');
+                    } catch (e2) {}
+                    const populate = function(data) {
+                        try {
+                            if (data.shift_date)    $('#shift_date').val(data.shift_date);
+                            if (data.start_time)    $('#start_shift').val(data.start_time);
+                            if (data.end_time)      $('#end_shift').val(data.end_time);
+                            if (data.guard_rate)    $('#guard_rate').val(data.guard_rate);
+                            if (data.book_on)       $('#book_on').val(data.book_on);
+                            if (data.book_off)      $('#book_off').val(data.book_off);
+                            if (typeof data.status_id !== 'undefined') $('#status_id').val(data.status_id);
+                            if (typeof data.staff_id  !== 'undefined') $('#staff_id').val(data.staff_id).trigger('change');
+                            if (typeof data.subcontractor_id !== 'undefined') $('#subcontractor').val(data.subcontractor_id).trigger('change');
+                        } catch (err) { console.debug(err); }
+                        try { $('#edit_shift .modal-spinner').remove(); } catch (e2) {}
+                        $('#edit_shift').modal('show');
+                    };
+                    (function tryNext(i) {
+                        if (i >= editUrls.length) {
+                            try { $('#edit_shift .modal-spinner').remove(); } catch (e2) {}
+                            $('#edit_shift').modal('show');
+                            return;
+                        }
+                        $.get(editUrls[i]).done(function(resp) {
+                            if (resp && typeof resp === 'object') populate(resp);
+                            else if (typeof resp === 'string' && resp.indexOf('<form') !== -1) {
+                                try { $('#edit_shift').replaceWith(resp); } catch (e2) {}
+                                try { $('#edit_shift .modal-spinner').remove(); } catch (e2) {}
+                                $('#edit_shift').modal('show');
+                            } else {
+                                try { populate(JSON.parse(resp)); } catch (e2) {
+                                    try { $('#edit_shift .modal-spinner').remove(); } catch (er) {}
+                                    $('#edit_shift').modal('show');
+                                }
+                            }
+                        }).fail(function() { tryNext(i + 1); });
+                    })(0);
+                });
+
+                // Note icon: open add-note modal
+                $chart.on('click', '.note-icon', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const shiftIdLocal = $(this).data('shift-id');
+                    $('#shiftId').val(shiftIdLocal);
+                    $('#noteForm')[0].reset();
+                    $('#noteType').val('guard');
+                    $('#noteText').val('');
+                    $('#noteModal').modal('show');
+                });
+
+                // View-note icon: load and show existing note
+                $chart.on('click', '.view-note-icon', function(e) {
+                    e.stopPropagation();
+                    e.preventDefault();
+                    const shiftIdLocal = $(this).data('shift-id');
+                    $('#shiftId').val(shiftIdLocal);
+                    $.get(`/shift-dates/${shiftIdLocal}/note`, function(data) {
+                        if (data && data.note) {
+                            const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
+                            const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
+                            $('#viewNoteText').text(noteText).show();
+                            $('#viewNoteType').text(noteType);
+                            $('#editNoteText').val(noteText);
+                            $('#editNoteType').val(noteType);
+                            $('#viewNoteModal').data('orig-note', noteText);
+                            $('#viewNoteModal').data('orig-type', noteType);
+                            $('#deleteNoteBtn').data('shift-id', shiftIdLocal);
+                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
+                            $('#editNoteArea').hide();
+                            $('#editNoteBtn').removeClass('d-none');
+                            $('#saveNoteEditBtn').addClass('d-none');
+                            $('#cancelEditNoteBtn').addClass('d-none');
+                            $('#viewNoteModal').modal('show');
+                        }
+                    });
+                });
+            })();
+
+            // Returns true when the currently-visible view window falls outside
+            // the date range that was fetched from the server on the last load.
+            function _viewOutsideLoadedRange() {
+                if (!window._loadedFrom || !window._loadedTo) return true;
+                const vs = new Date(currentWeekStart); vs.setHours(0, 0, 0, 0);
+                const ve = new Date(currentWeekEnd);   ve.setHours(23, 59, 59, 0);
+                return vs < window._loadedFrom || ve > window._loadedTo;
+            }
+
             function loadAllShiftsData(currentFilters = null) {
                 // Use persisted filters when caller doesn't provide any
                 const filtersToUse = currentFilters !== null ? currentFilters : (window._ganttCurrentFilters || {});
+
+                // Build a date-scoped request so the server only returns the rows the
+                // current view actually needs.  Fetch the visible window ± 4-week buffer
+                // so the user can navigate several weeks without triggering a re-fetch.
+                // Explicit from_shift / to_shift filters from the user always take precedence.
+                const requestData = Object.assign({}, filtersToUse);
+                if (!requestData.from_shift && !requestData.to_shift) {
+                    const buf = 28; // 4-week buffer
+                    const dFrom = new Date(currentWeekStart);
+                    dFrom.setDate(dFrom.getDate() - buf);
+                    const dTo = new Date(currentWeekEnd);
+                    dTo.setDate(dTo.getDate() + buf);
+                    requestData.from_shift = formatDate(dFrom);
+                    requestData.to_shift   = formatDate(dTo);
+                }
+
+                // Track the loaded range so _viewOutsideLoadedRange() can check it.
+                window._loadedFrom = requestData.from_shift ? new Date(requestData.from_shift) : null;
+                window._loadedTo   = requestData.to_shift   ? new Date(requestData.to_shift)   : null;
+
                 $('#ganttChart').html(
                     '<div class="text-center p-5"><div class="spinner-border" role="status"></div><p class="mt-2">Loading shifts...</p></div>'
                 );
                 $.ajax({
                     url: `${baseUrl}/api/shifts`,
                     method: 'GET',
-                    data: {
-                        ...filtersToUse
-                    },
+                    data: requestData,
                     success: function(response) {
                         // normalize payload: some endpoints return { data: [...] } others return array directly
                         const payload = response.data || response.shift_dates || response || [];
@@ -2292,6 +2448,14 @@
             }
 
             function renderCurrentView(filteredData = null, filters = null) {
+                // If the view window has moved outside the loaded date range and the
+                // caller hasn't supplied pre-filtered data, re-fetch for the new window.
+                // The fetch success callback will call renderCurrentView again with data.
+                if (filteredData === null && _viewOutsideLoadedRange()) {
+                    loadAllShiftsData(window._ganttCurrentFilters || {});
+                    return;
+                }
+
                 if (!allShiftsData || allShiftsData.length === 0) {
                     $('#ganttChart').html('<div class="gantt-empty">No shifts found.</div>');
                     return;
@@ -2373,27 +2537,14 @@
                 // nearest upcoming shifts appear first. Within each client, sites are
                 // ordered by their nearest shift and shifts are ordered by start time.
                 function parseShiftDateTime(shift) {
-                    // Prefer backend-provided full datetime if available
-                    if (shift.start_datetime) {
-                        let s = String(shift.start_datetime);
-                        // Backend uses m-d-YTH:i:s (e.g. 10-31-2025T14:00:00). Convert to YYYY-MM-DD for reliable parsing.
-                        const m = s.match(/^(\d{2})-(\d{2})-(\d{4})T(.*)$/);
-                        if (m) s = `${m[3]}-${m[1]}-${m[2]}T${m[4]}`;
-                        const parsed = Date.parse(s);
-                        if (!isNaN(parsed)) return parsed;
-                    }
-
-                    // Fallback: combine date + time fields
                     const datePart = shift.start_date || shift.shift_date || shift.shiftDate || '';
                     const timePart = shift.start_time || shift.startTime || shift.start || '00:00';
                     if (!datePart) return Infinity;
-
                     let d = String(datePart);
                     // Normalize MM-DD-YYYY -> YYYY-MM-DD if necessary
-                    const m2 = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
-                    if (m2) d = `${m2[3]}-${m2[1]}-${m2[2]}`;
-
-                    const dt = new Date(d + ' ' + timePart);
+                    const m = d.match(/^(\d{2})-(\d{2})-(\d{4})$/);
+                    if (m) d = `${m[3]}-${m[1]}-${m[2]}`;
+                    const dt = new Date(d + 'T' + String(timePart).slice(0, 5));
                     const t = dt.getTime();
                     return isNaN(t) ? Infinity : t;
                 }
@@ -2505,6 +2656,8 @@
                 });
                 bodyHtml += `</div>`;
 
+                // Pause the MutationObserver's layout recalc while we populate cells.
+                window._ganttRendering = true;
                 $('#ganttChart').html(headerHtml + bodyHtml);
 
                 $('.gantt-container').toggleClass('selection-mode', selectionMode);
@@ -2550,7 +2703,9 @@
                     $btn.text(!currentlyVisible ? 'Hide Subcontractors' : 'Show Subcontractors');
                 });
 
-                // Place shifts only for sites that were rendered (those with shifts in range)
+                // Place shifts into day cells using HTML string concatenation + innerHTML.
+                // This avoids jQuery DOM parsing and per-bar event listener attachment
+                // (events are handled by the delegated handlers set up above).
                 filteredOrderedSites.forEach(site => {
                     const shiftsByDate = {};
                     site.shifts.forEach(shift => {
@@ -2560,330 +2715,45 @@
                     });
 
                     Object.entries(shiftsByDate).forEach(([dateStr, shifts]) => {
-                        const cell = $(`#cell-${site.id}-${dateStr}`);
-                        if (!cell.length) {
-                            // Debug: cell missing (row might not have been rendered for this site/date)
-                            try {
-                                console.debug('renderGanttChart: missing cell for', site.id,
-                                    dateStr);
-                            } catch (e) {}
-                            return;
-                        }
+                        const cellEl = document.getElementById(`cell-${site.id}-${dateStr}`);
+                        if (!cellEl) return;
 
+                        let cellHtml = '';
                         shifts.forEach((shift) => {
-                            // Prefer backend-provided cleaned/raw staff name when available, otherwise fall back to client-side cleaning
-                            const backendStaffRaw = shift.staff_name_raw || shift
-                                .staff_name || '';
-                            const backendStaffClean = shift.staff_name_clean || shift
-                                .staff_name || '';
-                            // compute parenthesised fallback only if needed
-                            const parenthesisedMatches = (shift.staff_name ||
-                                backendStaffRaw) ? ((shift.staff_name ||
-                                backendStaffRaw).match(/\([^)]*\)/g)) : null;
-                            const parenthesisedTag = (parenthesisedMatches &&
-                                    parenthesisedMatches.length) ? parenthesisedMatches[0] :
-                                '';
+                            const displayStaff = shift.staff_name_clean || shift.staff_name || 'Not Assigned';
+                            const subcontractorId   = shift.subcontractor_id || null;
+                            const subcontractorName = shift.subcontractor_name ||
+                                (subcontractorId && window._subcontractorMap && window._subcontractorMap[subcontractorId]
+                                    ? window._subcontractorMap[subcontractorId] : '');
+                            const idStr     = String(shift.id);
+                            const isSelected = selectedShiftIds.has(idStr);
 
-                            let displayStaff = backendStaffClean || '';
-                            if (!displayStaff) {
-                                // client-side cleaning as fallback
-                                let tmp = backendStaffRaw || '';
-                                while (/\([^()]*\)/.test(tmp)) {
-                                    tmp = tmp.replace(/\s*\([^()]*\)/g, '');
-                                }
-                                displayStaff = tmp.replace(/\s+/g, ' ').trim();
-                            }
-
-                            // Resolve subcontractor name: prefer backend-provided subcontractor_name, then subcontractor_id map, then parenthesised tag
-                            const subcontractorId = shift.subcontractor_id || shift
-                                .subcontractorId || null;
-                            let subcontractorName = shift.subcontractor_name || shift
-                                .subcontractor || null;
-                            if (!subcontractorName && subcontractorId && window
-                                ._subcontractorMap && window._subcontractorMap[
-                                    subcontractorId]) {
-                                subcontractorName = window._subcontractorMap[
-                                    subcontractorId];
-                            }
-                            subcontractorName = subcontractorName || (subcontractorId ?
-                                parenthesisedTag : '');
-
-                            // bar HTML: stacked rows (service, time, duration, staff)
-                            const bar = $(`
-                    <div class="gantt-bar shift-${shift.color_class}" data-shift-id="${shift.id}"
-                        title="${escapeHtml(shift.title || '')} (${escapeHtml(shift.formatted_time || '')}) - ${escapeHtml(displayStaff || '')}">
-                        <input type="checkbox" class="multi-shift-checkbox" data-id="${shift.id}" aria-label="Select shift ${shift.id}">
-                        <div class="bar-content">
-                            ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
-                            <div class="time-text">
-                                <span>${escapeHtml(shift.formatted_time || '')}</span>
-                               <div>
-                                ${shift.note 
-                                    ? `<span class="view-note-icon" data-shift-id="${shift.id}" title="View note"><i class="fa-solid fa-copy"></i></span>` 
-                                    : `<span class="note-icon" data-shift-id="${shift.id}" title="Add note"><i class="fa-solid fa-square-plus"></i></span>`
-                                }
-                                <span class="edit-shift-icon" data-shift-id="${shift.id}" title="Edit shift">
-                                   <i class="fa-solid fa-pen-to-square"></i>
-                                </span>
+                            cellHtml += `<div class="gantt-bar shift-${shift.color_class || ''}${isSelected ? ' selected' : ''}" data-shift-id="${idStr}" data-orig-staff="${escapeHtml(displayStaff)}"${subcontractorName ? ` data-sub-name="${escapeHtml(subcontractorName)}"` : ''}${subcontractorId ? ` data-sub-id="${escapeHtml(String(subcontractorId))}"` : ''} title="${escapeHtml(shift.title || '')} (${escapeHtml(shift.formatted_time || '')}) - ${escapeHtml(displayStaff)}">
+                                <input type="checkbox" class="multi-shift-checkbox"${isSelected ? ' checked' : ''} data-id="${idStr}" aria-label="Select shift ${idStr}">
+                                <div class="bar-content">
+                                    ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
+                                    <div class="time-text">
+                                        <span>${escapeHtml(shift.formatted_time || '')}</span>
+                                        <div>
+                                            ${shift.note
+                                                ? `<span class="view-note-icon" data-shift-id="${idStr}" title="View note"><i class="fa-solid fa-copy"></i></span>`
+                                                : `<span class="note-icon" data-shift-id="${idStr}" title="Add note"><i class="fa-solid fa-square-plus"></i></span>`}
+                                            <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift"><i class="fa-solid fa-pen-to-square"></i></span>
+                                        </div>
+                                    </div>
+                                    <div class="staff-name">${escapeHtml(displayStaff)}</div>
+                                    ${subcontractorName ? `<div class="subcontractor-name" style="display:none;">${escapeHtml(subcontractorName)}</div>` : ''}
                                 </div>
-                            </div>
-                            <div class="staff-name">${escapeHtml(displayStaff)}</div>
-                            ${subcontractorName ? `<div class="subcontractor-name" style="display:none;">${escapeHtml(subcontractorName)}</div>` : ''}
-                        </div>
-
-                `);
-
-                            const idStr = String(shift.id);
-                            if (selectedShiftIds.has(idStr)) bar.addClass('selected');
-
-                            // persist original staff and resolved subcontractor on the bar
-                            try {
-                                bar.attr('data-orig-staff', displayStaff || '');
-                                if (subcontractorName) bar.attr('data-sub-name',
-                                    subcontractorName || '');
-                                // keep subcontractor id too so client-side map lookup can work when name is missing
-                                if (subcontractorId) bar.attr('data-sub-id',
-                                    subcontractorId);
-
-                                // bind edit icon handler for this bar
-                                try {
-                                    bar.find('.edit-shift-icon').on('click', function(e) {
-                                        e.stopPropagation();
-                                        const sid = $(this).data('shift-id');
-                                        $('#shift_id').val(sid);
-                                        try {
-                                            $('#edit_shift-form')[0].reset();
-                                        } catch (err) {}
-                                        const editUrls = [
-                                            `${baseUrl}/editshift/${sid}`,
-                                            `${baseUrl}/shift-dates/${sid}/edit`,
-                                            `${baseUrl}/shifts/${sid}`
-                                        ];
-                                        // Show modal immediately with a non-destructive spinner overlay to improve perceived responsiveness.
-                                        try {
-                                            if ($('#edit_shift .modal-spinner')
-                                                .length === 0) {
-                                                $('#edit_shift .modal-content')
-                                                    .append(
-                                                        '<div class="modal-spinner" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.8);z-index:1051;"><div class="text-center"><div class="spinner-border" role="status"></div><div class="mt-2">Loading...</div></div></div>'
-                                                    );
-                                            }
-                                            $('#edit_shift').modal('show');
-                                        } catch (e) {}
-
-                                        const populate = function(data) {
-                                            try {
-                                                if (data.shift_date) $(
-                                                    '#shift_date').val(data
-                                                    .shift_date);
-                                                if (data.start_time) $(
-                                                    '#start_shift').val(data
-                                                    .start_time);
-                                                if (data.end_time) $(
-                                                    '#end_shift').val(data
-                                                    .end_time);
-                                                if (data.guard_rate) $(
-                                                    '#guard_rate').val(data
-                                                    .guard_rate);
-                                                if (data.book_on) $('#book_on')
-                                                    .val(data.book_on);
-                                                if (data.book_off) $(
-                                                    '#book_off').val(data
-                                                    .book_off);
-                                                if (typeof data.status_id !==
-                                                    'undefined') $('#status_id')
-                                                    .val(data.status_id);
-                                                if (typeof data.staff_id !==
-                                                    'undefined') $('#staff_id')
-                                                    .val(data.staff_id).trigger(
-                                                        'change');
-                                                if (typeof data
-                                                    .subcontractor_id !==
-                                                    'undefined') $(
-                                                        '#subcontractor').val(
-                                                        data.subcontractor_id)
-                                                    .trigger('change');
-                                            } catch (err) {
-                                                console.debug(err);
-                                            }
-                                            try {
-                                                $('#edit_shift .modal-spinner')
-                                                    .remove();
-                                            } catch (e) {}
-                                            $('#edit_shift').modal('show');
-                                        };
-
-                                        (function tryNext(i) {
-                                            if (i >= editUrls.length) {
-                                                try {
-                                                    $('#edit_shift .modal-spinner')
-                                                        .remove();
-                                                } catch (e) {}
-                                                $('#edit_shift').modal('show');
-                                                return;
-                                            }
-                                            $.get(editUrls[i]).done(function(
-                                                resp) {
-                                                if (resp &&
-                                                    typeof resp ===
-                                                    'object') populate(
-                                                    resp);
-                                                else if (typeof resp ===
-                                                    'string' && resp
-                                                    .indexOf(
-                                                        '<form') !== -1
-                                                ) {
-                                                    try {
-                                                        $('#edit_shift')
-                                                            .replaceWith(
-                                                                resp);
-                                                    } catch (e) {}
-                                                    try {
-                                                        $('#edit_shift .modal-spinner')
-                                                            .remove();
-                                                    } catch (e) {}
-                                                    $('#edit_shift')
-                                                        .modal('show');
-                                                } else {
-                                                    try {
-                                                        const parsed =
-                                                            JSON.parse(
-                                                                resp);
-                                                        populate(
-                                                            parsed);
-                                                    } catch (e) {
-                                                        try {
-                                                            $('#edit_shift .modal-spinner')
-                                                                .remove();
-                                                        } catch (er) {}
-                                                        $('#edit_shift')
-                                                            .modal(
-                                                                'show');
-                                                    }
-                                                }
-                                            }).fail(function() {
-                                                tryNext(i + 1);
-                                            });
-                                        })(0);
-                                    });
-                                } catch (err) {}
-                            } catch (e) {}
-
-                            cell.append(bar);
-
-                            // Ensure bar fills the grid cell and can shrink if needed
-                            bar.css({
-                                'box-sizing': 'border-box',
-                                // Explicitly reserve space for the checkbox when selection mode is on.
-                                'padding-left': getBarLeftPadding()
-                            });
-
-                            // checkbox initial state
-                            const cb = bar.find('.multi-shift-checkbox');
-                            cb.prop('checked', selectedShiftIds.has(idStr));
-
-                            // stop propagation so clicking checkbox doesn't trigger bar navigation
-                            cb.on('click', function(e) {
-                                e.stopPropagation();
-                            });
-
-                            // checkbox change: update selected set and visual
-                            cb.on('change', function() {
-                                const checked = !!$(this).prop('checked');
-                                const idLocal = String($(this).data('id'));
-                                const theBar = $(this).closest('.gantt-bar');
-                                if (checked) {
-                                    selectedShiftIds.add(idLocal);
-                                    theBar.addClass('selected');
-                                } else {
-                                    selectedShiftIds.delete(idLocal);
-                                    theBar.removeClass('selected');
-                                }
-                            });
-
-                            // bar click behavior
-                            bar.on('click', function(e) {
-                                const shiftIdLocal = $(this).data('shift-id');
-                                if (selectionMode) {
-                                    const cbLocal = $(this).find(
-                                        '.multi-shift-checkbox');
-                                    const newState = !cbLocal.prop('checked');
-                                    cbLocal.prop('checked', newState).trigger(
-                                        'change');
-                                    e.stopPropagation();
-                                    return;
-                                }
-                                const target = e.target;
-                                if (target && ($(target).closest(
-                                            '.multi-shift-checkbox').length || $(
-                                            target).closest('.note-icon').length ||
-                                        $(target).closest('.view-note-icon').length
-                                    )) return;
-                                if (shiftIdLocal) window.open(
-                                    `${baseUrl}/shift-dates/${shiftIdLocal}/view`,
-                                    '_blank');
-                            });
-
-                            // notes: open modals, stop propagation so no navigation
-                            bar.find('.note-icon').on('click', function(e) {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                const shiftIdLocal = $(this).data('shift-id');
-                                $('#shiftId').val(shiftIdLocal);
-                                $('#noteForm')[0].reset();
-                                $('#noteType').val('guard');
-                                $('#noteText').val('');
-                                $('#noteModal').modal('show');
-                            });
-
-                            bar.find('.view-note-icon').on('click', function(e) {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                const shiftIdLocal = $(this).data('shift-id');
-                                $('#shiftId').val(shiftIdLocal);
-                                $.get(`/shift-dates/${shiftIdLocal}/note`, function(
-                                    data) {
-                                    if (data && data.note) {
-                                        const noteText = (typeof data
-                                                .note === 'object' && data
-                                                .note.note) ? data.note
-                                            .note : data.note;
-                                        const noteType = data.note_type || (
-                                            data.note && data.note
-                                            .note_type) || 'guard';
-                                        $('#viewNoteText').text(noteText)
-                                            .show();
-                                        $('#viewNoteType').text(noteType);
-                                        $('#editNoteText').val(noteText);
-                                        $('#editNoteType').val(noteType);
-                                        $('#viewNoteModal').data(
-                                            'orig-note', noteText);
-                                        $('#viewNoteModal').data(
-                                            'orig-type', noteType);
-                                        // Store both shift-date id and note id to be safe
-                                        $('#deleteNoteBtn').data('shift-id',
-                                            shiftIdLocal);
-                                        if (data.id) $('#deleteNoteBtn')
-                                            .data('note-id', data.id);
-                                        $('#editNoteArea').hide();
-                                        $('#editNoteBtn').removeClass(
-                                            'd-none');
-                                        $('#saveNoteEditBtn').addClass(
-                                            'd-none');
-                                        $('#cancelEditNoteBtn').addClass(
-                                            'd-none');
-                                        $('#viewNoteModal').modal('show');
-                                    }
-                                });
-                            });
+                            </div>`;
                         });
+                        cellEl.innerHTML = cellHtml;
                     });
                 });
 
-                // After placing bars: sync padding-left with current selection mode.
-                $('#ganttChart .day-cell > .gantt-bar').each(function() {
-                    $(this).css('padding-left', getBarLeftPadding());
-                });
+                // Rendering complete — re-enable the MutationObserver and run
+                // adjustGanttDayCellColumns() exactly once instead of once per bar.
+                window._ganttRendering = false;
+                try { adjustGanttDayCellColumns(); } catch (e) {}
 
                 // Responsive sizing: bigger baseline so content remains visible
                 (function adjustGanttSizing() {
@@ -3057,9 +2927,14 @@
                         ganttSearch: $('#ganttSearch').val()
                     });
 
-                    const filteredShifts = applyFiltersToShifts(allShiftsData, filters);
-
-                    renderCurrentView(filteredShifts, filters);
+                    // When the user applies explicit date-range filters, re-fetch from
+                    // the server so we get shifts that may be outside the current buffer.
+                    if (filters.from_shift || filters.to_shift) {
+                        loadAllShiftsData(filters);
+                    } else {
+                        const filteredShifts = applyFiltersToShifts(allShiftsData, filters);
+                        renderCurrentView(filteredShifts, filters);
+                    }
                     try {
                         bootstrap.Modal.getInstance(document.getElementById('filterModal')).hide();
                     } catch (err) {}

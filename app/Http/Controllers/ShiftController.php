@@ -216,15 +216,19 @@ class ShiftController extends Controller
     }
     public function scheduling()
     {
-        // Default window: 2 months before today through 1 month after today
-        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
-
-        $clients = User::role('client')->get();
-        $sites = Site::all();
-        $staffs = User::role('security_staff')->get();
-            $subcontractors = $this->getSubcontractors();
-        $services = EmployeeType::all();
+        // Load only the columns consumed by dropdown selects and count badges —
+        // prevents hydrating large text/blob columns for every user/site.
+        $clients = User::role('client')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name')
+            ->get();
+        $sites = Site::select(['id', 'site_name', 'client_id'])->get();
+        $staffs = User::role('security_staff')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name')
+            ->get();
+        $subcontractors = $this->getSubcontractors();
+        $services = EmployeeType::select(['id', 'name'])->get();
         return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
     }
     public function worker_calendar()
@@ -601,6 +605,17 @@ class ShiftController extends Controller
             $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
             $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
 
+            $site = Site::find($request->site_id[$i]);
+            // Determine parent site_rate: prefer explicit non-empty request value,
+            // otherwise fall back to site-level office_rate -> site.guard_rate -> 0
+            if (isset($request->site_rate[$i]) && $request->site_rate[$i] !== '') {
+                $computedSiteRate = (float) $request->site_rate[$i];
+            } elseif ($site && !is_null($site->office_rate)) {
+                $computedSiteRate = (float) $site->office_rate;
+            } else {
+                $computedSiteRate = 0;
+            }
+
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
                 'site_id'     => $request->site_id[$i],
@@ -613,10 +628,9 @@ class ShiftController extends Controller
                 'restrict_start_time' => $data['restrict_start_time'],
                 'enforce_picture_check' => $data['enforce_picture_check'],
                 'restrict_location_check' => $data['restrict_location_check'],
-                // Persist site-level rate on the parent Shift record so it is
-                // available for later edits and reports.
-                'site_rate'        => $request->site_rate[$i] ?? null,
-                'employee_rate'        => $request->employee_rate[$i] ?? null,
+
+                'site_rate'        =>  $computedSiteRate,
+                'employee_rate'    => isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== '' ? (float) $request->employee_rate[$i] : null,
             ]);
 
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
@@ -1438,7 +1452,9 @@ public function getShifts(Request $request)
         ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
         ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
         // subcontractor resolved via Subcontractor model in PHP (avoid extra joins)
-        ->leftJoin('shift_notes', 'shift_notes.shift_date_id', '=', 'shift_dates.id');
+        ->leftJoin('shift_notes', 'shift_notes.shift_date_id', '=', 'shift_dates.id')
+        // Exclude soft-deleted parent shifts (raw JOIN bypasses Eloquent scope)
+        ->whereNull('shifts.deleted_at');
 
     /* ---------- FILTERS ---------- */
 
@@ -1470,10 +1486,13 @@ public function getShifts(Request $request)
         $query->whereDate('shift_dates.created_at', $request->created_at);
     }
 
-    $from = Carbon::parse($request->from_shift ?? now()->subMonths(1))->startOfDay();
-    $to   = Carbon::parse($request->to_shift ?? now()->addMonths(11))->endOfDay();
+    // Default window is a tight 9-week band (2 weeks back → 5 weeks forward).
+    // In normal usage the JS client passes explicit from_shift/to_shift based on
+    // the visible view window, so this default is only a safety-net fallback.
+    $from = Carbon::parse($request->from_shift ?? now()->subWeeks(2))->startOfDay();
+    $to   = Carbon::parse($request->to_shift   ?? now()->addWeeks(5))->endOfDay();
 
-    // cap range to avoid huge queries
+    // Hard cap to prevent runaway queries regardless of client input
     $maxDays = 365;
     if ($to->diffInDays($from) > $maxDays) {
         $to = $from->copy()->addDays($maxDays)->endOfDay();
@@ -1500,7 +1519,7 @@ public function getShifts(Request $request)
 
     $ttl = config('gantt.cache_ttl', 10);
 
-    $ganttArray = $this->formatGanttArray($query->cursor());
+    $ganttArray = $this->formatGanttArray($query->get());
     Cache::put($cacheKey, $ganttArray, $ttl);
 
     return response()->json(['data' => $ganttArray]);
@@ -1601,7 +1620,10 @@ private function formatGanttData($shiftDates)
 }
 
 /**
- * Return gantt data as an array (used for caching/streaming)
+ * Return gantt data as an array (used for caching/streaming).
+ *
+ * Subcontractor resolution is batched in two queries (by id + by user_id)
+ * instead of one DB round-trip per row, eliminating the N+1 problem.
  */
 private function formatGanttArray($shiftDates)
 {
@@ -1617,50 +1639,79 @@ private function formatGanttArray($shiftDates)
         8 => 'bg-orange',
     ];
 
+    // Materialise the cursor/collection once so we can do a single pass for IDs.
+    $rows = collect($shiftDates);
+
+    // ── Batch-load all referenced subcontractors in 2 queries ──────────────
+    $subIds = $rows
+        ->flatMap(fn ($sd) => [$sd->subcontractor_id ?? null, $sd->parent_subcontractor ?? null])
+        ->filter()
+        ->unique()
+        ->values()
+        ->all();
+
+    // Map keyed by primary id
+    $subById = [];
+    // Map keyed by user_id (fallback lookup path)
+    $subByUserId = [];
+
+    if (!empty($subIds)) {
+        $loaded = Subcontractor::with('user')->whereIn('id', $subIds)->get();
+        foreach ($loaded as $sub) {
+            $subById[(string) $sub->id] = $sub;
+        }
+
+        // Collect still-unresolved IDs for user_id fallback
+        $missing = array_filter($subIds, fn ($id) => !isset($subById[(string) $id]));
+        if (!empty($missing)) {
+            $byUser = Subcontractor::with('user')->whereIn('user_id', $missing)->get();
+            foreach ($byUser as $sub) {
+                $subByUserId[(string) $sub->user_id] = $sub;
+            }
+        }
+    }
+
+    // Helper to resolve a display name from a pre-loaded Subcontractor model.
+    $resolveSubName = static function (?Subcontractor $sub): string {
+        if (!$sub) return '';
+        $name = trim($sub->company_name ?? '') ?: trim($sub->contact_person ?? '');
+        if (!$name && isset($sub->user) && $sub->user) {
+            $name = trim(($sub->user->first_name ?? '') . ' ' . ($sub->user->last_name ?? ''));
+        }
+        return $name;
+    };
+
     $ganttData = [];
 
-    foreach ($shiftDates as $sd) {
-        try {
-            $startTime = \Carbon\Carbon::createFromFormat('H:i:s', $sd->start_time);
-            $endTime   = \Carbon\Carbon::createFromFormat('H:i:s', $sd->end_time);
-        } catch (\Throwable $e) {
+    foreach ($rows as $sd) {
+        // Parse time strings using integer arithmetic — avoids 4 Carbon instantiations per row.
+        $startRaw = (string) ($sd->start_time ?? '00:00:00');
+        $endRaw   = (string) ($sd->end_time   ?? '00:00:00');
+        if (!preg_match('/^\d{2}:\d{2}/', $startRaw) || !preg_match('/^\d{2}:\d{2}/', $endRaw)) {
             // skip malformed rows
             continue;
         }
+        $sParts = explode(':', $startRaw);
+        $eParts = explode(':', $endRaw);
+        $startMins = (int)$sParts[0] * 60 + (int)$sParts[1];
+        $endMins   = (int)$eParts[0]   * 60 + (int)$eParts[1];
+        if ($endMins <= $startMins) $endMins += 1440; // overnight shift
+        $durationMins    = $endMins - $startMins;
+        $durationHours   = (int)($durationMins / 60);
+        $durationMinutes = $durationMins % 60;
+        $formattedTime   = substr($startRaw, 0, 5) . ' - ' . substr($endRaw, 0, 5);
 
-        $startDate = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($startTime);
-        $endDate   = \Carbon\Carbon::parse($sd->shift_date)->setTimeFrom($endTime);
+        $staffRaw   = trim((($sd->first_name ?? '') . ' ' . ($sd->last_name ?? '')));
+        // Single-pass staff name cleaning (remove parenthesised subcontractor tags)
+        $staffNameClean = trim(preg_replace(['/\s*\([^()]*\)/u', '/\s+/u'], ['', ' '], $staffRaw));
 
-        if ($endTime->lessThanOrEqualTo($startTime)) {
-            $endDate->addDay();
-        }
-
-        $durationHours   = $startDate->diffInHours($endDate);
-        $durationMinutes = $startDate->diffInMinutes($endDate) % 60;
-
-        $staffRaw = trim((($sd->first_name ?? '') . ' ' . ($sd->last_name ?? '')));
-        $staffNameWithoutSub = $staffRaw;
-        while (preg_match('/\([^()]*\)/', $staffNameWithoutSub)) {
-            $staffNameWithoutSub = preg_replace('/\s*\([^()]*\)/', '', $staffNameWithoutSub);
-        }
-        $staffNameClean = preg_replace('/\s+/', ' ', trim($staffNameWithoutSub));
-
-        // Simplified subcontractor resolution: subcontractor_id references Subcontractor model
+        // Resolve subcontractor from pre-loaded maps (no extra queries).
+        $resolvedSubcontractorId   = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
         $resolvedSubcontractorName = '';
-        $resolvedSubcontractorId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
-
         if (!empty($resolvedSubcontractorId)) {
-            try {
-                $subModel = $this->findSubcontractorByStoredId($resolvedSubcontractorId);
-                if ($subModel) {
-                    $resolvedSubcontractorName = trim($subModel->company_name ?? '') ?: trim($subModel->contact_person ?? '');
-                    if (!$resolvedSubcontractorName && isset($subModel->user) && $subModel->user) {
-                        $resolvedSubcontractorName = trim((($subModel->user->first_name ?? '') . ' ' . ($subModel->user->last_name ?? '')));
-                    }
-                }
-            } catch (\Throwable $_) {
-                // ignore resolution errors
-            }
+            $key = (string) $resolvedSubcontractorId;
+            $subModel = $subById[$key] ?? $subByUserId[$key] ?? null;
+            $resolvedSubcontractorName = $resolveSubName($subModel);
         }
 
         $ganttData[] = [
@@ -1673,10 +1724,9 @@ private function formatGanttArray($shiftDates)
             'start_time' => $sd->start_time,
             'end_time' => $sd->end_time,
             'service_type' => $sd->service_type_2 ?? $sd->service_type_1,
-            'formatted_time' => "{$startTime->format('H:i')} - {$endTime->format('H:i')}",
+            'formatted_time' => $formattedTime,
             'duration' => "({$durationHours} hr {$durationMinutes} min)",
             'staff_name' => $staffNameClean ?: 'Not Assigned',
-            'staff_name_raw' => $staffRaw ?: '',
             'staff_name_clean' => $staffNameClean ?: '',
             'staff_id' => $sd->staff_id,
             'client_id' => $sd->client_id,
@@ -1684,13 +1734,10 @@ private function formatGanttArray($shiftDates)
             'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
             'status' => $sd->is_assign,
             'is_assigned' => $sd->is_assign != 0,
-            'duration_hours' => $durationHours + ($durationMinutes / 60),
-            'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
-            'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
             'note' => $sd->note,
             'note_type' => $sd->note_type,
             'subcontractor_id' => $resolvedSubcontractorId,
-            'subcontractor_name' => $resolvedSubcontractorName ?: '',
+            'subcontractor_name' => $resolvedSubcontractorName,
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
         ];
     }
@@ -2798,22 +2845,56 @@ public function getTodayShifts()
 
     public function view(ShiftDate $shiftDate)
     {
+        // Single eager-load pass — eliminates all blade-level queries and N+1 issues.
         $shiftDate->load([
             'staff',
             'shift.client',
             'shift.site',
-            'shift.staff',
             'logs',
-            'checkCalls'
+            'checkCalls',
+            'locations',
+            'patrols.media',
+            'patrols.scans',
         ]);
 
         $subcontractors = $this->getSubcontractors();
+
+        // Security staff list (needed for assign-shift-modal) — cached 5 min.
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+            return \App\Models\User::role('security_staff')
+                ->orderBy('first_name')
+                ->get(['id', 'first_name', 'last_name']);
+        });
+
+        // First / last guard location (already loaded above — no extra query).
+        $firstLocation = $shiftDate->locations->sortBy('timestamp')->first();
+        $lastLocation  = $shiftDate->locations->sortByDesc('timestamp')->first();
+
+        // Client user record.
+        $client = $shiftDate->shift?->client ?? null;
+
+        // Employee record for the assigned staff member (used in address/documents tab).
+        $employee = $shiftDate->staff_id
+            ? \App\Models\Employee::where('user_id', $shiftDate->staff_id)->first()
+            : null;
+
+        // Patrols & checkpoint data for patrols tab.
+        $patrols = $shiftDate->patrols->sortBy('start_time');
+
+        $site = $shiftDate->shift?->site ?? null;
+        $checkpoints = collect();
+        if ($site) {
+            $checkpoints = \App\Models\PatrolCheckPoint::where('site_id', $site->id)
+                ->get(['id', 'name', 'latitude', 'longitude']);
+        }
+
+        // Check calls (already loaded via relation — just alias for clarity in blade).
+        $checkcalls = $shiftDate->checkCalls->sortBy('scheduled_time');
 
         // Resolve site coordinates server-side so the map does not rely on
         // client-side geocoding, which fails for business names.
         $siteLat = null;
         $siteLng = null;
-        $site = $shiftDate->shift->site ?? null;
         if ($site) {
             try {
                 $coords = app(\App\Services\GeoService::class)
@@ -2830,7 +2911,11 @@ public function getTodayShifts()
             }
         }
 
-        return view('security_boards.shift-detail', compact('shiftDate', 'subcontractors', 'siteLat', 'siteLng'));
+        return view('security_boards.shift-detail', compact(
+            'shiftDate', 'subcontractors', 'siteLat', 'siteLng',
+            'staffs', 'firstLocation', 'lastLocation',
+            'client', 'employee', 'patrols', 'checkpoints', 'checkcalls'
+        ));
     }
 
     public function patrolUpdate(Request $request, $id)
@@ -3677,6 +3762,17 @@ public function getTodayShifts()
             $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
             
             // Create main Shift
+            $site = Site::find($request->site_id[$i]);
+            // Determine parent site_rate: prefer explicit non-empty request value,
+            // otherwise fall back to site-level office_rate -> site.guard_rate -> 0
+            if (isset($request->site_rate[$i]) && $request->site_rate[$i] !== '') {
+                $computedSiteRate = (float) $request->site_rate[$i];
+            } elseif ($site && !is_null($site->office_rate)) {
+                $computedSiteRate = (float) $site->office_rate;
+            } else {
+                $computedSiteRate = 0;
+            }
+
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
                 'site_id'     => $request->site_id[$i],
@@ -3689,6 +3785,8 @@ public function getTodayShifts()
                 'restrict_start_time' => $data['restrict_start_time'],
                 'enforce_picture_check' => $data['enforce_picture_check'],
                 'restrict_location_check' => $data['restrict_location_check'],
+                'site_rate'    => $computedSiteRate,
+                'employee_rate' => isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== '' ? (float) $request->employee_rate[$i] : null,
             ]);
 
             // Expand to ShiftDates
@@ -4213,27 +4311,54 @@ public function getTodayShifts()
                 $patrol->lastLocation = null;
             }
             
-            // Generate map image as base64
-            if ($patrol->locations && $patrol->locations->count() > 1) {
-                $apiKey = env('GOOGLE_MAPS_API_KEY');
-                if ($apiKey) {
-                    $center = $patrol->locations->first();
-                    $mapUrl = "https://maps.googleapis.com/maps/api/staticmap?";
-                    $mapUrl .= "center={$center->latitude},{$center->longitude}";
-                    $mapUrl .= "&zoom=15&size=600x300&maptype=roadmap";
-                    
-                    $pathCoords = $patrol->locations->map(fn($loc) => "{$loc->latitude},{$loc->longitude}")->join('|');
-                    $mapUrl .= "&path=color:0xff0000ff|weight:3|{$pathCoords}";
-                    
-                    $first = $patrol->locations->first();
-                    $last = $patrol->locations->last();
-                    $mapUrl .= "&markers=color:green|label:S|{$first->latitude},{$first->longitude}";
-                    $mapUrl .= "&markers=color:red|label:E|{$last->latitude},{$last->longitude}";
-                    $mapUrl .= "&key={$apiKey}";
+            // Generate map image as base64 (compute zoom-to-fit and use roadmap for streets/labels)
+            if ($patrol->locations && $patrol->locations->count() > 0) {
+                // Bounding box
+                $minLat = $patrol->locations->min('latitude');
+                $maxLat = $patrol->locations->max('latitude');
+                $minLng = $patrol->locations->min('longitude');
+                $maxLng = $patrol->locations->max('longitude');
 
-                    // Download and convert to base64
+                $latDiff = max(0.0001, $maxLat - $minLat);
+                $lngDiff = max(0.0001, $maxLng - $minLng);
+
+                $mapWidth = 900;
+                $mapHeight = 420;
+
+                // Approximate zoom level so the whole route fits (add a small padding)
+                $lonZoom = log($mapWidth * 360 / ($lngDiff * 256)) / log(2);
+                $latZoom = log($mapHeight * 360 / ($latDiff * 256)) / log(2);
+                $zoom = (int) floor(min($lonZoom, $latZoom)) - 1;
+                if ($patrol->locations->count() === 1) {
+                    $zoom = 15; // moderate zoom for single-point patrols
+                }
+                $zoom = max(3, min(18, $zoom));
+
+                $centerLat = ($minLat + $maxLat) / 2;
+                $centerLng = ($minLng + $maxLng) / 2;
+
+                $pathCoords = $patrol->locations->map(fn($loc) => "{$loc->latitude},{$loc->longitude}")->join('|');
+                $first = $patrol->locations->first();
+                $last = $patrol->locations->last();
+
+                $apiKey = $_ENV['GOOGLE_MAPS_API_KEY'] ?? getenv('GOOGLE_MAPS_API_KEY') ?: null;
+
+                // Try Google Static Maps (roadmap) first
+                if ($apiKey) {
+                    $googleMapUrl = "https://maps.googleapis.com/maps/api/staticmap?";
+                    $googleMapUrl .= "center={$centerLat},{$centerLng}";
+                    $googleMapUrl .= "&zoom={$zoom}&size={$mapWidth}x{$mapHeight}&maptype=roadmap&scale=2";
+
+                    if ($patrol->locations->count() > 1) {
+                        $googleMapUrl .= "&path=color:0xff0000ff|weight:3|" . urlencode($pathCoords);
+                    }
+
+                    $googleMapUrl .= "&markers=color:green|label:S|{$first->latitude},{$first->longitude}";
+                    $googleMapUrl .= "&markers=color:red|label:E|{$last->latitude},{$last->longitude}";
+                    $googleMapUrl .= "&key={$apiKey}";
+
                     try {
-                        $imageData = @file_get_contents($mapUrl);
+                        $imageData = @file_get_contents($googleMapUrl);
                         if ($imageData) {
                             $patrol->mapImage = 'data:image/png;base64,' . base64_encode($imageData);
                         } else {
@@ -4242,8 +4367,62 @@ public function getTodayShifts()
                     } catch (\Exception $e) {
                         $patrol->mapImage = null;
                     }
-                } else {
-                    $patrol->mapImage = null;
+                }
+
+                // Fallback to OpenStreetMap static map (mapnik)
+                if (empty($patrol->mapImage)) {
+                    $osmMapUrl = "https://staticmap.openstreetmap.de/staticmap.php?";
+                    $osmMapUrl .= "center={$centerLat},{$centerLng}";
+                    $osmMapUrl .= "&zoom={$zoom}&size={$mapWidth}x{$mapHeight}&maptype=mapnik";
+
+                    if ($patrol->locations->count() > 1) {
+                        $osmMapUrl .= "&path=color:0xff0000|weight:4|" . urlencode($pathCoords);
+                    }
+
+                    $osmMarkers = [
+                        "{$first->latitude},{$first->longitude},lightgreen1",
+                        "{$last->latitude},{$last->longitude},red1",
+                    ];
+                    $osmMapUrl .= "&markers=" . urlencode(implode('|', $osmMarkers));
+
+                    try {
+                        $imageData = @file_get_contents($osmMapUrl);
+                        if ($imageData) {
+                            $patrol->mapImage = 'data:image/png;base64,' . base64_encode($imageData);
+                        } else {
+                            $patrol->mapImage = null;
+                        }
+                    } catch (\Exception $e) {
+                        $patrol->mapImage = null;
+                    }
+                }
+
+                // Final fallback: Yandex static map
+                if (empty($patrol->mapImage)) {
+                    $centerLonLat = $centerLng . ',' . $centerLat;
+                    $pathLonLat = $patrol->locations->map(fn($loc) => $loc->longitude . ',' . $loc->latitude)->join(',');
+
+                    $yandexUrl = "https://static-maps.yandex.ru/1.x/?lang=en_US&l=map";
+                    $yandexUrl .= "&z={$zoom}&size=650,300";
+                    $yandexUrl .= "&ll=" . urlencode($centerLonLat);
+
+                    if ($patrol->locations->count() > 1) {
+                        $yandexUrl .= "&pl=" . urlencode("c:ff0000A0,w:4," . $pathLonLat);
+                    }
+
+                    $yandexPoints = $first->longitude . ',' . $first->latitude . ',pm2gnm~' . $last->longitude . ',' . $last->latitude . ',pm2rdm';
+                    $yandexUrl .= "&pt=" . urlencode($yandexPoints);
+
+                    try {
+                        $imageData = @file_get_contents($yandexUrl);
+                        if ($imageData) {
+                            $patrol->mapImage = 'data:image/png;base64,' . base64_encode($imageData);
+                        } else {
+                            $patrol->mapImage = null;
+                        }
+                    } catch (\Exception $e) {
+                        $patrol->mapImage = null;
+                    }
                 }
             } else {
                 $patrol->mapImage = null;

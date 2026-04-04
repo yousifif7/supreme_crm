@@ -1,13 +1,11 @@
 <!-- Filter Modal -->
 
 @php
-    $shifts = App\Models\Shift::with(['staff', 'site'])->get();
-    // $staffIds = $shifts->pluck('staff_id')->unique();
-    // $siteIds = $shifts->pluck('site_id')->unique();
-
-    $staffs = App\Models\User::role('security_staff')->get();
-    $sites = App\Models\Site::all();
-    $clients = App\Models\User::role('client')->get();
+    // Only load the columns required by the filter dropdowns to keep this
+    // lightweight. The bulk shift data is loaded separately via the Gantt API.
+    $staffs  = $staffs  ?? App\Models\User::role('security_staff')->select(['id','first_name','last_name'])->orderBy('first_name')->get();
+    $sites   = $sites   ?? App\Models\Site::select(['id','site_name'])->orderBy('site_name')->get();
+    $clients = $clients ?? App\Models\User::role('client')->select(['id','first_name','last_name'])->orderBy('first_name')->get();
 @endphp
 
 <!-- Filter Modal -->

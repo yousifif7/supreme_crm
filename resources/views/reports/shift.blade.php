@@ -143,7 +143,11 @@
                                             <td>{{ $shiftDate->shift->site->site_name ?? 'N/A' }}</td>
                                             <td>{{ $shiftDate->staff->first_name ?? 'N/A' }}
                                                 {{ $shiftDate->staff->last_name ?? '' }}</td>
-                                            <td>{{ $shiftDate->note?->note ?? '-' }}</td>
+                                            <td>
+                                                {{ ($shiftDate->note instanceof \Illuminate\Support\Collection)
+                                                    ? (optional($shiftDate->note->first())->note ?? '-')
+                                                    : (optional($shiftDate->note)->note ?? '-') }}
+                                            </td>
                                             <td>{{ format_date($shiftDate->shift_date) }}</td>
                                             <td>{{ $shiftDate->start_time ?? '-' }}</td>
                                             <td>{{ $shiftDate->end_time ?? '-' }}</td>

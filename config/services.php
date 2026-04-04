@@ -40,6 +40,7 @@ return [
     ],
     'google_maps' => [
         'key' => env('GOOGLE_MAPS_API_KEY'),
+        'debug' => env('GOOGLE_MAPS_DEBUG', false),
     ],
 
     'site_geofence' => [

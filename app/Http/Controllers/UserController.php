@@ -59,7 +59,8 @@ class UserController extends Controller
         $invoices = Invoice::whereNotNull('client_id')->count();
         $review = ShiftDate::where('is_assign', '1')->count();
         $clients = Client::count();
-        $staffs = User::role('security_staff')->count();
+        // Count staff using Employee model so dashboard matches Employees area
+        $staffs = Employee::count();
 
         // Limit columns and eager-load only necessary shiftDate fields
         $checkCalls = CheckCall::select('id', 'shift_id', 'name', 'scheduled_time', 'status')
