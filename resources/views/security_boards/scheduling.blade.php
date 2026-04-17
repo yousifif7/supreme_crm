@@ -282,13 +282,30 @@
 
         /* each content piece is block so it displays on separate lines */
         .gantt-bar .service-type,
-        .gantt-bar .duration-text,
-        .gantt-bar .staff-name {
+        .gantt-bar .duration-text {
             display: block;
             color: inherit;
             margin: 0;
             font-size: 8px;
             font-weight: 500;
+        }
+
+        .gantt-bar .staff-name {
+            display: block;
+            color: inherit;
+            margin: 0;
+            font-size: 9px;
+            font-weight: 700;
+        }
+
+        .gantt-bar .subcontractor-name {
+            display: block;
+            color: inherit;
+            margin: 0;
+            font-size: 9px;
+            font-weight: 600;
+            line-height: 1.2;
+            opacity: 0.96;
         }
 
         /* time-text with icons inline */
@@ -304,10 +321,16 @@
             flex-wrap: wrap;
         }
 
+        .gantt-bar .bar-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
         /* subcontractor inline when appended to staff-name should be normal weight */
         .gantt-bar .staff-name .subcontractor-inline {
             font-weight: 400;
-            font-size: 8px;
+            font-size: 9px;
             color: inherit;
             margin-left: 4px;
         }
@@ -344,32 +367,38 @@
         }
 
         /* note icon: dimmed pencil = no note yet */
-        .gantt-bar .note-icon {
+        .gantt-bar .note-icon,
+        .gantt-bar .view-note-icon {
             cursor: pointer;
-            font-size: 8px;
-            opacity: 0.9;
-            /* flex-shrink: 0;
-                            display: inline-flex;
-                            align-items: center;
-                            justify-content: center;
-                            opacity: 0.35;
-                            line-height: 1; */
+            font-size: 11px;
+            width: 18px;
+            height: 18px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            line-height: 1;
+            border-radius: 4px;
+            transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease,
+                color 0.15s ease;
+            flex-shrink: 0;
+        }
+
+        .gantt-bar .note-icon {
+            color: #1f1f1f;
+            background: rgba(255, 255, 255, 0.22);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
         }
 
         /* view-note icon: amber highlight = note exists */
         .gantt-bar .view-note-icon {
-            cursor: pointer;
-            font-size: 8px;
-            opacity: 0.9;
-            /* flex-shrink: 0;
-                            display: inline-flex;
-                            align-items: center;
-                            justify-content: center;
-                            line-height: 1;
-                            background: rgba(255, 193, 7, 0.30);
-                            border-radius: 3px;
-                            padding: 1px 2px;
-                            outline: 1px solid rgba(255, 193, 7, 0.55); */
+            color: #fff;
+            background: #c62828;
+            box-shadow: 0 0 0 1px rgba(123, 18, 18, 0.4);
+        }
+
+        .gantt-bar .note-icon:hover,
+        .gantt-bar .view-note-icon:hover {
+            transform: scale(1.08);
         }
 
         /* edit icon (pencil) - inline with time row */
@@ -628,21 +657,25 @@
         @media (min-width:1600px) {
 
             .gantt-bar .service-type,
-            .gantt-bar .duration-text,
-            .gantt-bar .staff-name {
+            .gantt-bar .duration-text {
                 font-size: 13px
+            }
+
+            .gantt-bar .staff-name,
+            .gantt-bar .subcontractor-name {
+                font-size: 14px
             }
 
             .gantt-bar .time-text {
                 font-size: 12px
             }
 
-            .gantt-bar .note-icon {
-                font-size: 10px
+            .gantt-bar .note-icon,
+            .gantt-bar .view-note-icon {
+                font-size: 14px;
+                width: 22px;
+                height: 22px
             }
- .gantt-bar .view-note-icon{
-          font-size: 10px;
- }
             .gantt-bar .edit-shift-icon {
                 font-size: 10px
             }
@@ -680,21 +713,25 @@
         @media (min-width:3000px) {
 
             .gantt-bar .service-type,
-            .gantt-bar .duration-text,
-            .gantt-bar .staff-name {
+            .gantt-bar .duration-text {
                 font-size: 16px
+            }
+
+            .gantt-bar .staff-name,
+            .gantt-bar .subcontractor-name {
+                font-size: 17px
             }
 
             .gantt-bar .time-text {
                 font-size: 13px
             }
 
-            .gantt-bar .note-icon {
-                font-size: 13px
+            .gantt-bar .note-icon,
+            .gantt-bar .view-note-icon {
+                font-size: 16px;
+                width: 24px;
+                height: 24px
             }
- .gantt-bar .view-note-icon{
-          font-size: 13px
- }
             .gantt-bar .edit-shift-icon {
                 font-size: 13px
             }
@@ -2768,9 +2805,9 @@
                                     ${shift.service_type ? `<div class="service-type">${escapeHtml(shift.service_type)}</div>` : ''}
                                     <div class="time-text">
                                         <span>${escapeHtml(shift.formatted_time || '')}</span>
-                                        <div>
+                                        <div class="bar-actions">
                                             ${shift.note
-                                                ? `<span class="view-note-icon" data-shift-id="${idStr}" title="View note"><i class="fa-solid fa-copy"></i></span>`
+                                                ? `<span class="view-note-icon" data-shift-id="${idStr}" title="View note"><i class="fa-solid fa-note-sticky"></i></span>`
                                                 : `<span class="note-icon" data-shift-id="${idStr}" title="Add note"><i class="fa-solid fa-square-plus"></i></span>`}
                                             <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift"><i class="fa-solid fa-pen-to-square"></i></span>
                                         </div>
@@ -3583,10 +3620,8 @@
                             if ($existingIcon.length) {
                                 // replace class and rebind handlers
                                 $existingIcon.off('click').removeClass('note-icon').addClass(
-                                    'view-note-icon').css({
-                                    'color': '',
-                                    'opacity': ''
-                                }).html('📋');
+                                    'view-note-icon').attr('title', 'View note').html(
+                                    '<i class="fa-solid fa-note-sticky"></i>');
                                 // bind view-note click
                                 $existingIcon.on('click', function(e) {
                                     e.stopPropagation();
@@ -3622,9 +3657,11 @@
                             } else {
                                 // create and append icon, then bind
                                 const $newIcon = $(
-                                    `<span class="view-note-icon" data-shift-id="${shiftId}" title="View note">📋</span>`
+                                    `<span class="view-note-icon" data-shift-id="${shiftId}" title="View note"><i class="fa-solid fa-note-sticky"></i></span>`
                                 );
-                                $bar.append($newIcon);
+                                const $actions = $bar.find('.bar-actions').first();
+                                if ($actions.length) $actions.prepend($newIcon);
+                                else $bar.find('.time-text').first().append($('<div class="bar-actions"></div>').append($newIcon));
                                 $newIcon.on('click', function(e) {
                                     e.stopPropagation();
                                     const sid = $(this).data('shift-id');
@@ -3847,8 +3884,8 @@
                     if (noteData) {
                         // Ensure a view-note-icon exists and handlers are bound correctly
                         if (noteIcon.length) {
-                            noteIcon.off('click').removeClass('note-icon').addClass('view-note-icon').css('color',
-                                '#0d6efd').html('📝');
+                            noteIcon.off('click').removeClass('note-icon').addClass('view-note-icon').attr(
+                                'title', 'View note').html('<i class="fa-solid fa-note-sticky"></i>');
                             // bind view-note click
                             noteIcon.on('click', function(e) {
                                 e.stopPropagation();
@@ -3891,7 +3928,9 @@
                                             </svg>
                                         </span>
                                     `);
-                                $bar.append($editIcon);
+                                const $actions = $bar.find('.bar-actions').first();
+                                if ($actions.length) $actions.append($editIcon);
+                                else $bar.find('.time-text').first().append($('<div class="bar-actions"></div>').append($editIcon));
                                 $editIcon.on('click', function(e) {
                                     e.stopPropagation();
                                     const sid = $(this).data('shift-id');
@@ -3956,8 +3995,8 @@
                     } else {
                         // No note -> show inactive note-icon and bind add-note handler
                         if (viewIcon.length) {
-                            viewIcon.off('click').removeClass('view-note-icon').addClass('note-icon').css('color', '#555')
-                                .html('📝');
+                            viewIcon.off('click').removeClass('view-note-icon').addClass('note-icon').attr(
+                                'title', 'Add note').html('<i class="fa-solid fa-square-plus"></i>');
                             viewIcon.on('click', function(e) {
                                 e.stopPropagation();
                                 const sid = $(this).data('shift-id');
@@ -3969,7 +4008,8 @@
                             });
                         }
                         if (noteIcon.length) {
-                            noteIcon.off('click').css('color', '#555');
+                            noteIcon.off('click').attr('title', 'Add note').html(
+                                '<i class="fa-solid fa-square-plus"></i>');
                             noteIcon.on('click', function(e) {
                                 e.stopPropagation();
                                 const sid = $(this).data('shift-id');
@@ -3995,13 +4035,15 @@
                         const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
 
                         if (hasNote) {
-                            if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css('color',
-                                '#0d6efd').html('📝');
-                            if (viewIcon.length) viewIcon.css('color', '#0d6efd').html('📝');
+                            if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').attr(
+                                'title', 'View note').html('<i class="fa-solid fa-note-sticky"></i>');
+                            if (viewIcon.length) viewIcon.attr('title', 'View note').html(
+                                '<i class="fa-solid fa-note-sticky"></i>');
                         } else {
-                            if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css('color',
-                                '#555').html('📝');
-                            if (noteIcon.length) noteIcon.css('color', '#555').html('📝');
+                            if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').attr(
+                                'title', 'Add note').html('<i class="fa-solid fa-square-plus"></i>');
+                            if (noteIcon.length) noteIcon.attr('title', 'Add note').html(
+                                '<i class="fa-solid fa-square-plus"></i>');
                         }
 
                         // If no direct icon present (bar was re-rendered), attempt to find the bar element and inject/update the icon
@@ -4009,11 +4051,15 @@
                         if (bar.length && bar.find('.view-note-icon, .note-icon').length === 0) {
                             // create appropriate icon span
                             const iconClass = hasNote ? 'view-note-icon' : 'note-icon';
-                            const color = hasNote ? '#0d6efd' : '#555';
+                            const iconHtml = hasNote ? '<i class="fa-solid fa-note-sticky"></i>' :
+                                '<i class="fa-solid fa-square-plus"></i>';
+                            const iconTitle = hasNote ? 'View note' : 'Add note';
                             const $icon = $(
-                                `<span class="${iconClass}" data-shift-id="${idStr}" style="color:${color}">📝</span>`);
+                                `<span class="${iconClass}" data-shift-id="${idStr}" title="${iconTitle}">${iconHtml}</span>`);
                             // append to bar
-                            bar.append($icon);
+                            const $actions = bar.find('.bar-actions').first();
+                            if ($actions.length) $actions.prepend($icon);
+                            else bar.find('.time-text').first().append($('<div class="bar-actions"></div>').append($icon));
 
                             // re-bind click handlers to the newly-created icon(s)
                             $icon.on('click', function(e) {
@@ -4062,7 +4108,9 @@
                                         </svg>
                                     </span>
                                 `);
-                                bar.append($editIcon);
+                                const $actions = bar.find('.bar-actions').first();
+                                if ($actions.length) $actions.append($editIcon);
+                                else bar.find('.time-text').first().append($('<div class="bar-actions"></div>').append($editIcon));
 
                                 // bind edit handler (same logic as creation path)
                                 $editIcon.on('click', function(e) {
@@ -4167,13 +4215,15 @@
                     const noteIcon = $(`.note-icon[data-shift-id="${idStr}"]`);
 
                     if (hasNote) {
-                        if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').css(
-                            'color', '#0d6efd').html('📝');
-                        if (viewIcon.length) viewIcon.css('color', '#0d6efd').html('📝');
+                        if (noteIcon.length) noteIcon.removeClass('note-icon').addClass('view-note-icon').attr(
+                            'title', 'View note').html('<i class="fa-solid fa-note-sticky"></i>');
+                        if (viewIcon.length) viewIcon.attr('title', 'View note').html(
+                            '<i class="fa-solid fa-note-sticky"></i>');
                     } else {
-                        if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').css(
-                            'color', '#555').html('📝');
-                        if (noteIcon.length) noteIcon.css('color', '#555').html('📝');
+                        if (viewIcon.length) viewIcon.removeClass('view-note-icon').addClass('note-icon').attr(
+                            'title', 'Add note').html('<i class="fa-solid fa-square-plus"></i>');
+                        if (noteIcon.length) noteIcon.attr('title', 'Add note').html(
+                            '<i class="fa-solid fa-square-plus"></i>');
                     }
                 });
             } catch (err) {
@@ -4233,13 +4283,15 @@
         ${shift.service_type ? `<div class="service-type">${safeEscape(shift.service_type)}</div>` : ''}
         <div class="time-text">
             <span>${safeEscape(shift.formatted_time || shift.start_time || '')}</span>
-            ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" title="View note">�</span>` : `<span class="note-icon" data-shift-id="${idStr}" title="Add note">✏️</span>`}
-            <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
-                    <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
-                </svg>
-            </span>
+            <div class="bar-actions">
+                ${hasNote ? `<span class="view-note-icon" data-shift-id="${idStr}" title="View note"><i class="fa-solid fa-note-sticky"></i></span>` : `<span class="note-icon" data-shift-id="${idStr}" title="Add note"><i class="fa-solid fa-square-plus"></i></span>`}
+                <span class="edit-shift-icon" data-shift-id="${idStr}" title="Edit shift">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/>
+                        <path d="M20.71 7.04a1.003 1.003 0 0 0 0-1.41l-2.34-2.34a1.003 1.003 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/>
+                    </svg>
+                </span>
+            </div>
         </div>
         <div class="duration-text">${safeEscape(shift.duration || '')}</div>
         <div class="staff-name">${safeEscape(displayStaff2)}</div>
