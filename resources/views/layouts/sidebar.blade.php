@@ -207,13 +207,13 @@
                                               <i class="ti ti-cash"></i> Salary Report
                                           </a>
                                       </li>
-<!--
+
                                       <li class="{{ request()->is('reports/sia*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.sia') }}">
                                               <i class="ti ti-shield-check"></i> SIA Licence Report
                                           </a>
                                       </li>
--->
+                                      
                                       <li class="{{ request()->is('reports/availability*') ? 'active' : '' }}">
                                           <a href="{{ route('availability.report') }}">
                                               <i class="ti ti-calendar"></i> Availability Report

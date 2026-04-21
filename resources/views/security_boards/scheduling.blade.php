@@ -2495,6 +2495,11 @@
                 });
             }
 
+            window.loadAllShiftsData = function(currentFilters = null) {
+                return loadAllShiftsData(currentFilters);
+            };
+            window.loadAllShiftsData.__isStub = false;
+
             function renderCurrentView(filteredData = null, filters = null) {
                 // If the view window has moved outside the loaded date range and the
                 // caller hasn't supplied pre-filtered data, re-fetch for the new window.
@@ -2549,6 +2554,26 @@
                 updateWeekDisplay();
                 filterGanttChart($('#ganttSearch').val())
             }
+
+            window.removeDeletedShiftsFromGantt = function(ids) {
+                const idsToRemove = Array.isArray(ids) ? ids.map(id => String(id)) : [];
+                if (!idsToRemove.length || !Array.isArray(allShiftsData)) return false;
+
+                const nextShifts = allShiftsData.filter(shift => {
+                    const shiftId = shift && (shift.id || shift.shift_id || shift.shiftId);
+                    return !idsToRemove.includes(String(shiftId));
+                });
+
+                if (nextShifts.length === allShiftsData.length) return false;
+
+                allShiftsData = nextShifts;
+                window.allShiftsData = allShiftsData;
+
+                const activeFilters = window._ganttCurrentFilters || {};
+                const filteredShifts = applyFiltersToShifts(allShiftsData, activeFilters);
+                renderCurrentView(filteredShifts, activeFilters);
+                return true;
+            };
 
             // Persist & apply subcontractor visibility across renders/tab switches/zoom
             function applySubcontractorVisibility(forceState) {
@@ -3120,6 +3145,11 @@
                 success: function(response) {
                     toast_success(response?.message || 'Selected shifts deleted successfully!');
 
+                    let updatedImmediately = false;
+                    if (typeof window.removeDeletedShiftsFromGantt === 'function') {
+                        updatedImmediately = window.removeDeletedShiftsFromGantt(ids);
+                    }
+
                     selectedShiftIds = [];
                     $('#selectedShiftsCount').text(0);
                     selectionMode = false;
@@ -3128,7 +3158,7 @@
                     $('#deleteSelectedBtn').prop('hidden', true);
                     $('.multi-shift-checkbox').prop('checked', false).css('display', 'none');
 
-                    if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
+                    if (!updatedImmediately && window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
                         window.loadAllShiftsData(window._ganttCurrentFilters || {});
                     }
                 },

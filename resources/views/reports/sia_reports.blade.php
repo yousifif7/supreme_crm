@@ -62,11 +62,11 @@
                                             </td>
                                             <td class="text-end">
                                                 <a href="{{ route('reports.sia.show', $run->run_id) }}"
-                                                    class="btn btn-sm btn-primary">
+                                                    class="btn btn-sm btn-outline-primary">
                                                     <i class="ti ti-eye"></i>
                                                 </a>
                                                 <a href="{{ route('reports.sia.csv', $run->run_id) }}"
-                                                    class="btn btn-sm btn-success">
+                                                    class="btn btn-sm btn-outline-success">
                                                     <i class="ti ti-download"></i>
                                                 </a>
                                                 <form method="POST" action="{{ route('reports.sia.delete', $run->run_id) }}"
@@ -75,7 +75,7 @@
                                                     data-run-id="{{ $run->run_id }}">
                                                     @csrf
                                                     @method('DELETE')
-                                                    <button type="submit" class="btn btn-danger btn-sm">
+                                                    <button type="submit" class="btn btn-outline-danger btn-sm">
                                                         <i class="ti ti-trash"></i>
                                                     </button>
                                                 </form>
@@ -86,7 +86,7 @@
                             </table>
                         </div>
                         <div class="p-3">
-                            {{ $runs->links() }}
+                            {!! $runs->onEachSide(1)->links('pagination::bootstrap-5') !!}
                         </div>
                     @endif
                 </div>
