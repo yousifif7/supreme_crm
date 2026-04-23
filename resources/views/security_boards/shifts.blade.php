@@ -304,6 +304,51 @@
                 }
             }
 
+            function buildShiftExportUrl(baseHref) {
+                const exportUrl = new URL(baseHref, window.location.origin);
+                const currentParams = new URLSearchParams(window.location.search);
+
+                // Keep URL/query-state filters in export request.
+                currentParams.forEach(function(value, key) {
+                    if (value !== null && value !== '') {
+                        exportUrl.searchParams.set(key, value);
+                    }
+                });
+
+                // Ensure latest in-page controls are reflected even before next table draw.
+                const shiftStatus = $('#shiftStatus').val();
+                const search = $('.search_box').val();
+                const filterValues = getFilterValues();
+
+                if (shiftStatus) exportUrl.searchParams.set('shiftStatus', shiftStatus);
+                else exportUrl.searchParams.delete('shiftStatus');
+
+                if (search) exportUrl.searchParams.set('search', search);
+                else exportUrl.searchParams.delete('search');
+
+                FILTER_KEYS.forEach(function(key) {
+                    if (filterValues[key]) exportUrl.searchParams.set(key, filterValues[key]);
+                    else exportUrl.searchParams.delete(key);
+                });
+
+                // If user selected rows, prioritize selected IDs for export.
+                exportUrl.searchParams.delete('ids');
+                exportUrl.searchParams.delete('ids[]');
+
+                const selected = $('.dT-row-checkbox:checked').map(function() {
+                    return this.value;
+                }).get();
+
+                // Avoid oversized query strings when too many rows are selected.
+                if (selected.length > 0 && selected.length <= 300) {
+                    selected.forEach(function(id) {
+                        exportUrl.searchParams.append('ids[]', id);
+                    });
+                }
+
+                return exportUrl.toString();
+            }
+
             restoreFromUrl();
 
             $('.staff-select-filter').select2({
@@ -366,6 +411,18 @@
                 syncUrlWithCurrentFilters();
                 drawShiftsTable();
                 closeBsModal('#filterModal');
+            });
+
+            $(document).off('click.shiftExport', 'a.export-pdf, a.export-excel').on('click.shiftExport', 'a.export-pdf, a.export-excel', function(e) {
+                e.preventDefault();
+
+                try {
+                    const destination = buildShiftExportUrl($(this).attr('href'));
+                    window.location = destination;
+                } catch (err) {
+                    console.error('Unable to build shift export URL', err);
+                    window.location = $(this).attr('href');
+                }
             });
 
             $('#resetShiftFilters').on('click', function() {

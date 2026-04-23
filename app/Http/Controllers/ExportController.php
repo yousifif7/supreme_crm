@@ -47,6 +47,104 @@ use Spatie\Permission\Models\Role;
 
 class ExportController extends Controller
 {
+    // XLSX keeps a cell collection in memory; above this threshold export as CSV.
+    private const SHIFT_XLSX_MAX_ROWS = 35000;
+    private const SHIFT_PDF_MAX_ROWS = 10000;
+
+    private function normalizeIds($ids): array
+    {
+        if (!is_array($ids)) {
+            return [];
+        }
+
+        return collect($ids)
+            ->map(fn ($id) => (int) $id)
+            ->filter(fn ($id) => $id > 0)
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function buildShiftExportQuery(Request $request, array $ids = [])
+    {
+        $query = ShiftDate::query()
+            ->with(['shift.client', 'shift.site', 'staff'])
+            ->select('shift_dates.*')
+            ->orderBy('shift_date');
+
+        if (!empty($ids)) {
+            $query->whereIn('shift_dates.id', $ids);
+        }
+
+        $staffId = $request->input('staff');
+        $clientId = $request->input('client_id');
+        $siteId = $request->input('site');
+        $fromShift = $request->input('from_shift');
+        $toShift = $request->input('to_shift');
+
+        if ($staffId !== null && $staffId !== '') {
+            $query->where('shift_dates.staff_id', $staffId);
+        }
+
+        if ($siteId !== null && $siteId !== '') {
+            $query->whereHas('shift', function ($q) use ($siteId) {
+                $q->where('site_id', $siteId);
+            });
+        }
+
+        if ($clientId !== null && $clientId !== '') {
+            $query->whereHas('shift', function ($q) use ($clientId) {
+                $q->where('client_id', $clientId);
+            });
+        }
+
+        if (!empty($fromShift)) {
+            $query->whereDate('shift_dates.shift_date', '>=', $fromShift);
+        }
+
+        if (!empty($toShift)) {
+            $query->whereDate('shift_dates.shift_date', '<=', $toShift);
+        }
+
+        $status = $request->get('ShiftStatus', $request->get('shift_status', $request->get('shiftStatus', $request->get('status'))));
+        if ($status !== null && $status !== '') {
+            $query->where('shift_dates.is_assign', $status);
+        }
+
+        $search = trim((string) $request->input('search', ''));
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('shift_dates.shift_date', 'like', "%{$search}%")
+                    ->orWhere('shift_dates.total_hours', 'like', "%{$search}%")
+                    ->orWhereHas('staff', function ($staffQ) use ($search) {
+                        $staffQ->where('first_name', 'like', "%{$search}%")
+                            ->orWhere('last_name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('shift.client', function ($clientQ) use ($search) {
+                        $clientQ->where('name', 'like', "%{$search}%");
+                    })
+                    ->orWhereHas('shift.site', function ($siteQ) use ($search) {
+                        $siteQ->where('site_name', 'like', "%{$search}%");
+                    });
+            });
+        }
+
+        return $query;
+    }
+
+    private function validateShiftExportCount(int $count, int $limit, string $type)
+    {
+        if ($count <= 0) {
+            return back()->with('warning', 'There is no shift data to export for the current filters.');
+        }
+
+        if ($count > $limit) {
+            return back()->with('error', "Unable to export {$count} shifts as {$type}. Maximum allowed is {$limit}. Please apply tighter filters or select fewer rows.");
+        }
+
+        return null;
+    }
+
     public function exportClientExcel(Request $request)
     {
         $isTemplate = $request->has('template') && $request->get('template') == 1;
@@ -347,22 +445,63 @@ class ExportController extends Controller
     {
         $isTemplate = $request->has('template') && $request->template == 1;
 
-        $ids = $request->input('ids');
-
         if ($isTemplate) {
-            return Excel::download(new ShiftDateExport(true, $ids), 'shifts_template.xlsx');
+            return Excel::download(new ShiftDateExport(true), 'shifts_template.xlsx');
         }
 
-        return Excel::download(new ShiftDateExport(false, $ids), 'shifts.xlsx');
+        // Allow unlimited rows; ShiftDateExport uses FromQuery + chunked processing
+        // so memory stays constant regardless of result set size.
+        set_time_limit(0);
+        ini_set('memory_limit', '1024M');
+
+        // Reduce PhpSpreadsheet memory pressure by persisting cell cache in batches.
+        config([
+            'excel.exports.chunk_size' => 500,
+            'excel.cache.driver' => 'batch',
+            'excel.cache.batch.memory_limit' => 16000,
+            'excel.cache.illuminate.store' => config('cache.default'),
+        ]);
+
+        $ids   = $this->normalizeIds($request->input('ids'));
+        $query = $this->buildShiftExportQuery($request, $ids);
+        $count = (clone $query)->count();
+
+        try {
+            // CSV is dramatically more memory efficient for very large exports
+            // and still opens directly in Excel.
+            if ($count > self::SHIFT_XLSX_MAX_ROWS) {
+                return Excel::download(
+                    new ShiftDateExport(false, $query),
+                    'shifts.csv',
+                    \Maatwebsite\Excel\Excel::CSV,
+                    [
+                        'Content-Type' => 'text/csv; charset=UTF-8',
+                    ]
+                );
+            }
+
+            return Excel::download(new ShiftDateExport(false, $query), 'shifts.xlsx');
+        } catch (\Throwable $e) {
+            \Log::error('Shift Excel export failed: ' . $e->getMessage(), [
+                'file'  => $e->getFile(),
+                'line'  => $e->getLine(),
+                'rows'  => $count,
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            return redirect()->back()->with('error', 'Export failed: ' . $e->getMessage());
+        }
     }
 
-    public function exportShiftPdf()
+    public function exportShiftPdf(Request $request)
     {
-        $ids = request()->input('ids');
+        $ids = $this->normalizeIds($request->input('ids'));
+        $query = $this->buildShiftExportQuery($request, $ids);
+        $count = (clone $query)->count();
 
-        $query = ShiftDate::with('shift')->orderBy('shift_date');
-        if (!empty($ids) && is_array($ids)) {
-            $query->whereIn('id', $ids);
+        $validationResponse = $this->validateShiftExportCount($count, self::SHIFT_PDF_MAX_ROWS, 'PDF');
+        if ($validationResponse) {
+            return $validationResponse;
         }
 
         $shifts = $query->get();

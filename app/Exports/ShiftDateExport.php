@@ -3,42 +3,62 @@
 namespace App\Exports;
 
 use Carbon\Carbon;
-use App\Models\User;
 use App\Models\ShiftDate;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithHeadings;
-use Maatwebsite\Excel\Concerns\FromCollection;
+use Maatwebsite\Excel\Concerns\FromQuery;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithCustomChunkSize;
+use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ShiftDateExport implements FromCollection, WithHeadings, WithMapping, WithStyles, WithColumnWidths
+/**
+ * Shift date export.
+ *
+ * When a query builder is supplied the export uses FromQuery + chunked
+ * processing so the whole result set is never loaded into memory at once.
+ * When no query is supplied (template download) an empty collection is
+ * returned via the FromCollection fallback path.
+ */
+class ShiftDateExport implements FromQuery, WithHeadings, WithMapping, WithStyles, WithColumnWidths, WithCustomChunkSize
 {
-    protected $isTemplate;
-    protected $ids;
+    protected bool $isTemplate;
 
-    public function __construct($isTemplate = false, $ids = null)
+    /** Query builder used for the streamed export. */
+    protected ?QueryBuilder $exportQuery;
+
+    /** Per-instance row counter (avoids static state leaking across requests). */
+    protected int $counter = 0;
+
+    public function __construct(bool $isTemplate = false, ?QueryBuilder $exportQuery = null)
     {
         $this->isTemplate = $isTemplate;
-        $this->ids = $ids;
+        $this->exportQuery = $exportQuery;
     }
 
-    public function collection()
+    /**
+     * Called by Maatwebsite Excel for the main export.
+     * Returning a query builder allows the library to chunk records so
+     * memory stays constant even for 100k+ rows.
+     */
+    public function query(): QueryBuilder
     {
-        if ($this->isTemplate) {
-            // Return empty collection for template
-            return collect([]);
+        if ($this->isTemplate || $this->exportQuery === null) {
+            // Return a query that yields zero rows for template downloads.
+            return ShiftDate::query()->whereRaw('1 = 0');
         }
 
-        $query = ShiftDate::with(['shift.client', 'shift.site', 'staff'])
-            ->orderBy('shift_date');
+        return $this->exportQuery;
+    }
 
-        if (!empty($this->ids) && is_array($this->ids)) {
-            $query->whereIn('id', $this->ids);
-        }
-
-        return $query->get();
+    /**
+     * Process 500 rows per SQL chunk to keep peak memory low.
+     */
+    public function chunkSize(): int
+    {
+        return 500;
     }
 
     public function headings(): array
@@ -62,27 +82,28 @@ class ShiftDateExport implements FromCollection, WithHeadings, WithMapping, With
     public function map($shiftDate): array
     {
         if ($this->isTemplate) {
-            // Return empty array for template
             return [];
         }
 
-        static $counter = 0;
-        $counter++;
+        $this->counter++;
 
         $date = Carbon::parse($shiftDate->shift_date);
+        $staffName = $shiftDate->staff
+            ? trim(($shiftDate->staff->first_name ?? '') . ' ' . ($shiftDate->staff->last_name ?? ''))
+            : '';
 
-        $staff= User::find($shiftDate->staff_id);
-        $client= User::role('client')->where('id',$shiftDate->shift->client_id)->first();
+        $clientName = $shiftDate->shift->client->name ?? '';
+
         return [
-            $counter,
+            $this->counter,
             $date->format('d-M-Y'),
             $date->format('l'),
-            $shiftDate->staff ? trim($staff->first_name . ' ' . $staff->last_name) : '',
-            $client->name ?? '',
+            $staffName,
+            $clientName,
             $shiftDate->shift->site->site_name ?? '',
             $shiftDate->shift->site->contact_number ?? '',
-            Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i'),
-            Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('H:i'),
+            $shiftDate->start_time ? Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i') : '',
+            $shiftDate->end_time   ? Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('H:i')   : '',
             $shiftDate->shift->lost_time ?? '0',
             $shiftDate->total_hours,
             $shiftDate->shift->comments ?? ''

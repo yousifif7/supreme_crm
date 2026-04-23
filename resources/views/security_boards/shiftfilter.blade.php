@@ -79,26 +79,41 @@
                 </ul>
                 <script>
                     (function() {
-                        // Intercept export clicks and append visible shift IDs (from scheduling Gantt)
-                        function buildIdsQuery(ids) {
-                            return ids.map(function(id) { return 'ids[]=' + encodeURIComponent(id); }).join('&');
+                        function buildExportUrl(baseHref) {
+                            var exportUrl = new URL(baseHref, window.location.origin);
+                            var currentParams = new URLSearchParams(window.location.search);
+
+                            // Keep current URL filters/state in export request.
+                            currentParams.forEach(function(value, key) {
+                                if (value !== null && value !== '') {
+                                    exportUrl.searchParams.set(key, value);
+                                }
+                            });
+
+                            // On scheduling pages, gantt search is stored as ganttSearch; map to backend search key.
+                            var ganttSearch = $('#ganttSearch').val();
+                            if (ganttSearch && String(ganttSearch).trim() !== '') {
+                                exportUrl.searchParams.set('ganttSearch', String(ganttSearch).trim());
+                                exportUrl.searchParams.set('search', String(ganttSearch).trim());
+                            }
+
+                            // Keep export URL compact to avoid web-server URI length limits.
+                            // Backend will export using the active filters/search params.
+                            exportUrl.searchParams.delete('ids');
+                            exportUrl.searchParams.delete('ids[]');
+
+                            return exportUrl.toString();
                         }
 
-                        $(document).on('click', 'a.export-pdf, a.export-excel', function(e) {
+                        $(document).off('click.shiftFilterExport', 'a.export-pdf, a.export-excel').on('click.shiftFilterExport', 'a.export-pdf, a.export-excel', function(e) {
                             try {
-                                var href = $(this).attr('href');
-                                var $visibleBars = $('.gantt-bar:visible');
-                                var ids = $visibleBars.map(function() { return $(this).data('shift-id'); }).get();
-
-                                if (!ids || ids.length === 0) {
-                                    // No gantt bars on page (maybe DataTable view). Fall back to original link.
-                                    return; // allow default
+                                // On shifts index page, let the page-specific handler build the URL.
+                                if ($('#shifts-table').length > 0) {
+                                    return;
                                 }
 
                                 e.preventDefault();
-                                var qs = buildIdsQuery(ids);
-                                var sep = href.indexOf('?') === -1 ? '?' : '&';
-                                window.location = href + sep + qs;
+                                window.location = buildExportUrl($(this).attr('href'));
                             } catch (err) {
                                 // On any error, just follow the original link
                                 return;
