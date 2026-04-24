@@ -16,6 +16,9 @@ class SiaLicenceChecker
     protected $timeout = 15;
     // Set to true only when manually debugging a single licence — never leave on for bulk runs
     protected $debug = false;
+    // public storage disk and folder for debug files (storage/app/public/<folder>)
+    protected $publicDebugDisk = 'public';
+    protected $publicDebugPath = 'sia_debug';
 
     /**
      * Check an SIA licence by 16-digit licence number
@@ -59,16 +62,32 @@ class SiaLicenceChecker
                 'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
                 'Accept-Encoding' => 'gzip, deflate, br',
-                'Connection' => 'keep-alive',
+                'Connection' => 'close',
                 'Accept-Language' => 'en-GB,en-US;q=0.9,en;q=0.8',
                 'Referer' => 'https://services.sia.homeoffice.gov.uk/',
             ];
 
+            // Transport hardening for flaky proxy/TLS paths.
+            $transportRetries = max(1, (int) env('SIA_TRANSPORT_RETRIES', 4));
+            $transportBackoffMs = max(100, (int) env('SIA_TRANSPORT_BACKOFF_MS', 700));
+            $curlOptions = [];
+            if (defined('CURLOPT_HTTP_VERSION') && defined('CURL_HTTP_VERSION_1_1')) {
+                $curlOptions[CURLOPT_HTTP_VERSION] = CURL_HTTP_VERSION_1_1;
+            }
+            if (defined('CURLOPT_FRESH_CONNECT')) {
+                $curlOptions[CURLOPT_FRESH_CONNECT] = true;
+            }
+            if (defined('CURLOPT_FORBID_REUSE')) {
+                $curlOptions[CURLOPT_FORBID_REUSE] = true;
+            }
+
             // Two attempts only: one GET, one POST fallback. The extra variants
             // previously here made 12+ HTTP calls per employee, causing CPU spikes.
+            // The site's form uses the field name `LicenseNo` (case-sensitive),
+            // so send that key to receive real results instead of the search page.
             $attempts = [
-                ['method' => 'get',  'params' => ['licence' => $licenceNumber]],
-                ['method' => 'post', 'params' => ['licence' => $licenceNumber]],
+                ['method' => 'post', 'params' => ['LicenseNo' => $licenceNumber]],
+                ['method' => 'get',  'params' => ['LicenseNo' => $licenceNumber]],
             ];
 
             // Keep timeout from class property — do not override it here
@@ -76,8 +95,27 @@ class SiaLicenceChecker
             $cookieJar = new \GuzzleHttp\Cookie\CookieJar();
             $initialFormParams = [];
             try {
+                $seedOptions = [
+                    'allow_redirects' => true,
+                    'http_errors' => false,
+                    'cookies' => $cookieJar,
+                    'connect_timeout' => min(10, $this->timeout),
+                ];
+                if (!empty($curlOptions)) {
+                    $seedOptions['curl'] = $curlOptions;
+                }
+                $seedProxy = env('SIA_HTTP_PROXY');
+                if (!empty($seedProxy)) {
+                    $seedOptions['proxy'] = is_string($seedProxy)
+                        ? ['http' => $seedProxy, 'https' => $seedProxy]
+                        : $seedProxy;
+                }
+                if (env('SIA_DISABLE_CURL_VERIFY', false)) {
+                    $seedOptions['verify'] = false;
+                }
+
                 $seedResp = Http::withHeaders($commonHeaders)
-                    ->withOptions(['allow_redirects' => true, 'http_errors' => false, 'cookies' => $cookieJar])
+                    ->withOptions($seedOptions)
                     ->timeout($this->timeout)
                     ->accept('text/html')
                     ->get('https://services.sia.homeoffice.gov.uk/PublicRegister');
@@ -100,12 +138,19 @@ class SiaLicenceChecker
             } catch (\Throwable $e) {
                 Log::info('SIA initial seed request failed, continuing without initial tokens', ['exception' => $e->getMessage()]);
             }
-            // ensure debug folder exists to avoid Storage failures
+            // ensure public debug folder exists to avoid failures (create public/sia_debug)
             try {
-                Storage::makeDirectory('sia_debug');
+                if (env('SIA_PUBLIC_DEBUG_DIRECT', false)) {
+                    $fullDir = public_path($this->publicDebugPath);
+                    if (!is_dir($fullDir)) {
+                        mkdir($fullDir, 0755, true);
+                    }
+                } else {
+                    Storage::disk($this->publicDebugDisk)->makeDirectory($this->publicDebugPath);
+                }
             } catch (\Throwable $e) {
                 // non-fatal: if we can't create the dir, we'll still try to proceed
-                Log::warning('Unable to ensure sia_debug directory exists', ['exception' => $e->getMessage()]);
+                Log::warning('Unable to ensure public sia_debug directory exists', ['exception' => $e->getMessage()]);
             }
 
             $lastResponse = null;
@@ -117,33 +162,59 @@ class SiaLicenceChecker
 foreach ($attempts as $idx => $attempt) {
                 $method = $attempt['method'];
                 $params = $attempt['params'];
+                // Create a temp stream to capture Guzzle / cURL verbose output for debugging
+                $debugStream = fopen('php://temp', 'w+');
 
                 try {
                     // reuse cookie jar and include any initial hidden form params for POSTs
-                    $opts = ['allow_redirects' => true, 'http_errors' => false, 'cookies' => $cookieJar];
-                    // If an HTTP proxy is configured (for example a UK static IP proxy), pass it to Guzzle
-                    $proxy = env('SIA_HTTP_PROXY');
-                    if (!empty($proxy)) {
-                        // Guzzle accepts either a string (applies to all schemes) or an array with 'http'/'https' keys.
-                        $opts['proxy'] = $proxy;
-                        Log::info('Using SIA HTTP proxy for requests', ['proxy' => $proxy]);
+                    // Attach a debug stream so Guzzle/cURL verbose output can be captured
+                    $opts = ['allow_redirects' => true, 'http_errors' => false, 'cookies' => $cookieJar, 'debug' => $debugStream];
+                    $opts['connect_timeout'] = min(10, $this->timeout);
+                    if (!empty($curlOptions)) {
+                        $opts['curl'] = $curlOptions;
                     }
-                    $response = Http::withHeaders($commonHeaders)
-                        ->withOptions($opts)
-                        ->timeout($this->timeout)
-                        ->retry(1, 500, null, false) // 1 retry, 0.5s backoff — keep it light for bulk
-                        ->accept('text/html');
-
-                    if ($method === 'get') {
-                        $response = $response->get($this->searchUrl, $params);
-                    } else {
-                        // merge in any initial hidden form params we discovered
-                        $postParams = array_merge($initialFormParams, $params);
-                        $response = $response->asForm()->post($this->searchUrl, $postParams);
+                    $configuredProxy = env('SIA_HTTP_PROXY');
+                    // Optional: allow disabling peer verification for temporary debugging only
+                    if (env('SIA_DISABLE_CURL_VERIFY', false)) {
+                        $opts['verify'] = false;
+                        Log::warning('SIA cURL peer verification disabled via SIA_DISABLE_CURL_VERIFY', ['licence' => $licenceNumber]);
                     }
+                    $response = $this->sendSiaRequestWithFailover(
+                        $method,
+                        $params,
+                        $initialFormParams,
+                        $commonHeaders,
+                        $opts,
+                        $configuredProxy,
+                        $transportRetries,
+                        $transportBackoffMs
+                    );
 
                     $status = $response->status();
                     $body = (string) $response->body();
+
+                    // Capture and save the verbose cURL/Guzzle debug output for this attempt
+                    if (($this->debug || env('SIA_PUBLIC_DEBUG', false)) && is_resource($debugStream)) {
+                        rewind($debugStream);
+                        $verbose = stream_get_contents($debugStream);
+                        fclose($debugStream);
+                        if (!empty(trim($verbose))) {
+                            try {
+                                $dbgFile = "sia_{$licenceNumber}_attempt{$idx}_curl_verbose_" . date('Y-m-d_His') . '.log';
+                                $dbgPath = $this->savePublicDebugFile($dbgFile, $verbose);
+                                if ($dbgPath) {
+                                    $savedDebugFiles[] = $dbgPath;
+                                    Log::info('SIA curl verbose saved', ['file' => $dbgPath, 'licence' => $licenceNumber, 'attempt' => $idx]);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning('Failed to save SIA curl verbose debug', ['exception' => $e->getMessage()]);
+                            }
+                        }
+                    } else {
+                        if (is_resource($debugStream)) {
+                            fclose($debugStream);
+                        }
+                    }
                 } catch (\Throwable $e) {
                     // Log and save debug info, then continue to next attempt instead of failing immediately
                     Log::warning('SIA request attempt exception', [
@@ -152,21 +223,26 @@ foreach ($attempts as $idx => $attempt) {
                         'method' => $method,
                         'exception' => $e->getMessage(),
                     ]);
-                    if ($this->debug) {
+                    if ($this->debug || env('SIA_PUBLIC_DEBUG', false)) {
                         $errFile = "sia_{$licenceNumber}_attempt{$idx}_exception_" . date('Y-m-d_His') . '.log';
-                        Storage::put('sia_debug/' . $errFile, $e->getMessage() . "\n\n" . $e->getTraceAsString());
-                        Log::info('SIA exception saved', ['file' => 'storage/app/sia_debug/' . $errFile]);
+                        $path = $this->savePublicDebugFile($errFile, $e->getMessage() . "\n\n" . $e->getTraceAsString());
+                        if ($path) {
+                            $savedDebugFiles[] = $path;
+                            Log::info('SIA exception saved', ['file' => $path]);
+                        }
                     }
                     // try next attempt variant
                     continue;
                 }
 
                 // Save debug html on each attempt if enabled
-                    if ($this->debug) {
+                    if ($this->debug || env('SIA_PUBLIC_DEBUG', false)) {
                         $file = "sia_{$licenceNumber}_attempt{$idx}_" . date('Y-m-d_His') . '.html';
-                        Storage::put('sia_debug/' . $file, $body);
-                        $savedDebugFiles[] = 'storage/app/sia_debug/' . $file;
-                        Log::info('SIA HTML Response Saved', ['file' => 'storage/app/sia_debug/' . $file, 'licence' => $licenceNumber, 'attempt' => $idx]);
+                        $path = $this->savePublicDebugFile($file, $body);
+                        if ($path) {
+                            $savedDebugFiles[] = $path;
+                            Log::info('SIA HTML Response Saved', ['file' => $path, 'licence' => $licenceNumber, 'attempt' => $idx]);
+                        }
                     }
 
                 // Log limited details for diagnostics (avoid dumping huge bodies)
@@ -205,7 +281,25 @@ foreach ($attempts as $idx => $attempt) {
                         return $this->errorResponse('SIA website returned an error/blocking page', $licenceNumber);
                     }
 
-                    return $this->parseResponse($body, $licenceNumber);
+                    $parsedResponse = $this->parseResponse($body, $licenceNumber);
+
+                    // A 200 search page is not a valid result. Try the next attempt before failing.
+                    if ($parsedResponse['success'] === true) {
+                        return $parsedResponse;
+                    }
+
+                    $retryableErrors = [
+                        'Unable to verify licence status',
+                        'Unable to verify licence status (no valid response parsed)',
+                        'Unable to determine licence active status from SIA response',
+                    ];
+
+                    if (in_array($parsedResponse['error'] ?? null, $retryableErrors, true)) {
+                        $lastResponse = $response;
+                        continue;
+                    }
+
+                    return $parsedResponse;
                 }
 
                 // If 5xx, record it and try other variants (do not fail immediately so we can try alternate param names/methods)
@@ -219,16 +313,18 @@ foreach ($attempts as $idx => $attempt) {
                     $serverErrorStatuses[] = $status;
                     $serverErrorCount++;
                     // save full body for diagnostics if debug enabled
-                    if ($this->debug) {
-                        try {
-                            $file500 = "sia_{$licenceNumber}_attempt{$idx}_status{$status}_" . date('Y-m-d_His') . '.html';
-                            Storage::put('sia_debug/' . $file500, $body);
-                            $savedDebugFiles[] = 'storage/app/sia_debug/' . $file500;
-                            Log::info('SIA 5xx HTML Response Saved', ['file' => 'storage/app/sia_debug/' . $file500, 'licence' => $licenceNumber, 'attempt' => $idx]);
-                        } catch (\Throwable $e) {
-                            Log::warning('Failed to save SIA 5xx debug file', ['exception' => $e->getMessage()]);
+                        if ($this->debug || env('SIA_PUBLIC_DEBUG', false)) {
+                            try {
+                                $file500 = "sia_{$licenceNumber}_attempt{$idx}_status{$status}_" . date('Y-m-d_His') . '.html';
+                                $path = $this->savePublicDebugFile($file500, $body);
+                                if ($path) {
+                                    $savedDebugFiles[] = $path;
+                                    Log::info('SIA 5xx HTML Response Saved', ['file' => $path, 'licence' => $licenceNumber, 'attempt' => $idx]);
+                                }
+                            } catch (\Throwable $e) {
+                                Log::warning('Failed to save SIA 5xx debug file', ['exception' => $e->getMessage()]);
+                            }
                         }
-                    }
                     // exponential backoff with jitter before next attempt (ms)
                     // Small fixed backoff — the job will be retried later if needed
                     usleep(300_000); // 300ms
@@ -267,7 +363,10 @@ foreach ($attempts as $idx => $attempt) {
      */
     protected function parseResponse(string $html, string $licenceNumber): array
     {
-        $html = mb_convert_encoding($html, 'HTML-ENTITIES', 'UTF-8');
+        // Replace deprecated mb_convert_encoding(..., 'HTML-ENTITIES', ...)
+        // Convert non-ASCII characters to numeric HTML entities while leaving tags intact
+        $convmap = [0x80, 0xFFFF, 0, 0xFFFF];
+        $html = mb_encode_numericentity($html, $convmap, 'UTF-8');
         $htmlLower = strtolower($html);
 
         // Check for "no results" first
@@ -544,5 +643,227 @@ foreach ($attempts as $idx => $attempt) {
         if ($licenceNumber) {
             Cache::forget('sia_check_' . $this->sanitizeLicenceNumber($licenceNumber));
         }
+    }
+
+    /**
+     * Save a debug file to the public disk and return a web-accessible path.
+     *
+     * @param string $filename
+     * @param string $contents
+     * @return string|null
+     */
+    protected function savePublicDebugFile(string $filename, string $contents): ?string
+    {
+        try {
+            $path = trim($this->publicDebugPath, '/') . '/' . $filename;
+            // If configured to write directly into the project's public/ folder, do that.
+            if (env('SIA_PUBLIC_DEBUG_DIRECT', false)) {
+                $full = public_path($path);
+                $dir = dirname($full);
+                if (!is_dir($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+                file_put_contents($full, $contents);
+                // Return web-accessible path relative to site root
+                return $path;
+            }
+
+            // Default: write to storage/app/public and return storage/ path (requires storage:link)
+            Storage::disk($this->publicDebugDisk)->put($path, $contents);
+            return 'storage/' . $path;
+        } catch (\Throwable $e) {
+            Log::warning('Failed to save public debug file', ['exception' => $e->getMessage(), 'file' => $filename]);
+            return null;
+        }
+    }
+
+    /**
+     * Send one SIA request with proxy failover candidates.
+     */
+    protected function sendSiaRequestWithFailover(
+        string $method,
+        array $params,
+        array $initialFormParams,
+        array $headers,
+        array $baseOptions,
+        $configuredProxy,
+        int $transportRetries,
+        int $transportBackoffMs
+    ) {
+        $proxyCandidates = $this->buildProxyCandidates($configuredProxy);
+        $lastException = null;
+
+        foreach ($proxyCandidates as $candidate) {
+            try {
+                $opts = $baseOptions;
+                if ($candidate !== null) {
+                    $opts['proxy'] = is_string($candidate)
+                        ? ['http' => $candidate, 'https' => $candidate]
+                        : $candidate;
+                    Log::info('Using SIA HTTP proxy candidate', ['proxy' => $this->maskProxyForLog((string) $candidate)]);
+                } else {
+                    unset($opts['proxy']);
+                    Log::warning('Using direct SIA connection fallback (no proxy)');
+                }
+
+                $candidateInitialFormParams = $initialFormParams;
+
+                // Up to two tries per candidate: initial try + one token/session refresh retry on 5xx.
+                for ($candidateTry = 0; $candidateTry < 2; $candidateTry++) {
+                    if ($method === 'post' && empty($candidateInitialFormParams)) {
+                        try {
+                            $seedResponse = Http::withHeaders($headers)
+                                ->withOptions($opts)
+                                ->timeout($this->timeout)
+                                ->accept('text/html')
+                                ->get('https://services.sia.homeoffice.gov.uk/PublicRegister');
+                            $seedBody = (string) ($seedResponse->body() ?? '');
+                            $candidateInitialFormParams = $this->extractHiddenFormInputs($seedBody);
+                            Log::info('SIA candidate seed completed', [
+                                'candidate' => $candidate === null ? 'direct' : $this->maskProxyForLog((string) $candidate),
+                                'hidden_fields' => count($candidateInitialFormParams),
+                            ]);
+                        } catch (\Throwable $seedException) {
+                            Log::warning('SIA candidate seed failed', [
+                                'candidate' => $candidate === null ? 'direct' : $this->maskProxyForLog((string) $candidate),
+                                'exception' => $seedException->getMessage(),
+                            ]);
+                        }
+                    }
+
+                    $request = Http::withHeaders($headers)
+                        ->withOptions($opts)
+                        ->timeout($this->timeout)
+                        ->retry(max(0, $transportRetries - 1), $transportBackoffMs, function ($exception) {
+                            return $this->isRetryableTransportException($exception);
+                        }, false)
+                        ->accept('text/html');
+
+                    if ($method === 'get') {
+                        $response = $request->get($this->searchUrl, $params);
+                    } else {
+                        $postParams = array_merge($candidateInitialFormParams, $params);
+                        $response = $request->asForm()->post($this->searchUrl, $postParams);
+                    }
+
+                    if ($response->status() >= 500 && $candidateTry === 0) {
+                        // Force a fresh seed before second try on same route.
+                        $candidateInitialFormParams = [];
+                        continue;
+                    }
+
+                    return $response;
+                }
+            } catch (\Throwable $e) {
+                $lastException = $e;
+                Log::warning('SIA proxy candidate failed', [
+                    'candidate' => $candidate === null ? 'direct' : $this->maskProxyForLog((string) $candidate),
+                    'exception' => $e->getMessage(),
+                ]);
+                continue;
+            }
+        }
+
+        if ($lastException) {
+            throw $lastException;
+        }
+
+        throw new \RuntimeException('No SIA proxy candidate available');
+    }
+
+    /**
+     * Build proxy candidates from configured proxy and optional pool.
+     */
+    protected function buildProxyCandidates($configuredProxy): array
+    {
+        $candidates = [];
+
+        if (!empty($configuredProxy) && is_string($configuredProxy)) {
+            $candidates[] = trim($configuredProxy);
+        }
+
+        $poolRaw = (string) env('SIA_HTTP_PROXY_POOL', '');
+        if ($poolRaw !== '') {
+            $items = preg_split('/[\r\n,;]+/', $poolRaw) ?: [];
+            foreach ($items as $item) {
+                $item = trim($item);
+                if ($item !== '') {
+                    $candidates[] = $item;
+                }
+            }
+        }
+
+        $candidates = array_values(array_unique($candidates));
+        $allowDirectFallback = (bool) env('SIA_ALLOW_DIRECT_FALLBACK', true);
+
+        if ($allowDirectFallback || empty($candidates)) {
+            $candidates[] = null;
+        }
+
+        return $candidates;
+    }
+
+    /**
+     * Mask proxy credentials before logging.
+     */
+    protected function maskProxyForLog(string $proxy): string
+    {
+        return preg_replace('/:\/\/([^:@\/]+):([^@\/]+)@/', '://$1:***@', $proxy) ?: $proxy;
+    }
+
+    /**
+     * Retry only transient network/proxy/TLS transport errors.
+     */
+    protected function isRetryableTransportException($exception): bool
+    {
+        if (! $exception instanceof \Throwable) {
+            return false;
+        }
+
+        $message = strtolower($exception->getMessage());
+        $retryIndicators = [
+            'curl error 35',
+            'ssl_error_syscall',
+            'unexpected eof',
+            'connection timeout',
+            'operation timed out',
+            'timed out',
+            'could not resolve host',
+            'failed to connect',
+            'connection reset',
+            'recv failure',
+            'empty reply from server',
+        ];
+
+        foreach ($retryIndicators as $indicator) {
+            if (strpos($message, $indicator) !== false) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Extract hidden input fields from the SIA page for form submits.
+     */
+    protected function extractHiddenFormInputs(string $html): array
+    {
+        $fields = [];
+
+        if (preg_match_all('/<input[^>]+type=["\']hidden["\'][^>]*>/i', $html, $hiddenInputs)) {
+            foreach ($hiddenInputs[0] as $inputHtml) {
+                if (preg_match('/name=["\']([^"\']+)["\']/i', $inputHtml, $m)) {
+                    $name = $m[1];
+                    $value = '';
+                    if (preg_match('/value=["\']([^"\']*)["\']/i', $inputHtml, $v)) {
+                        $value = $v[1];
+                    }
+                    $fields[$name] = $value;
+                }
+            }
+        }
+
+        return $fields;
     }
 }

@@ -5,7 +5,6 @@ namespace App\Console\Commands;
 use Illuminate\Console\Command;
 use App\Models\Employee;
 use App\Models\SiaCheckReport;
-use App\Services\SiaLicenceChecker;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -21,17 +20,28 @@ class CheckSiaLicences extends Command
         $useCache  = !$this->option('no-cache');
         $runId     = (string) Str::uuid();
         $checkedAt = now();
+        $today     = now()->startOfDay();
 
         $employees = Employee::whereNotNull('sia_licence')->get();
-        /** @var SiaLicenceChecker $siaChecker */
-        $siaChecker = app(SiaLicenceChecker::class);
+        // Temporarily disabled: external SIA checker service.
+        // /** @var SiaLicenceChecker $siaChecker */
+        // $siaChecker = app(SiaLicenceChecker::class);
 
         foreach ($employees as $employee) {
             $statusBefore = $employee->sia_status;
 
             try {
-                $result    = $siaChecker->checkByLicenceNumber($employee->sia_licence, $useCache);
-                $newStatus = (!empty($result) && !empty($result['valid'])) ? 'Active' : 'Inactive';
+                // Temporarily disabled: external SIA checker service.
+                // $result    = $siaChecker->checkByLicenceNumber($employee->sia_licence, $useCache);
+                // $newStatus = (!empty($result) && !empty($result['valid'])) ? 'Active' : 'Inactive';
+
+                $result = [
+                    'source' => 'sia_expiry',
+                    'expiry' => $employee->sia_expiry,
+                ];
+
+                $hasExpiry = !empty($employee->sia_expiry);
+                $newStatus = ($hasExpiry && $employee->sia_expiry->copy()->startOfDay()->gte($today)) ? 'Active' : 'Inactive';
                 $changed   = $statusBefore !== $newStatus;
 
                 if ($changed) {
@@ -40,9 +50,13 @@ class CheckSiaLicences extends Command
                 }
 
                 if ($newStatus === 'Active') {
-                    Log::info("SIA licence valid for employee {$employee->id}");
+                    Log::info("SIA licence active by expiry date for employee {$employee->id}", [
+                        'sia_expiry' => optional($employee->sia_expiry)->toDateString(),
+                    ]);
                 } else {
-                    $err = $result['error'] ?? 'Licence not valid or not found';
+                    $err = $hasExpiry
+                        ? 'SIA licence expired'
+                        : 'SIA expiry date missing';
                     Log::warning("SIA licence inactive for employee {$employee->id}: {$err}");
                 }
 
