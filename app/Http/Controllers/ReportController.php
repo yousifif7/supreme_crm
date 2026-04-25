@@ -25,6 +25,7 @@ use App\Exports\Reports\SalaryReportExport;
 use App\Exports\Reports\BookingReportExport;
 use App\Exports\Reports\AvailabilityReport;
 use App\Exports\Reports\PerformanceReportExport;
+use App\Models\LoginActivity;
 
 class ReportController extends Controller
 {
@@ -747,6 +748,102 @@ class ReportController extends Controller
             'toDate' => $to,
             'statusOptions' => $statusOptions,
             'totals' => $totals,
+        ]);
+    }
+
+    public function loginReport(Request $request)
+    {
+        $start = $request->input('start_date');
+        $end = $request->input('end_date');
+        $search = $request->input('search');
+
+        // Roles to exclude from this report
+        $excludeRoles = ['security_staff', 'client', 'subcontractor','admin'];
+
+        // Users for the dropdown: exclude the roles above
+        $users = User::whereDoesntHave('roles', function ($r) use ($excludeRoles) {
+            $r->whereIn('name', $excludeRoles);
+        })->orderBy('first_name')->get();
+
+        // Only show results when at least one filter is applied
+        $hasFilters = $request->filled('start_date') || $request->filled('end_date') || $request->filled('search');
+
+        // Prevent exporting without filters
+        if ($request->filled('export') && !$hasFilters) {
+            return redirect()->route('reports.logins')
+                ->with('error', 'Please apply at least one filter before exporting the login activity report.');
+        }
+
+        $activities = collect();
+
+        if ($hasFilters) {
+            $query = LoginActivity::with('user');
+
+            // Exclude users with specific roles from this report
+            $query->whereHas('user', function ($u) use ($excludeRoles) {
+                $u->whereDoesntHave('roles', function ($r) use ($excludeRoles) {
+                    $r->whereIn('name', $excludeRoles);
+                });
+            });
+
+            if ($start) {
+                $query->whereDate('login_at', '>=', $start);
+            }
+
+            if ($end) {
+                $query->whereDate('login_at', '<=', $end);
+            }
+
+            if ($search) {
+                if (is_numeric($search)) {
+                    $query->whereHas('user', fn($q) => $q->where('id', (int) $search));
+                } else {
+                    $like = "%{$search}%";
+                    $query->whereHas('user', function ($q) use ($like) {
+                        $q->where('first_name', 'like', $like)
+                          ->orWhere('last_name', 'like', $like)
+                          ->orWhere('email', 'like', $like);
+                    });
+                }
+            }
+
+            $activities = $query->orderByDesc('login_at')->get();
+        }
+
+        // Handle exports when filters applied
+        if ($request->filled('export') && $hasFilters) {
+            $export = $request->input('export');
+            $fileName = 'Login_Activities_' . now()->format('Y_m_d_His');
+
+            if ($export === 'pdf') {
+                $pdf = Pdf::loadView('reports.pdf.logins-pdf', ['activities' => $activities]);
+                return $pdf->download($fileName . '.pdf');
+            }
+
+            if ($export === 'excel') {
+                $data = $activities->map(function ($a) {
+                    return [
+                        'User' => trim((optional($a->user)->first_name ?? '') . ' ' . (optional($a->user)->last_name ?? '')),
+                        'Email' => optional($a->user)->email,
+                        'Login At' => $a->login_at ? $a->login_at->toDateTimeString() : '',
+                        'Logout At' => $a->logout_at ? $a->logout_at->toDateTimeString() : '',
+                        'Duration Minutes' => ($a->login_at && $a->logout_at) ? (int) $a->login_at->diffInMinutes($a->logout_at) : '',
+                        'IP' => $a->ip_address,
+                    ];
+                })->toArray();
+
+                $headings = ['User', 'Email', 'Login At', 'Logout At', 'Duration Minutes', 'IP'];
+                return Excel::download(new ArrayExport($data, $headings), $fileName . '.xlsx');
+            }
+        }
+
+        return view('reports.logins', [
+            'activities' => $activities,
+            'users' => $users,
+            'startDate' => $start,
+            'endDate' => $end,
+            'search' => $search,
+            'hasFilters' => $hasFilters,
         ]);
     }
 

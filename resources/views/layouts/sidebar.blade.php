@@ -220,6 +220,12 @@
                                           </a>
                                       </li>
 
+                                      <li class="{{ request()->is('reports/logins*') ? 'active' : '' }}">
+                                          <a href="{{ route('reports.logins') }}">
+                                              <i class="ti ti-user"></i> Login Activity Report
+                                          </a>
+                                      </li>
+
                                       {{-- <li class="{{ request()->is('reports/employment*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.employment') }}">
                                               <i class="ti ti-checkup-list"></i>Salary Sheet

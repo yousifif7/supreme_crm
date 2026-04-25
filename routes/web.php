@@ -156,6 +156,20 @@ Route::middleware('auth')->group(function () {
             return redirect($returnUrl);
         }
 
+        // Stamp logout time for latest login activity (best-effort)
+        try {
+            $user = $request->user();
+            if ($user) {
+                $last = \App\Models\LoginActivity::where('user_id', $user->id)
+                    ->whereNull('logout_at')
+                    ->latest('login_at')
+                    ->first();
+                if ($last) $last->update(['logout_at' => now()]);
+            }
+        } catch (\Exception $e) {
+            // ignore
+        }
+
         Auth::logout();
         $request->session()->invalidate();
         $request->session()->regenerateToken();
@@ -611,6 +625,7 @@ Route::get('/reports/availability', [ReportController::class, 'availabilityRepor
 Route::get('/reports/performance', [ReportController::class, 'performanceReport'])->name('performance.report');
 Route::get('/staff-report', [ReportController::class, 'staffReport'])->name('staff.report');
 Route::get('/booking/report', [ReportController::class, 'bookingReport'])->name('booking.report');
+Route::get('/reports/logins', [ReportController::class, 'loginReport'])->name('reports.logins');
 Route::get('/reports/shifts', [ReportController::class, 'shiftReport'])
     ->name('reports.shift');
 Route::get('/reports/clients', [ReportController::class, 'clientReport'])

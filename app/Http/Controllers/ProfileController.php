@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Redirect;
 use Illuminate\View\View;
+use App\Models\LoginActivity;
 
 class ProfileController extends Controller
 {
@@ -65,6 +66,20 @@ class ProfileController extends Controller
             $returnUrl = $request->session()->pull('impersonator_return_url', '/');
             Auth::loginUsingId($impersonatorId);
             return redirect($returnUrl);
+        }
+
+        // Stamp logout time for last login activity if present
+        try {
+            $user = $request->user();
+            if ($user) {
+                $last = LoginActivity::where('user_id', $user->id)
+                    ->whereNull('logout_at')
+                    ->latest('login_at')
+                    ->first();
+                if ($last) $last->update(['logout_at' => now()]);
+            }
+        } catch (\Exception $e) {
+            // ignore logging errors
         }
 
         Auth::logout();

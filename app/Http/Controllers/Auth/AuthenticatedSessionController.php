@@ -8,6 +8,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\View\View;
+use App\Models\LoginActivity;
 
 class AuthenticatedSessionController extends Controller
 {
@@ -28,9 +29,22 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
-        if(auth()->user()->hasRole('client')){
+        // Record login activity
+        try {
+            LoginActivity::create([
+                'user_id' => auth()->id(),
+                'login_at' => now(),
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+            ]);
+        } catch (\Exception $e) {
+            // don't break login on logging errors
+        }
+
+        if (auth()->user()->hasRole('client')) {
             return redirect()->route('client.dashboard');
         }
+
         return redirect()->route('dashboard');
     }
 
@@ -39,6 +53,22 @@ class AuthenticatedSessionController extends Controller
      */
     public function destroy(Request $request): RedirectResponse
     {
+        // Attempt to stamp logout time for user's latest login activity
+        try {
+            $user = $request->user();
+            if ($user) {
+                $last = LoginActivity::where('user_id', $user->id)
+                    ->whereNull('logout_at')
+                    ->latest('login_at')
+                    ->first();
+                if ($last) {
+                    $last->update(['logout_at' => now()]);
+                }
+            }
+        } catch (\Exception $e) {
+            // ignore logging failures
+        }
+
         Auth::guard('web')->logout();
 
         $request->session()->invalidate();
