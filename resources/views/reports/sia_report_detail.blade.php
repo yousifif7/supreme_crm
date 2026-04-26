@@ -43,26 +43,26 @@
                 </div>
             </div>
             <div class="col-6 col-md-2">
-                <div class="card text-center border-0 shadow-sm">
-                    <div class="card-body py-3">
-                        <h4 class="mb-1">{{ $stats['total_changed'] }}</h4>
-                        <small class="text-muted">Changed</small>
-                    </div>
-                </div>
-            </div>
-            <div class="col-6 col-md-2">
                 <div class="card text-center border-0 shadow-sm bg-success bg-opacity-10">
                     <div class="card-body py-3">
-                        <h4 class="mb-1 text-success">{{ $stats['activated'] }}</h4>
-                        <small class="text-muted">Activated</small>
+                        <h4 class="mb-1 text-success">{{ $stats['active'] }}</h4>
+                        <small class="text-muted">Active</small>
                     </div>
                 </div>
             </div>
             <div class="col-6 col-md-2">
                 <div class="card text-center border-0 shadow-sm bg-danger bg-opacity-10">
                     <div class="card-body py-3">
-                        <h4 class="mb-1 text-danger">{{ $stats['deactivated'] }}</h4>
-                        <small class="text-muted">Deactivated</small>
+                        <h4 class="mb-1 text-danger">{{ $stats['inactive'] }}</h4>
+                        <small class="text-muted">Inactive</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-6 col-md-2">
+                <div class="card text-center border-0 shadow-sm bg-secondary bg-opacity-10">
+                    <div class="card-body py-3">
+                        <h4 class="mb-1 text-secondary">{{ $stats['revoked'] }}</h4>
+                        <small class="text-muted">Revoked</small>
                     </div>
                 </div>
             </div>

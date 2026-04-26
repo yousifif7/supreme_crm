@@ -24,9 +24,9 @@
                                     <tr>
                                         <th>Run Date / Time</th>
                                         <th class="text-center">Total Scanned</th>
-                                        <th class="text-center">Changed</th>
-                                        <th class="text-center text-success">Activated</th>
-                                        <th class="text-center text-danger">Deactivated</th>
+                                        <th class="text-center text-success">Active</th>
+                                        <th class="text-center text-danger">Inactive</th>
+                                        <th class="text-center">Revoked</th>
                                         <th class="text-center text-warning">Errors</th>
                                         <th class="text-end">Actions</th>
                                     </tr>
@@ -37,18 +37,22 @@
                                             <td>{{ \Carbon\Carbon::parse($run->run_date)->format('d M Y, H:i') }}</td>
                                             <td class="text-center">{{ $run->total_scanned }}</td>
                                             <td class="text-center">
-                                                <span class="badge bg-secondary">{{ $run->total_changed }}</span>
-                                            </td>
-                                            <td class="text-center">
-                                                @if ($run->activated > 0)
-                                                    <span class="badge bg-success">{{ $run->activated }}</span>
+                                                @if ($run->active > 0)
+                                                    <span class="badge bg-success">{{ $run->active }}</span>
                                                 @else
                                                     <span class="text-muted">0</span>
                                                 @endif
                                             </td>
                                             <td class="text-center">
-                                                @if ($run->deactivated > 0)
-                                                    <span class="badge bg-danger">{{ $run->deactivated }}</span>
+                                                @if ($run->inactive > 0)
+                                                    <span class="badge bg-danger">{{ $run->inactive }}</span>
+                                                @else
+                                                    <span class="text-muted">0</span>
+                                                @endif
+                                            </td>
+                                            <td class="text-center">
+                                                @if ($run->revoked > 0)
+                                                    <span class="badge bg-secondary">{{ $run->revoked }}</span>
                                                 @else
                                                     <span class="text-muted">0</span>
                                                 @endif

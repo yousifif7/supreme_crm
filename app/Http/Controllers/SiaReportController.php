@@ -14,14 +14,14 @@ class SiaReportController extends Controller
      */
     public function index(Request $request)
     {
-        // Build a summary table grouped by run_id
+        // Build a summary table grouped by run_id (show run-level status counts)
         $runs = SiaCheckReport::select(
                 'run_id',
                 DB::raw('MIN(checked_at) as run_date'),
                 DB::raw('COUNT(*) as total_scanned'),
-                DB::raw('SUM(changed) as total_changed'),
-                DB::raw('SUM(CASE WHEN status_after = "Active" AND changed = 1 THEN 1 ELSE 0 END) as activated'),
-                DB::raw('SUM(CASE WHEN status_after = "Inactive" AND changed = 1 THEN 1 ELSE 0 END) as deactivated'),
+                DB::raw('SUM(CASE WHEN status_after = "Active" THEN 1 ELSE 0 END) as active'),
+                DB::raw('SUM(CASE WHEN status_after = "Inactive" THEN 1 ELSE 0 END) as inactive'),
+                DB::raw('SUM(CASE WHEN status_after = "Revoked" THEN 1 ELSE 0 END) as revoked'),
                 DB::raw('SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as errors')
             )
             ->groupBy('run_id')
@@ -50,9 +50,9 @@ class SiaReportController extends Controller
         // Summary stats for the run header (calculated from full run regardless of filters)
         $stats = [
             'total_scanned' => $allEntries->count(),
-            'total_changed' => $allEntries->where('changed', true)->count(),
-            'activated'     => $allEntries->where('changed', true)->where('status_after', 'Active')->count(),
-            'deactivated'   => $allEntries->where('changed', true)->where('status_after', 'Inactive')->count(),
+            'active'        => $allEntries->where('status_after', 'Active')->count(),
+            'inactive'      => $allEntries->where('status_after', 'Inactive')->count(),
+            'revoked'       => $allEntries->where('status_after', 'Revoked')->count(),
             'errors'        => $allEntries->whereNotNull('error')->count(),
         ];
 
