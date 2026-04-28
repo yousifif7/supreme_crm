@@ -492,6 +492,28 @@ foreach ($attempts as $idx => $attempt) {
         // Remove script tags
         $html = preg_replace('/<script\b[^>]*>(.*?)<\/script>/is', '', $html);
 
+        $cardFields = [];
+        if (preg_match_all('/<span[^>]*class="ax_paragraph"[^>]*>\s*(.*?)\s*<\/span>\s*<div[^>]*class="form-group"[^>]*>\s*(?:<div|<span)[^>]*class="(ax_h4(?:_green)?|ax_h5)"[^>]*>\s*(.*?)\s*<\/(?:div|span)>/is', $html, $matches, PREG_SET_ORDER)) {
+            foreach ($matches as $match) {
+                $label = trim(html_entity_decode(strip_tags($match[1])));
+                $value = trim(html_entity_decode(strip_tags($match[3])));
+
+                if ($label === '' || $value === '') {
+                    continue;
+                }
+
+                $cardFields[$label] = preg_replace('/\s+/', ' ', $value);
+                $this->mapField($result, $label, $cardFields[$label]);
+            }
+        }
+
+        $firstName = $cardFields['First name'] ?? null;
+        $surname = $cardFields['Surname'] ?? null;
+
+        if ($firstName || $surname) {
+            $result['holder_name'] = trim(implode(' ', array_filter([$firstName, $surname])));
+        }
+
         // Try to find table with results
         if (preg_match('/<table[^>]*>(.*?)<\/table>/is', $html, $tableMatch)) {
             $tableHtml = $tableMatch[1];
@@ -529,7 +551,7 @@ foreach ($attempts as $idx => $attempt) {
             'name' => '/(?:holder\s*name|name)[:\s]*(?:<[^>]*>)*([\p{L}\s\.\'\-]{2,100})/iu',
             'status' => '/(?:licence\s*)?status[:\s]*(?:<[^>]*>)*([A-Za-z\/\s]+)/i',
             'sector' => '/(?:licence\s*)?(?:sector|type)[:\s]*(?:<[^>]*>)*([A-Za-z\s]+)/i',
-            'expiry' => '/(?:expiry|expires|expiry date)[:\s]*(?:<[^>]*>)*([\d\/\-]+)/i',
+            'expiry' => '/(?:expiry|expires|expiry date)[:\s]*(?:<[^>]*>)*([A-Za-z0-9\/,\-\s]+)/i',
         ];
 
         foreach ($patterns as $field => $pattern) {

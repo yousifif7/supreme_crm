@@ -107,6 +107,22 @@
             <div class="col-auto">
                 <div class="card p-2">
                     <div class="card-body text-center">
+                        <h6 class="mb-1">Total Checkcalls</h6>
+                        <div class="h4 mb-0">{{ number_format($totals['total_checkcalls'] ?? 0) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="card p-2">
+                    <div class="card-body text-center">
+                        <h6 class="mb-1">Total Patrols</h6>
+                        <div class="h4 mb-0">{{ number_format($totals['total_patrols'] ?? 0) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="card p-2">
+                    <div class="card-body text-center">
                         <h6 class="mb-1">Missed Checkcalls</h6>
                         <div class="h4 mb-0">{{ number_format($totals['total_missed_checkcalls'] ?? 0) }}</div>
                     </div>
@@ -120,11 +136,20 @@
                     </div>
                 </div>
             </div>
+
             <div class="col-auto">
                 <div class="card p-2">
                     <div class="card-body text-center">
-                        <h6 class="mb-1">Unassigned Shifts</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_unassigned_shifts'] ?? 0) }}</div>
+                        <h6 class="mb-1">Completed Checkcalls</h6>
+                        <div class="h4 mb-0">{{ number_format($totals['total_completed_checkcalls'] ?? 0) }}</div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-auto">
+                <div class="card p-2">
+                    <div class="card-body text-center">
+                        <h6 class="mb-1">Completed Patrols</h6>
+                        <div class="h4 mb-0">{{ number_format($totals['total_completed_patrols'] ?? 0) }}</div>
                     </div>
                 </div>
             </div>
@@ -158,10 +183,10 @@
                                 @foreach($stats as $row)
                                     <tr>
                                         <td>
-                                            @if($row['staff_id'] === 'unassigned')
-                                                <em>Unassigned</em>
-                                            @else
+                                            @if(!empty($row['staff_id']))
                                                 <a href="{{ url('staff/' . $row['staff_id']) }}" target="_blank">{{ $row['staff_name'] }}</a>
+                                            @else
+                                                {{ $row['staff_name'] }}
                                             @endif
                                         </td>
                                         <td>{{ $row['total_shifts'] }}</td>

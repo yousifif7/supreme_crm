@@ -591,11 +591,10 @@ class ReportController extends Controller
                 ];
             });
 
-        // Ensure "Unassigned" appears at the top of the collection
-        $stats = $stats->sortByDesc(function ($row) {
-            return ($row['staff_id'] === 'unassigned') ? 1 : 0;
-        })->values();
-        // --- compute the five totals requested ---
+        // Remove any unassigned rows from the per-staff stats (we don't show unassigned shifts)
+        $stats = $stats->reject(fn($row) => ($row['staff_id'] === 'unassigned'))->values();
+
+        // --- compute totals for shifts, checkcalls and patrols ---
 
         $isMissed = function ($item) {
             if (!$item) return false;
@@ -613,16 +612,19 @@ class ReportController extends Controller
         };
 
         $totalShiftsToClient = $shiftDates->count();
-        $totalUnassignedShifts = $shiftDates->filter(fn($sd) => !($sd->shift && $sd->shift->staff_id))->count();
         $totalCompletedShifts = $shiftDates->filter(function ($sd) {
             if (isset($sd->is_assign) && $sd->is_assign == 4) return true;
             if (isset($sd->status) && $sd->status == 4) return true;
             if (isset($sd->shift) && isset($sd->shift->status) && $sd->shift->status == 4) return true;
             return false;
         })->count();
-
         $totalMissedCheckcalls = 0;
         $totalMissedPatrols = 0;
+
+        $totalCheckcalls = 0;
+        $totalCompletedCheckcalls = 0;
+        $totalPatrols = 0;
+        $totalCompletedPatrols = 0;
 
         $checkcallRelation = method_exists(ShiftDate::class, 'checkcalls') ? 'checkcalls' : (method_exists(ShiftDate::class, 'check_call_attempts') ? 'check_call_attempts' : null);
         $patrolRelation = method_exists(ShiftDate::class, 'patrols') ? 'patrols' : (method_exists(ShiftDate::class, 'checkpoints') ? 'checkpoints' : (method_exists(ShiftDate::class, 'patrolCheckpoints') ? 'patrolCheckpoints' : null));
@@ -631,7 +633,8 @@ class ReportController extends Controller
             foreach ($shiftDates as $sd) {
                 $items = $sd->{$checkcallRelation} ?? collect();
                 foreach ($items as $it) {
-                    if ($isMissed($it)) $totalMissedCheckcalls++;
+                    $totalCheckcalls++;
+                    if ($isMissed($it)) $totalMissedCheckcalls++; else $totalCompletedCheckcalls++;
                 }
             }
         }
@@ -640,7 +643,8 @@ class ReportController extends Controller
             foreach ($shiftDates as $sd) {
                 $items = $sd->{$patrolRelation} ?? collect();
                 foreach ($items as $it) {
-                    if ($isMissed($it)) $totalMissedPatrols++;
+                    $totalPatrols++;
+                    if ($isMissed($it)) $totalMissedPatrols++; else $totalCompletedPatrols++;
                 }
             }
         }
@@ -655,9 +659,12 @@ class ReportController extends Controller
         // Totals array passed to view / exports
         $totals = [
             'total_shifts_to_client' => $totalShiftsToClient,
+            'total_checkcalls' => $totalCheckcalls,
+            'total_completed_checkcalls' => $totalCompletedCheckcalls,
             'total_missed_checkcalls' => $totalMissedCheckcalls,
+            'total_patrols' => $totalPatrols,
+            'total_completed_patrols' => $totalCompletedPatrols,
             'total_missed_patrols' => $totalMissedPatrols,
-            'total_unassigned_shifts' => $totalUnassignedShifts,
             'total_completed_shifts' => $totalCompletedShifts,
         ];
 
@@ -715,16 +722,22 @@ class ReportController extends Controller
                     fputcsv($out, $line);
                 }
 
-                // Optionally append totals row
+                // Optionally append totals rows
                 fputcsv($out, []); // blank row
-                $totalsRow = [
-                    'Totals',
-                    '',
-                    $totals['total_shifts_to_client'] ?? '',
-                    '', // total hours blank
+                $pad = array_fill(0, count($statusOptions), '');
+                $totRows = [
+                    ['Totals', '', $totals['total_shifts_to_client'] ?? ''],
+                    ['Total Checkcalls', '', $totals['total_checkcalls'] ?? ''],
+                    ['Completed Checkcalls', '', $totals['total_completed_checkcalls'] ?? ''],
+                    ['Missed Checkcalls', '', $totals['total_missed_checkcalls'] ?? ''],
+                    ['Total Patrols', '', $totals['total_patrols'] ?? ''],
+                    ['Completed Patrols', '', $totals['total_completed_patrols'] ?? ''],
+                    ['Missed Patrols', '', $totals['total_missed_patrols'] ?? ''],
+                    ['Completed Shifts', '', $totals['total_completed_shifts'] ?? ''],
                 ];
-                foreach ($statusOptions as $code => $label) $totalsRow[] = '';
-                fputcsv($out, $totalsRow);
+                foreach ($totRows as $r) {
+                    fputcsv($out, array_merge($r, $pad));
+                }
 
                 fclose($out);
             };

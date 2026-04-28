@@ -52,18 +52,22 @@ class PerformanceReportExport implements FromArray, WithHeadings, ShouldAutoSize
         $this->rows[] = $this->headings;
         foreach ($rows as $r) $this->rows[] = $r;
 
-        // Optionally append totals row
-        $totalsRow = [
-            'Totals',
-            '',
-            $totals['total_shifts_to_client'] ?? '',
-            '', // total hours left blank
+        // Optionally append totals rows (keep columns aligned with status columns)
+        $this->rows[] = [];
+        $pad = array_fill(0, count($statusOptions), '');
+        $totRows = [
+            ['Totals', '', $totals['total_shifts_to_client'] ?? ''],
+            ['Total Checkcalls', '', $totals['total_checkcalls'] ?? ''],
+            ['Completed Checkcalls', '', $totals['total_completed_checkcalls'] ?? ''],
+            ['Missed Checkcalls', '', $totals['total_missed_checkcalls'] ?? ''],
+            ['Total Patrols', '', $totals['total_patrols'] ?? ''],
+            ['Completed Patrols', '', $totals['total_completed_patrols'] ?? ''],
+            ['Missed Patrols', '', $totals['total_missed_patrols'] ?? ''],
+            ['Completed Shifts', '', $totals['total_completed_shifts'] ?? ''],
         ];
-        foreach ($statusOptions as $code => $label) {
-            // we won't place totals per status here unless you want to compute them
-            $totalsRow[] = '';
+        foreach ($totRows as $r) {
+            $this->rows[] = array_merge($r, $pad);
         }
-        $this->rows[] = $totalsRow;
     }
 
     public function array(): array

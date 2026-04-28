@@ -45,8 +45,20 @@
             <div style="font-weight:bold; font-size:16px">{{ number_format($totals['total_missed_patrols'] ?? 0) }}</div>
         </div>
         <div class="tot-card">
-            <div>Unassigned Shifts</div>
-            <div style="font-weight:bold; font-size:16px">{{ number_format($totals['total_unassigned_shifts'] ?? 0) }}</div>
+            <div>Total Checkcalls</div>
+            <div style="font-weight:bold; font-size:16px">{{ number_format($totals['total_checkcalls'] ?? 0) }}</div>
+        </div>
+        <div class="tot-card">
+            <div>Completed Checkcalls</div>
+            <div style="font-weight:bold; font-size:16px">{{ number_format($totals['total_completed_checkcalls'] ?? 0) }}</div>
+        </div>
+        <div class="tot-card">
+            <div>Total Patrols</div>
+            <div style="font-weight:bold; font-size:16px">{{ number_format($totals['total_patrols'] ?? 0) }}</div>
+        </div>
+        <div class="tot-card">
+            <div>Completed Patrols</div>
+            <div style="font-weight:bold; font-size:16px">{{ number_format($totals['total_completed_patrols'] ?? 0) }}</div>
         </div>
         <div class="tot-card">
             <div>Completed Shifts</div>
@@ -69,11 +81,7 @@
             @foreach($stats as $row)
                 <tr>
                     <td>
-                        @if($row['staff_id'] === 'unassigned')
-                            Unassigned
-                        @else
-                            {{ $row['staff_name'] }}
-                        @endif
+                        {{ $row['staff_name'] }}
                     </td>
                     <td>{{ $row['total_shifts'] }}</td>
                     <td>{{ $row['total_hours'] }}</td>

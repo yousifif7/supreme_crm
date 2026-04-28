@@ -139,6 +139,18 @@ class Employee extends Model
         });
     }
 
+    public function setSiaLicenceAttribute($value): void
+    {
+        if ($value === null) {
+            $this->attributes['sia_licence'] = null;
+
+            return;
+        }
+
+        $normalised = preg_replace('/[^0-9]/', '', (string) $value);
+        $this->attributes['sia_licence'] = $normalised !== '' ? $normalised : null;
+    }
+
     public function department(): BelongsTo
     {
         return $this->belongsTo(Department::class);

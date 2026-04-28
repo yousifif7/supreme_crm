@@ -45,14 +45,26 @@ class RunSiaCheck implements ShouldQueue
 
         $statusBefore = $employee->sia_status;
         $checkedAt    = now();
+        $normalisedLicence = preg_replace('/[^0-9]/', '', (string) $employee->sia_licence);
+
+        if ($normalisedLicence === '') {
+            return;
+        }
+
+        if ($normalisedLicence !== (string) $employee->sia_licence) {
+            $employee->sia_licence = $normalisedLicence;
+        }
 
         try {
-            $result    = $checker->checkByLicenceNumber($employee->sia_licence, true);
+            $result    = $checker->checkByLicenceNumber($normalisedLicence, true);
             $newStatus = (!empty($result['valid'])) ? 'Active' : 'Inactive';
             $changed   = $statusBefore !== $newStatus;
 
             if ($changed) {
                 $employee->sia_status = $newStatus;
+            }
+
+            if ($employee->isDirty(['sia_licence', 'sia_status'])) {
                 $employee->save();
                 Log::info('RunSiaCheck: status updated', [
                     'employee_id' => $this->employeeId,
@@ -65,11 +77,11 @@ class RunSiaCheck implements ShouldQueue
                 'run_id'        => $this->runId,
                 'employee_id'   => $employee->id,
                 'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),
-                'sia_licence'   => $employee->sia_licence,
+                'sia_licence'   => $normalisedLicence,
                 'status_before' => $statusBefore,
                 'status_after'  => $newStatus,
                 'changed'       => $changed,
-                'error'         => null,
+                'error'         => !empty($result['success']) ? null : ($result['error'] ?? null),
                 'checked_at'    => $checkedAt,
             ]);
         } catch (\Throwable $e) {
@@ -83,7 +95,7 @@ class RunSiaCheck implements ShouldQueue
                 'run_id'        => $this->runId,
                 'employee_id'   => $employee->id,
                 'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),
-                'sia_licence'   => $employee->sia_licence,
+                'sia_licence'   => $normalisedLicence,
                 'status_before' => $statusBefore,
                 'status_after'  => null,
                 'changed'       => false,
