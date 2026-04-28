@@ -2,11 +2,9 @@
 
 namespace Tests\Feature;
 
-use App\Jobs\RunSiaCheck;
 use App\Models\Employee;
 use App\Services\SiaLicenceChecker;
 use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Mockery;
@@ -52,32 +50,66 @@ class CheckSiaLicencesCommandTest extends TestCase
             ->assertExitCode(0);
     }
 
-    public function test_it_queues_bulk_sia_checks_for_all_employees(): void
+    public function test_it_processes_bulk_sia_checks_directly_for_all_employees(): void
     {
-        Bus::fake();
-
+        Schema::dropIfExists('sia_check_reports');
         Schema::dropIfExists('employees');
+
         Schema::create('employees', function (Blueprint $table) {
             $table->id();
+            $table->string('fore_name')->nullable();
+            $table->string('sur_name')->nullable();
             $table->string('sia_licence')->nullable();
+            $table->string('sia_status')->nullable();
+            $table->timestamps();
             $table->softDeletes();
         });
 
+        Schema::create('sia_check_reports', function (Blueprint $table) {
+            $table->id();
+            $table->string('run_id');
+            $table->unsignedBigInteger('employee_id');
+            $table->string('employee_name')->nullable();
+            $table->string('sia_licence')->nullable();
+            $table->string('status_before')->nullable();
+            $table->string('status_after')->nullable();
+            $table->boolean('changed')->default(false);
+            $table->text('error')->nullable();
+            $table->dateTime('checked_at')->nullable();
+            $table->timestamps();
+        });
+
         DB::table('employees')->insert([
-            ['id' => 1, 'sia_licence' => '1011 0015 4420 8079'],
-            ['id' => 2, 'sia_licence' => '1013464710444055'],
-            ['id' => 3, 'sia_licence' => null],
+            ['id' => 1, 'fore_name' => 'A', 'sur_name' => 'One', 'sia_licence' => '1011 0015 4420 8079', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 2, 'fore_name' => 'B', 'sur_name' => 'Two', 'sia_licence' => '1013464710444055', 'created_at' => now(), 'updated_at' => now()],
+            ['id' => 3, 'fore_name' => 'C', 'sur_name' => 'Three', 'sia_licence' => null, 'created_at' => now(), 'updated_at' => now()],
         ]);
+
+        $checker = Mockery::mock(SiaLicenceChecker::class);
+        $checker->shouldReceive('checkByLicenceNumber')
+            ->once()
+            ->with('1011001544208079', true)
+            ->andReturn(['success' => true, 'valid' => true, 'error' => null]);
+        $checker->shouldReceive('checkByLicenceNumber')
+            ->once()
+            ->with('1013464710444055', true)
+            ->andReturn(['success' => true, 'valid' => false, 'error' => null]);
+
+        $this->app->instance(SiaLicenceChecker::class, $checker);
 
         try {
             $this->artisan('sia:check')
                 ->expectsOutput('Starting SIA licence check...')
-                ->expectsOutputToContain('Queued SIA checks for 2 employees. Run ID:')
+                ->expectsOutputToContain('Processed 2 SIA licences. Run ID:')
                 ->expectsOutput('SIA licence check completed.')
                 ->assertExitCode(0);
 
-            Bus::assertDispatchedTimes(RunSiaCheck::class, 2);
+            $this->assertSame(2, DB::table('sia_check_reports')->count());
+            $this->assertSame('1011001544208079', DB::table('employees')->where('id', 1)->value('sia_licence'));
+            $this->assertSame('Active', DB::table('employees')->where('id', 1)->value('sia_status'));
+            $this->assertSame('Inactive', DB::table('employees')->where('id', 2)->value('sia_status'));
         } finally {
+            Schema::dropIfExists('sia_check_reports');
             Schema::dropIfExists('employees');
         }
     }

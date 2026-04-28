@@ -2,9 +2,9 @@
 
 namespace App\Console\Commands;
 
-use App\Jobs\RunSiaCheck;
 use Illuminate\Console\Command;
 use App\Models\Employee;
+use App\Models\SiaCheckReport;
 use App\Services\SiaLicenceChecker;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -21,14 +21,12 @@ class CheckSiaLicences extends Command
         $useCache  = !$this->option('no-cache');
         $licence   = $this->option('licence');
         $runId     = (string) Str::uuid();
-        $checkedAt = now();
 
         if (is_string($licence) && trim($licence) !== '') {
             return $this->handleSingleLicenceCheck($siaChecker, $licence, $useCache);
         }
 
-        $employeeIds = Employee::whereNotNull('sia_licence')->pluck('id');
-        $total = $employeeIds->count();
+        $total = Employee::whereNotNull('sia_licence')->count();
 
         if ($total === 0) {
             $this->warn('No employees with SIA licences found.');
@@ -36,17 +34,69 @@ class CheckSiaLicences extends Command
             return self::SUCCESS;
         }
 
-        foreach ($employeeIds as $index => $id) {
-            RunSiaCheck::dispatch($id, $runId)->delay(now()->addSeconds($index * 3));
-        }
+        $processed = 0;
 
-        Log::info('Queued SIA checks from artisan command', [
-            'count' => $total,
-            'run_id' => $runId,
-            'use_cache' => $useCache,
-        ]);
+        Employee::whereNotNull('sia_licence')
+            ->orderBy('id')
+            ->chunkById(100, function ($employees) use ($siaChecker, $useCache, $runId, &$processed): void {
+                foreach ($employees as $employee) {
+                    $statusBefore = $employee->sia_status;
+                    $checkedAt = now();
+                    $normalisedLicence = $this->normaliseLicenceNumber((string) $employee->sia_licence);
 
-        $this->info("Queued SIA checks for {$total} employees. Run ID: {$runId}");
+                    if ($normalisedLicence === '') {
+                        continue;
+                    }
+
+                    if ($normalisedLicence !== (string) $employee->sia_licence) {
+                        $employee->sia_licence = $normalisedLicence;
+                    }
+
+                    try {
+                        $result    = $siaChecker->checkByLicenceNumber($normalisedLicence, $useCache);
+                        $newStatus = (!empty($result['valid'])) ? 'Active' : 'Inactive';
+                        $changed   = $statusBefore !== $newStatus;
+
+                        if ($changed) {
+                            $employee->sia_status = $newStatus;
+                        }
+
+                        if ($employee->isDirty(['sia_licence', 'sia_status'])) {
+                            $employee->save();
+                        }
+
+                        SiaCheckReport::create([
+                            'run_id'        => $runId,
+                            'employee_id'   => $employee->id,
+                            'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),
+                            'sia_licence'   => $normalisedLicence,
+                            'status_before' => $statusBefore,
+                            'status_after'  => $newStatus,
+                            'changed'       => $changed,
+                            'error'         => !empty($result['success']) ? null : ($result['error'] ?? null),
+                            'checked_at'    => $checkedAt,
+                        ]);
+                    } catch (\Throwable $e) {
+                        Log::error("Error checking SIA licence for employee {$employee->id}: " . $e->getMessage());
+
+                        SiaCheckReport::create([
+                            'run_id'        => $runId,
+                            'employee_id'   => $employee->id,
+                            'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),
+                            'sia_licence'   => $normalisedLicence,
+                            'status_before' => $statusBefore,
+                            'status_after'  => null,
+                            'changed'       => false,
+                            'error'         => $e->getMessage(),
+                            'checked_at'    => $checkedAt,
+                        ]);
+                    }
+
+                    $processed++;
+                }
+            });
+
+        $this->info("Processed {$processed} SIA licences. Run ID: {$runId}");
         $this->info('SIA licence check completed.');
 
         return self::SUCCESS;
