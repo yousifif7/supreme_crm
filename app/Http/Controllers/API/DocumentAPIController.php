@@ -144,7 +144,6 @@ class DocumentAPIController extends Controller
     public function alerts(Request $request)
     {
         $user = $request->user();
-        Log::info("Alerts endpoint called", ['user_id' => $user->id, 'user_name' => $user->name ?? $user->first_name]);
         // Fast-response cache: avoid recomputing alerts for frequent polling
         $cacheResponseKey = "alerts:response:user:{$user->id}";
         if (Cache::has($cacheResponseKey)) {
@@ -186,13 +185,7 @@ class DocumentAPIController extends Controller
             if ($doc && !empty($doc->expiry_date)) {
                 try {
                     $expiryDate = Carbon::parse($doc->expiry_date);
-                    Log::info("Document expiry check for user {$user->id}", [
-                        'type' => $type,
-                        'doc_id' => $doc->id,
-                        'expiry_date' => $doc->expiry_date,
-                        'parsed_date' => $expiryDate->toDateString(),
-                        'days_until_expiry' => now()->diffInDays($expiryDate, false)
-                    ]);
+
                 } catch (\Exception $e) {
                     $expiryDate = null;
                     Log::warning("Failed to parse document expiry date", ['type' => $type, 'doc_id' => $doc->id, 'expiry_date' => $doc->expiry_date]);
@@ -205,12 +198,7 @@ class DocumentAPIController extends Controller
                 if (!empty($user->employee->$empField)) {
                     try {
                         $expiryDate = Carbon::parse($user->employee->$empField);
-                        Log::info("Document expiry from employee field for user {$user->id}", [
-                            'type' => $type,
-                            'field' => $empField,
-                            'expiry_date' => $user->employee->$empField,
-                            'parsed_date' => $expiryDate->toDateString()
-                        ]);
+;
                     } catch (\Exception $e) {
                         $expiryDate = null;
                     }
@@ -237,11 +225,6 @@ class DocumentAPIController extends Controller
                         'days_remaining' => $daysRemaining,
                     ];
 
-                    Log::info("Document expiry alert created for user {$user->id}", [
-                        'type' => $type,
-                        'message' => $message,
-                        'days_remaining' => $daysRemaining
-                    ]);
 
                     $docIdPart = $doc ? $doc->id : 'type_' . $type;
                     $cacheKey = "alerts:document_expiry:user:{$user->id}:doc:{$docIdPart}";
@@ -267,11 +250,7 @@ class DocumentAPIController extends Controller
 
                     $alerts[] = $alert;
                 } else {
-                    Log::info("Document expiry excluded (outside window) for user {$user->id}", [
-                        'type' => $type,
-                        'expiry_date' => $expiryDate->toDateString(),
-                        'days_until_expiry' => now()->diffInDays($expiryDate, false)
-                    ]);
+
                 }
             }
         }
@@ -344,7 +323,7 @@ class DocumentAPIController extends Controller
                     try {
                         $patrol->update(['status' => 'missed']);
                     } catch (\Exception $e) {
-                        Log::error('Failed to mark patrol missed', ['patrol_id' => $patrol->id, 'error' => $e->getMessage()]);
+                        // Log::error('Failed to mark patrol missed', ['patrol_id' => $patrol->id, 'error' => $e->getMessage()]);
                     }
                     Cache::forget($markerKey);
 

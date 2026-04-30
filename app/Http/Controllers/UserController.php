@@ -507,7 +507,7 @@ class UserController extends Controller
         // Fetch guards (with entity) and aggregated hours in two queries (avoid N+1)
         $guards = \App\Models\Employee::where(function ($q) {
             $q->where('sia_status', 'Active')->orWhere('sia_status', 'valid');
-        })->with('entity')->get()->keyBy('user_id');
+        })->get()->keyBy('user_id');
 
         $hoursAgg = \DB::table('shift_dates')
             ->select('staff_id', \DB::raw('SUM(total_hours) as total_week'))
@@ -517,8 +517,7 @@ class UserController extends Controller
             ->keyBy('staff_id');
 
         foreach ($guards as $userId => $staff) {
-            $entity = $staff->entity;
-            $minWeeklyHours = $entity->hour_per_week ?? 40;
+            $minWeeklyHours = $staff->hour_per_week ?? 40;
 
             $totalWeekHours = isset($hoursAgg[$userId]) ? (float)$hoursAgg[$userId]->total_week : 0;
 
@@ -609,7 +608,7 @@ class UserController extends Controller
             return; // already pruned today
         }
 
-        $cutoff = now()->subDays(90)->toDateTimeString();
+        $cutoff = now()->subDays(180)->toDateTimeString();
         $batchSize = 1000; // delete in batches to avoid long locks / large transactions
         $totalDeleted = 0;
 
@@ -633,7 +632,7 @@ class UserController extends Controller
                 usleep(150000); // 150ms
             } while (count($ids) === $batchSize);
 
-            \Log::info("Pruned {$totalDeleted} log rows older than 14 days.");
+            \Log::info("Pruned {$totalDeleted} log rows older than 180 days.");
         } catch (\Exception $e) {
             // best-effort
             \Log::error('Prune old logs failed: ' . $e->getMessage());

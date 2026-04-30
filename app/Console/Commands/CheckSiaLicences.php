@@ -8,6 +8,7 @@ use App\Models\SiaCheckReport;
 use App\Services\SiaLicenceChecker;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
+use Carbon\Carbon;
 
 class CheckSiaLicences extends Command
 {
@@ -26,7 +27,10 @@ class CheckSiaLicences extends Command
             return $this->handleSingleLicenceCheck($siaChecker, $licence, $useCache);
         }
 
-        $total = Employee::whereNotNull('sia_licence')->count();
+        $total = Employee::whereNotNull('sia_licence')
+            ->whereNotNull('sia_expiry')
+            ->whereDate('sia_expiry', '>=', Carbon::today()->toDateString())
+            ->count();
 
         if ($total === 0) {
             $this->warn('No employees with SIA licences found.');
@@ -37,6 +41,8 @@ class CheckSiaLicences extends Command
         $processed = 0;
 
         Employee::whereNotNull('sia_licence')
+            ->whereNotNull('sia_expiry')
+            ->whereDate('sia_expiry', '>=', Carbon::today()->toDateString())
             ->orderBy('id')
             ->chunkById(100, function ($employees) use ($siaChecker, $useCache, $runId, &$processed): void {
                 foreach ($employees as $employee) {
