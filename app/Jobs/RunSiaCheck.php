@@ -74,6 +74,7 @@ class RunSiaCheck implements ShouldQueue
             }
 
             SiaCheckReport::create([
+                'admin_id'      => $employee->admin_id,
                 'run_id'        => $this->runId,
                 'employee_id'   => $employee->id,
                 'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),
@@ -92,6 +93,7 @@ class RunSiaCheck implements ShouldQueue
 
             // Still record the failure so the report shows it
             SiaCheckReport::create([
+                'admin_id'      => $employee->admin_id,
                 'run_id'        => $this->runId,
                 'employee_id'   => $employee->id,
                 'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),

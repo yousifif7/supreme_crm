@@ -2,11 +2,15 @@
 
 namespace App\Models;
 
+use App\Traits\BelongsToAdmin;
 use Illuminate\Database\Eloquent\Model;
 
 class SiaCheckReport extends Model
 {
+    use BelongsToAdmin;
+
     protected $fillable = [
+        'admin_id',
         'run_id',
         'employee_id',
         'employee_name',

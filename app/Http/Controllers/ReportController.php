@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Auth;
 use App\Models\Site;
 use App\Models\User;
 use App\Models\Client;
@@ -769,14 +770,22 @@ class ReportController extends Controller
         $start = $request->input('start_date');
         $end = $request->input('end_date');
         $search = $request->input('search');
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
 
         // Roles to exclude from this report
-        $excludeRoles = ['security_staff', 'client', 'subcontractor','admin'];
+        $excludeRoles = ['security_staff', 'client', 'subcontractor'];
 
         // Users for the dropdown: exclude the roles above
-        $users = User::whereDoesntHave('roles', function ($r) use ($excludeRoles) {
+        $usersQuery = User::whereDoesntHave('roles', function ($r) use ($excludeRoles) {
             $r->whereIn('name', $excludeRoles);
-        })->orderBy('first_name')->get();
+        });
+
+        if ($authUser && $authUser->hasRole('admin')) {
+            $usersQuery->where('admin_id', $authUser->id);
+        }
+
+        $users = $usersQuery->orderBy('first_name')->get();
 
         // Only show results when at least one filter is applied
         $hasFilters = $request->filled('start_date') || $request->filled('end_date') || $request->filled('search');
@@ -792,11 +801,19 @@ class ReportController extends Controller
         if ($hasFilters) {
             $query = LoginActivity::with('user');
 
+            if ($authUser && $authUser->hasRole('admin')) {
+                $query->where('admin_id', $authUser->id);
+            }
+
             // Exclude users with specific roles from this report
-            $query->whereHas('user', function ($u) use ($excludeRoles) {
+            $query->whereHas('user', function ($u) use ($excludeRoles, $authUser) {
                 $u->whereDoesntHave('roles', function ($r) use ($excludeRoles) {
                     $r->whereIn('name', $excludeRoles);
                 });
+
+                if ($authUser && $authUser->hasRole('admin')) {
+                    $u->where('admin_id', $authUser->id);
+                }
             });
 
             if ($start) {

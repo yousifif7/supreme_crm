@@ -70,20 +70,13 @@ class UsersDataTable extends DataTable
      */
     public function query(User $model): QueryBuilder
     {
-        $current = auth()->user();
-
         if ($this->filter === 'archived') {
             $query = $model->onlyTrashed()->with(['roles'])->select('users.*');
         } else {
             $query = $model->newQuery()->with(['roles'])->select('users.*');
         }
 
-        // Admins should only see their own user record in the users area.
-        if ($current && $current->hasRole('admin')) {
-            return $query->where('users.id', $current->id);
-        }
-
-        // Non-admins: exclude certain roles from the listing as before.
+        // Apply role-exclusion in the listing; model-level admin scope still controls ownership.
         $query->whereDoesntHave('roles', function ($q) {
             $q->whereIn('name', ['client', 'subcontractor', 'security_staff']);
         });

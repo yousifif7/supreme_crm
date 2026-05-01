@@ -2,17 +2,19 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Traits\BelongsToAdmin;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
 
 class LoginActivity extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToAdmin;
 
     protected $table = 'login_activities';
 
     protected $fillable = [
+        'admin_id',
         'user_id',
         'login_at',
         'logout_at',

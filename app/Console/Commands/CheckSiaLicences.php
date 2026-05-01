@@ -72,6 +72,7 @@ class CheckSiaLicences extends Command
                         }
 
                         SiaCheckReport::create([
+                            'admin_id'      => $employee->admin_id,
                             'run_id'        => $runId,
                             'employee_id'   => $employee->id,
                             'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),
@@ -86,6 +87,7 @@ class CheckSiaLicences extends Command
                         Log::error("Error checking SIA licence for employee {$employee->id}: " . $e->getMessage());
 
                         SiaCheckReport::create([
+                            'admin_id'      => $employee->admin_id,
                             'run_id'        => $runId,
                             'employee_id'   => $employee->id,
                             'employee_name' => trim($employee->fore_name . ' ' . $employee->sur_name),

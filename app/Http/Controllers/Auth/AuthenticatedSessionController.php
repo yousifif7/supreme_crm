@@ -28,11 +28,14 @@ class AuthenticatedSessionController extends Controller
         $request->authenticate();
 
         $request->session()->regenerate();
+        /** @var \App\Models\User|null $user */
+        $user = Auth::user();
 
         // Record login activity
         try {
             LoginActivity::create([
-                'user_id' => auth()->id(),
+                'admin_id' => $user?->admin_id,
+                'user_id' => $user?->id,
                 'login_at' => now(),
                 'ip_address' => $request->ip(),
                 'user_agent' => $request->userAgent(),
@@ -41,7 +44,7 @@ class AuthenticatedSessionController extends Controller
             // don't break login on logging errors
         }
 
-        if (auth()->user()->hasRole('client')) {
+        if ($user && $user->hasRole('client')) {
             return redirect()->route('client.dashboard');
         }
 

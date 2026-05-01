@@ -8,10 +8,18 @@ use Illuminate\Database\Eloquent\Builder;
 /**
  * BelongsToAdmin
  *
+ * @mixin \Illuminate\Database\Eloquent\Model
+ * @method static void creating(callable $callback)
+ * @method static void addGlobalScope($scope, $implementation = null)
+ * @method static \Illuminate\Database\Eloquent\Builder withoutGlobalScope($scope)
+ * @method \Illuminate\Database\Eloquent\Builder newQueryWithoutScope($scope)
+ *
  * Attach this trait to any Eloquent model that should be scoped per admin user.
  *
  * Scoping rules (applied automatically via a global scope):
  *   - admin       → sees only records where admin_id = their own user ID
+ *   - non-security users with admin_id set
+ *                 → sees only records where admin_id = that admin_id
  *   - superadmin  → sees only records where admin_id IS NULL (system/global records)
  *   - all others  → sees only records where admin_id IS NULL
  *
@@ -34,8 +42,21 @@ trait BelongsToAdmin
             $isUserModel = is_a($model, \App\Models\User::class);
             $isAuth = $isUserModel ? Auth::hasUser() : Auth::check();
 
-            if ($isAuth && Auth::user()->hasRole('admin')) {
-                $model->admin_id = Auth::id();
+            if (!$isAuth) {
+                return;
+            }
+
+            /** @var \App\Models\User $user */
+            $user = Auth::user();
+
+            if ($user->hasRole('admin')) {
+                $model->admin_id = $user->id;
+                return;
+            }
+
+            // Non-security users under an admin should write into their admin-owned dataset.
+            if (!$user->hasRole('security_staff') && !is_null($user->admin_id)) {
+                $model->admin_id = $user->admin_id;
             }
         });
 
@@ -57,33 +78,49 @@ trait BelongsToAdmin
                 return;
             }
 
+            /** @var \App\Models\User $user */
             $user = Auth::user();
 
+            // Determine which admin dataset this user should read from.
+            $ownerAdminId = null;
             if ($user->hasRole('admin')) {
+                $ownerAdminId = (int) $user->id;
+            } elseif (!$user->hasRole('superadmin') && !$user->hasRole('security_staff') && !is_null($user->admin_id)) {
+                $ownerAdminId = (int) $user->admin_id;
+            }
+
+            if (!is_null($ownerAdminId)) {
                 $model = $builder->getModel();
                 $table = $model->getTable();
 
-                $entries = config('admin_visible_names', []);
-                $emails = [];
-                $names = [];
-                foreach ($entries as $e) {
-                    $e = trim($e);
-                    if ($e === '') continue;
-                    if (strpos($e, '@') !== false) {
-                        $emails[] = strtolower($e);
-                    } else {
-                        $parts = preg_split('/\s+/', $e);
-                        if (count($parts) >= 1) {
-                            $names[] = [strtolower($parts[0]), strtolower($parts[count($parts) - 1])];
+                // Visible-name exceptions are allowed only for admin 8766 and their users.
+                $canUseVisibleNames = ($ownerAdminId === 8766);
+
+                // Users: owner admin rows (+ optional curated system-level rows for admin 8766).
+                if ($model instanceof \App\Models\User) {
+                    if (!$canUseVisibleNames) {
+                        $builder->where("{$table}.admin_id", $ownerAdminId);
+                        return;
+                    }
+
+                    $entries = config('admin_visible_names', []);
+                    $emails = [];
+                    $names = [];
+                    foreach ($entries as $e) {
+                        $e = trim($e);
+                        if ($e === '') continue;
+                        if (strpos($e, '@') !== false) {
+                            $emails[] = strtolower($e);
+                        } else {
+                            $parts = preg_split('/\s+/', $e);
+                            if (count($parts) >= 1) {
+                                $names[] = [strtolower($parts[0]), strtolower($parts[count($parts) - 1])];
+                            }
                         }
                     }
-                }
 
-                // Users: admin sees admin-owned users OR system-level users matching
-                // configured emails or first+last name pairs.
-                if ($model instanceof \App\Models\User) {
-                    $builder->where(function ($q) use ($table, $user, $emails, $names) {
-                        $q->where("{$table}.admin_id", $user->id);
+                    $builder->where(function ($q) use ($table, $ownerAdminId, $emails, $names) {
+                        $q->where("{$table}.admin_id", $ownerAdminId);
 
                         if (!empty($emails) || !empty($names)) {
                             $q->orWhere(function ($q2) use ($table, $emails, $names) {
@@ -102,11 +139,31 @@ trait BelongsToAdmin
                     return;
                 }
 
-                // Employees: admin sees own admin_id rows OR system-level rows matching
-                // the configured emails or first+last name pairs.
+                // Employees: owner admin rows (+ optional curated system-level rows for admin 8766).
                 if ($model instanceof \App\Models\Employee) {
-                    $builder->where(function ($q) use ($table, $user, $emails, $names) {
-                        $q->where("{$table}.admin_id", $user->id);
+                    if (!$canUseVisibleNames) {
+                        $builder->where("{$table}.admin_id", $ownerAdminId);
+                        return;
+                    }
+
+                    $entries = config('admin_visible_names', []);
+                    $emails = [];
+                    $names = [];
+                    foreach ($entries as $e) {
+                        $e = trim($e);
+                        if ($e === '') continue;
+                        if (strpos($e, '@') !== false) {
+                            $emails[] = strtolower($e);
+                        } else {
+                            $parts = preg_split('/\s+/', $e);
+                            if (count($parts) >= 1) {
+                                $names[] = [strtolower($parts[0]), strtolower($parts[count($parts) - 1])];
+                            }
+                        }
+                    }
+
+                    $builder->where(function ($q) use ($table, $ownerAdminId, $emails, $names) {
+                        $q->where("{$table}.admin_id", $ownerAdminId);
 
                         if (!empty($emails) || !empty($names)) {
                             $q->orWhere(function ($q2) use ($table, $emails, $names) {
@@ -125,8 +182,8 @@ trait BelongsToAdmin
                     return;
                 }
 
-                // Default for other models: admin sees only their own admin_id rows
-                $builder->where("{$table}.admin_id", $user->id);
+                // Default for all other models (including shifts): owner admin rows only.
+                $builder->where("{$table}.admin_id", $ownerAdminId);
                 return;
             }
 

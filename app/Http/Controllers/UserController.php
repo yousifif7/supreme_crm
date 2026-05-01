@@ -239,13 +239,13 @@ class UserController extends Controller
 
     public function index(UsersDataTable $dataTable)
     {
-        $roles = Role::pluck('name', 'name')->all();
+        $roles = $this->availableRolesForCurrentUser();
         return $dataTable->render('user_management.users', compact('roles'));
     }
 
     public function create()
     {
-        $roles = Role::pluck('name', 'name')->all();
+        $roles = $this->availableRolesForCurrentUser();
         return view('role-permission.user.create', ['roles' => $roles]);
     }
 
@@ -317,8 +317,24 @@ class UserController extends Controller
             Log::error('Failed to save plaintext password for new user: ' . $e->getMessage());
         }
 
+        $requestedRoles = [];
         if (!empty($validated['roles'])) {
-            $user->assignRole($validated['roles']);
+            $requestedRoles = is_array($validated['roles']) ? $validated['roles'] : [$validated['roles']];
+
+            if ($authUser && $authUser->hasRole('admin') && in_array('superadmin', $requestedRoles, true)) {
+                return response()->json(['message' => 'Admins cannot assign superadmin role.'], 403);
+            }
+
+            $assignableRoles = $this->filterAssignableRolesForCurrentUser($requestedRoles);
+            if (!empty($assignableRoles)) {
+                $user->assignRole($assignableRoles);
+            }
+        }
+
+        // If an admin user is created outside an admin-owned context, make it self-owned.
+        if (in_array('admin', $requestedRoles, true) && is_null($user->admin_id)) {
+            $user->admin_id = $user->id;
+            $user->save();
         }
         Logger::log(Auth::user(), 'Create', 'New user ' . $user->first_name . ' ' . $user->last_name);
 
@@ -327,7 +343,7 @@ class UserController extends Controller
     public function edit($id)
     {
         $user = User::find($id);
-        $roles = Role::pluck('name', 'name')->all();
+        $roles = $this->availableRolesForCurrentUser();
         $userRoles = $user->roles->pluck('name', 'name')->all();
         return response()->json(['user' => $user, 'userRoles' => $userRoles]);
     }
@@ -409,7 +425,14 @@ class UserController extends Controller
         }
 
         if (!empty($validated['roles'])) {
-            $user->syncRoles($validated['roles']);
+            $requestedRoles = is_array($validated['roles']) ? $validated['roles'] : [$validated['roles']];
+
+            if ($authUser && $authUser->hasRole('admin') && in_array('superadmin', $requestedRoles, true)) {
+                return response()->json(['message' => 'Admins cannot assign superadmin role.'], 403);
+            }
+
+            $assignableRoles = $this->filterAssignableRolesForCurrentUser($requestedRoles);
+            $user->syncRoles($assignableRoles);
         }
         Logger::log(Auth::user(), 'Update', 'User ' . $user->first_name . ' ' . $user->last_name . ' Updated');
 
@@ -534,6 +557,32 @@ class UserController extends Controller
 
         // ✅ Store flag in cache until the end of Thursday (23:59:59)
         Cache::put($cacheKey, true, $today->copy()->endOfDay());
+    }
+
+    private function availableRolesForCurrentUser(): array
+    {
+        $query = Role::query();
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+
+        if ($authUser && $authUser->hasRole('admin')) {
+            $query->where('name', '!=', 'superadmin');
+        }
+
+        return $query->pluck('name', 'name')->all();
+    }
+
+    private function filterAssignableRolesForCurrentUser(array $roles): array
+    {
+        $roles = array_values(array_filter($roles, fn ($role) => !empty($role)));
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+
+        if ($authUser && $authUser->hasRole('admin')) {
+            return array_values(array_filter($roles, fn ($role) => $role !== 'superadmin'));
+        }
+
+        return $roles;
     }
 
     /**
