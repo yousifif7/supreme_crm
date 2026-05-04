@@ -1826,6 +1826,8 @@
                             } else if (data[field]) {
                                 // fallback to employee field (unverified)
                                 anyMain = true;
+                                const filePath = data[field];
+                                const fileName = String(filePath).split('/').pop();
                                 const url = `${baseUrl}/documents/${data[field]}`;
                                 mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1" title="View (unverified)"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${data[field]}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></div>`;
                             }
