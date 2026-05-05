@@ -23,7 +23,6 @@ use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
 use App\Models\Notification;
 use App\Models\ShiftBooking;
-use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\Models\Subcontractor;
 use App\Models\SiteStaffRate;
@@ -206,81 +205,104 @@ class ShiftController extends Controller
 
     public function index(ShiftsDataTable $dataTable)
     {
-        $clients = User::role('client')->orderBy('first_name', 'asc')->get();
-        $sites = Site::orderBy('site_name', 'asc')->get();
-        $staffs = User::role('security_staff')->get();
-            $subcontractors = $this->getSubcontractors();
-        $users = User::all();
-        $services = EmployeeType::all();
-        return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+        $clients = User::role('client')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name', 'asc')->get();
+        $sites = Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name', 'asc')->get();
+        $staffs = User::role('security_staff')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name', 'asc')->get();
+        $subcontractors = $this->getSubcontractors();
+        $services = EmployeeType::select(['id', 'name'])->get();
+        return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'services'));
     }
     public function scheduling()
     {
         // Load only the columns consumed by dropdown selects and count badges —
         // prevents hydrating large text/blob columns for every user/site.
-        $clients = User::role('client')
-            ->select(['id', 'first_name', 'last_name', 'email'])
-            ->orderBy('first_name')
-            ->get();
-        $sites = Site::select(['id', 'site_name', 'client_id'])->get();
-        $staffs = User::role('security_staff')
-            ->select(['id', 'first_name', 'last_name', 'email'])
-            ->orderBy('first_name')
-            ->get();
+        $clients = Cache::remember('clients_min_list', 300, function () {
+            return User::role('client')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')
+                ->get();
+        });
+        $sites = Cache::remember('sites_min_list', 300, function () {
+            return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
+        });
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+            return User::role('security_staff')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')
+                ->get();
+        });
         $subcontractors = $this->getSubcontractors();
-        $services = EmployeeType::select(['id', 'name'])->get();
+        $services = Cache::remember('employee_types_min_list', 300, function () {
+            return EmployeeType::select(['id', 'name'])->orderBy('name')->get();
+        });
         return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
     }
     public function worker_calendar()
     {
-        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
-
-        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
-            $q->whereBetween('shift_date', [$startDefault, $endDefault]);
-        })->with(['client', 'site'])->get();
-
-        $clients = User::role('client')->get();
-        $sites = Site::all();
-        $staffs = User::role('security_staff')->get();
+        $clients = Cache::remember('clients_min_list', 300, function () {
+            return User::role('client')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')->get();
+        });
+        $sites = Cache::remember('sites_min_list', 300, function () {
+            return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
+        });
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+            return User::role('security_staff')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')->get();
+        });
         $subcontractors = $this->getSubcontractors();
-        $users = User::all();
-        $services = EmployeeType::all();
-        return view('security_boards.worker_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+        $services = Cache::remember('employee_types_min_list', 300, function () {
+            return EmployeeType::select(['id', 'name'])->orderBy('name')->get();
+        });
+        return view('security_boards.worker_calendar', compact('clients', 'sites', 'staffs', 'subcontractors', 'services'));
     }
     public function site_calendar()
     {
-        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
-
-        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
-            $q->whereBetween('shift_date', [$startDefault, $endDefault]);
-        })->with(['client', 'site'])->get();
-
-        $clients = User::role('client')->get();
-        $sites = Site::all();
-        $staffs = User::role('security_staff')->get();
-            $subcontractors = $this->getSubcontractors();
-        $users = User::all();
-        $services = EmployeeType::all();
-        return view('security_boards.site_calendar', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+        $clients = Cache::remember('clients_min_list', 300, function () {
+            return User::role('client')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')->get();
+        });
+        $sites = Cache::remember('sites_min_list', 300, function () {
+            return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
+        });
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+            return User::role('security_staff')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')->get();
+        });
+        $subcontractors = $this->getSubcontractors();
+        $services = Cache::remember('employee_types_min_list', 300, function () {
+            return EmployeeType::select(['id', 'name'])->orderBy('name')->get();
+        });
+        return view('security_boards.site_calendar', compact('clients', 'sites', 'staffs', 'subcontractors', 'services'));
     }
     public function today_rota()
     {
-        $startDefault = now()->subMonths(2)->startOfDay()->format('Y-m-d');
-        $endDefault = now()->addMonths(1)->endOfDay()->format('Y-m-d');
-
-        $shifts = Shift::whereHas('shiftDates', function ($q) use ($startDefault, $endDefault) {
-            $q->whereBetween('shift_date', [$startDefault, $endDefault]);
-        })->with(['client', 'site'])->get();
-
-        $clients = User::role('client')->get();
-        $sites = Site::all();
-        $staffs = User::role('security_staff')->get();
-            $subcontractors = $this->getSubcontractors();
-        $users = User::all();
-        $services = EmployeeType::all();
-        return view('security_boards.today_rota', compact('shifts', 'clients', 'sites', 'staffs', 'subcontractors', 'users', 'services'));
+        $clients = Cache::remember('clients_min_list', 300, function () {
+            return User::role('client')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')->get();
+        });
+        $sites = Cache::remember('sites_min_list', 300, function () {
+            return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
+        });
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+            return User::role('security_staff')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')->get();
+        });
+        $subcontractors = $this->getSubcontractors();
+        $services = Cache::remember('employee_types_min_list', 300, function () {
+            return EmployeeType::select(['id', 'name'])->orderBy('name')->get();
+        });
+        return view('security_boards.today_rota', compact('clients', 'sites', 'staffs', 'subcontractors', 'services'));
     }
 
     public function show(ShiftDate $shiftDate)
@@ -882,11 +904,15 @@ class ShiftController extends Controller
             ->findOrFail($id);
 
         // Provide lists used by the edit modal so the frontend can populate selects
-        $clients = User::role('client')->orderBy('first_name', 'asc')->get();
-        $sites = Site::orderBy('site_name', 'asc')->get();
-        $staffs = User::role('security_staff')->orderBy('first_name', 'asc')->get();
+        $clients = User::role('client')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name', 'asc')->get();
+        $sites = Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name', 'asc')->get();
+        $staffs = User::role('security_staff')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name', 'asc')->get();
         $subcontractors = $this->getSubcontractors();
-        $services = EmployeeType::all();
+        $services = EmployeeType::select(['id', 'name'])->get();
 
         return response()->json([
             'shift' => $shift,
@@ -1780,6 +1806,12 @@ public function getShiftsWithStaff()
         8 => 'bg-orange',
     ];
 
+    // Short cache to avoid hammering the DB on rapid calendar navigations.
+    $cacheKey = 'shifts_with_staff:' . ($adminId ?? 'null') . ':' . $startDefault->format('Y-m-d') . ':' . $endDefault->format('Y-m-d');
+    if ($cached = Cache::get($cacheKey)) {
+        return response()->json($cached);
+    }
+
     /**
      * SINGLE FAST QUERY
      */
@@ -1800,7 +1832,8 @@ public function getShiftsWithStaff()
         ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
         ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
         ->whereNotNull('shift_dates.staff_id')
-        ->whereBetween('shift_dates.shift_date', [$startDefault, $endDefault]);
+        ->whereBetween('shift_dates.shift_date', [$startDefault->format('Y-m-d'), $endDefault->format('Y-m-d')])
+        ->orderBy('shift_dates.shift_date', 'asc');
 
     // Admin scoping
     if ($adminId !== null) {
@@ -1817,52 +1850,55 @@ public function getShiftsWithStaff()
     foreach ($shiftDates as $sd) {
 
         $dayList = json_decode($sd->days, true) ?: [];
-        $dayName = Carbon::parse($sd->shift_date)->format('D');
-
-        if (!empty($dayList) && !in_array($dayName, $dayList)) {
-            continue;
+        if (!empty($dayList)) {
+            // Use date('D') instead of Carbon::parse() per row — much faster.
+            $dayName = date('D', strtotime($sd->shift_date));
+            if (!in_array($dayName, $dayList)) {
+                continue;
+            }
         }
 
-        $startTime = Carbon::createFromFormat('H:i:s', $sd->start_time);
-        $endTime   = Carbon::createFromFormat('H:i:s', $sd->end_time);
+        // Integer arithmetic — avoids 4 Carbon instantiations per row.
+        $startRaw = (string) ($sd->start_time ?? '00:00:00');
+        $endRaw   = (string) ($sd->end_time   ?? '00:00:00');
+        $sParts   = explode(':', $startRaw);
+        $eParts   = explode(':', $endRaw);
+        $sMins    = (int)$sParts[0] * 60 + (int)$sParts[1];
+        $eMins    = (int)$eParts[0] * 60 + (int)$eParts[1];
+        if ($eMins <= $sMins) $eMins += 1440; // overnight
+        $durMins  = $eMins - $sMins;
 
-        $startDateTime = Carbon::parse($sd->shift_date)->setTimeFrom($startTime);
-        $endDateTime   = Carbon::parse($sd->shift_date)->setTimeFrom($endTime);
+        $durationFormatted = sprintf('%d hr %02d min', (int)($durMins / 60), $durMins % 60);
 
-        // Handle overnight shift
-        $endForDuration = $endTime->copy();
-        if ($endForDuration->lessThan($startTime)) {
-            $endForDuration->addDay();
-        }
-
-        $durationFormatted = sprintf(
-            '%d hr %02d min',
-            $startTime->diffInHours($endForDuration),
-            $startTime->diffInMinutes($endForDuration) % 60
-        );
+        $startStr = substr($startRaw, 0, 5);
+        $endStr   = substr($endRaw, 0, 5);
 
         $events[] = [
             'title' => trim($sd->first_name . ' ' . $sd->last_name) ?: 'Unassigned',
-            'start' => $startDateTime->format('Y-m-d\TH:i:s'),
-            'end'   => $endDateTime->format('Y-m-d\TH:i:s'),
+            'start' => $sd->shift_date . 'T' . $startRaw,
+            'end'   => $sd->shift_date . 'T' . $endRaw,
             'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
             'extendedProps' => [
                 'shift_id' => $sd->shift_id,
                 'sd_id'    => $sd->sd_id,
                 'location' => $sd->site_name ?? 'Unknown Site',
                 'duration' => $durationFormatted,
-                'start_time_str' => $startTime->format('H:i'),
-                'end_time_str'   => $endTime->format('H:i'),
+                'start_time_str' => $startStr,
+                'end_time_str'   => $endStr,
             ]
         ];
 
         $highlightDates[] = $sd->shift_date;
     }
 
-    return response()->json([
+    $result = [
         'events' => $events,
-        'highlightDates' => array_values(array_unique($highlightDates))
-    ]);
+        'highlightDates' => array_values(array_unique($highlightDates)),
+    ];
+
+    Cache::put($cacheKey, $result, config('gantt.cache_ttl', 10));
+
+    return response()->json($result);
 }
 
 
@@ -1889,8 +1925,15 @@ public function getShiftsBySite()
         8 => 'bg-orange',
     ];
 
+    // Short cache — scope by admin + client role so different users get correct data.
+    $clientScopeId = ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) ? $user->id : 'all';
+    $cacheKey = 'shifts_by_site:' . ($adminId ?? 'null') . ':' . $clientScopeId . ':' . $startDefault->format('Y-m-d') . ':' . $endDefault->format('Y-m-d');
+    if ($cached = Cache::get($cacheKey)) {
+        return response()->json($cached);
+    }
+
     /**
-     * 🔥 SINGLE FAST QUERY
+     * SINGLE FAST QUERY
      */
     $query = \App\Models\ShiftDate::query()
         ->select([
@@ -1904,7 +1947,8 @@ public function getShiftsBySite()
         ])
         ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
         ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
-        ->whereBetween('shift_dates.shift_date', [$startDefault, $endDefault]);
+        ->whereBetween('shift_dates.shift_date', [$startDefault->format('Y-m-d'), $endDefault->format('Y-m-d')])
+        ->orderBy('shift_dates.shift_date', 'asc');
 
     // Admin scoping
     if ($adminId !== null) {
@@ -1913,7 +1957,7 @@ public function getShiftsBySite()
         $query->whereNull('shift_dates.admin_id');
     }
 
-    // ✅ Client filter at DB level
+    // Client filter at DB level
     if ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) {
         $query->where('shifts.client_id', $user->id);
     }
@@ -1925,41 +1969,35 @@ public function getShiftsBySite()
 
     foreach ($rows as $sd) {
 
-        $startTime = Carbon::createFromFormat('H:i:s', $sd->start_time);
-        $endTime   = Carbon::createFromFormat('H:i:s', $sd->end_time);
+        // Integer arithmetic — avoids 4 Carbon instantiations per row.
+        $startRaw = (string) ($sd->start_time ?? '00:00:00');
+        $endRaw   = (string) ($sd->end_time   ?? '00:00:00');
+        $sParts   = explode(':', $startRaw);
+        $eParts   = explode(':', $endRaw);
+        $sMins    = (int)$sParts[0] * 60 + (int)$sParts[1];
+        $eMins    = (int)$eParts[0] * 60 + (int)$eParts[1];
+        if ($eMins <= $sMins) $eMins += 1440; // overnight
+        $durMins  = $eMins - $sMins;
 
-        // Duration (handle overnight)
-        $endForDuration = $endTime->copy();
-        if ($endForDuration->lessThanOrEqualTo($startTime)) {
-            $endForDuration->addDay();
-        }
-
-        $durationFormatted = sprintf(
-            '%d hr %02d min',
-            $startTime->diffInHours($endForDuration),
-            $startTime->diffInMinutes($endForDuration) % 60
-        );
-
-        // Calendar display (same day)
-        $calendarStart = Carbon::parse($sd->shift_date . ' ' . $sd->start_time)->format('Y-m-d\TH:i:s');
-        $calendarEnd   = Carbon::parse($sd->shift_date . ' ' . $sd->end_time)->format('Y-m-d\TH:i:s');
+        $durationFormatted = sprintf('%d hr %02d min', (int)($durMins / 60), $durMins % 60);
+        $startStr = substr($startRaw, 0, 5);
+        $endStr   = substr($endRaw, 0, 5);
 
         $events[] = [
             'title' => $sd->site_name ?? 'Unknown Site',
-            'start' => $calendarStart,
-            'end'   => $calendarEnd,
+            'start' => $sd->shift_date . 'T' . $startRaw,
+            'end'   => $sd->shift_date . 'T' . $endRaw,
             'allDay' => false,
             'classNames' => [$statusColorMap[$sd->is_assign] ?? 'bg-secondary'],
             'color' => '#3a87ad',
             'extendedProps' => [
                 'duration' => $durationFormatted,
-                'startTime' => $startTime->format('H:i'),
-                'endTime'   => $endTime->format('H:i'),
-                'start_time' => $startTime->format('H:i:s'),
-                'end_time'   => $endTime->format('H:i:s'),
-                'startTimeStr' => $startTime->format('H:i'),
-                'endTimeStr'   => $endTime->format('H:i'),
-                'urgent' => rand(0, 1) === 1,
+                'startTime' => $startStr,
+                'endTime'   => $endStr,
+                'start_time' => $startRaw,
+                'end_time'   => $endRaw,
+                'startTimeStr' => $startStr,
+                'endTimeStr'   => $endStr,
                 'sd_id' => $sd->sd_id,
             ]
         ];
@@ -1967,10 +2005,14 @@ public function getShiftsBySite()
         $highlightDates[] = $sd->shift_date;
     }
 
-    return response()->json([
+    $result = [
         'events' => $events,
         'highlightDates' => array_values(array_unique($highlightDates)),
-    ]);
+    ];
+
+    Cache::put($cacheKey, $result, config('gantt.cache_ttl', 10));
+
+    return response()->json($result);
 }
 
 
@@ -2864,7 +2906,6 @@ public function getTodayShifts()
             'shift.site',
             'logs',
             'checkCalls',
-            'locations',
             'patrols.media',
             'patrols.scans',
         ]);
@@ -2878,9 +2919,16 @@ public function getTodayShifts()
                 ->get(['id', 'first_name', 'last_name']);
         });
 
-        // First / last guard location (already loaded above — no extra query).
-        $firstLocation = $shiftDate->locations->sortBy('timestamp')->first();
-        $lastLocation  = $shiftDate->locations->sortByDesc('timestamp')->first();
+        // Fetch only first/last GPS points (avoid hydrating full location history in this request).
+        $firstLocation = Location::query()
+            ->where('shiftdate_id', $shiftDate->id)
+            ->orderBy('timestamp', 'asc')
+            ->first(['latitude', 'longitude', 'timestamp']);
+
+        $lastLocation = Location::query()
+            ->where('shiftdate_id', $shiftDate->id)
+            ->orderBy('timestamp', 'desc')
+            ->first(['latitude', 'longitude', 'timestamp']);
 
         // Client user record.
         $client = $shiftDate->shift?->client ?? null;
@@ -2903,30 +2951,24 @@ public function getTodayShifts()
         // Check calls (already loaded via relation — just alias for clarity in blade).
         $checkcalls = $shiftDate->checkCalls->sortBy('scheduled_time');
 
-        // Resolve site coordinates server-side so the map does not rely on
-        // client-side geocoding, which fails for business names.
+        // Load booking media once in controller (avoid DB queries inside blade).
+        $bookingMedia = \App\Models\BookingMedia::query()
+            ->where('shift_date_id', $shiftDate->id)
+            ->whereIn('type', ['book_on', 'book_off'])
+            ->get();
+
+        $bookOnMedia = $bookingMedia->where('type', 'book_on')->values();
+        $bookOffMedia = $bookingMedia->where('type', 'book_off')->values();
+
+        // Avoid blocking request on server-side geocoding; frontend map does async fallback.
         $siteLat = null;
         $siteLng = null;
-        if ($site) {
-            try {
-                $coords = app(\App\Services\GeoService::class)
-                    ->getCoordinatesFromAddress(
-                        trim($site->address ?? ''),
-                        trim($site->post_code ?? '') ?: null
-                    );
-                if ($coords && isset($coords['lat'], $coords['lng'])) {
-                    $siteLat = $coords['lat'];
-                    $siteLng = $coords['lng'];
-                }
-            } catch (\Throwable $e) {
-                \Log::warning('ShiftController::view — site geocode failed: ' . $e->getMessage());
-            }
-        }
 
         return view('security_boards.shift-detail', compact(
             'shiftDate', 'subcontractors', 'siteLat', 'siteLng',
             'staffs', 'firstLocation', 'lastLocation',
-            'client', 'employee', 'patrols', 'checkpoints', 'checkcalls'
+            'client', 'employee', 'patrols', 'checkpoints', 'checkcalls',
+            'bookOnMedia', 'bookOffMedia'
         ));
     }
 

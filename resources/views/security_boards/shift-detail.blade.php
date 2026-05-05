@@ -399,11 +399,6 @@
                                                         id="site_address1">{{ $shiftDate->shift->site->address ?? '' }}</span>
                                                 </div>
                                             </div>
-                                                                                        @php
-                                                $bookOnMedia = App\Models\BookingMedia::where('shift_date_id', $shiftDate->id)
-                                                    ->where('type', 'book_on')
-                                                    ->get();
-                                            @endphp
                                             @if($bookOnMedia->isNotEmpty())
                                                 <div class="mt-2 book-media-list">
                                                     @foreach($bookOnMedia as $m)
@@ -447,15 +442,9 @@
                                                         id="site_address2">{{ $shiftDate->shift->site->address ?? '' }}</span>
                                                 </div>
                                             </div>
-                                            {{-- Booking media (book_on) --}}
-                                            @php
-                                                $bookOnMedia = App\Models\BookingMedia::where('shift_date_id', $shiftDate->id)
-                                                    ->where('type', 'book_off')
-                                                    ->get();
-                                            @endphp
-                                            @if($bookOnMedia->isNotEmpty())
+                                            @if($bookOffMedia->isNotEmpty())
                                                 <div class="mt-2 book-media-list">
-                                                    @foreach($bookOnMedia as $m)
+                                                    @foreach($bookOffMedia as $m)
                                                         <a href="{{ asset($m->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">View file</a>
                                                     @endforeach
                                                 </div>
@@ -474,12 +463,6 @@
                                     </div>
                                 </div>
                                 @if ($shiftDate->staff_id)
-                                    @php
-                                        // $employee= App\Models\Employee::find($shiftDate->staff_id);
-                                        $user = App\Models\User::role('security_staff')
-                                            ->where('id', $shiftDate->staff_id)
-                                            ->first();
-                                    @endphp
                                     <div class="col-12">
                                         {{-- <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
                                             <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"

@@ -407,6 +407,44 @@
         document.addEventListener('DOMContentLoaded', function() {
             const calendarEl = document.getElementById('calendar');
 
+            function showCalendarLoading() {
+                if (!calendarEl) return;
+                const host = calendarEl.parentElement;
+                if (!host) return;
+
+                host.style.position = 'relative';
+                calendarEl.style.opacity = '0';
+                calendarEl.style.minHeight = '520px';
+
+                if (host.querySelector('.calendar-loading-overlay')) return;
+
+                const overlay = document.createElement('div');
+                overlay.className = 'calendar-loading-overlay';
+                overlay.innerHTML = `
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:10px;">
+                        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+                        <div style="font-weight:600;color:#556070;">Loading schedule...</div>
+                    </div>
+                `;
+                overlay.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.92);z-index:5;';
+                host.appendChild(overlay);
+            }
+
+            function hideCalendarLoading(errorText = null) {
+                if (!calendarEl) return;
+                const host = calendarEl.parentElement;
+                if (!host) return;
+                const overlay = host.querySelector('.calendar-loading-overlay');
+
+                if (errorText && overlay) {
+                    overlay.innerHTML = `<div style="text-align:center;color:#8a1f2d;font-weight:600;">${errorText}</div>`;
+                    return;
+                }
+
+                calendarEl.style.opacity = '1';
+                if (overlay) overlay.remove();
+            }
+
             const colorMap = {
                 'bg-dark-blue': '#5489C4',
                 'bg-lighter': '#D6D4CE',
@@ -420,6 +458,7 @@
                 'bg-secondary': '#6c757d'
             };
 
+            showCalendarLoading();
 
             fetch(`${baseUrl}/api/shifts-with-staff`)
                 .then(response => response.json())
@@ -505,6 +544,7 @@
                     });
 
                     calendar.render();
+                    hideCalendarLoading();
 
                     $('#calendarSearch').on('input', function() {
                         const searchText = $(this).val().toLowerCase();
@@ -548,6 +588,9 @@
                             timeZone: 'local'
                         }).render();
                     }
+                })
+                .catch(() => {
+                    hideCalendarLoading('Failed to load schedule. Please refresh.');
                 });
         });
     </script>

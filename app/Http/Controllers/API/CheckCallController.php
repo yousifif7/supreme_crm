@@ -55,7 +55,25 @@ class CheckCallController extends Controller
             return response()->json(['message' => 'This check call requires media evidence. Please attach media files before completing.'], 422);
         }
 
-        $now = Carbon::now(); // incoming timestamp assumed UTC
+        // Prefer client-provided timestamp if present. Normalize to Europe/London (UK) for watermarking,
+        // and to UTC for comparisons/storage. If parsing fails, fall back to server time.
+        $clientInUK = null;
+        $clientInUTC = null;
+        if (!empty($data['timestamp'])) {
+            try {
+                // If incoming string includes timezone, Carbon::parse will respect it.
+                // If not, explicitly parse assuming Europe/London.
+                $parsed = Carbon::parse($data['timestamp'], 'Europe/London');
+                $clientInUK = $parsed->copy()->setTimezone('Europe/London');
+                $clientInUTC = $clientInUK->copy()->setTimezone('UTC');
+            } catch (\Exception $e) {
+                Log::warning('CheckCallController::completeCheckCall - failed to parse client timestamp', ['input' => $data['timestamp'], 'error' => $e->getMessage()]);
+                $clientInUK = null;
+                $clientInUTC = null;
+            }
+        }
+
+        $now = $clientInUTC ?? Carbon::now('UTC'); // used for comparisons and completed_at (UTC)
         $scheduledUtc = Carbon::parse($checkCall->scheduled_time, 'UTC'); // stored in DB as UTC
 
         $earliest = $scheduledUtc->copy()->subMinutes(5);
@@ -101,7 +119,8 @@ class CheckCallController extends Controller
         // Use user name for timestampData
         $userName =  trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
         $timestampData = [
-            'time' => Carbon::now()->format('Y-m-d H:i:s'),
+            // use client-provided UK time if available, otherwise server UK time
+            'time' => ($clientInUK ?? Carbon::now('Europe/London'))->format('Y-m-d H:i:s'),
             'employee' => $userName,
             'latitude' => $lat,
             'longitude' => $lng,
@@ -206,7 +225,8 @@ class CheckCallController extends Controller
         $checkCall->approval_status = 'pending';
         $checkCall->employee_id = $user->id;
         $checkCall->notes = $data['notes'] ?? null;
-        $checkCall->completed_at = Carbon::now();
+        // store completed_at in UTC (use client timestamp if provided, otherwise server UTC)
+        $checkCall->completed_at = $now;
         $checkCall->save();
 
         // Store location
