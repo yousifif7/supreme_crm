@@ -393,6 +393,12 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
 
     Route::get('/shift-dates/{shiftDate}/view', [ShiftController::class, 'view'])
         ->name('shiftDates.view');
+    Route::get('/shift-dates/{shiftDate}/tabs/logs', [ShiftController::class, 'tabLogs'])
+        ->name('shiftDates.tabs.logs');
+    Route::get('/shift-dates/{shiftDate}/tabs/checkcalls', [ShiftController::class, 'tabCheckcalls'])
+        ->name('shiftDates.tabs.checkcalls');
+    Route::get('/shift-dates/{shiftDate}/tabs/patrols', [ShiftController::class, 'tabPatrols'])
+        ->name('shiftDates.tabs.patrols');
 
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);

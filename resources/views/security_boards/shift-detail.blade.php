@@ -648,6 +648,16 @@
                     <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2">
 
                         @if ($checkcalls->isNotEmpty())
+                            @php
+                                // Avoid per-row DB lookups: preload related users/media once.
+                                $checkCallEmployeeIds = $checkcalls->pluck('employee_id')->filter()->unique()->values();
+                                $checkCallUsersById = $checkCallEmployeeIds->isNotEmpty()
+                                    ? \App\Models\User::whereIn('id', $checkCallEmployeeIds)->get()->keyBy('id')
+                                    : collect();
+                                $checkCallMediaByCallId = \App\Models\CheckCallMedia::whereIn('check_call_id', $checkcalls->pluck('id'))
+                                    ->get()
+                                    ->groupBy('check_call_id');
+                            @endphp
                             <table class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
@@ -664,12 +674,8 @@
                                 <tbody>
                                     @foreach ($checkcalls as $checkcall)
                                         @php
-                                            $employee = \App\Models\User::find($checkcall->employee_id);
-                                            $checkCallMedia =
-                                                \App\Models\CheckCallMedia::where(
-                                                    'check_call_id',
-                                                    $checkcall->id,
-                                                )->get() ?? collect();
+                                            $employee = $checkCallUsersById->get($checkcall->employee_id);
+                                            $checkCallMedia = $checkCallMediaByCallId->get($checkcall->id, collect());
                                         @endphp
                                         <tr>
                                             <td>{{ $checkcall?->name }}</td>
@@ -1955,12 +1961,31 @@
         }
 
 
-        // 🔹 Initialize maps
-        window.onload = function() {
+        // Initialize patrol maps lazily when Patrols tab is first opened.
+        let patrolMapsInitialized = false;
+
+        function initAllPatrolMapsOnce() {
+            if (patrolMapsInitialized) return;
+            patrolMapsInitialized = true;
+
             @foreach ($patrols as $patrol)
                 initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
             @endforeach
-        };
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const patrolTabBtn = document.getElementById('patrols-tab2');
+            if (!patrolTabBtn) return;
+
+            patrolTabBtn.addEventListener('shown.bs.tab', function() {
+                initAllPatrolMapsOnce();
+            });
+
+            // If patrols tab is the active one on initial render, init immediately.
+            if (patrolTabBtn.classList.contains('active')) {
+                initAllPatrolMapsOnce();
+            }
+        });
 
         $(document).ready(function() {
             // Open edit modal
