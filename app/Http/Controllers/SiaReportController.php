@@ -28,6 +28,10 @@ class SiaReportController extends Controller
             ->orderByDesc('run_date')
             ->paginate(25);
 
+        // Temporarily log the query to debug the admin scope
+        \Illuminate\Support\Facades\Log::info('SIA Report Query: ' . $runs->toSql());
+        \Illuminate\Support\Facades\Log::info('SIA Report Bindings: ' . json_encode($runs->getBindings()));
+
         return view('reports.sia_reports', compact('runs'));
     }
 

@@ -182,6 +182,34 @@ trait BelongsToAdmin
                     return;
                 }
 
+                // SiaCheckReport: owner admin rows OR rows belonging to employees of this admin.
+                if ($model instanceof \App\Models\SiaCheckReport) {
+                    $employeeIds = \App\Models\Employee::withoutGlobalScope('admin_scope')
+                        ->where('admin_id', $ownerAdminId)
+                        ->pluck('id')
+                        ->toArray();
+
+                    // Get employee IDs from admin_visible_names config
+                    $visibleEmails = config('admin_visible_names', []);
+                    $visibleEmployeeIds = [];
+                    if (!empty($visibleEmails)) {
+                        $visibleEmployeeIds = \App\Models\Employee::withoutGlobalScope('admin_scope')
+                            ->whereIn('email', $visibleEmails)
+                            ->pluck('id')
+                            ->toArray();
+                    }
+
+                    $builder->where(function ($query) use ($table, $ownerAdminId, $employeeIds, $visibleEmployeeIds) {
+                        $query->where("{$table}.admin_id", $ownerAdminId)
+                            ->orWhereIn("{$table}.employee_id", $employeeIds);
+
+                        if (!empty($visibleEmployeeIds)) {
+                            $query->orWhereIn("{$table}.employee_id", $visibleEmployeeIds);
+                        }
+                    });
+                    return;
+                }
+
                 // Default for all other models (including shifts): owner admin rows only.
                 $builder->where("{$table}.admin_id", $ownerAdminId);
                 return;
