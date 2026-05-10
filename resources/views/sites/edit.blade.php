@@ -236,11 +236,46 @@
                                               <tbody id="site_staff_rates_list"></tbody>
                                           </table>
                                       </div>
-                                      <input type="hidden" name="staff_rates" id="staff_rates_input">
-                                  </div>
-                                  <br>
-                                          @endhasanyrole
-                                          <div class="card bg-light-500 shadow-none">
+                                        <input type="hidden" name="staff_rates" id="staff_rates_input">
+                                    </div>
+                                    <br>
+                                    <div class="col-md-12 mt-3">
+                                        <label class="form-label">Holiday-specific Rates</label>
+                                        <div class="d-flex gap-2 mb-2 align-items-center flex-wrap">
+                                            <div class="me-2" style="flex:0 0 220px; min-width:160px;">
+                                                <select id="site_holiday_select" class="form-select holiday-select2 w-100">
+                                                    <option value="">--choose holiday--</option>
+                                                </select>
+                                            </div>
+                                            <div class="me-2" style="flex:0 0 140px;">
+                                                <input type="text" id="site_holiday_site_rate_input" class="form-control numeric-input" placeholder="Site Rate" style="width:140px;">
+                                            </div>
+                                            <div class="me-2" style="flex:0 0 140px;">
+                                                <input type="text" id="site_holiday_guard_rate_input" class="form-control numeric-input" placeholder="Guard Rate" style="width:140px;">
+                                            </div>
+                                            <div>
+                                                <button type="button" id="add_site_holiday_rate" class="btn btn-primary">Add</button>
+                                            </div>
+                                        </div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-bordered" id="site_holiday_rates_table">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Holiday</th>
+                                                        <th>Date</th>
+                                                        <th style="width:140px">Site Rate</th>
+                                                        <th style="width:140px">Guard Rate</th>
+                                                        <th style="width:120px">Action</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="site_holiday_rates_list"></tbody>
+                                            </table>
+                                        </div>
+                                        <input type="hidden" name="holiday_rates" id="holiday_rates_input">
+                                    </div>
+                                    <br>
+                                            @endhasanyrole
+                                            <div class="card bg-light-500 shadow-none">
                                               <div
                                                   class="card-body d-flex align-items-center justify-content-between flex-wrap row-gap-3">
                                                   <h6>Services types</h6>

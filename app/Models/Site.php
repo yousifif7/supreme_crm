@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Traits\LogsChanges;
 use App\Traits\BelongsToAdmin;
 use App\Models\TrainingMaterial;
+use App\Models\SiteHolidayRate;
 use App\Models\SiteStaffRate;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -45,6 +46,12 @@ class Site extends Model
     {
         return $this->hasMany(SiteStaffRate::class, 'site_id');
     }
+
+    public function siteHolidayRates()
+    {
+        return $this->hasMany(SiteHolidayRate::class, 'site_id');
+    }
+
     public function logs()
 {
     return $this->morphMany(Log::class, 'loggable');

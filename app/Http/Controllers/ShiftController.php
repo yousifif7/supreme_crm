@@ -627,7 +627,8 @@ class ShiftController extends Controller
             $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
             $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
 
-            $site = Site::find($request->site_id[$i]);
+            $site = Site::with('siteHolidayRates')->find($request->site_id[$i]);
+
             // Determine parent site_rate: prefer explicit non-empty request value,
             // otherwise fall back to site-level office_rate -> site.guard_rate -> 0
             if (isset($request->site_rate[$i]) && $request->site_rate[$i] !== '') {
@@ -637,6 +638,10 @@ class ShiftController extends Controller
             } else {
                 $computedSiteRate = 0;
             }
+
+            $computedEmployeeRate = isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== ''
+                ? (float) $request->employee_rate[$i]
+                : null;
 
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
@@ -652,7 +657,7 @@ class ShiftController extends Controller
                 'restrict_location_check' => $data['restrict_location_check'],
 
                 'site_rate'        =>  $computedSiteRate,
-                'employee_rate'    => isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== '' ? (float) $request->employee_rate[$i] : null,
+                'employee_rate'    => $computedEmployeeRate,
             ]);
 
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
@@ -701,14 +706,31 @@ class ShiftController extends Controller
 
                     $lastCreated = null;
                     for ($q = 0; $q < $quantity; $q++) {
+                        $currentSiteRate = $computedSiteRate; // Start with the base site rate
+                        $currentGuardRate = $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0; // Start with base guard rate
+
+                        // Check for holiday rates
+                        if ($site && $site->siteHolidayRates && $site->siteHolidayRates->isNotEmpty()) {
+                            $holidayRate = $site->siteHolidayRates->first(function ($r) use ($date) {
+                                $holidayDate = $r->holiday_date;
+                                if ($holidayDate instanceof \Carbon\Carbon) {
+                                    return $holidayDate->format('Y-m-d') === $date->format('Y-m-d');
+                                }
+                                return $holidayDate == $date->format('Y-m-d');
+                            });
+                            if ($holidayRate) {
+                                $currentSiteRate = $holidayRate->site_rate ?? $currentSiteRate;
+                                $currentGuardRate = $holidayRate->guard_rate ?? $currentGuardRate;
+                            }
+                        }
+
                         // Resolve guard rate, preferring site-specific staff override when present
-                        $resolvedGuardRate = $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0;
                         if (!empty($shift->staff_id) && !empty($shift->site_id)) {
                             $siteOverride = SiteStaffRate::where('site_id', $shift->site_id)
                                 ->where('user_id', $shift->staff_id)
                                 ->value('guard_rate');
                             if (!is_null($siteOverride)) {
-                                $resolvedGuardRate = $siteOverride;
+                                $currentGuardRate = $siteOverride;
                             }
                         }
 
@@ -725,7 +747,8 @@ class ShiftController extends Controller
                                 $request->start_shift[$i],
                                 $request->end_shift[$i]
                             ),
-                            'guard_rate'  => $resolvedGuardRate,
+                            'guard_rate'  => $currentGuardRate,
+                            'site_rate'   => $currentSiteRate,
                             'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                         ]);
 
@@ -3816,7 +3839,18 @@ public function getTodayShifts()
             $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
             
             // Create main Shift
-            $site = Site::find($request->site_id[$i]);
+            $site = Site::with('siteHolidayRates')->find($request->site_id[$i]);
+
+            $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
+            $selectedDays = array_map('trim', explode(',', $dayString));
+            $selectedDays = array_map(function ($day) {
+                return ucfirst(substr($day, 0, 3));
+            }, $selectedDays);
+
+            $fromDate = Carbon::parse($request->from_shift[$i]);
+            $toDate   = Carbon::parse($request->to_shift[$i]);
+            $period   = CarbonPeriod::create($fromDate, $toDate);
+
             // Determine parent site_rate: prefer explicit non-empty request value,
             // otherwise fall back to site-level office_rate -> site.guard_rate -> 0
             if (isset($request->site_rate[$i]) && $request->site_rate[$i] !== '') {
@@ -3826,6 +3860,10 @@ public function getTodayShifts()
             } else {
                 $computedSiteRate = 0;
             }
+
+            $computedEmployeeRate = isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== ''
+                ? (float) $request->employee_rate[$i]
+                : null;
 
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
@@ -3840,7 +3878,7 @@ public function getTodayShifts()
                 'enforce_picture_check' => $data['enforce_picture_check'],
                 'restrict_location_check' => $data['restrict_location_check'],
                 'site_rate'    => $computedSiteRate,
-                'employee_rate' => isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== '' ? (float) $request->employee_rate[$i] : null,
+                'employee_rate' => $computedEmployeeRate,
             ]);
 
             // Expand to ShiftDates
@@ -3856,14 +3894,30 @@ public function getTodayShifts()
             foreach ($period as $date) {
                 if (!in_array($date->format('D'), $selectedDays)) continue;
 
-                // resolve guard rate, prefer site-specific staff override
-                $resolvedGuardRate = $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0;
+                $currentSiteRate = $computedSiteRate;
+                $currentGuardRate = $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0;
+
+                if ($site && $site->siteHolidayRates && $site->siteHolidayRates->isNotEmpty()) {
+                    $holidayRate = $site->siteHolidayRates->first(function ($r) use ($date) {
+                        $holidayDate = $r->holiday_date;
+                        if ($holidayDate instanceof \Carbon\Carbon) {
+                            return $holidayDate->format('Y-m-d') === $date->format('Y-m-d');
+                        }
+                        return $holidayDate == $date->format('Y-m-d');
+                    });
+
+                    if ($holidayRate) {
+                        $currentSiteRate = $holidayRate->site_rate ?? $currentSiteRate;
+                        $currentGuardRate = $holidayRate->guard_rate ?? $currentGuardRate;
+                    }
+                }
+
                 if (!empty($shift->staff_id) && !empty($shift->site_id)) {
                     $siteOverride = SiteStaffRate::where('site_id', $shift->site_id)
                         ->where('user_id', $shift->staff_id)
                         ->value('guard_rate');
                     if (!is_null($siteOverride)) {
-                        $resolvedGuardRate = $siteOverride;
+                        $currentGuardRate = $siteOverride;
                     }
                 }
 
@@ -3872,7 +3926,7 @@ public function getTodayShifts()
                     'staff_id'    => $shift->staff_id ?? null,
                     'shift_date'  => $date->format('Y-m-d'),
                     'start_time'  => $request->start_shift[$i],
-                    'status'  => $shift->staff_id ? 'pending' : 'unassigned',
+                    'status'      => $shift->staff_id ? 'pending' : 'unassigned',
                     'end_time'    => $request->end_shift[$i],
                     'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
                     'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
@@ -3880,7 +3934,8 @@ public function getTodayShifts()
                         $request->start_shift[$i],
                         $request->end_shift[$i]
                     ),
-                    'guard_rate'  => $resolvedGuardRate,
+                    'site_rate'   => $currentSiteRate,
+                    'guard_rate'  => $currentGuardRate,
                 ]);
 
                 $shiftDatesCreated++;

@@ -52,6 +52,11 @@ class SiteController extends Controller
             'staff_rates' => 'nullable|array',
             'staff_rates.*.user_id' => 'nullable|integer|exists:users,id',
             'staff_rates.*.guard_rate' => 'nullable|numeric',
+            'holiday_rates' => 'nullable|array',
+            'holiday_rates.*.holiday_name' => 'required_with:holiday_rates|string|max:255',
+            'holiday_rates.*.holiday_date' => 'required_with:holiday_rates|date',
+            'holiday_rates.*.site_rate' => 'nullable|numeric',
+            'holiday_rates.*.guard_rate' => 'nullable|numeric',
 
             // ✅ Checkpoints validation
             'checkpoints'                => 'nullable|array',
@@ -127,6 +132,29 @@ class SiteController extends Controller
             }
         }
 
+        // ✅ Save holiday-specific rates (if provided). Accept either an array or JSON string.
+        if ($request->has('holiday_rates')) {
+            $holidayRates = $request->input('holiday_rates', []);
+            if (is_string($holidayRates)) {
+                $decoded = json_decode($holidayRates, true);
+                $holidayRates = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($holidayRates)) {
+                $holidayRates = [];
+            }
+            foreach ($holidayRates as $rate) {
+                if (empty($rate['holiday_name']) || empty($rate['holiday_date'])) {
+                    continue;
+                }
+                $site->siteHolidayRates()->create([
+                    'holiday_name' => $rate['holiday_name'],
+                    'holiday_date' => $rate['holiday_date'],
+                    'site_rate' => $rate['site_rate'] ?? null,
+                    'guard_rate' => $rate['guard_rate'] ?? null,
+                ]);
+            }
+        }
+
         Logger::log(Auth::user(), 'Create', 'Site '.$site->site_name.' Created');
 
         // Generate QR image and NFC tag if requested
@@ -187,6 +215,11 @@ class SiteController extends Controller
             'staff_rates' => 'nullable|array',
             'staff_rates.*.user_id' => 'nullable|integer|exists:users,id',
             'staff_rates.*.guard_rate' => 'nullable|numeric',
+            'holiday_rates' => 'nullable|array',
+            'holiday_rates.*.holiday_name' => 'required_with:holiday_rates|string|max:255',
+            'holiday_rates.*.holiday_date' => 'required_with:holiday_rates|date',
+            'holiday_rates.*.site_rate' => 'nullable|numeric',
+            'holiday_rates.*.guard_rate' => 'nullable|numeric',
 
             // checkpoints validation
             'checkpoints'   => 'nullable|array',
@@ -330,6 +363,34 @@ class SiteController extends Controller
                     'guard_rate' => $r['guard_rate'] ?? null,
                 ]);
             }
+        } else {
+            $site->staffRates()->delete();
+        }
+
+        // ✅ Sync holiday-specific rates if submitted. If none are sent, remove existing rates.
+        if ($request->has('holiday_rates')) {
+            $holidayRates = $request->input('holiday_rates', []);
+            if (is_string($holidayRates)) {
+                $decoded = json_decode($holidayRates, true);
+                $holidayRates = is_array($decoded) ? $decoded : [];
+            }
+            if (!is_array($holidayRates)) {
+                $holidayRates = [];
+            }
+            $site->siteHolidayRates()->delete();
+            foreach ($holidayRates as $rate) {
+                if (empty($rate['holiday_name']) || empty($rate['holiday_date'])) {
+                    continue;
+                }
+                $site->siteHolidayRates()->create([
+                    'holiday_name' => $rate['holiday_name'],
+                    'holiday_date' => $rate['holiday_date'],
+                    'site_rate' => $rate['site_rate'] ?? null,
+                    'guard_rate' => $rate['guard_rate'] ?? null,
+                ]);
+            }
+        } else {
+            $site->siteHolidayRates()->delete();
         }
 
         return response()->json(['message' => 'Site updated successfully']);
@@ -337,7 +398,7 @@ class SiteController extends Controller
 
     public function edit($id)
     {
-        $site = Site::with('employeeTypes','checkpoints','staffRates')->find($id);
+        $site = Site::with('employeeTypes','checkpoints','staffRates','siteHolidayRates')->find($id);
         // Attach NFC tags read from filesystem (not stored exclusively in DB)
         try {
             $site->nfc_tags = $this->getNfcTagsForSite($site->id);
@@ -346,14 +407,53 @@ class SiteController extends Controller
         }
 
         $staffs = User::role('security_staff')->orderBy('first_name','asc')->get(['id','first_name','last_name']);
-        $staffRates = $site->staffRates->map(function ($r) {
+        $staffRates = $site->staffRates ? $site->staffRates->map(function ($r) {
             return [
                 'id' => $r->id,
                 'user_id' => $r->user_id,
                 'guard_rate' => $r->guard_rate,
                 'name' => optional($r->user)->first_name . ' ' . optional($r->user)->last_name,
             ];
-        })->toArray();
+        })->toArray() : [];
+
+        $siteHolidayRates = $site->siteHolidayRates ? $site->siteHolidayRates->map(function ($r) {
+            $holidayDate = $r->holiday_date;
+            if (!($holidayDate instanceof \Carbon\Carbon) && !($holidayDate instanceof \Illuminate\Support\Carbon)) {
+                $holidayDate = \Carbon\Carbon::parse($holidayDate);
+            }
+            return [
+                'id' => $r->id,
+                'holiday_name' => $r->holiday_name,
+                'holiday_date' => $holidayDate->format('Y-m-d'),
+                'site_rate' => $r->site_rate,
+                'guard_rate' => $r->guard_rate,
+            ];
+        })->toArray() : [];
+
+        $ukHolidays = [];
+        try {
+            $response = Http::get('https://www.gov.uk/bank-holidays.json');
+            if ($response->successful()) {
+                $data = $response->json();
+                if (isset($data['england-and-wales']['events'])) {
+                    $ukHolidays = collect($data['england-and-wales']['events'])
+                        ->filter(function ($holiday) {
+                            return \Carbon\Carbon::parse($holiday['date'])->isFuture();
+                        })
+                        ->map(function ($holiday) {
+                            return [
+                                'title' => $holiday['title'],
+                                'date' => $holiday['date'],
+                            ];
+                        })
+                        ->sortBy('date')
+                        ->values()
+                        ->all();
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch UK bank holidays: ' . $e->getMessage());
+        }
 
         return response()->json([
             'site' => $site,
@@ -367,8 +467,41 @@ class SiteController extends Controller
             }),
             'staffs' => $staffs,
             'staff_rates' => $staffRates,
+            'site_holiday_rates' => $siteHolidayRates,
+            'uk_holidays' => $ukHolidays,
         ]);
     }
+
+    public function holidays()
+    {
+        $ukHolidays = [];
+        try {
+            $response = Http::get('https://www.gov.uk/bank-holidays.json');
+            if ($response->successful()) {
+                $data = $response->json();
+                if (isset($data['england-and-wales']['events'])) {
+                    $ukHolidays = collect($data['england-and-wales']['events'])
+                        ->filter(function ($holiday) {
+                            return \Carbon\Carbon::parse($holiday['date'])->isFuture();
+                        })
+                        ->map(function ($holiday) {
+                            return [
+                                'title' => $holiday['title'],
+                                'date' => $holiday['date'],
+                            ];
+                        })
+                        ->sortBy('date')
+                        ->values()
+                        ->all();
+                }
+            }
+        } catch (\Exception $e) {
+            Log::error('Failed to fetch UK bank holidays: ' . $e->getMessage());
+        }
+
+        return response()->json(['uk_holidays' => $ukHolidays]);
+    }
+
     public function delete($id)
     {
         $site = Site::findOrFail($id);

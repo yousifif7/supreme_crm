@@ -528,6 +528,22 @@
                         $(form).append($('<input>', { type: 'hidden', name: `staff_rates[${idx}][guard_rate]`, value: rate }).addClass('dynamic-staff-rate'));
                     });
                 }
+
+                // Ensure holiday rates are added to the form as array inputs
+                $(form).find('.dynamic-holiday-rate').remove();
+                if (Array.isArray(editSiteHolidayRates) && editSiteHolidayRates.length) {
+                    editSiteHolidayRates.forEach(function(r, idx) {
+                        const holidayName = r.holiday_name ?? '';
+                        const holidayDate = r.holiday_date ?? '';
+                        const siteRate = r.site_rate ?? '';
+                        const guardRate = r.guard_rate ?? '';
+                        $(form).append($('<input>', { type: 'hidden', name: `holiday_rates[${idx}][holiday_name]`, value: holidayName }).addClass('dynamic-holiday-rate'));
+                        $(form).append($('<input>', { type: 'hidden', name: `holiday_rates[${idx}][holiday_date]`, value: holidayDate }).addClass('dynamic-holiday-rate'));
+                        $(form).append($('<input>', { type: 'hidden', name: `holiday_rates[${idx}][site_rate]`, value: siteRate }).addClass('dynamic-holiday-rate'));
+                        $(form).append($('<input>', { type: 'hidden', name: `holiday_rates[${idx}][guard_rate]`, value: guardRate }).addClass('dynamic-holiday-rate'));
+                    });
+                }
+
                 let formData = new FormData(form);
                 let submitButton = $('#editsite'); // Your submit button should have this ID
 
@@ -676,6 +692,59 @@
                             $('#site_staff_rate_input').val('');
                         });
                     } catch (e) { console.error(e); }
+
+                    // Populate holiday select and rates list
+                    // Defer select2 initialization until modal is shown to avoid rendering issues
+                    $('#edit_site').on('shown.bs.modal', function () {
+                        try {
+                            const $holidaySelect = $('#site_holiday_select');
+                            $holidaySelect.find('option').remove();
+                            $holidaySelect.append(new Option('--choose holiday--', ''));
+
+                            ukHolidays = data.uk_holidays || [];
+                            const holidayOptions = ukHolidays.map(h => ({ id: `${h.title}|${h.date}`, text: `${h.title} (${h.date})` }));
+
+                            try {
+                                if ($holidaySelect.hasClass('select2-hidden-accessible')) {
+                                    $holidaySelect.select2('destroy');
+                                }
+                            } catch (ee) { /* ignore */ }
+
+                            $holidaySelect.select2({
+                                placeholder: '--choose holiday--',
+                                allowClear: true,
+                                width: 'style',
+                                dropdownParent: $('#edit_site .modal-content'),
+                                minimumResultsForSearch: 0,
+                                data: holidayOptions // Explicitly set data
+                            });
+
+                            // Load existing holiday rates
+                            editSiteHolidayRates = data.site_holiday_rates || [];
+                            renderSiteHolidayRates();
+
+                            // bind add button
+                            $('#add_site_holiday_rate').off('click').on('click', function() {
+                                const selectedHoliday = $holidaySelect.val();
+                                if (!selectedHoliday) { toast_danger('Please choose a holiday'); return; }
+
+                                const [holidayName, holidayDate] = selectedHoliday.split('|');
+                                const siteRate = $('#site_holiday_site_rate_input').val() || null;
+                                const guardRate = $('#site_holiday_guard_rate_input').val() || null;
+
+                                if (editSiteHolidayRates.find(r => r.holiday_date === holidayDate)) {
+                                    toast_danger('A rate is already set for this holiday');
+                                    return;
+                                }
+
+                                editSiteHolidayRates.push({ holiday_name: holidayName, holiday_date: holidayDate, site_rate: siteRate, guard_rate: guardRate });
+                                renderSiteHolidayRates();
+                                $('#site_holiday_site_rate_input').val('');
+                                $('#site_holiday_guard_rate_input').val('');
+                                $holidaySelect.val('').trigger('change');
+                            });
+                        } catch (e) { console.error(e); }
+                    }); // End shown.bs.modal
                 }
 
                 // Render current site NFC tag in edit modal (single tag per site)
@@ -840,6 +909,9 @@
     if (typeof siteMarker === 'undefined') var siteMarker = null;
     if (typeof checkpointMarkers === 'undefined') var checkpointMarkers = []; // store {marker, index}
     if (typeof editSiteStaffRates === 'undefined') var editSiteStaffRates = [];
+    if (typeof editSiteHolidayRates === 'undefined') var editSiteHolidayRates = [];
+    if (typeof ukHolidays === 'undefined') var ukHolidays = [];
+
     function initEditMap(lat = 51.505, lng = -0.09, checkpoints = []) {
         if (!editMap) {
             editMap = L.map('editSiteMap').setView([lat, lng], 13);
@@ -909,6 +981,48 @@
         const idx = parseInt($(this).data('index'));
         if (!isNaN(idx) && editSiteStaffRates[idx]) {
             editSiteStaffRates[idx].guard_rate = $(this).val();
+        }
+    });
+
+    function renderSiteHolidayRates() {
+        const $tbody = $('#site_holiday_rates_list');
+        $tbody.empty();
+        editSiteHolidayRates.forEach((r, idx) => {
+            const holidayName = r.holiday_name || '';
+            const holidayDate = r.holiday_date || '';
+            const siteRateVal = (r.site_rate !== undefined && r.site_rate !== null) ? r.site_rate : '';
+            const guardRateVal = (r.guard_rate !== undefined && r.guard_rate !== null) ? r.guard_rate : '';
+            $tbody.append(`
+                <tr data-index="${idx}">
+                    <td>${holidayName}</td>
+                    <td>${holidayDate}</td>
+                    <td><input type="text" class="form-control numeric-input site-holiday-site-rate-input" data-index="${idx}" value="${siteRateVal}"></td>
+                    <td><input type="text" class="form-control numeric-input site-holiday-guard-rate-input" data-index="${idx}" value="${guardRateVal}"></td>
+                    <td><button type="button" class="btn btn-sm btn-danger remove-site-holiday-rate" data-index="${idx}">Remove</button></td>
+                </tr>
+            `);
+        });
+    }
+
+    $(document).on('click', '.remove-site-holiday-rate', function() {
+        const idx = parseInt($(this).data('index'));
+        if (!isNaN(idx)) {
+            editSiteHolidayRates.splice(idx, 1);
+            renderSiteHolidayRates();
+        }
+    });
+
+    $(document).on('input', '.site-holiday-site-rate-input', function() {
+        const idx = parseInt($(this).data('index'));
+        if (!isNaN(idx) && editSiteHolidayRates[idx]) {
+            editSiteHolidayRates[idx].site_rate = $(this).val();
+        }
+    });
+
+    $(document).on('input', '.site-holiday-guard-rate-input', function() {
+        const idx = parseInt($(this).data('index'));
+        if (!isNaN(idx) && editSiteHolidayRates[idx]) {
+            editSiteHolidayRates[idx].guard_rate = $(this).val();
         }
     });
 
