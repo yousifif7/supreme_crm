@@ -2178,6 +2178,11 @@
                     $(this).prop('checked', selectedShiftIds.has(id));
                 });
 
+                // Show/hide bulk unassign button based on selection mode
+                $('#bulkUnassignBtn').toggle(selectionMode);
+                $('#bulkUnassignBtn').toggleClass('d-none', !selectionMode);
+                $('#bulkUnassignBtn').css('display', selectionMode ? 'inline-block' : 'none');
+
                 // Adjust padding immediately for all bars so content isn't pushed far to the right
                 $('#ganttChart .gantt-bar').css('padding-left', getBarLeftPadding());
 
@@ -2188,6 +2193,45 @@
                     }, 80);
                 }
             });
+
+        // Bulk unassign selected shifts
+        $('#bulkUnassignBtn').on('click', function() {
+            if (selectedShiftIds.size === 0) {
+                showToast('Please select at least one shift to unassign', 'error', 3000);
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to unassign ${selectedShiftIds.size} selected shift(s)?`)) {
+                return;
+            }
+
+            const $btn = $(this);
+            $btn.prop('disabled', true).html('<i class="ti ti-loader"></i> Unassigning...');
+
+            $.ajax({
+                url: `${baseUrl}/shifts/bulkUnassign`,
+                method: 'POST',
+                data: {
+                    shift_ids: Array.from(selectedShiftIds),
+                    _token: $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    showToast(response.message || `${selectedShiftIds.size} shifts unassigned successfully`, 'success', 5000);
+                    selectedShiftIds.clear();
+                    $('.multi-shift-checkbox').prop('checked', false);
+                    $btn.hide();
+                    if (window.loadAllShiftsData) {
+                        window.loadAllShiftsData();
+                    } else {
+                        location.reload();
+                    }
+                },
+                error: function(xhr) {
+                    showToast(xhr.responseJSON?.message || 'Error unassigning shifts', 'error', 5000);
+                    $btn.prop('disabled', false).html('<i class="ti ti-user-off"></i> Unassign Selected');
+                }
+            });
+        });
 
             $('#todayBtn').on('click', function() {
                 const today = new Date();
@@ -3097,6 +3141,7 @@
             $('#editSelectedBtn').prop('hidden', !selectionMode);
             $('#deleteSelectedBtn').prop('hidden', !selectionMode);
             $('#deleteSelectedBtn').prop('disabled', selectedShiftIds.length === 0);
+            $('#bulkUnassignBtn').prop('hidden', !selectionMode);
 
             // Show/hide checkboxes
             $('.multi-shift-checkbox').each(function() {

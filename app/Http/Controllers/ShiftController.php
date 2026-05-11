@@ -111,6 +111,57 @@ class ShiftController extends Controller
     }
 
 
+    public function bulkUnassign(Request $request)
+    {
+        \Log::info('Bulk Unassign Request Data:', $request->all());
+        \Log::info('Shift IDs received for bulk unassign:', ['shift_ids' => $request->shift_ids]);
+
+        // Ensure shift_ids is an array to prevent foreach error if it's null
+        $shiftIds = $request->input('shift_ids', []);
+        if (!is_array($shiftIds)) {
+            \Log::warning('shift_ids was not an array, converting to empty array.');
+            $shiftIds = [];
+        }
+
+        foreach ($shiftIds as $id) {
+            $shiftDate = ShiftDate::findOrFail($id);
+
+        send_push_notification(
+            $shiftDate->staff->id,
+            'Shift Unassigned',
+            'An admin unassigned a shift for you, check your schedule.',
+            ['type' => 'shift', 'shiftId' => $shiftDate->id],
+        );
+
+        ShiftBooking::where('shift_id', $shiftDate->id)->delete();
+
+
+        $bookings = $shiftDate->bookings;
+        foreach ($bookings as $booking) {
+            $booking->delete();
+        }
+
+        $shiftDate->staff_id = null; // Remove assigned staff
+        $shiftDate->is_assign=0;
+        $shiftDate->status="pending";
+
+
+        $shiftDate->save();
+
+        try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
+
+        $checkcalls = $shiftDate->checkCalls;
+        foreach ($checkcalls as $checkcall) {
+            if($checkcall->status !=='completed'){
+                $checkcall->employee_id = null;
+                $checkcall->save();
+            }
+        }
+
+        }
+        return response()->json(['success' => true]);
+    }
+
     public function unassign(Request $request, $id)
     {
         $shiftDate = ShiftDate::findOrFail($id);

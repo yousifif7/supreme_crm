@@ -386,7 +386,8 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/check-calls/{id}/status', [ShiftController::class, 'updateStatus'])->name('checkcalls.updateStatus');
     Route::post('/check-calls/{id}/comment', [ShiftController::class, 'addComment'])->name('checkcalls.addComment');
 
-    
+    Route::post('shifts/bulkUnassign', [ShiftController::class, 'bulkUnassign'])->name('shifts.bulkUnassign');
+
 
     Route::post('/shifts/multi-assign', [ShiftController::class, 'multiAssign'])
         ->name('shifts.multi-assign');

@@ -34,9 +34,13 @@
         <div class="right mt-4">
             @yield('filter')
             @if (Request::is('scheduling*'))
+                <button id="bulkUnassignBtn" class="btn btn-danger" style="display:none;">
+                    <i class="ti ti-user-off"></i> Unassign Selected
+                </button>
                 <button id="editSelectedBtn" class="btn add-btn btn-success" hidden style="background: gray;">Multiple
                     Edit</button>
-                <button id="deleteSelectedBtn" class="btn btn-danger" style="background:red;" hidden>Delete Selected</button>
+                <button id="deleteSelectedBtn" class="btn btn-danger" style="background:red;" hidden>Delete
+                    Selected</button>
                 <button id="enableSelectBtn" class="btn add-btn btn-success" name="Multi_Select"
                     style="background: gray;">Multi Select</button>
                 <button id="toggle-subcontractors-all" class="btn" style="background-color:gray; color:white;">
@@ -105,20 +109,22 @@
                             return exportUrl.toString();
                         }
 
-                        $(document).off('click.shiftFilterExport', 'a.export-pdf, a.export-excel').on('click.shiftFilterExport', 'a.export-pdf, a.export-excel', function(e) {
-                            try {
-                                // On shifts index page, let the page-specific handler build the URL.
-                                if ($('#shifts-table').length > 0) {
+                        $(document).off('click.shiftFilterExport', 'a.export-pdf, a.export-excel').on('click.shiftFilterExport',
+                            'a.export-pdf, a.export-excel',
+                            function(e) {
+                                try {
+                                    // On shifts index page, let the page-specific handler build the URL.
+                                    if ($('#shifts-table').length > 0) {
+                                        return;
+                                    }
+
+                                    e.preventDefault();
+                                    window.location = buildExportUrl($(this).attr('href'));
+                                } catch (err) {
+                                    // On any error, just follow the original link
                                     return;
                                 }
-
-                                e.preventDefault();
-                                window.location = buildExportUrl($(this).attr('href'));
-                            } catch (err) {
-                                // On any error, just follow the original link
-                                return;
-                            }
-                        });
+                            });
                     })();
                 </script>
             </div>
