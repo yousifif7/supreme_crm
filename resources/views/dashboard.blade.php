@@ -675,7 +675,10 @@
     @endphp
 
     @if ($currentUser->hasAnyRole('controller|staff_leader|control_room'))
+        @if(auth()->user()->admin_id !== null)
+        @else
         <script src="{{ asset('assets/toast/alerts.js') }}" defer></script>
+        @endif
     @endif
 
     <script>

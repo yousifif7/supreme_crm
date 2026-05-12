@@ -32,7 +32,10 @@ class CheckCallController extends Controller
     public function completeCheckCall(Request $request, $id)
     {
         $data = $request->validate([
-            'media_files' => 'nullable|array', // files or base64
+            'media_files' => 'nullable|array', // files or base64 (fallback)
+            'media' => 'nullable|array',
+            'media.media_file' => 'nullable|string',
+            'media.timestamp' => 'nullable|date',
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'notes' => 'nullable|string',
@@ -51,7 +54,7 @@ class CheckCallController extends Controller
         }
         
         // ...existing code...
-        if($checkCall->require_media =='1' && (empty($data['media_files']) || count($data['media_files']) == 0)){
+        if($checkCall->require_media =='1' && empty($data['media']['media_file']) && (empty($data['media_files']) || count($data['media_files']) == 0)){
             return response()->json(['message' => 'This check call requires media evidence. Please attach media files before completing.'], 422);
         }
 
@@ -132,6 +135,101 @@ class CheckCallController extends Controller
         // Collect processed file full paths so we can optionally return them as a download
         @set_time_limit(0);
         $processedFiles = [];
+        
+        // Handle new JSON media format if present
+        if (!empty($data['media']['media_file'])) {
+            $file = $data['media']['media_file'];
+            $filePath = null;
+            $originalName = null;
+            
+            if (is_string($file) && preg_match('/^data:/', $file)) {
+                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
+                $extension = 'png';
+                if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
+                    $mime = $matches[1];
+                    $extMap = [
+                        'image/jpeg' => 'jpg',
+                        'image/png' => 'png',
+                        'image/gif' => 'gif',
+                        'video/mp4' => 'mp4',
+                        'video/quicktime' => 'mov',
+                        'application/pdf' => 'pdf',
+                        'application/msword' => 'doc',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    ];
+                    $extension = $extMap[$mime] ?? 'bin';
+                }
+                if (!file_exists(public_path('check_calls'))) {
+                    mkdir(public_path('check_calls'), 0755, true);
+                }
+                $filename = time() . '_' . uniqid() . '.' . $extension;
+                file_put_contents(public_path('check_calls/' . $filename), base64_decode($fileData));
+                $filePath = 'check_calls/' . $filename;
+                
+                // Use media timestamp if available
+                if (!empty($data['media']['timestamp'])) {
+                    try {
+                        $parsed = Carbon::parse($data['media']['timestamp'], 'Europe/London');
+                        $timestampData['time'] = $parsed->format('Y-m-d H:i:s');
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to parse media timestamp', ['input' => $data['media']['timestamp'], 'error' => $e->getMessage()]);
+                    }
+                }
+            }
+            
+            if ($filePath) {
+                $fullPath = public_path($filePath);
+                $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+                
+                // Process the file (same as below)
+                if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
+                    $this->processVideo($fullPath, $timestampData);
+                } else {
+                    $compressedPath = $this->compressFile($fullPath, $fileType);
+                    if ($compressedPath && $compressedPath != $fullPath) {
+                        if (file_exists($fullPath)) unlink($fullPath);
+                        rename($compressedPath, $fullPath);
+                        @chmod($fullPath, 0644);
+                    }
+                    switch ($fileType) {
+                        case 'jpg':
+                        case 'jpeg':
+                        case 'png':
+                            $this->addWatermarkToImage($fullPath, $timestampData);
+                            break;
+                        case 'pdf':
+                            $this->addTimestampToPdf($fullPath, $timestampData);
+                            break;
+                        case 'doc':
+                        case 'docx':
+                            $this->addTimestampToDocument($fullPath, $timestampData);
+                            break;
+                        default:
+                            $this->createMetadataFile($fullPath, $timestampData);
+                            break;
+                    }
+                }
+                
+                // Save to DB
+                CheckCallMedia::create([
+                    'check_call_id' => $checkCall->id,
+                    'file_path' => $filePath,
+                    'file_type' => $fileType,
+                    'original_name' => $originalName,
+                    'file_size' => filesize($fullPath),
+                ]);
+                
+                if (file_exists($fullPath)) {
+                    $processedFiles[] = $fullPath;
+                }
+                $metaPath = $fullPath . '.metadata.txt';
+                if (file_exists($metaPath)) {
+                    $processedFiles[] = $metaPath;
+                }
+            }
+        }
+        
+        // Handle legacy array format as fallback
         foreach ($data['media_files'] ?? [] as $file) {
             $filePath = null;
             $originalName = null;

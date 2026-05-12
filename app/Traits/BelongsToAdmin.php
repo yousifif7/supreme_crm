@@ -220,6 +220,40 @@ trait BelongsToAdmin
         });
     }
 
+
+    public static function resolveOwnerAdminId(): ?int
+    {
+        if (!Auth::check()) {
+            return null;
+        }
+
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        if ($user->hasRole('admin')) {
+            return (int) $user->id;
+        }
+
+        if (
+            !$user->hasRole('superadmin') &&
+            !$user->hasRole('security_staff') &&
+            !is_null($user->admin_id)
+        ) {
+            return (int) $user->admin_id;
+        }
+
+        return null;
+    }
+
+    public static function cacheSuffix(): string
+    {
+        $ownerAdminId = static::resolveOwnerAdminId();
+
+        return is_null($ownerAdminId)
+            ? 'system'
+            : 'admin_' . $ownerAdminId;
+    }
+
     /**
      * Temporarily remove the admin scope so you can query freely.
      * Usage: Model::withoutAdminScope()->get();

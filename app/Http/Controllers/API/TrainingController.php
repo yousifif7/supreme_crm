@@ -182,7 +182,7 @@ class TrainingController extends Controller
             'updated_at' => $material->updated_at,
         ];
 
-        return response()->json($resp);
+        return response()->json(['material' => $resp]);
     }
 
 

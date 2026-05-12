@@ -2,41 +2,42 @@
 
 namespace App\Http\Controllers;
 
-use Notify;
-use Carbon\Carbon;
-use App\Models\Site;
-use App\Models\User;
-use App\Models\Shift;
-use App\Models\Client;
-use App\Models\Patrol;
+use App\DataTables\ShiftsDataTable;
+use App\Exports\PatrolsExport;
 use App\Helpers\Logger;
+use App\Models\CheckCall;
+use App\Models\CheckpointScan;
+use App\Models\Client;
 use App\Models\Employee;
 use App\Models\EmployeeBan;
-use App\Models\Location;
-use Carbon\CarbonPeriod;
-use App\Models\CheckCall;
-use App\Models\ShiftDate;
-use App\Models\ShiftNote;
-use App\Models\PatrolMedia;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
+use App\Models\Location;
 use App\Models\Notification;
-use App\Models\ShiftBooking;
-use Illuminate\Http\Request;
-use App\Models\Subcontractor;
-use App\Models\SiteStaffRate;
-use App\Exports\PatrolsExport;
-use App\Models\CheckpointScan;
+use App\Models\Patrol;
 use App\Models\PatrolCheckPoint;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
-use App\DataTables\ShiftsDataTable;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Auth;
-use Maatwebsite\Excel\Facades\Excel;
+use App\Models\PatrolMedia;
+use App\Models\Shift;
+use App\Models\ShiftBooking;
+use App\Models\ShiftDate;
+use App\Models\ShiftNote;
+use App\Models\Site;
+use App\Models\SiteStaffRate;
+use App\Models\Subcontractor;
+use App\Models\User;
+use App\Traits\BelongsToAdmin;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use Carbon\Carbon;
+use Carbon\CarbonPeriod;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Maatwebsite\Excel\Facades\Excel;
+use Notify;
 
 class ShiftController extends Controller
 {
@@ -70,13 +71,14 @@ class ShiftController extends Controller
      */
     protected function getSubcontractors()
     {
-        return Cache::remember('subcontractors_min_list', 300, function () {
+        $cacheSuffix = BelongsToAdmin::cacheSuffix();
+
+        return Cache::remember("subcontractors_min_list_{$cacheSuffix}", 300, function () {
             return User::role('subcontractor')
                 ->orderBy('first_name', 'asc')
                 ->get(['id', 'first_name', 'last_name', 'email']);
         });
     }
-
     protected function resolveSubcontractorUserId($subcontractorId): ?int
     {
         if (empty($subcontractorId)) {
@@ -113,17 +115,8 @@ class ShiftController extends Controller
 
     public function bulkUnassign(Request $request)
     {
-        \Log::info('Bulk Unassign Request Data:', $request->all());
-        \Log::info('Shift IDs received for bulk unassign:', ['shift_ids' => $request->shift_ids]);
 
-        // Ensure shift_ids is an array to prevent foreach error if it's null
-        $shiftIds = $request->input('shift_ids', []);
-        if (!is_array($shiftIds)) {
-            \Log::warning('shift_ids was not an array, converting to empty array.');
-            $shiftIds = [];
-        }
-
-        foreach ($shiftIds as $id) {
+        foreach ($request->shift_ids as $id) {
             $shiftDate = ShiftDate::findOrFail($id);
 
         send_push_notification(
@@ -267,31 +260,47 @@ class ShiftController extends Controller
         $services = EmployeeType::select(['id', 'name'])->get();
         return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'services'));
     }
-    public function scheduling()
-    {
-        // Load only the columns consumed by dropdown selects and count badges —
-        // prevents hydrating large text/blob columns for every user/site.
-        $clients = Cache::remember('clients_min_list', 300, function () {
-            return User::role('client')
-                ->select(['id', 'first_name', 'last_name', 'email'])
-                ->orderBy('first_name')
-                ->get();
-        });
-        $sites = Cache::remember('sites_min_list', 300, function () {
-            return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
-        });
-        $staffs = Cache::remember('security_staff_min_list', 300, function () {
-            return User::role('security_staff')
-                ->select(['id', 'first_name', 'last_name', 'email'])
-                ->orderBy('first_name')
-                ->get();
-        });
-        $subcontractors = $this->getSubcontractors();
-        $services = Cache::remember('employee_types_min_list', 300, function () {
-            return EmployeeType::select(['id', 'name'])->orderBy('name')->get();
-        });
-        return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
-    }
+public function scheduling()
+{
+    $cacheSuffix = BelongsToAdmin::cacheSuffix();
+
+    $clients = Cache::remember("clients_min_list_{$cacheSuffix}", 300, function () {
+        return User::role('client')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name')
+            ->get();
+    });
+
+    $sites = Cache::remember("sites_min_list_{$cacheSuffix}", 300, function () {
+        return Site::select(['id', 'site_name', 'client_id'])
+            ->orderBy('site_name')
+            ->get();
+    });
+
+    $staffs = Cache::remember("security_staff_min_list_{$cacheSuffix}", 300, function () {
+        return User::role('security_staff')
+            ->select(['id', 'first_name', 'last_name', 'email'])
+            ->orderBy('first_name')
+            ->get();
+    });
+
+    $subcontractors = $this->getSubcontractors();
+
+    $services = Cache::remember('employee_types_min_list', 300, function () {
+        return EmployeeType::select(['id', 'name'])
+            ->orderBy('name')
+            ->get();
+    });
+
+    return view('security_boards.scheduling', compact(
+        'sites',
+        'staffs',
+        'clients',
+        'services',
+        'subcontractors'
+    ));
+}
+
     public function worker_calendar()
     {
         $clients = Cache::remember('clients_min_list', 300, function () {
@@ -1514,7 +1523,21 @@ public function getShifts(Request $request)
     // These web-internal endpoints are at /api/* so BelongsToAdmin scope is bypassed.
     // Apply it manually here.
     $authUser = Auth::user();
-    $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
+
+    $ownerAdminId = null;
+
+    if ($authUser) {
+        if ($authUser->hasRole('admin')) {
+            $ownerAdminId = (int) $authUser->id;
+        } elseif (
+            !$authUser->hasRole('superadmin') &&
+            !$authUser->hasRole('security_staff') &&
+            !is_null($authUser->admin_id)
+        ) {
+            // Normal user belonging to an admin
+            $ownerAdminId = (int) $authUser->admin_id;
+        }
+    }
 
     $query = \App\Models\ShiftDate::query()
         ->select([
@@ -1601,9 +1624,10 @@ public function getShifts(Request $request)
     $query->whereBetween('shift_dates.shift_date', [$from->format('Y-m-d'), $to->format('Y-m-d')]);
 
     // Admin scoping (scope bypassed because URL starts with /api/)
-    if ($adminId !== null) {
-        $query->where('shift_dates.admin_id', $adminId);
+    if (!is_null($ownerAdminId)) {
+        $query->where('shift_dates.admin_id', $ownerAdminId);
     } else {
+        // Superadmin/system-level access
         $query->whereNull('shift_dates.admin_id');
     }
 
@@ -1862,8 +1886,7 @@ private function formatGanttArray($shiftDates)
 public function getShiftsWithStaff()
 {
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
-    $authUser = Auth::user();
-    $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
+    $ownerAdminId = ShiftDate::resolveOwnerAdminId();
 
     $startDefault = now()->subMonths(2)->startOfDay();
     $endDefault   = now()->addMonths(1)->endOfDay();
@@ -1881,7 +1904,11 @@ public function getShiftsWithStaff()
     ];
 
     // Short cache to avoid hammering the DB on rapid calendar navigations.
-    $cacheKey = 'shifts_with_staff:' . ($adminId ?? 'null') . ':' . $startDefault->format('Y-m-d') . ':' . $endDefault->format('Y-m-d');
+$cacheKey = 'shifts_with_staff:' .
+    ShiftDate::cacheSuffix() . ':' .
+    $startDefault->format('Y-m-d') . ':' .
+    $endDefault->format('Y-m-d');
+    
     if ($cached = Cache::get($cacheKey)) {
         return response()->json($cached);
     }
@@ -1910,8 +1937,8 @@ public function getShiftsWithStaff()
         ->orderBy('shift_dates.shift_date', 'asc');
 
     // Admin scoping
-    if ($adminId !== null) {
-        $shiftDates->where('shift_dates.admin_id', $adminId);
+    if (!is_null($ownerAdminId)) {
+        $shiftDates->where('shift_dates.admin_id', $ownerAdminId);
     } else {
         $shiftDates->whereNull('shift_dates.admin_id');
     }
@@ -1982,7 +2009,8 @@ public function getShiftsBySite()
     $user = Auth::user();
 
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
-    $adminId = ($user && $user->hasRole('admin')) ? $user->id : null;
+    $ownerAdminId = ShiftDate::resolveOwnerAdminId();
+
 
     $startDefault = now()->subMonths(2)->startOfDay();
     $endDefault   = now()->addMonths(1)->endOfDay();
@@ -2001,7 +2029,12 @@ public function getShiftsBySite()
 
     // Short cache — scope by admin + client role so different users get correct data.
     $clientScopeId = ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) ? $user->id : 'all';
-    $cacheKey = 'shifts_by_site:' . ($adminId ?? 'null') . ':' . $clientScopeId . ':' . $startDefault->format('Y-m-d') . ':' . $endDefault->format('Y-m-d');
+$cacheKey = 'shifts_by_site:' .
+    ShiftDate::cacheSuffix() . ':' .
+    $clientScopeId . ':' .
+    $startDefault->format('Y-m-d') . ':' .
+    $endDefault->format('Y-m-d');
+    
     if ($cached = Cache::get($cacheKey)) {
         return response()->json($cached);
     }
@@ -2025,8 +2058,8 @@ public function getShiftsBySite()
         ->orderBy('shift_dates.shift_date', 'asc');
 
     // Admin scoping
-    if ($adminId !== null) {
-        $query->where('shift_dates.admin_id', $adminId);
+    if (!is_null($ownerAdminId)) {
+        $query->where('shift_dates.admin_id', $ownerAdminId);
     } else {
         $query->whereNull('shift_dates.admin_id');
     }
@@ -2094,8 +2127,7 @@ public function getShiftsBySite()
 public function getTodayShifts()
 {
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
-    $authUser = Auth::user();
-    $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
+    $ownerAdminId = ShiftDate::resolveOwnerAdminId();
 
     $today     = now()->toDateString(); // Y-m-d
     $todayDay  = now()->format('D');    // Mon, Tue...
@@ -2134,12 +2166,12 @@ public function getTodayShifts()
         ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
         ->whereDate('shift_dates.shift_date', $today);
 
-    // Admin scoping
-    if ($adminId !== null) {
-        $rows->where('shift_dates.admin_id', $adminId);
-    } else {
-        $rows->whereNull('shift_dates.admin_id');
-    }
+// Admin scoping
+if (!is_null($ownerAdminId)) {
+    $rows->where('shift_dates.admin_id', $ownerAdminId);
+} else {
+    $rows->whereNull('shift_dates.admin_id');
+}
 
     $rows = $rows->get();
 

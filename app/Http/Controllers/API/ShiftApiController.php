@@ -1600,10 +1600,14 @@ class ShiftApiController extends Controller
     public function uploadPatrolMedia(Request $request, $patrol_id)
     {
         $request->validate([
-            'media_files' => 'nullable|array',
+            'media_files' => 'nullable|array', // files or base64 (fallback)
+            'media' => 'nullable|array',
+            'media.media_file' => 'nullable|string',
+            'media.timestamp' => 'nullable|date',
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'notes' => 'nullable|string',
+            'timestamp' => 'nullable|date',
         ]);
 
         $patrol = Patrol::findOrFail($patrol_id);
@@ -1619,6 +1623,25 @@ class ShiftApiController extends Controller
         }
 
         $user = Auth::user();
+        // Prefer client-provided timestamp if present. Normalize to Europe/London (UK) for watermarking,
+        // and to UTC for comparisons/storage. If parsing fails, fall back to server time.
+        $clientInUK = null;
+        $clientInUTC = null;
+        if (!empty($request->input('timestamp'))) {
+            try {
+                // If incoming string includes timezone, Carbon::parse will respect it.
+                // If not, explicitly parse assuming Europe/London.
+                $parsed = Carbon::parse($request->input('timestamp'), 'Europe/London');
+                $clientInUK = $parsed->copy()->setTimezone('Europe/London');
+                $clientInUTC = $clientInUK->copy()->setTimezone('UTC');
+            } catch (\Exception $e) {
+                Log::warning('ShiftApiController::uploadPatrolMedia - failed to parse client timestamp', ['input' => $request->input('timestamp'), 'error' => $e->getMessage()]);
+                $clientInUK = null;
+                $clientInUTC = null;
+            }
+        }
+
+        $now = $clientInUTC ?? Carbon::now('UTC'); // used for comparisons and completed_at (UTC)
         // Prepare timestamp data
         // Accept location sent as nested array (`location[latitude]`), dotted keys (`location.latitude`) or plain `latitude`/`longitude`
         $lat = $request->input('location.latitude');
@@ -1636,12 +1659,12 @@ class ShiftApiController extends Controller
             }
         }
 
-/*
-		$geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
-        if ($geoFenceError) {
-            return $geoFenceError;
-        }
-*/
+        /*
+            $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
+            if ($geoFenceError) {
+                return $geoFenceError;
+            }
+        */
         $geoService = new GeoService();
         $resolvedAddress = null;
         try {
@@ -1659,7 +1682,8 @@ class ShiftApiController extends Controller
         // Use user name from User model for timestampData
         $userName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
         $timestampData = [
-            'time' => Carbon::now()->format('Y-m-d H:i:s'),
+            // use client-provided UK time if available, otherwise server UK time
+            'time' => ($clientInUK ?? Carbon::now('Europe/London'))->format('Y-m-d H:i:s'),
             'employee' => $userName,
             'latitude' => $lat,
             'longitude' => $lng,
@@ -1714,6 +1738,96 @@ class ShiftApiController extends Controller
         // Allow unlimited execution time: ffmpeg encoding a large video can take minutes.
         @set_time_limit(0);
         $created = [];
+
+        // Handle new JSON media format if present
+        if (!empty($request->input('media.media_file'))) {
+            $file = $request->input('media.media_file');
+            $filePath = null;
+            $originalName = null;
+            
+            if (is_string($file) && preg_match('/^data:/', $file)) {
+                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
+                $extension = 'png';
+                if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
+                    $mime = $matches[1];
+                    $extMap = [
+                        'image/jpeg' => 'jpg',
+                        'image/png' => 'png',
+                        'image/gif' => 'gif',
+                        'video/mp4' => 'mp4',
+                        'video/quicktime' => 'mov',
+                        'application/pdf' => 'pdf',
+                        'application/msword' => 'doc',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
+                    ];
+                    $extension = $extMap[$mime] ?? 'bin';
+                }
+                $dir = public_path('patrols/media');
+                if (!file_exists($dir)) mkdir($dir, 0755, true);
+                $filename = time() . '_' . uniqid() . '.' . $extension;
+                file_put_contents($dir . '/' . $filename, base64_decode($fileData));
+                $filePath = 'patrols/media/' . $filename;
+                
+                // Use media timestamp if available
+                if (!empty($request->input('media.timestamp'))) {
+                    try {
+                        $parsed = Carbon::parse($request->input('media.timestamp'), 'Europe/London');
+                        $timestampData['time'] = $parsed->format('Y-m-d H:i:s');
+                    } catch (\Exception $e) {
+                        Log::warning('Failed to parse media timestamp', ['input' => $request->input('media.timestamp'), 'error' => $e->getMessage()]);
+                    }
+                }
+            }
+            
+            if ($filePath) {
+                $fullPath = public_path($filePath);
+                $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
+                
+                // Process the file (same as below)
+                if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
+                    $this->processVideo($fullPath, $timestampData);
+                } else {
+                    $compressedPath = $this->compressFile($fullPath, $fileType);
+                    if ($compressedPath && $compressedPath != $fullPath) {
+                        if (file_exists($fullPath)) @unlink($fullPath);
+                        rename($compressedPath, $fullPath);
+                        @chmod($fullPath, 0644);
+                    }
+                    switch ($fileType) {
+                        case 'jpg':
+                        case 'jpeg':
+                        case 'png':
+                            $this->addWatermarkToImage($fullPath, $timestampData);
+                            break;
+                        case 'pdf':
+                            $this->addTimestampToPdf($fullPath, $timestampData);
+                            break;
+                        case 'doc':
+                        case 'docx':
+                            $this->addTimestampToDocument($fullPath, $timestampData);
+                            break;
+                        default:
+                            $this->createMetadataFile($fullPath, $timestampData);
+                            break;
+                    }
+                }
+                
+                // Save DB record
+                try {
+                    $pm = PatrolMedia::create([
+                        'patrol_id' => $patrol->id,
+                        'file_path' => $filePath,
+                    ]);
+                    $created[] = [
+                        'id' => $pm->id,
+                        'file_path' => $filePath,
+                        'url' => asset($filePath),
+                    ];
+                } catch (\Exception $e) {
+                    Log::error('Failed to record patrol media: ' . $e->getMessage());
+                }
+            }
+        }
 
         // Process each collected item
         foreach ($items as $file) {
@@ -1804,6 +1918,16 @@ class ShiftApiController extends Controller
                 Log::error('Failed to record patrol media: ' . $e->getMessage());
             }
         }
+
+        // Store location
+        Location::create([
+            'user_id' => $user->id,
+            'latitude' => $lat,
+            'longitude' => $lng,
+            'accuracy' => 100,
+            'on_duty' => 1,
+            'shiftdate_id' => $patrol->shift_id,
+        ]);
 
         // Notify admin and the guard
         try {
