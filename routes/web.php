@@ -208,7 +208,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/updateemployee/{id}', [EmployeeController::class, 'update'])->name('employees.update');
     Route::post('/employees/bulk-delete', [EmployeeController::class, 'bulkDelete'])->name('employee.bulkDelete');
     Route::get('/employees/{id}/logs/ajax', [EmployeeController::class, 'getLogs'])->name('employees.logs.ajax');
-    Route::get('/employees/logs/{email}', [EmployeeController::class, 'getLogsByEmail'])->name('employees.logs.email')->where('email', '.*');
+    Route::get('/logs/{email}', [EmployeeController::class, 'getLogsByEmail'])->name('employees.logs.email')->where('email', '.*');
     Route::get('/employees/{id}/view', [EmployeeController::class, 'view'])->name('employees.view');
     Route::get('/employees/print/{id}', [EmployeeController::class, 'print'])->name('employees.print');
 

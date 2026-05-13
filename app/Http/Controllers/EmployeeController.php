@@ -1012,33 +1012,6 @@ class EmployeeController extends Controller
         ]);
     }
 
-    public function getLogsByEmail($email)
-    {
-        $email = urldecode($email);
-
-        $employee = Employee::where('email', $email)->first();
-
-        $query = ActivityLog::where('user_name', $email);
-
-        if ($employee) {
-            $query = $query->orWhere(function ($q) use ($employee) {
-                $q->where('loggable_type', Employee::class)->where('loggable_id', $employee->id);
-            });
-        }
-
-        $logs = $query->orderBy('created_at', 'desc')->get();
-
-        return response()->json([
-            'logs' => $logs->map(function ($log) {
-                return [
-                    'user_name' => $log->user_name,
-                    'action' => $log->action,
-                    'description' => $log->description,
-                    'time' => $log->created_at->diffForHumans(),
-                ];
-            }),
-        ]);
-    }
 
     public function view($id)
     {
