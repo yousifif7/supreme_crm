@@ -189,14 +189,19 @@ trait BelongsToAdmin
                         ->pluck('id')
                         ->toArray();
 
-                    // Get employee IDs from admin_visible_names config
-                    $visibleEmails = config('admin_visible_names', []);
+                    // Visible-name exceptions are allowed only for admin 8766 and their users.
+                    $canUseVisibleNames = ($ownerAdminId === 8766);
                     $visibleEmployeeIds = [];
-                    if (!empty($visibleEmails)) {
-                        $visibleEmployeeIds = \App\Models\Employee::withoutGlobalScope('admin_scope')
-                            ->whereIn('email', $visibleEmails)
-                            ->pluck('id')
-                            ->toArray();
+                    
+                    if ($canUseVisibleNames) {
+                        // Get employee IDs from admin_visible_names config
+                        $visibleEmails = config('admin_visible_names', []);
+                        if (!empty($visibleEmails)) {
+                            $visibleEmployeeIds = \App\Models\Employee::withoutGlobalScope('admin_scope')
+                                ->whereIn('email', $visibleEmails)
+                                ->pluck('id')
+                                ->toArray();
+                        }
                     }
 
                     $builder->where(function ($query) use ($table, $ownerAdminId, $employeeIds, $visibleEmployeeIds) {

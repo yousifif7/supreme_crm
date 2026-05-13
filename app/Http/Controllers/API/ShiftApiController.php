@@ -32,6 +32,51 @@ use App\Models\Location;
 
 class ShiftApiController extends Controller
 {
+    /**
+     * Parse a UK-based timestamp string and return a Carbon instance
+     * Supports multiple formats (timestamp already in UK time):
+     * - "2024-01-15T14:30:45Z" (ISO 8601 UTC)
+     * - "2024-01-15T14:30:45+00:00" (ISO 8601 with offset)
+     * - "2024-01-15 14:30:45" (ISO with time)
+     * - "15/01/2024 14:30:45" (UK format with time)
+     * - "15/01/2024 2:30 PM" (UK format with 12h time)
+     * 
+     * @param string $timestamp
+     * @return \Carbon\Carbon
+     */
+    private function parseUKTimestamp($timestamp)
+    {
+        try {
+            // If the timestamp has timezone info (Z, +00:00, etc), parse it as-is
+            // Carbon will handle the conversion automatically
+            if (preg_match('/[Z\+\-]\d{2}:?\d{2}$/', $timestamp) || str_ends_with($timestamp, 'Z')) {
+                // Parse as timezone-aware string (will be in UTC/offset)
+                $carbon = Carbon::parse($timestamp);
+                // Convert to London time for storage/display
+                return $carbon->setTimezone('Europe/London');
+            }
+
+            // Try ISO format first (no timezone info)
+            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $timestamp)) {
+                return Carbon::parse($timestamp);
+            }
+
+            // Try DD/MM/YYYY format (UK standard, assume it's already in UK time)
+            if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $timestamp)) {
+                return Carbon::createFromFormat('d/m/Y H:i:s', $timestamp)
+                    ?? Carbon::createFromFormat('d/m/Y H:i', $timestamp)
+                    ?? Carbon::createFromFormat('d/m/Y', $timestamp)
+                    ?? Carbon::parse($timestamp);
+            }
+
+            // Fallback to generic parsing (assumes server timezone)
+            return Carbon::parse($timestamp);
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse timestamp: ' . $timestamp . ' - ' . $e->getMessage());
+            return Carbon::now('Europe/London');
+        }
+    }
+
     // 10. Get Upcoming Shifts
     public function getShifts(Request $request)
     {
@@ -49,7 +94,7 @@ class ShiftApiController extends Controller
                     $q2->where('user_id', $userId);
                 }]);
             },
-            ])
+        ])
             ->where('staff_id', $userId)
             ->orderBy('shift_date', $orderParam)
             ->orderBy('start_time', $orderParam);
@@ -60,8 +105,8 @@ class ShiftApiController extends Controller
                 // Exclude very old historical shifts (2025 and earlier) from past results
                 // Also include any shifts explicitly marked as ended/booked-off (is_assign == 4)
                 $cutoff = '2025-12-15';
-                $query->where(function($q) use ($today, $cutoff) {
-                    $q->where(function($q2) use ($today, $cutoff) {
+                $query->where(function ($q) use ($today, $cutoff) {
+                    $q->where(function ($q2) use ($today, $cutoff) {
                         $q2->where('shift_date', '<', $today)->where('shift_date', '>=', $cutoff);
                     })->orWhere('is_assign', 4);
                 });
@@ -70,23 +115,23 @@ class ShiftApiController extends Controller
                 $query->where(function ($q) use ($today, $nowStr) {
                     // include explicitly booked-on shifts OR shifts that have already started (today)
                     $q->where('is_assign', 3)
-                      ->orWhere(function ($q2) use ($today, $nowStr) {
-                          // only include shifts that have started and are not already marked ended (is_assign != 4)
-                          $q2->where('shift_date', $today)
-                             ->whereRaw("CONCAT(shift_date,' ',start_time) <= ?", [$nowStr])
-                             ->where('is_assign', '!=', 4);
-                      });
+                        ->orWhere(function ($q2) use ($today, $nowStr) {
+                            // only include shifts that have started and are not already marked ended (is_assign != 4)
+                            $q2->where('shift_date', $today)
+                                ->whereRaw("CONCAT(shift_date,' ',start_time) <= ?", [$nowStr])
+                                ->where('is_assign', '!=', 4);
+                        });
                 });
             } elseif ($category === 'upcoming') {
                 $nowStr = Carbon::now()->format('Y-m-d H:i:s');
                 $query->where(function ($q) use ($today, $nowStr) {
                     // future-dated shifts or later-today shifts whose start time is still in the future
                     $q->where('shift_date', '>', $today)
-                      ->orWhere(function ($q2) use ($today, $nowStr) {
-                          $q2->where('shift_date', $today)
-                             ->whereRaw("CONCAT(shift_date,' ',start_time) > ?", [$nowStr])
-                             ->where('is_assign', '!=', 4);
-                      });
+                        ->orWhere(function ($q2) use ($today, $nowStr) {
+                            $q2->where('shift_date', $today)
+                                ->whereRaw("CONCAT(shift_date,' ',start_time) > ?", [$nowStr])
+                                ->where('is_assign', '!=', 4);
+                        });
                 });
             }
         }
@@ -125,15 +170,15 @@ class ShiftApiController extends Controller
             // Fetch the note for this shift
             $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first(); // assuming you have a relation: ShiftDate -> note
 
-                // Load trainings from the site (materials belong to site), not the shift
-                $siteTrainings = collect();
-                if ($site) {
-                    $siteTrainings = $site->trainings()->with(['acknowledgedUsers' => function ($q) use ($userId) {
-                        $q->where('user_id', $userId);
-                    }])->get();
-                }
+            // Load trainings from the site (materials belong to site), not the shift
+            $siteTrainings = collect();
+            if ($site) {
+                $siteTrainings = $site->trainings()->with(['acknowledgedUsers' => function ($q) use ($userId) {
+                    $q->where('user_id', $userId);
+                }])->get();
+            }
 
-                $trainings = $siteTrainings->map(function ($training) {
+            $trainings = $siteTrainings->map(function ($training) {
                 $ack = $training->acknowledgedUsers->first();
                 $acknowledged = false;
                 $acknowledgedAt = null;
@@ -190,7 +235,7 @@ class ShiftApiController extends Controller
                     'note'      => $note->note,
                 ] : null,
 
-                'requires_booking_media_for_book_on' => (function() use ($shiftDate, $userId) {
+                'requires_booking_media_for_book_on' => (function () use ($shiftDate, $userId) {
                     try {
                         $hasPatrols = $shiftDate->patrols()->exists();
                         $hasCheckCalls = $shiftDate->checkCalls()->exists();
@@ -204,7 +249,7 @@ class ShiftApiController extends Controller
                         return false;
                     }
                 })(),
-                'requires_booking_media_for_book_off' => (function() use ($shiftDate, $userId) {
+                'requires_booking_media_for_book_off' => (function () use ($shiftDate, $userId) {
                     try {
                         $hasPatrols = $shiftDate->patrols()->exists();
                         $hasCheckCalls = $shiftDate->checkCalls()->exists();
@@ -246,28 +291,28 @@ class ShiftApiController extends Controller
         if ($category) {
             if ($category === 'past') {
                 $cutoff = '2025-12-15';
-                $query->where(function($q) use ($today, $cutoff) {
-                    $q->where(function($q2) use ($today, $cutoff) {
+                $query->where(function ($q) use ($today, $cutoff) {
+                    $q->where(function ($q2) use ($today, $cutoff) {
                         $q2->where('shift_date', '<', $today)->where('shift_date', '>=', $cutoff);
                     })->orWhere('is_assign', 4);
                 });
             } elseif ($category === 'current') {
                 $query->where(function ($q) use ($today, $nowStr) {
                     $q->where('is_assign', 3)
-                      ->orWhere(function ($q2) use ($today, $nowStr) {
-                          $q2->where('shift_date', $today)
-                             ->whereRaw("CONCAT(shift_date,' ',start_time) <= ?", [$nowStr])
-                             ->where('is_assign', '!=', 4);
-                      });
+                        ->orWhere(function ($q2) use ($today, $nowStr) {
+                            $q2->where('shift_date', $today)
+                                ->whereRaw("CONCAT(shift_date,' ',start_time) <= ?", [$nowStr])
+                                ->where('is_assign', '!=', 4);
+                        });
                 });
             } elseif ($category === 'upcoming') {
                 $query->where(function ($q) use ($today, $nowStr) {
                     $q->where('shift_date', '>', $today)
-                      ->orWhere(function ($q2) use ($today, $nowStr) {
-                          $q2->where('shift_date', $today)
-                             ->whereRaw("CONCAT(shift_date,' ',start_time) > ?", [$nowStr])
-                             ->where('is_assign', '!=', 4);
-                      });
+                        ->orWhere(function ($q2) use ($today, $nowStr) {
+                            $q2->where('shift_date', $today)
+                                ->whereRaw("CONCAT(shift_date,' ',start_time) > ?", [$nowStr])
+                                ->where('is_assign', '!=', 4);
+                        });
                 });
             }
         }
@@ -504,39 +549,39 @@ class ShiftApiController extends Controller
         $unpaidHours   = 0;
 
         switch ($request->type) {
-                case 'sick_leave':
+            case 'sick_leave':
                 $weeklyPay = $employee->weekly_pay ?? 0;
                 $sickPay   = $this->calculateSickPay($employee, $start, $end, $weeklyPay);
 
                 $sspPaidDays = $sickPay['paid_days'];
-                    $unpaidHours = max(0, ($sickPay['unpaid_days'] ?? 0) * $hoursPerDay);
+                $unpaidHours = max(0, ($sickPay['unpaid_days'] ?? 0) * $hoursPerDay);
                 $paid        = $sspPaidDays > 0;
                 break;
 
-                case 'annual_leave':
-                    $holidayBalance = $employee->holiday_balance ?? 0; // in hours
-                    if ($totalHours > $holidayBalance) {
-                        $holidayHours = max(0, $holidayBalance);
-                        $unpaidHours  = max(0, $totalHours - $holidayBalance);
-                        $paid = $holidayBalance > 0;
-                    } else {
-                        $holidayHours = max(0, $totalHours);
-                        $paid = $holidayHours > 0;
-                    }
+            case 'annual_leave':
+                $holidayBalance = $employee->holiday_balance ?? 0; // in hours
+                if ($totalHours > $holidayBalance) {
+                    $holidayHours = max(0, $holidayBalance);
+                    $unpaidHours  = max(0, $totalHours - $holidayBalance);
+                    $paid = $holidayBalance > 0;
+                } else {
+                    $holidayHours = max(0, $totalHours);
+                    $paid = $holidayHours > 0;
+                }
                 break;
 
-                case 'unpaid_leave':
+            case 'unpaid_leave':
+                $unpaidHours = max(0, $totalHours);
+                $paid = false;
+                break;
+
+            case 'other_leave':
+                $paid = $request->paid ?? false;
+                if ($paid) {
+                    $holidayHours = max(0, $totalHours);
+                } else {
                     $unpaidHours = max(0, $totalHours);
-                    $paid = false;
-                break;
-
-                case 'other_leave':
-                    $paid = $request->paid ?? false;
-                    if ($paid) {
-                        $holidayHours = max(0, $totalHours);
-                    } else {
-                        $unpaidHours = max(0, $totalHours);
-                    }
+                }
                 break;
         }
         // Normalize and clamp values before storing
@@ -720,8 +765,8 @@ class ShiftApiController extends Controller
                 'message' => 'Shift date (ID: ' . $shiftDate_id . ') Not on your upcoming shifts list!',
             ]);
         }
-        
-/*
+
+        /*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $request->input('location.latitude'),
@@ -731,7 +776,7 @@ class ShiftApiController extends Controller
         if ($geoFenceError) {
             return $geoFenceError;
         }
-    */    
+    */
 
         $booking = ShiftBooking::create([
             'user_id' => $user->id,
@@ -820,7 +865,7 @@ class ShiftApiController extends Controller
             ], 409);
         }
 
-/*     
+        /*     
        $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -831,7 +876,7 @@ class ShiftApiController extends Controller
             return $geoFenceError;
         }
 */
-		
+
         if ($shiftDate->is_assign !== 2) {
             // Provide more detailed guidance to the client about why booking on is blocked
             if ($shiftDate->is_assign == 1) {
@@ -869,7 +914,7 @@ class ShiftApiController extends Controller
             }
         }
 
-        
+
         $now = Carbon::now();
         $shiftStart = Carbon::parse($shiftDate->shift_date . ' ' . $shiftDate->start_time);
 
@@ -1017,7 +1062,7 @@ class ShiftApiController extends Controller
             ], 400);
         }
 
-/*
+        /*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDate,
             $validated['location']['latitude'],
@@ -1028,7 +1073,7 @@ class ShiftApiController extends Controller
             return $geoFenceError;
         }
 */
-		
+
         // Prevent booking off if the shift is not in a started state or already ended
         if ($shiftDate->is_assign === 4) {
             return response()->json([
@@ -1275,7 +1320,7 @@ class ShiftApiController extends Controller
             if (!$site->has_qr || !file_exists(public_path('qrForSites/site_' . $site->id . '.png'))) {
                 return response()->json(['message' => 'This site does not have a QR code configured.'], 422);
             }
-            
+
             // The QR code content is the site URL
             $expectedQrContent = config('app.url') . '/sites/' . $site->id;
             if ($scanData !== $expectedQrContent) {
@@ -1332,8 +1377,10 @@ class ShiftApiController extends Controller
                     }
 
                     $dist = $geoService->distanceInMeters(
-                        $guardLat, $guardLng,
-                        (float) $cp->latitude, (float) $cp->longitude
+                        $guardLat,
+                        $guardLng,
+                        (float) $cp->latitude,
+                        (float) $cp->longitude
                     );
 
                     if ($dist <= $proximityRadius) {
@@ -1408,7 +1455,7 @@ class ShiftApiController extends Controller
             ], 403);
         }
 
-        if($patrol->status == 'missed'){
+        if ($patrol->status == 'missed') {
             return response()->json(['message' => 'This Patrol has already been missed, You cannot submit unless an Admin gave permission to.'], 422);
         }
 
@@ -1417,7 +1464,7 @@ class ShiftApiController extends Controller
             return response()->json(['message' => 'Shift not found for this patrol.'], 404);
         }
 
-/*
+        /*
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $validated['location']['latitude'],
@@ -1428,7 +1475,7 @@ class ShiftApiController extends Controller
             return $geoFenceError;
         }
 */
-		
+
         // If the guard currently has a different patrol in progress, mark that one completed
         $staffShiftIds = ShiftDate::where('staff_id', Auth::id())->pluck('id')->toArray();
         $other = Patrol::where('status', 'in_progress')
@@ -1557,7 +1604,7 @@ class ShiftApiController extends Controller
             }
         }
 
- /*      
+        /*      
         $geoFenceError = $this->ensureWithinShiftSiteRadius(
             $shiftDateForGeo,
             $request->input('location.latitude'),
@@ -1600,90 +1647,104 @@ class ShiftApiController extends Controller
     public function uploadPatrolMedia(Request $request, $patrol_id)
     {
         $request->validate([
-            'media_files' => 'nullable|array', // files or base64 (fallback)
             'media' => 'nullable|array',
-            'media.media_file' => 'nullable|string',
-            'media.timestamp' => 'nullable|date',
+            'media.*.media_file' => 'nullable',
+            'media.*.timestamp' => 'nullable|string',
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'notes' => 'nullable|string',
-            'timestamp' => 'nullable|date',
+        ]);
+
+        Log::info('Incoming patrol media request', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'headers' => $request->headers->all(),
+            'body' => $request->all(),
+            'ip' => $request->ip(),
         ]);
 
         $patrol = Patrol::findOrFail($patrol_id);
 
         // Ensure the authenticated user is the assigned staff for this patrol's shift
         $shiftDate = ShiftDate::find($patrol->shift_id);
+
         if (!$shiftDate || $shiftDate->staff_id !== Auth::id()) {
-            return response()->json(['message' => 'You are not assigned to this patrol.'], 403);
+            return response()->json([
+                'message' => 'You are not assigned to this patrol.'
+            ], 403);
         }
 
-        if($patrol->status !='in_progress'){
-            return response()->json(['message' => 'The patrol is not in progress at the moment, you cannot submit media!']);
+        if ($patrol->status != 'in_progress') {
+            return response()->json([
+                'message' => 'The patrol is not in progress at the moment, you cannot submit media!'
+            ]);
         }
 
         $user = Auth::user();
-        // Prefer client-provided timestamp if present. Normalize to Europe/London (UK) for watermarking,
-        // and to UTC for comparisons/storage. If parsing fails, fall back to server time.
-        $clientInUK = null;
-        $clientInUTC = null;
-        if (!empty($request->input('timestamp'))) {
-            try {
-                // If incoming string includes timezone, Carbon::parse will respect it.
-                // If not, explicitly parse assuming Europe/London.
-                $parsed = Carbon::parse($request->input('timestamp'), 'Europe/London');
-                $clientInUK = $parsed->copy()->setTimezone('Europe/London');
-                $clientInUTC = $clientInUK->copy()->setTimezone('UTC');
-            } catch (\Exception $e) {
-                Log::warning('ShiftApiController::uploadPatrolMedia - failed to parse client timestamp', ['input' => $request->input('timestamp'), 'error' => $e->getMessage()]);
-                $clientInUK = null;
-                $clientInUTC = null;
-            }
-        }
 
-        $now = $clientInUTC ?? Carbon::now('UTC'); // used for comparisons and completed_at (UTC)
-        // Prepare timestamp data
-        // Accept location sent as nested array (`location[latitude]`), dotted keys (`location.latitude`) or plain `latitude`/`longitude`
+        // Accept location sent as nested array or flat keys
         $lat = $request->input('location.latitude');
         $lng = $request->input('location.longitude');
 
-        // Fallbacks for different form-data naming conventions
         if (is_null($lat) || is_null($lng)) {
+
             $all = $request->all();
+
             if (isset($all['location']) && is_array($all['location'])) {
+
                 $lat = $lat ?? ($all['location']['latitude'] ?? $all['location']['lat'] ?? null);
+
                 $lng = $lng ?? ($all['location']['longitude'] ?? $all['location']['lng'] ?? null);
             } else {
+
                 $lat = $lat ?? ($all['location.latitude'] ?? $all['latitude'] ?? $all['lat'] ?? null);
+
                 $lng = $lng ?? ($all['location.longitude'] ?? $all['longitude'] ?? $all['lng'] ?? null);
             }
         }
 
         /*
-            $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftDate, $lat, $lng, 'submit patrol media');
-            if ($geoFenceError) {
-                return $geoFenceError;
-            }
-        */
+    $geoFenceError = $this->ensureWithinShiftSiteRadius(
+        $shiftDate,
+        $lat,
+        $lng,
+        'submit patrol media'
+    );
+
+    if ($geoFenceError) {
+        return $geoFenceError;
+    }
+    */
+
         $geoService = new GeoService();
+
         $resolvedAddress = null;
+
         try {
+
             if ($lat && $lng) {
                 $resolvedAddress = $geoService->getAddressFromCoordinates($lat, $lng);
             }
         } catch (\Exception $e) {
+
             Log::warning('GeoService failed: ' . $e->getMessage());
         }
 
-		
-        // Ensure location is an array with a `formatted_address` key so watermark code can read it
-        $locationForStamp = is_array($resolvedAddress) ? $resolvedAddress : ['formatted_address' => ($resolvedAddress ?? ($shiftDate->shift->site->address ?? 'N/A'))];
+        $locationForStamp = is_array($resolvedAddress)
+            ? $resolvedAddress
+            : [
+                'formatted_address' => (
+                    $resolvedAddress
+                    ?? ($shiftDate->shift->site->address ?? 'N/A')
+                )
+            ];
 
-        // Use user name from User model for timestampData
-        $userName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
-        $timestampData = [
-            // use client-provided UK time if available, otherwise server UK time
-            'time' => ($clientInUK ?? Carbon::now('Europe/London'))->format('Y-m-d H:i:s'),
+        $userName = trim(
+            ($user->first_name ?? '') . ' ' . ($user->last_name ?? '')
+        );
+
+        // Base timestamp data
+        $baseTimestampData = [
             'employee' => $userName,
             'latitude' => $lat,
             'longitude' => $lng,
@@ -1691,65 +1752,94 @@ class ShiftApiController extends Controller
             'location' => $locationForStamp,
         ];
 
-        // Build list of inputs: uploaded files (media_files[], file_path, file, etc.) and base64 strings
+        // Media array from request
         $items = [];
 
-        // Collected uploaded files under media_files[]
-        $uploaded = $request->file('media_files');
-        if ($uploaded) {
-            if (is_array($uploaded)) {
-                foreach ($uploaded as $up) $items[] = $up;
-            } else {
-                $items[] = $uploaded;
+        // New app format
+        if ($request->has('media')) {
+            $items = $request->all()['media'] ?? [];
+        }
+
+        // Old/mobile multipart format
+        elseif ($request->hasFile('media_files')) {
+
+            foreach ($request->file('media_files') as $file) {
+
+                $items[] = [
+                    'media_file' => $file,
+                    'timestamp' => now()->toISOString(),
+                ];
             }
         }
-
-        // Single file field common name used in Postman
-        if ($request->hasFile('file_path')) {
-            $items[] = $request->file('file_path');
-        }
-
-        // Generic catch-all for any other file fields
-        $allFiles = $request->allFiles();
-        foreach ($allFiles as $key => $f) {
-            // skip those we've already added via media_files
-            if ($key === 'media_files' || $key === 'file_path') continue;
-            if (is_array($f)) {
-                foreach ($f as $sub) $items[] = $sub;
-            } else {
-                $items[] = $f;
-            }
-        }
-
-        // Also accept base64 strings supplied in JSON body as media_files array
-        $bodyMedia = $request->input('media_files');
-        if (is_array($bodyMedia)) {
-            foreach ($bodyMedia as $bm) {
-                // If it's an uploaded file already, skip
-                if ($bm instanceof \Illuminate\Http\UploadedFile) continue;
-                $items[] = $bm; // base64 string or data URI
-            }
-        }
-
         if (empty($items)) {
-            Log::warning('No media items found in request for patrol ' . $patrol->id, ['request_keys' => array_keys($request->all())]);
+
+            Log::warning(
+                'No media items found in request for patrol ' . $patrol->id,
+                ['request_keys' => array_keys($request->all())]
+            );
         }
 
-        // Allow unlimited execution time: ffmpeg encoding a large video can take minutes.
         @set_time_limit(0);
+
         $created = [];
 
-        // Handle new JSON media format if present
-        if (!empty($request->input('media.media_file'))) {
-            $file = $request->input('media.media_file');
+        foreach ($items as $index => $mediaItem) {
+
+            $file = $mediaItem['media_file'] ?? null;
+
+            $captureTimestamp = $mediaItem['timestamp'] ?? null;
+
+            if (!$file) {
+                continue;
+            }
+
             $filePath = null;
+
             $originalName = null;
-            
-            if (is_string($file) && preg_match('/^data:/', $file)) {
-                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
+
+            /*
+        |--------------------------------------------------------------------------
+        | Uploaded File
+        |--------------------------------------------------------------------------
+        */
+
+            if ($file instanceof \Illuminate\Http\UploadedFile) {
+
+                $originalName = $file->getClientOriginalName();
+
+                $extension = $file->getClientOriginalExtension() ?: 'bin';
+
+                $filename = time() . '_' . uniqid() . '.' . $extension;
+
+                $dir = public_path('patrols/media');
+
+                if (!file_exists($dir)) {
+                    mkdir($dir, 0755, true);
+                }
+
+                $file->move($dir, $filename);
+
+                $filePath = 'patrols/media/' . $filename;
+            }
+
+            /*
+        |--------------------------------------------------------------------------
+        | Base64 File
+        |--------------------------------------------------------------------------
+        */ elseif (is_string($file) && preg_match('/^data:/', $file)) {
+
+                $fileData = preg_replace(
+                    '/^data:\w+\/\w+;base64,/',
+                    '',
+                    $file
+                );
+
                 $extension = 'png';
+
                 if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
+
                     $mime = $matches[1];
+
                     $extMap = [
                         'image/jpeg' => 'jpg',
                         'image/png' => 'png',
@@ -1760,189 +1850,191 @@ class ShiftApiController extends Controller
                         'application/msword' => 'doc',
                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
                     ];
+
                     $extension = $extMap[$mime] ?? 'bin';
                 }
-                $dir = public_path('patrols/media');
-                if (!file_exists($dir)) mkdir($dir, 0755, true);
-                $filename = time() . '_' . uniqid() . '.' . $extension;
-                file_put_contents($dir . '/' . $filename, base64_decode($fileData));
-                $filePath = 'patrols/media/' . $filename;
-                
-                // Use media timestamp if available
-                if (!empty($request->input('media.timestamp'))) {
-                    try {
-                        $parsed = Carbon::parse($request->input('media.timestamp'), 'Europe/London');
-                        $timestampData['time'] = $parsed->format('Y-m-d H:i:s');
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to parse media timestamp', ['input' => $request->input('media.timestamp'), 'error' => $e->getMessage()]);
-                    }
-                }
-            }
-            
-            if ($filePath) {
-                $fullPath = public_path($filePath);
-                $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-                
-                // Process the file (same as below)
-                if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
-                    $this->processVideo($fullPath, $timestampData);
-                } else {
-                    $compressedPath = $this->compressFile($fullPath, $fileType);
-                    if ($compressedPath && $compressedPath != $fullPath) {
-                        if (file_exists($fullPath)) @unlink($fullPath);
-                        rename($compressedPath, $fullPath);
-                        @chmod($fullPath, 0644);
-                    }
-                    switch ($fileType) {
-                        case 'jpg':
-                        case 'jpeg':
-                        case 'png':
-                            $this->addWatermarkToImage($fullPath, $timestampData);
-                            break;
-                        case 'pdf':
-                            $this->addTimestampToPdf($fullPath, $timestampData);
-                            break;
-                        case 'doc':
-                        case 'docx':
-                            $this->addTimestampToDocument($fullPath, $timestampData);
-                            break;
-                        default:
-                            $this->createMetadataFile($fullPath, $timestampData);
-                            break;
-                    }
-                }
-                
-                // Save DB record
-                try {
-                    $pm = PatrolMedia::create([
-                        'patrol_id' => $patrol->id,
-                        'file_path' => $filePath,
-                    ]);
-                    $created[] = [
-                        'id' => $pm->id,
-                        'file_path' => $filePath,
-                        'url' => asset($filePath),
-                    ];
-                } catch (\Exception $e) {
-                    Log::error('Failed to record patrol media: ' . $e->getMessage());
-                }
-            }
-        }
 
-        // Process each collected item
-        foreach ($items as $file) {
-            $filePath = null;
-            $originalName = null;
+                $dir = public_path('patrols/media');
 
-            if ($file instanceof \Illuminate\Http\UploadedFile) {
-                $originalName = $file->getClientOriginalName();
-                $extension = $file->getClientOriginalExtension() ?: 'bin';
-                $filename = time() . '_' . uniqid() . '.' . $extension;
-                $dir = public_path('patrols/media');
-                if (!file_exists($dir)) mkdir($dir, 0755, true);
-                $file->move($dir, $filename);
-                $filePath = 'patrols/media/' . $filename;
-            } elseif (is_string($file) && preg_match('/^data:/', $file)) {
-                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
-                $extension = 'png';
-                if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
-                    $mime = $matches[1];
-                    $extMap = [
-                        'image/jpeg' => 'jpg',
-                        'image/png' => 'png',
-                        'image/gif' => 'gif',
-                        'video/mp4' => 'mp4',
-                        'video/quicktime' => 'mov',
-                        'application/pdf' => 'pdf',
-                    ];
-                    $extension = $extMap[$mime] ?? 'bin';
+                if (!file_exists($dir)) {
+                    mkdir($dir, 0755, true);
                 }
-                $dir = public_path('patrols/media');
-                if (!file_exists($dir)) mkdir($dir, 0755, true);
+
                 $filename = time() . '_' . uniqid() . '.' . $extension;
-                file_put_contents($dir . '/' . $filename, base64_decode($fileData));
+
+                file_put_contents(
+                    $dir . '/' . $filename,
+                    base64_decode($fileData)
+                );
+
                 $filePath = 'patrols/media/' . $filename;
             } else {
-                // unsupported type, skip
-                Log::warning('Skipping unsupported media item type for patrol ' . $patrol->id);
+
+                Log::warning(
+                    'Skipping unsupported media item type for patrol ' . $patrol->id
+                );
+
                 continue;
             }
 
-            if (!$filePath) continue;
+            if (!$filePath) {
+                continue;
+            }
 
             $fullPath = public_path($filePath);
-            $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 
-            // Videos: single ffmpeg pass (compress + watermark combined — avoids double-encode and is faster).
-            // All other types: compress first, then stamp/watermark separately.
+            $fileType = strtolower(
+                pathinfo($fullPath, PATHINFO_EXTENSION)
+            );
+
+            /*
+        |--------------------------------------------------------------------------
+        | Timestamp Data Per Media Item
+        |--------------------------------------------------------------------------
+        */
+
+            $timestampData = $baseTimestampData;
+
+            if ($captureTimestamp) {
+
+                $captureTime = $this->parseUKTimestamp($captureTimestamp);
+
+                $timestampData['time'] =
+                    $captureTime->format('d/m/Y H:i:s');
+
+                $timestampData['capture_time_unix'] =
+                    $captureTime->timestamp;
+            } else {
+
+                $timestampData['time'] =
+                    Carbon::now('Europe/London')
+                    ->format('d/m/Y H:i:s');
+            }
+
+            /*
+        |--------------------------------------------------------------------------
+        | Process Media
+        |--------------------------------------------------------------------------
+        */
+
             if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
+
                 $this->processVideo($fullPath, $timestampData);
             } else {
-                $compressedPath = $this->compressFile($fullPath, $fileType);
+
+                $compressedPath = $this->compressFile(
+                    $fullPath,
+                    $fileType
+                );
+
                 if ($compressedPath && $compressedPath != $fullPath) {
-                    if (file_exists($fullPath)) @unlink($fullPath);
+
+                    if (file_exists($fullPath)) {
+                        @unlink($fullPath);
+                    }
+
                     rename($compressedPath, $fullPath);
+
                     @chmod($fullPath, 0644);
                 }
+
                 switch ($fileType) {
+
                     case 'jpg':
                     case 'jpeg':
                     case 'png':
-                        $this->addWatermarkToImage($fullPath, $timestampData);
+
+                        $this->addWatermarkToImage(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
+
                     case 'pdf':
-                        $this->addTimestampToPdf($fullPath, $timestampData);
+
+                        $this->addTimestampToPdf(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
+
                     case 'doc':
                     case 'docx':
-                        $this->addTimestampToDocument($fullPath, $timestampData);
+
+                        $this->addTimestampToDocument(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
+
                     default:
-                        $this->createMetadataFile($fullPath, $timestampData);
+
+                        $this->createMetadataFile(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
                 }
             }
 
-            // Save DB record
+            /*
+        |--------------------------------------------------------------------------
+        | Save DB Record
+        |--------------------------------------------------------------------------
+        */
+
             try {
+
                 $pm = PatrolMedia::create([
                     'patrol_id' => $patrol->id,
                     'file_path' => $filePath,
+                    'file_type' => $fileType,
+                    'original_name' => $originalName ?? "media_" . ($index + 1),
+                    'file_size' => filesize($fullPath),
+                    'captured_at' => isset($timestampData['capture_time_unix'])
+                        ? Carbon::createFromTimestamp(
+                            $timestampData['capture_time_unix']
+                        )
+                        : Carbon::now(),
                 ]);
+
                 $created[] = [
                     'id' => $pm->id,
                     'file_path' => $filePath,
                     'url' => asset($filePath),
                 ];
             } catch (\Exception $e) {
-                Log::error('Failed to record patrol media: ' . $e->getMessage());
+
+                Log::error(
+                    'Failed to record patrol media: ' . $e->getMessage()
+                );
             }
         }
 
-        // Store location
-        Location::create([
-            'user_id' => $user->id,
-            'latitude' => $lat,
-            'longitude' => $lng,
-            'accuracy' => 100,
-            'on_duty' => 1,
-            'shiftdate_id' => $patrol->shift_id,
-        ]);
-
-        // Notify admin and the guard
+        // Notify admin
         try {
+
             Notification::create([
                 'user_id' => 1,
                 'employee_id' => null,
                 'type' => 'alert',
                 'title' => 'Patrol media uploaded',
-                'message' => $userName . ' uploaded media for patrol (' . $patrol->name . ' )',
+                'message' => $userName .
+                    ' uploaded media for patrol (' .
+                    $patrol->name .
+                    ' )',
                 'read' => false,
                 'action_url' => "/shift-dates/{$patrol->shift_id}/view"
             ]);
-            // Notification to guard removed - only admin notification kept
         } catch (\Exception $e) {
-            Log::error('Patrol media notification failed: ' . $e->getMessage());
+
+            Log::error(
+                'Patrol media notification failed: ' . $e->getMessage()
+            );
         }
 
         return response()->json([
@@ -1950,6 +2042,7 @@ class ShiftApiController extends Controller
             'media' => $created,
         ]);
     }
+
 
     // Compression and timestamp/watermark helpers (copied/adapted from CheckCallController)
     private function compressFile($filePath, $fileType)
@@ -2117,7 +2210,8 @@ class ShiftApiController extends Controller
         }
     }
 
-    // Existing timestamp/watermark methods (adapted)
+
+    // Existing timestamp methods (keep these from previous implementation)
     private function addWatermarkToImage($imagePath, $timestampData)
     {
         $img = null;
@@ -2134,6 +2228,7 @@ class ShiftApiController extends Controller
         $white = imagecolorallocate($img, 255, 255, 255);
         $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80);
 
+        // Format location text
         $locationText = 'Unknown';
         if (is_array($timestampData['location'] ?? null)) {
             $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
@@ -2141,6 +2236,8 @@ class ShiftApiController extends Controller
             $locationText = $timestampData['location'] ?? 'Unknown';
         }
 
+        // Build watermark text with UK timestamp
+        // The 'time' field should already be in UK format (d/m/Y H:i:s) from parseUKTimestamp()
         $text = "Time: " . ($timestampData['time'] ?? '') .
             "\nEmployee: " . ($timestampData['employee'] ?? '') .
             "\nLat: " . ($timestampData['latitude'] ?? '') . "  " .
@@ -2163,7 +2260,7 @@ class ShiftApiController extends Controller
         $padding = max(12, intval($imgWidth * 0.02));
         $maxRectWidth = max(100, intval($imgWidth * 0.9) - 2 * $padding);
 
-        // Start font size relative to image width; allow downscaling until content fits
+        // Start font size relative to image width
         $fontSize = max(14, intval($imgWidth * 0.03));
         $minFontSize = 10;
 
@@ -2258,6 +2355,7 @@ class ShiftApiController extends Controller
 
         imagedestroy($img);
     }
+
 
     private function addWatermarkWithGDFont($img, $text, $imagePath, $ext)
     {
@@ -2388,14 +2486,14 @@ class ShiftApiController extends Controller
             'C:/Program Files/ffmpeg/bin/ffmpeg.exe',
             'ffmpeg' // Will use PATH
         ];
-        
+
         foreach ($candidates as $candidate) {
             if (file_exists($candidate) && is_executable($candidate)) {
                 $ffmpegBin = $candidate;
                 break;
             }
         }
-        
+
         if (!$ffmpegBin && function_exists('shell_exec')) {
             // Try Unix which command
             $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
@@ -2410,19 +2508,19 @@ class ShiftApiController extends Controller
                 }
             }
         }
-        
+
         if (!$ffmpegBin) {
             // Try just 'ffmpeg' - might be in PATH
             $ffmpegBin = 'ffmpeg';
         }
 
         $originalSize = @filesize($filePath) ?: 0;
-        
+
         // AGGRESSIVE compression settings - compress regardless of size
         // Higher CRF = more compression (range: 0-51, 23 is default, we use 30-32 for aggressive compression)
         $crf = 30;
         $targetBitrate = '800k';
-        
+
         if ($originalSize > 100 * 1024 * 1024) {
             // Very large files (>100MB): maximum compression
             $crf = 32;
@@ -2457,17 +2555,23 @@ class ShiftApiController extends Controller
         $white = imagecolorallocate($im, 255, 255, 255);
         if (file_exists($fontPath)) {
             $y = 18;
-            foreach (explode("\n", $text) as $line) { imagettftext($im, 14, 0, 8, $y, $white, $fontPath, $line); $y += 18; }
+            foreach (explode("\n", $text) as $line) {
+                imagettftext($im, 14, 0, 8, $y, $white, $fontPath, $line);
+                $y += 18;
+            }
         } else {
             $y = 5;
-            foreach (explode("\n", $text) as $line) { imagestring($im, 3, 5, $y, $line, $white); $y += 14; }
+            foreach (explode("\n", $text) as $line) {
+                imagestring($im, 3, 5, $y, $line, $white);
+                $y += 14;
+            }
         }
         $textImage = sys_get_temp_dir() . '/patrol_proc_' . uniqid() . '.png';
         imagepng($im, $textImage);
         imagedestroy($im);
 
         $outputPath = $filePath . '.proc_' . uniqid() . '.mp4';
-        
+
         // Compute bufsize correctly from target bitrate (avoid multiplying '800k' by 2 which causes non-numeric errors)
         $bufsize = null;
         if (is_string($targetBitrate) && preg_match('/^(\d+)\s*k$/i', trim($targetBitrate), $m)) {
@@ -2493,7 +2597,8 @@ class ShiftApiController extends Controller
             . ' -c:a aac -b:a 64k -movflags +faststart '
             . escapeshellarg($outputPath) . ' -y';
 
-        $out = []; $ret = 0;
+        $out = [];
+        $ret = 0;
         exec($cmd . ' 2>&1', $out, $ret);
         @unlink($textImage);
 
@@ -2506,7 +2611,10 @@ class ShiftApiController extends Controller
                 'compression_ratio' => $originalSize > 0 ? round(($outputSize / $originalSize) * 100, 2) . '%' : 'N/A'
             ]);
             @unlink($filePath);
-            if (!@rename($outputPath, $filePath)) { @copy($outputPath, $filePath); @unlink($outputPath); }
+            if (!@rename($outputPath, $filePath)) {
+                @copy($outputPath, $filePath);
+                @unlink($outputPath);
+            }
             @chmod($filePath, 0644);
         } else {
             Log::error('processVideo: ffmpeg failed', [
@@ -2671,7 +2779,7 @@ class ShiftApiController extends Controller
                 'note_type' => $note->note_type,
                 'note' => $note->note,
             ] : null,
-            'requires_booking_media_for_book_on' => (function() use ($shiftDate, $userId) {
+            'requires_booking_media_for_book_on' => (function () use ($shiftDate, $userId) {
                 try {
                     $hasPatrols = $shiftDate->patrols()->exists();
                     $hasCheckCalls = $shiftDate->checkCalls()->exists();
@@ -2684,7 +2792,7 @@ class ShiftApiController extends Controller
                     return false;
                 }
             })(),
-            'requires_booking_media_for_book_off' => (function() use ($shiftDate, $userId) {
+            'requires_booking_media_for_book_off' => (function () use ($shiftDate, $userId) {
                 try {
                     $hasPatrols = $shiftDate->patrols()->exists();
                     $hasCheckCalls = $shiftDate->checkCalls()->exists();
@@ -2724,7 +2832,7 @@ class ShiftApiController extends Controller
 
         if (!$shiftDate) {
             return response()->json([
-                'message' => 'No shift found with this ID. #'.$id
+                'message' => 'No shift found with this ID. #' . $id
             ]);
         }
 
@@ -2805,12 +2913,12 @@ class ShiftApiController extends Controller
             'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
             'category' => $category,
             'trainings' => $trainings,
-            'note' => ($note?->note_type === 'guard' ?? $note?->note_type === 'both' ) ? [
+            'note' => ($note?->note_type === 'guard' ?? $note?->note_type === 'both') ? [
                 'id' => $note->id,
                 'note_type' => $note->note_type,
                 'note' => $note->note,
             ] : null,
-            'requires_booking_media_for_book_on' => (function() use ($shiftDate, $userId) {
+            'requires_booking_media_for_book_on' => (function () use ($shiftDate, $userId) {
                 try {
                     $hasPatrols = $shiftDate->patrols()->exists();
                     $hasCheckCalls = $shiftDate->checkCalls()->exists();
@@ -2823,7 +2931,7 @@ class ShiftApiController extends Controller
                     return false;
                 }
             })(),
-            'requires_booking_media_for_book_off' => (function() use ($shiftDate, $userId) {
+            'requires_booking_media_for_book_off' => (function () use ($shiftDate, $userId) {
                 try {
                     $hasPatrols = $shiftDate->patrols()->exists();
                     $hasCheckCalls = $shiftDate->checkCalls()->exists();
@@ -2844,49 +2952,49 @@ class ShiftApiController extends Controller
         ]);
     }
 
-public function workHours(Request $request)
-{
-    $user = Auth::user();
+    public function workHours(Request $request)
+    {
+        $user = Auth::user();
 
-    $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString();
-    $endOfWeek   = Carbon::now()->endOfWeek(Carbon::SUNDAY)->toDateString();
+        $startOfWeek = Carbon::now()->startOfWeek(Carbon::MONDAY)->toDateString();
+        $endOfWeek   = Carbon::now()->endOfWeek(Carbon::SUNDAY)->toDateString();
 
-    // Get ended shifts for this guard in the current week (Mon–Sun)
-    $shifts = ShiftDate::where('staff_id', $user->id)
-        ->where('is_assign', 4)
-        ->whereBetween('shift_date', [$startOfWeek, $endOfWeek])
-        ->get();
+        // Get ended shifts for this guard in the current week (Mon–Sun)
+        $shifts = ShiftDate::where('staff_id', $user->id)
+            ->where('is_assign', 4)
+            ->whereBetween('shift_date', [$startOfWeek, $endOfWeek])
+            ->get();
 
-    $totalWorked = 0;
+        $totalWorked = 0;
 
-    foreach ($shifts as $shift) {
-        if ($shift->total_hours) {
-            $worked = $shift->total_hours;
-        } else {
-            $start = Carbon::parse($shift->start_time);
-            $end   = Carbon::parse($shift->end_time);
+        foreach ($shifts as $shift) {
+            if ($shift->total_hours) {
+                $worked = $shift->total_hours;
+            } else {
+                $start = Carbon::parse($shift->start_time);
+                $end   = Carbon::parse($shift->end_time);
 
-            $worked = $end->diffInMinutes($start) / 60;
+                $worked = $end->diffInMinutes($start) / 60;
 
-            if ($shift->break_time) {
-                $worked -= $shift->break_time;
+                if ($shift->break_time) {
+                    $worked -= $shift->break_time;
+                }
             }
+
+            $totalWorked += max($worked, 0);
         }
 
-        $totalWorked += max($worked, 0);
+        $employee = Employee::where('user_id', $user->id)->firstOrFail();
+
+        $weeklyLimit = $employee->visa_type === 'Student' ? 20 : 40;
+        $remaining = max($weeklyLimit - $totalWorked, 0);
+
+        return response()->json([
+            'total_worked_hours' => round($totalWorked, 2),
+            'remaining_hours'    => round($remaining, 2),
+            'weekly_limit'       => $weeklyLimit,
+        ]);
     }
-
-    $employee = Employee::where('user_id', $user->id)->firstOrFail();
-
-    $weeklyLimit = $employee->visa_type === 'Student' ? 20 : 40;
-    $remaining = max($weeklyLimit - $totalWorked, 0);
-
-    return response()->json([
-        'total_worked_hours' => round($totalWorked, 2),
-        'remaining_hours'    => round($remaining, 2),
-        'weekly_limit'       => $weeklyLimit,
-    ]);
-}
 
 
 
@@ -2902,7 +3010,9 @@ public function workHours(Request $request)
             ->whereIn('status', ['approved', 'completed'])
             ->get(['hours', 'approved_hours']);
 
-        $usedHours = $leaves->sum(function ($l) { return max(0, $l->approved_hours ?? 0); });
+        $usedHours = $leaves->sum(function ($l) {
+            return max(0, $l->approved_hours ?? 0);
+        });
 
         // Available hours cannot be negative
         $availableHours = max(0, $totalHolidayHours - $usedHours);
@@ -2944,7 +3054,7 @@ public function workHours(Request $request)
 
         Log::info('Calendar shifts found', ['count' => $shiftDates->count()]);
 
-        $transformed = $shiftDates->transform(function ($shiftDate) use ($today,$userId) {
+        $transformed = $shiftDates->transform(function ($shiftDate) use ($today, $userId) {
             $shift = $shiftDate->shift;
             $site  = $shift?->site;
 

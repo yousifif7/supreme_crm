@@ -1265,6 +1265,24 @@
         });
 
 
+        // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
+        function formatToDisplay(raw) {
+            if (!raw) return '';
+            // Accepts '2026-01-06T11:52:37' or '2026-01-06 11:52:37'
+            let d = raw.replace('T', ' ').split(/[- :]/);
+            if (d.length < 6) return raw;
+            return `${d[2]}-${d[1]}-${d[0]} ${d[3]}:${d[4]}:${d[5]}`;
+        }
+
+        // Parse dd-MM-yyyy HH:mm:ss to yyyy-MM-dd HH:mm:ss
+        function parseToBackend(display) {
+            if (!display) return '';
+            // Accepts '06-01-2026 11:40:37'
+            let m = display.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+            if (!m) return display;
+            return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+        }
+
         $(document).on('click', '.edit-checkcall-btn', function() {
             $('#checkcall_id').val($(this).data('id'));
             $('#checkpoint_name').val($(this).data('name'));
@@ -1360,23 +1378,6 @@
                     showToast(msg, 'error', 5000);
                 }
             });
-                // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
-                function formatToDisplay(raw) {
-                    if (!raw) return '';
-                    // Accepts '2026-01-06T11:52:37' or '2026-01-06 11:52:37'
-                    let d = raw.replace('T', ' ').split(/[- :]/);
-                    if (d.length < 6) return raw;
-                    return `${d[2]}-${d[1]}-${d[0]} ${d[3]}:${d[4]}:${d[5]}`;
-                }
-
-                // Parse dd-MM-yyyy HH:mm:ss to yyyy-MM-dd HH:mm:ss
-                function parseToBackend(display) {
-                    if (!display) return '';
-                    // Accepts '06-01-2026 11:40:37'
-                    let m = display.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
-                    if (!m) return display;
-                    return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
-                }
         });
 
         $(document).on('click', '.delete-checkcall-btn', function() {

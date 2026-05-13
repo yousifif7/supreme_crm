@@ -32,219 +32,222 @@ class CheckCallController extends Controller
     public function completeCheckCall(Request $request, $id)
     {
         $data = $request->validate([
-            'media_files' => 'nullable|array', // files or base64 (fallback)
             'media' => 'nullable|array',
-            'media.media_file' => 'nullable|string',
-            'media.timestamp' => 'nullable|date',
+            'media.*.timestamp' => 'nullable|string',
             'location.latitude' => 'required|numeric',
             'location.longitude' => 'required|numeric',
             'notes' => 'nullable|string',
             'timestamp' => 'nullable|date',
         ]);
 
+        Log::info('Incoming request', [
+            'method' => $request->method(),
+            'url' => $request->fullUrl(),
+            'headers' => $request->headers->all(),
+            'body' => $request->all(),
+            'ip' => $request->ip(),
+        ]);
+
         $checkCall = CheckCall::findOrFail($id);
+
         $user = Auth::user();
-        // Remove Employee model usage for name, use User model directly
-        // ...existing code...
-        if($checkCall->status == 'completed'){
-            return response()->json(['message' => 'This CheckCall has already been completed.'], 404);
-        }
-        if($checkCall->status == 'missed'){
-            return response()->json(['message' => 'This CheckCall has already been missed, You cannot submit unless an Admin gave permission to.'], 422);
-        }
-        
-        // ...existing code...
-        if($checkCall->require_media =='1' && empty($data['media']['media_file']) && (empty($data['media_files']) || count($data['media_files']) == 0)){
-            return response()->json(['message' => 'This check call requires media evidence. Please attach media files before completing.'], 422);
+
+        if ($checkCall->status == 'completed') {
+            return response()->json([
+                'message' => 'This CheckCall has already been completed.'
+            ], 404);
         }
 
-        // Prefer client-provided timestamp if present. Normalize to Europe/London (UK) for watermarking,
-        // and to UTC for comparisons/storage. If parsing fails, fall back to server time.
-        $clientInUK = null;
-        $clientInUTC = null;
-        if (!empty($data['timestamp'])) {
-            try {
-                // If incoming string includes timezone, Carbon::parse will respect it.
-                // If not, explicitly parse assuming Europe/London.
-                $parsed = Carbon::parse($data['timestamp'], 'Europe/London');
-                $clientInUK = $parsed->copy()->setTimezone('Europe/London');
-                $clientInUTC = $clientInUK->copy()->setTimezone('UTC');
-            } catch (\Exception $e) {
-                Log::warning('CheckCallController::completeCheckCall - failed to parse client timestamp', ['input' => $data['timestamp'], 'error' => $e->getMessage()]);
-                $clientInUK = null;
-                $clientInUTC = null;
+        if ($checkCall->status == 'missed') {
+            return response()->json([
+                'message' => 'This CheckCall has already been missed, You cannot submit unless an Admin gave permission to.'
+            ], 422);
+        }
+
+        // IMPORTANT: get raw media from request to preserve UploadedFile objects
+        $mediaItems = [];
+
+        // New structured format
+        if ($request->has('media')) {
+
+            $mediaItems = $request->all()['media'] ?? [];
+        }
+
+        // Old multipart upload format
+        elseif ($request->hasFile('media_files')) {
+
+            foreach ($request->file('media_files') as $file) {
+
+                $mediaItems[] = [
+                    'media_file' => $file,
+                    'timestamp' => now()->toISOString(),
+                ];
             }
         }
+        if (
+            $checkCall->require_media == '1'
+            && count($mediaItems) == 0
+        ) {
+            return response()->json([
+                'message' => 'This check call requires media evidence. Please attach media files before completing.'
+            ], 422);
+        }
 
-        $now = $clientInUTC ?? Carbon::now('UTC'); // used for comparisons and completed_at (UTC)
-        $scheduledUtc = Carbon::parse($checkCall->scheduled_time, 'UTC'); // stored in DB as UTC
+        $now = Carbon::now();
+
+        $scheduledUtc = Carbon::parse(
+            $checkCall->scheduled_time,
+            'UTC'
+        );
 
         $earliest = $scheduledUtc->copy()->subMinutes(5);
-        $latest   = $scheduledUtc->copy()->addMinutes(15);
 
-        // ...existing code...
+        $latest = $scheduledUtc->copy()->addMinutes(15);
 
-        // Prepare timestamp data for all file types
+        // Prepare base timestamp data
         $shiftdate = ShiftDate::find($checkCall->shift_id);
+
         if (!$shiftdate) {
-            return response()->json(['message' => 'Shift date not found for this check call.'], 404);
+            return response()->json([
+                'message' => 'Shift date not found for this check call.'
+            ], 404);
         }
 
-        // Ensure the guard is the assigned staff for this shift
         if ($shiftdate->staff_id !== $user->id) {
-            return response()->json(['message' => 'You are not assigned to this shift and cannot complete this check call.'], 403);
+            return response()->json([
+                'message' => 'You are not assigned to this shift and cannot complete this check call.'
+            ], 403);
         }
 
-        if ($shiftdate->is_assign !== 3 && $shiftdate->status !== 'booked_on') {
-            return response()->json(['message' => 'You must book on for this shift before completing the check call.'], 422);
+        if (
+            $shiftdate->is_assign !== 3
+            && $shiftdate->status !== 'booked_on'
+        ) {
+            return response()->json([
+                'message' => 'You must book on for this shift before completing the check call.'
+            ], 422);
         }
 
         $lat = $data['location']['latitude'];
+
         $lng = $data['location']['longitude'];
 
- /*
-         $geoFenceError = $this->ensureWithinShiftSiteRadius($shiftdate, $lat, $lng, 'complete this check call');
-         if ($geoFenceError) {
-             return $geoFenceError;
-         }
- */
-
-        // Try to resolve human-readable address from coordinates (GeoService caches results)
+        // Resolve address
         $geoService = new GeoService();
+
         $resolvedAddress = null;
+
         try {
-            $resolvedAddress = $geoService->getAddressFromCoordinates($lat, $lng);
+
+            $resolvedAddress = $geoService
+                ->getAddressFromCoordinates($lat, $lng);
         } catch (\Exception $e) {
-            // Fail silently; we'll fall back to site address
-            Log::warning('GeoService failed: ' . $e->getMessage());
+
+            Log::warning(
+                'GeoService failed: ' . $e->getMessage()
+            );
         }
 
-        // Use user name for timestampData
-        $userName =  trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? ''));
-        $timestampData = [
-            // use client-provided UK time if available, otherwise server UK time
-            'time' => ($clientInUK ?? Carbon::now('Europe/London'))->format('Y-m-d H:i:s'),
+        // Base timestamp data
+        $userName = trim(
+            ($user->first_name ?? '')
+                . ' '
+                . ($user->last_name ?? '')
+        );
+
+        $baseTimestampData = [
             'employee' => $userName,
             'latitude' => $lat,
             'longitude' => $lng,
             'site' => $shiftdate->shift->site->site_name ?? 'N/A',
-            // Prefer geocoded address when available, otherwise fall back to site address
-            'location' => $resolvedAddress ?? ($shiftdate->shift->site->address ?? 'N/A')
+            'location' => $resolvedAddress
+                ?? ($shiftdate->shift->site->address ?? 'N/A')
         ];
-        // Handle media files
-        // Collect processed file full paths so we can optionally return them as a download
+
         @set_time_limit(0);
+
         $processedFiles = [];
-        
-        // Handle new JSON media format if present
-        if (!empty($data['media']['media_file'])) {
-            $file = $data['media']['media_file'];
-            $filePath = null;
-            $originalName = null;
-            
-            if (is_string($file) && preg_match('/^data:/', $file)) {
-                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
-                $extension = 'png';
-                if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
-                    $mime = $matches[1];
-                    $extMap = [
-                        'image/jpeg' => 'jpg',
-                        'image/png' => 'png',
-                        'image/gif' => 'gif',
-                        'video/mp4' => 'mp4',
-                        'video/quicktime' => 'mov',
-                        'application/pdf' => 'pdf',
-                        'application/msword' => 'doc',
-                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
-                    ];
-                    $extension = $extMap[$mime] ?? 'bin';
-                }
-                if (!file_exists(public_path('check_calls'))) {
-                    mkdir(public_path('check_calls'), 0755, true);
-                }
-                $filename = time() . '_' . uniqid() . '.' . $extension;
-                file_put_contents(public_path('check_calls/' . $filename), base64_decode($fileData));
-                $filePath = 'check_calls/' . $filename;
-                
-                // Use media timestamp if available
-                if (!empty($data['media']['timestamp'])) {
-                    try {
-                        $parsed = Carbon::parse($data['media']['timestamp'], 'Europe/London');
-                        $timestampData['time'] = $parsed->format('Y-m-d H:i:s');
-                    } catch (\Exception $e) {
-                        Log::warning('Failed to parse media timestamp', ['input' => $data['media']['timestamp'], 'error' => $e->getMessage()]);
-                    }
-                }
+
+        $mediaIndex = 0;
+
+        foreach ($mediaItems as $mediaItem) {
+
+            $mediaIndex++;
+
+            $file = $mediaItem['media_file'] ?? null;
+
+            $captureTimestamp =
+                $mediaItem['timestamp'] ?? null;
+
+            if (!$file) {
+                continue;
             }
-            
-            if ($filePath) {
-                $fullPath = public_path($filePath);
-                $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
-                
-                // Process the file (same as below)
-                if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
-                    $this->processVideo($fullPath, $timestampData);
-                } else {
-                    $compressedPath = $this->compressFile($fullPath, $fileType);
-                    if ($compressedPath && $compressedPath != $fullPath) {
-                        if (file_exists($fullPath)) unlink($fullPath);
-                        rename($compressedPath, $fullPath);
-                        @chmod($fullPath, 0644);
-                    }
-                    switch ($fileType) {
-                        case 'jpg':
-                        case 'jpeg':
-                        case 'png':
-                            $this->addWatermarkToImage($fullPath, $timestampData);
-                            break;
-                        case 'pdf':
-                            $this->addTimestampToPdf($fullPath, $timestampData);
-                            break;
-                        case 'doc':
-                        case 'docx':
-                            $this->addTimestampToDocument($fullPath, $timestampData);
-                            break;
-                        default:
-                            $this->createMetadataFile($fullPath, $timestampData);
-                            break;
-                    }
-                }
-                
-                // Save to DB
-                CheckCallMedia::create([
-                    'check_call_id' => $checkCall->id,
-                    'file_path' => $filePath,
-                    'file_type' => $fileType,
-                    'original_name' => $originalName,
-                    'file_size' => filesize($fullPath),
-                ]);
-                
-                if (file_exists($fullPath)) {
-                    $processedFiles[] = $fullPath;
-                }
-                $metaPath = $fullPath . '.metadata.txt';
-                if (file_exists($metaPath)) {
-                    $processedFiles[] = $metaPath;
-                }
-            }
-        }
-        
-        // Handle legacy array format as fallback
-        foreach ($data['media_files'] ?? [] as $file) {
+
             $filePath = null;
+
             $originalName = null;
 
+            /*
+        |--------------------------------------------------------------------------
+        | Uploaded File
+        |--------------------------------------------------------------------------
+        */
+
             if ($file instanceof \Illuminate\Http\UploadedFile) {
-                $originalName = $file->getClientOriginalName();
-                $extension = $file->getClientOriginalExtension();
-                $filename = time() . '_' . uniqid() . '.' . $extension;
-                $file->move(public_path('check_calls'), $filename);
+
+                $originalName =
+                    $file->getClientOriginalName();
+
+                $extension =
+                    $file->getClientOriginalExtension();
+
+                $filename =
+                    time() . '_' . uniqid() . '.' . $extension;
+
+                if (!file_exists(public_path('check_calls'))) {
+
+                    mkdir(
+                        public_path('check_calls'),
+                        0755,
+                        true
+                    );
+                }
+
+                $file->move(
+                    public_path('check_calls'),
+                    $filename
+                );
+
                 $filePath = 'check_calls/' . $filename;
-            } elseif (is_string($file) && preg_match('/^data:/', $file)) {
-                $fileData = preg_replace('/^data:\w+\/\w+;base64,/', '', $file);
+            }
+
+            /*
+        |--------------------------------------------------------------------------
+        | Base64
+        |--------------------------------------------------------------------------
+        */ elseif (
+                is_string($file)
+                && preg_match('/^data:/', $file)
+            ) {
+
+                $fileData = preg_replace(
+                    '/^data:\w+\/\w+;base64,/',
+                    '',
+                    $file
+                );
+
                 $extension = 'png';
-                if (preg_match('/^data:(\w+\/\w+);base64,/', $file, $matches)) {
+
+                if (
+                    preg_match(
+                        '/^data:(\w+\/\w+);base64,/',
+                        $file,
+                        $matches
+                    )
+                ) {
+
                     $mime = $matches[1];
+
                     $extMap = [
                         'image/jpeg' => 'jpg',
                         'image/png' => 'png',
@@ -255,119 +258,314 @@ class CheckCallController extends Controller
                         'application/msword' => 'doc',
                         'application/vnd.openxmlformats-officedocument.wordprocessingml.document' => 'docx',
                     ];
+
                     $extension = $extMap[$mime] ?? 'bin';
                 }
+
                 if (!file_exists(public_path('check_calls'))) {
-                    mkdir(public_path('check_calls'), 0755, true);
+
+                    mkdir(
+                        public_path('check_calls'),
+                        0755,
+                        true
+                    );
                 }
-                $filename = time() . '_' . uniqid() . '.' . $extension;
-                file_put_contents(public_path('check_calls/' . $filename), base64_decode($fileData));
+
+                $filename =
+                    time() . '_' . uniqid() . '.' . $extension;
+
+                file_put_contents(
+                    public_path('check_calls/' . $filename),
+                    base64_decode($fileData)
+                );
+
                 $filePath = 'check_calls/' . $filename;
             } else {
+
                 continue;
             }
 
             $fullPath = public_path($filePath);
-            $fileType = strtolower(pathinfo($fullPath, PATHINFO_EXTENSION));
 
-            // Videos: single ffmpeg pass (compress + watermark combined — avoids double-encode and is faster).
-            if (in_array($fileType, ['mp4', 'mov', 'avi', 'mkv'])) {
-                $this->processVideo($fullPath, $timestampData);
+            $fileType = strtolower(
+                pathinfo($fullPath, PATHINFO_EXTENSION)
+            );
+
+            /*
+        |--------------------------------------------------------------------------
+        | Timestamp Data
+        |--------------------------------------------------------------------------
+        */
+
+            $timestampData = $baseTimestampData;
+
+            if ($captureTimestamp) {
+
+                $captureTime =
+                    $this->parseUKTimestamp($captureTimestamp);
+
+                $timestampData['time'] =
+                    $captureTime->format('d/m/Y H:i:s');
+
+                $timestampData['capture_time_unix'] =
+                    $captureTime->timestamp;
             } else {
-                $compressedPath = $this->compressFile($fullPath, $fileType);
-                if ($compressedPath && $compressedPath != $fullPath) {
-                    if (file_exists($fullPath)) unlink($fullPath);
+
+                $timestampData['time'] =
+                    Carbon::now('Europe/London')
+                    ->format('d/m/Y H:i:s');
+            }
+
+            /*
+        |--------------------------------------------------------------------------
+        | Process Media
+        |--------------------------------------------------------------------------
+        */
+
+            if (
+                in_array(
+                    $fileType,
+                    ['mp4', 'mov', 'avi', 'mkv']
+                )
+            ) {
+
+                $this->processVideo(
+                    $fullPath,
+                    $timestampData
+                );
+            } else {
+
+                $compressedPath = $this->compressFile(
+                    $fullPath,
+                    $fileType
+                );
+
+                if (
+                    $compressedPath
+                    && $compressedPath != $fullPath
+                ) {
+
+                    if (file_exists($fullPath)) {
+                        unlink($fullPath);
+                    }
+
                     rename($compressedPath, $fullPath);
+
                     @chmod($fullPath, 0644);
                 }
+
                 switch ($fileType) {
+
                     case 'jpg':
                     case 'jpeg':
                     case 'png':
-                        $this->addWatermarkToImage($fullPath, $timestampData);
+
+                        $this->addWatermarkToImage(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
+
                     case 'pdf':
-                        $this->addTimestampToPdf($fullPath, $timestampData);
+
+                        $this->addTimestampToPdf(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
+
                     case 'doc':
                     case 'docx':
-                        $this->addTimestampToDocument($fullPath, $timestampData);
+
+                        $this->addTimestampToDocument(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
+
                     default:
-                        $this->createMetadataFile($fullPath, $timestampData);
+
+                        $this->createMetadataFile(
+                            $fullPath,
+                            $timestampData
+                        );
+
                         break;
                 }
             }
 
-            // Save to DB
+            /*
+        |--------------------------------------------------------------------------
+        | Save Media
+        |--------------------------------------------------------------------------
+        */
+
             CheckCallMedia::create([
                 'check_call_id' => $checkCall->id,
                 'file_path' => $filePath,
                 'file_type' => $fileType,
-                'original_name' => $originalName,
-                'file_size' => filesize($fullPath), // Store compressed file size
+                'original_name' =>
+                $originalName ?? "media_{$mediaIndex}",
+                'file_size' => filesize($fullPath),
+                'captured_at' =>
+                isset($timestampData['capture_time_unix'])
+                    ? Carbon::createFromTimestamp(
+                        $timestampData['capture_time_unix']
+                    )
+                    : Carbon::now(),
             ]);
 
-            // After processing, include the main file and any metadata created by timestamping
+            // Collect processed files
             if (file_exists($fullPath)) {
+
                 $processedFiles[] = $fullPath;
             }
+
             $metaPath = $fullPath . '.metadata.txt';
+
             if (file_exists($metaPath)) {
+
                 $processedFiles[] = $metaPath;
             }
         }
 
-        // Update check call - explicitly preserve scheduled_time
+        /*
+    |--------------------------------------------------------------------------
+    | Update Check Call
+    |--------------------------------------------------------------------------
+    */
+
         $checkCall->status = 'completed';
+
         $checkCall->approval_status = 'pending';
+
         $checkCall->employee_id = $user->id;
+
         $checkCall->notes = $data['notes'] ?? null;
-        // store completed_at in UTC (use client timestamp if provided, otherwise server UTC)
-        $checkCall->completed_at = $now;
+
+        $checkCall->completed_at = Carbon::now();
+
         $checkCall->save();
 
-        // Store location
+        /*
+    |--------------------------------------------------------------------------
+    | Store Location
+    |--------------------------------------------------------------------------
+    */
+
         Location::create([
             'user_id' => $user->id,
-            'latitude' => $data['location']['latitude'],
-            'longitude' => $data['location']['longitude'],
+            'latitude' => $lat,
+            'longitude' => $lng,
             'accuracy' => 100,
             'on_duty' => 1,
             'shiftdate_id' => $checkCall->shift_id,
         ]);
 
-        // Notifications (like store)
+        /*
+    |--------------------------------------------------------------------------
+    | Notifications
+    |--------------------------------------------------------------------------
+    */
+
         try {
+
             Notification::create([
                 'user_id' => 1,
                 'employee_id' => null,
                 'type' => 'alert',
                 'title' => 'Checkcall completed',
-                'message' => 'Guard ' . $userName . ' completed checkcall ' . $checkCall->name,
+                'message' =>
+                'Guard '
+                    . $userName
+                    . ' completed checkcall '
+                    . $checkCall->name,
                 'read' => false,
-                'action_url' => "/shift-dates/{$checkCall->shift_id}/view"
+                'action_url' =>
+                "/shift-dates/{$checkCall->shift_id}/view"
             ]);
-
         } catch (\Exception $e) {
-            Log::error('Notification failed: ' . $e->getMessage());
+
+            Log::error(
+                'Notification failed: '
+                    . $e->getMessage()
+            );
         }
 
-        // Build media URL list for the response
+        /*
+    |--------------------------------------------------------------------------
+    | Response Media URLs
+    |--------------------------------------------------------------------------
+    */
+
         $mediaUrls = [];
+
         foreach ($processedFiles as $p) {
-            $relative = ltrim(str_replace(public_path(), '', $p), '\\/');
+
+            $relative = ltrim(
+                str_replace(public_path(), '', $p),
+                '\\/'
+            );
+
             $mediaUrls[] = [
                 'file_path' => $relative,
-                'url'       => asset($relative),
+                'url' => asset($relative),
             ];
         }
 
         return response()->json([
-            'message'       => 'Check call completed successfully',
+            'message' => 'Check call completed successfully',
             'check_call_id' => $checkCall->id,
-            'media'         => $mediaUrls,
+            'media' => $mediaUrls,
+            'media_count' => count($mediaItems),
         ], 200);
+    }
+    /**
+     * Parse a UK-based timestamp string and return a Carbon instance
+     * Supports multiple formats (timestamp already in UK time):
+     * - "2024-01-15T14:30:45Z" (ISO 8601 UTC)
+     * - "2024-01-15T14:30:45+00:00" (ISO 8601 with offset)
+     * - "2024-01-15 14:30:45" (ISO with time)
+     * - "15/01/2024 14:30:45" (UK format with time)
+     * - "15/01/2024 2:30 PM" (UK format with 12h time)
+     * 
+     * @param string $timestamp
+     * @return \Carbon\Carbon
+     */
+    private function parseUKTimestamp($timestamp)
+    {
+        try {
+            // If the timestamp has timezone info (Z, +00:00, etc), parse it as-is
+            // Carbon will handle the conversion automatically
+            if (preg_match('/[Z\+\-]\d{2}:?\d{2}$/', $timestamp) || str_ends_with($timestamp, 'Z')) {
+                // Parse as timezone-aware string (will be in UTC/offset)
+                $carbon = Carbon::parse($timestamp);
+                // Convert to London time for storage/display
+                return $carbon->setTimezone('Europe/London');
+            }
+
+            // Try ISO format first (no timezone info)
+            if (preg_match('/^\d{4}-\d{2}-\d{2}/', $timestamp)) {
+                return Carbon::parse($timestamp);
+            }
+
+            // Try DD/MM/YYYY format (UK standard, assume it's already in UK time)
+            if (preg_match('/^(\d{1,2})\/(\d{1,2})\/(\d{4})/', $timestamp)) {
+                return Carbon::createFromFormat('d/m/Y H:i:s', $timestamp)
+                    ?? Carbon::createFromFormat('d/m/Y H:i', $timestamp)
+                    ?? Carbon::createFromFormat('d/m/Y', $timestamp)
+                    ?? Carbon::parse($timestamp);
+            }
+
+            // Fallback to generic parsing (assumes server timezone)
+            return Carbon::parse($timestamp);
+        } catch (\Exception $e) {
+            Log::warning('Failed to parse timestamp: ' . $timestamp . ' - ' . $e->getMessage());
+            return Carbon::now('Europe/London');
+        }
     }
 
     // Compression methods for different file types
@@ -538,6 +736,7 @@ class CheckCallController extends Controller
         }
     }
 
+
     // Existing timestamp methods (keep these from previous implementation)
     private function addWatermarkToImage($imagePath, $timestampData)
     {
@@ -555,6 +754,7 @@ class CheckCallController extends Controller
         $white = imagecolorallocate($img, 255, 255, 255);
         $blackTrans = imagecolorallocatealpha($img, 0, 0, 0, 80);
 
+        // Format location text
         $locationText = 'Unknown';
         if (is_array($timestampData['location'] ?? null)) {
             $locationText = $timestampData['location']['formatted_address'] ?? json_encode($timestampData['location']);
@@ -562,6 +762,8 @@ class CheckCallController extends Controller
             $locationText = $timestampData['location'] ?? 'Unknown';
         }
 
+        // Build watermark text with UK timestamp
+        // The 'time' field should already be in UK format (d/m/Y H:i:s) from parseUKTimestamp()
         $text = "Time: " . ($timestampData['time'] ?? '') .
             "\nEmployee: " . ($timestampData['employee'] ?? '') .
             "\nLat: " . ($timestampData['latitude'] ?? '') . "  " .
@@ -584,7 +786,7 @@ class CheckCallController extends Controller
         $padding = max(12, intval($imgWidth * 0.02));
         $maxRectWidth = max(100, intval($imgWidth * 0.9) - 2 * $padding);
 
-        // Start font size relative to image width; allow downscaling until content fits
+        // Start font size relative to image width
         $fontSize = max(14, intval($imgWidth * 0.03));
         $minFontSize = 10;
 
@@ -700,8 +902,8 @@ class CheckCallController extends Controller
         }
 
         $outputPath = $videoPath . '.wm_' . uniqid() . '.mp4';
-       
-        
+
+
         // Build overlay text
         $locationText = 'Unknown';
         if (is_array($timestampData['location'] ?? null)) {
@@ -784,14 +986,14 @@ class CheckCallController extends Controller
             'C:/Program Files/ffmpeg/bin/ffmpeg.exe',
             'ffmpeg' // Will use PATH
         ];
-        
+
         foreach ($candidates as $candidate) {
             if (file_exists($candidate) && is_executable($candidate)) {
                 $ffmpegBin = $candidate;
                 break;
             }
         }
-        
+
         if (!$ffmpegBin && function_exists('shell_exec')) {
             // Try Unix which command
             $found = trim((string) @shell_exec('which ffmpeg 2>/dev/null'));
@@ -806,19 +1008,19 @@ class CheckCallController extends Controller
                 }
             }
         }
-        
+
         if (!$ffmpegBin) {
             // Try just 'ffmpeg' - might be in PATH
             $ffmpegBin = 'ffmpeg';
         }
 
         $originalSize = @filesize($filePath) ?: 0;
-        
+
         // AGGRESSIVE compression settings - compress regardless of size
         // Higher CRF = more compression (range: 0-51, 23 is default, we use 30-32 for aggressive compression)
         $crf = 30;
         $targetBitrate = '800k';
-        
+
         if ($originalSize > 100 * 1024 * 1024) {
             // Very large files (>100MB): maximum compression
             $crf = 32;
@@ -853,17 +1055,23 @@ class CheckCallController extends Controller
         $white = imagecolorallocate($im, 255, 255, 255);
         if (file_exists($fontPath)) {
             $y = 18;
-            foreach (explode("\n", $text) as $line) { imagettftext($im, 14, 0, 8, $y, $white, $fontPath, $line); $y += 18; }
+            foreach (explode("\n", $text) as $line) {
+                imagettftext($im, 14, 0, 8, $y, $white, $fontPath, $line);
+                $y += 18;
+            }
         } else {
             $y = 5;
-            foreach (explode("\n", $text) as $line) { imagestring($im, 3, 5, $y, $line, $white); $y += 14; }
+            foreach (explode("\n", $text) as $line) {
+                imagestring($im, 3, 5, $y, $line, $white);
+                $y += 14;
+            }
         }
         $textImage = sys_get_temp_dir() . '/checkcall_proc_' . uniqid() . '.png';
         imagepng($im, $textImage);
         imagedestroy($im);
 
         $outputPath = $filePath . '.proc_' . uniqid() . '.mp4';
-        
+
         // Prepare bufsize as a valid ffmpeg size string (e.g. "800k" -> "1600k") to avoid non-numeric PHP warnings.
         $bufsizeStr = $this->doubleBitrateSuffix($targetBitrate);
 
@@ -878,7 +1086,8 @@ class CheckCallController extends Controller
             . ' -c:a aac -b:a 64k -movflags +faststart '
             . escapeshellarg($outputPath) . ' -y';
 
-        $out = []; $ret = 0;
+        $out = [];
+        $ret = 0;
         exec($cmd . ' 2>&1', $out, $ret);
         @unlink($textImage);
 
@@ -891,7 +1100,10 @@ class CheckCallController extends Controller
                 'compression_ratio' => $originalSize > 0 ? round(($outputSize / $originalSize) * 100, 2) . '%' : 'N/A'
             ]);
             @unlink($filePath);
-            if (!@rename($outputPath, $filePath)) { @copy($outputPath, $filePath); @unlink($outputPath); }
+            if (!@rename($outputPath, $filePath)) {
+                @copy($outputPath, $filePath);
+                @unlink($outputPath);
+            }
             @chmod($filePath, 0644);
         } else {
             Log::error('processVideo: ffmpeg failed', [
@@ -1136,7 +1348,7 @@ class CheckCallController extends Controller
             'active_alarms' => $alarms
         ]);
     }
-    
+
 
     public function update(Request $request, $id)
     {
@@ -1164,10 +1376,14 @@ class CheckCallController extends Controller
             // Try a set of common input formats. If a time-only format is provided,
             // combine with the existing checkcall date or today.
             $formats = [
-                'H:i', 'H:i:s',
-                'Y-m-d H:i:s', 'Y-m-d H:i',
-                'd-m-Y H:i:s', 'd-m-Y H:i',
-                'd/m/Y H:i:s', 'd/m/Y H:i'
+                'H:i',
+                'H:i:s',
+                'Y-m-d H:i:s',
+                'Y-m-d H:i',
+                'd-m-Y H:i:s',
+                'd-m-Y H:i',
+                'd/m/Y H:i:s',
+                'd/m/Y H:i'
             ];
 
             $parsed = null;
@@ -1175,7 +1391,10 @@ class CheckCallController extends Controller
                 try {
                     $dt = Carbon::createFromFormat($fmt, $raw);
                     // ensure parsing consumed the whole string by re-formatting
-                    if ($dt) { $parsed = $dt; break; }
+                    if ($dt) {
+                        $parsed = $dt;
+                        break;
+                    }
                 } catch (\Exception $e) {
                     // continue trying other formats
                 }
@@ -1219,14 +1438,14 @@ class CheckCallController extends Controller
 
         return response()->json(['message' => 'Check call updated successfully', 'checkcall' => $checkcall]);
     }
-        
+
 
     public function destroy($id)
     {
         $checkCall = CheckCall::findOrFail($id);
         Logger::log($checkCall, 'Deleted', 'CheckCall deleted for shift at ' . $checkCall->shiftDate->shift->site->site_name);
-         
-        $checkCall->delete(); 
+
+        $checkCall->delete();
         return response()->json(['success' => true]);
     }
 
@@ -1244,7 +1463,7 @@ class CheckCallController extends Controller
         // Only allow approval if currently pending
         if ($checkcall->approval_status !== 'pending' && $checkcall->approval_status !== null) {
             return response()->json([
-                'message' => 'Check call has already been ' . $checkcall->approval_status 
+                'message' => 'Check call has already been ' . $checkcall->approval_status
             ], 400);
         }
 

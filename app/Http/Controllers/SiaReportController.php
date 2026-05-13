@@ -15,7 +15,8 @@ class SiaReportController extends Controller
     public function index(Request $request)
     {
         // Build a summary table grouped by run_id (show run-level status counts)
-        $runs = SiaCheckReport::select(
+        $runs = SiaCheckReport::query()
+            ->select([
                 'run_id',
                 DB::raw('MIN(checked_at) as run_date'),
                 DB::raw('COUNT(*) as total_scanned'),
@@ -23,14 +24,29 @@ class SiaReportController extends Controller
                 DB::raw('SUM(CASE WHEN status_after = "Inactive" THEN 1 ELSE 0 END) as inactive'),
                 DB::raw('SUM(CASE WHEN status_after = "Revoked" THEN 1 ELSE 0 END) as revoked'),
                 DB::raw('SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as errors')
-            )
+            ])
             ->groupBy('run_id')
             ->orderByDesc('run_date')
             ->paginate(25);
 
         // Temporarily log the query to debug the admin scope
-        \Illuminate\Support\Facades\Log::info('SIA Report Query: ' . $runs->toSql());
-        \Illuminate\Support\Facades\Log::info('SIA Report Bindings: ' . json_encode($runs->getBindings()));
+        $query = SiaCheckReport::query()
+            ->select([
+                'run_id',
+                DB::raw('MIN(checked_at) as run_date'),
+                DB::raw('COUNT(*) as total_scanned'),
+                DB::raw('SUM(CASE WHEN status_after = "Active" THEN 1 ELSE 0 END) as active'),
+                DB::raw('SUM(CASE WHEN status_after = "Inactive" THEN 1 ELSE 0 END) as inactive'),
+                DB::raw('SUM(CASE WHEN status_after = "Revoked" THEN 1 ELSE 0 END) as revoked'),
+                DB::raw('SUM(CASE WHEN error IS NOT NULL THEN 1 ELSE 0 END) as errors')
+            ])
+            ->groupBy('run_id')
+            ->orderByDesc('run_date');
+            
+        \Illuminate\Support\Facades\Log::info('SIA Report Query: ' . $query->toSql());
+        \Illuminate\Support\Facades\Log::info('SIA Report Bindings: ' . json_encode($query->getBindings()));
+        
+        $runs = $query->paginate(25);
 
         return view('reports.sia_reports', compact('runs'));
     }
@@ -41,7 +57,7 @@ class SiaReportController extends Controller
     public function show(Request $request, string $runId)
     {
         // Base query for this run
-        $baseQuery = SiaCheckReport::where('run_id', $runId);
+        $baseQuery = SiaCheckReport::query()->where('run_id', $runId);
 
         $allEntries = (clone $baseQuery)->orderBy('checked_at')->get();
 
@@ -64,7 +80,7 @@ class SiaReportController extends Controller
         $q = trim((string)$request->input('q', ''));
         $perPage = (int)$request->input('per_page', 50);
 
-        $query = SiaCheckReport::where('run_id', $runId);
+        $query = SiaCheckReport::query()->where('run_id', $runId);
         if ($q !== '') {
             $query->where(function ($r) use ($q) {
                 $r->where('employee_name', 'like', "%{$q}%")
@@ -84,7 +100,7 @@ class SiaReportController extends Controller
      */
     public function downloadCsv(string $runId)
     {
-        $entries = SiaCheckReport::where('run_id', $runId)->orderBy('checked_at')->get();
+        $entries = SiaCheckReport::query()->where('run_id', $runId)->orderBy('checked_at')->get();
 
         if ($entries->isEmpty()) {
             abort(404, 'Run not found');
@@ -132,7 +148,7 @@ class SiaReportController extends Controller
      */
     public function deleteRun(string $runId)
     {
-        $deleted = SiaCheckReport::where('run_id', $runId)->delete();
+        $deleted = SiaCheckReport::query()->where('run_id', $runId)->delete();
 
         if (request()->wantsJson()) {
             return response()->json(['deleted' => $deleted]);
@@ -147,8 +163,8 @@ class SiaReportController extends Controller
      */
     public function debugRun(string $runId)
     {
-        $count = SiaCheckReport::where('run_id', $runId)->count();
-        $sample = SiaCheckReport::where('run_id', $runId)->first();
+        $count = SiaCheckReport::query()->where('run_id', $runId)->count();
+        $sample = SiaCheckReport::query()->where('run_id', $runId)->first();
 
         return response()->json([
             'run_id' => $runId,
