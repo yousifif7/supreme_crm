@@ -2,42 +2,43 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\DataTables\EmployeesDataTable;
 use App\Helpers\Logger;
-use App\Models\Holiday;
-use App\Models\License;
-use App\Models\Employee;
-use App\Models\Document;
-use App\Models\VisaType;
+use App\Jobs\RunSiaCheck;
 use App\Models\Department;
+use App\Models\DeviceChangeRequest;
+use App\Models\Document;
+use App\Models\Employee;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
-use Illuminate\Http\Request;
-use Barryvdh\DomPDF\Facade\Pdf;
-use Spatie\Permission\Models\Role;
+use App\Models\Holiday;
+use App\Models\License;
+use App\Models\Log as ActivityLog;
+use App\Models\PendingDelete;
+use App\Models\Subcontractor;
+use App\Models\User;
+use App\Models\VisaType;
+use App\Services\FileCompressor;
 use App\Services\SiaLicenceChecker;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use App\Jobs\RunSiaCheck;
-use App\DataTables\EmployeesDataTable;
-use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Log;
-use App\Models\Log as ActivityLog;
-use App\Services\FileCompressor;
-use App\Models\Subcontractor;
-use App\Models\PendingDelete;
-use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Validator;
+use Spatie\Permission\Models\Role;
 
 class EmployeeController extends Controller
 {
 
-        protected SiaLicenceChecker $siaChecker;
+    protected SiaLicenceChecker $siaChecker;
 
     public function __construct(SiaLicenceChecker $siaChecker)
     {
         $this->siaChecker = $siaChecker;
     }
-    
+
     public function index(EmployeesDataTable $dataTable)
     {
         $departments = Department::all();
@@ -59,7 +60,7 @@ class EmployeeController extends Controller
             'gender' => 'nullable|string',
             'ni_number' => 'nullable|string|unique:employees,ni_number',
             // 'sia_licence' => ['nullable', 'string','unique:employees,sia_licence', new \App\Rules\ValidSiaLicence()],
-            'sia_licence' => ['nullable', 'string','unique:employees,sia_licence'],
+            'sia_licence' => ['nullable', 'string', 'unique:employees,sia_licence'],
             'driving_licence_number' => 'nullable|string|unique:employees,driving_licence_number',
             'sia_expiry' => 'nullable|date',
             'licence_type' => 'nullable|string',
@@ -151,16 +152,15 @@ class EmployeeController extends Controller
             'employment_end_date' => 'nullable|date|after:employment_start_date',
             'address' => 'nullable|string',
         ]);
-        
-        
-$validator->after(function ($validator) use ($request) {
 
-    // If subcontractor is empty -> email must be provided
-    if (empty($request->subcontractor) && empty($request->email)) {
-        $validator->errors()->add('email', 'The email field is required when subcontractor is empty.');
-    }
 
-});
+        $validator->after(function ($validator) use ($request) {
+
+            // If subcontractor is empty -> email must be provided
+            if (empty($request->subcontractor) && empty($request->email)) {
+                $validator->errors()->add('email', 'The email field is required when subcontractor is empty.');
+            }
+        });
 
         if ($validator->fails()) {
             if ($request->ajax()) {
@@ -173,7 +173,7 @@ $validator->after(function ($validator) use ($request) {
 
 
         $data = $validator->validated();
-        
+
         // Auto-generate email if subcontractor is selected but no email provided
         if (!empty($data['subcontractor']) && empty($data['email'])) {
             // subcontractor may be an array (multiple) — use first as primary for email generation
@@ -211,7 +211,7 @@ $validator->after(function ($validator) use ($request) {
         //     if (! $siaResult['valid']) {
         //         return back()->withInput()->withErrors(['license_number' => 'SIA licence not active: ' . ($siaResult['error'] ?? 'unknown')]);
         //     }
-            
+
         // }
 
         // ✅ Handle the checkbox manually
@@ -251,7 +251,7 @@ $validator->after(function ($validator) use ($request) {
                 $data[$document] = $fileName;
 
                 try {
-                    (new FileCompressor())->compress(public_path('documents/'. $fileName));
+                    (new FileCompressor())->compress(public_path('documents/' . $fileName));
                 } catch (\Throwable $e) {
                     Log::error('EmployeeController: document compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
                 }
@@ -278,7 +278,6 @@ $validator->after(function ($validator) use ($request) {
                         } catch (\Throwable $e) {
                             Log::error('EmployeeController: additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
                         }
-
                     } else {
                         return response()->json([
                             'error' => 'Failed to move file: ' . $file->getClientOriginalName()
@@ -342,102 +341,102 @@ $validator->after(function ($validator) use ($request) {
             // Create Document records for files uploaded via admin UI so other parts
             // of the app (which rely on the documents table) see these uploads.
             try {
-            $docExpiryMap = [
-                'sia_licence_file' => 'sia_expiry',
-                'passport_file' => 'passport_expiry',
-                'act_certificate_file' => 'license_expiry',
-                'driving_licence_file' => 'driving_licence_expiry',
-            ];
+                $docExpiryMap = [
+                    'sia_licence_file' => 'sia_expiry',
+                    'passport_file' => 'passport_expiry',
+                    'act_certificate_file' => 'license_expiry',
+                    'driving_licence_file' => 'driving_licence_expiry',
+                ];
                 foreach ($documents as $document) {
-                if (empty($data[$document])) continue;
+                    if (empty($data[$document])) continue;
 
-                $fileVal = $data[$document];
-                $basename = basename($fileVal);
-                $candidates = [];
-                if (strpos($fileVal, '/') === false) {
-                    $candidates[] = 'documents/' . $fileVal;
-                    $candidates[] = 'uploads/' . $document . '/' . $fileVal;
-                } else {
-                    $candidates[] = $fileVal;
-                }
+                    $fileVal = $data[$document];
+                    $basename = basename($fileVal);
+                    $candidates = [];
+                    if (strpos($fileVal, '/') === false) {
+                        $candidates[] = 'documents/' . $fileVal;
+                        $candidates[] = 'uploads/' . $document . '/' . $fileVal;
+                    } else {
+                        $candidates[] = $fileVal;
+                    }
 
-                $expiry = $docExpiryMap[$document] ?? null;
+                    $expiry = $docExpiryMap[$document] ?? null;
 
-                // Try to find an existing document by exact path or basename
-                $existing = Document::where('user_id', $user->id)
-                    ->where('document_type', $document)
-                    ->where(function ($q) use ($candidates, $basename) {
-                        foreach ($candidates as $p) {
-                            $q->orWhere('file_path', $p);
-                        }
-                        $q->orWhere('file_path', 'like', "%{$basename}%");
-                    })->first();
-
-                $normalizedPath = (strpos($fileVal, '/') === false) ? ('documents/' . $fileVal) : $fileVal;
-
-                if ($existing) {
-                    $existing->file_path = $normalizedPath;
-                    $existing->expiry_date = $expiry ? ($data[$expiry] ?? null) : null;
-                    $existing->status = 'approved';
-                    $existing->save();
-                } else {
-                    Document::create([
-                        'user_id' => $user->id,
-                        'document_type' => $document,
-                        'file_path' => $normalizedPath,
-                        'expiry_date' => $expiry ? ($data[$expiry] ?? null) : null,
-                        'status' => 'approved',
-                    ]);
-                }
-            }
-
-            // Additional files
-            if (!empty($data['additional_files']) && is_array($data['additional_files'])) {
-                foreach ($data['additional_files'] as $path) {
-                    $basename = basename($path);
+                    // Try to find an existing document by exact path or basename
                     $existing = Document::where('user_id', $user->id)
-                        ->where('document_type', 'other')
-                        ->where('file_path', 'like', "%{$basename}%")
-                        ->first();
+                        ->where('document_type', $document)
+                        ->where(function ($q) use ($candidates, $basename) {
+                            foreach ($candidates as $p) {
+                                $q->orWhere('file_path', $p);
+                            }
+                            $q->orWhere('file_path', 'like', "%{$basename}%");
+                        })->first();
+
+                    $normalizedPath = (strpos($fileVal, '/') === false) ? ('documents/' . $fileVal) : $fileVal;
+
                     if ($existing) {
-                        $existing->file_path = $path;
+                        $existing->file_path = $normalizedPath;
+                        $existing->expiry_date = $expiry ? ($data[$expiry] ?? null) : null;
                         $existing->status = 'approved';
                         $existing->save();
                     } else {
                         Document::create([
                             'user_id' => $user->id,
-                            'document_type' => 'other',
-                            'file_path' => $path,
+                            'document_type' => $document,
+                            'file_path' => $normalizedPath,
+                            'expiry_date' => $expiry ? ($data[$expiry] ?? null) : null,
                             'status' => 'approved',
                         ]);
                     }
                 }
-            }
+
+                // Additional files
+                if (!empty($data['additional_files']) && is_array($data['additional_files'])) {
+                    foreach ($data['additional_files'] as $path) {
+                        $basename = basename($path);
+                        $existing = Document::where('user_id', $user->id)
+                            ->where('document_type', 'other')
+                            ->where('file_path', 'like', "%{$basename}%")
+                            ->first();
+                        if ($existing) {
+                            $existing->file_path = $path;
+                            $existing->status = 'approved';
+                            $existing->save();
+                        } else {
+                            Document::create([
+                                'user_id' => $user->id,
+                                'document_type' => 'other',
+                                'file_path' => $path,
+                                'status' => 'approved',
+                            ]);
+                        }
+                    }
+                }
             } catch (\Throwable $e) {
                 Log::error('Failed to create Document records for employee upload: ' . $e->getMessage());
                 throw $e; // bubble up to outer transaction handler
             }
 
             if ($request->has('holidays')) {
-            foreach ($request->holidays as $holiday) {
-                Holiday::create([
-                    'employee_id' => $employee->id,
-                    'from_date' => $holiday['from'],
-                    'to_date' => $holiday['to'],
-                    'holidays_entitement' => $holiday['entitlement'],
-                ]);
+                foreach ($request->holidays as $holiday) {
+                    Holiday::create([
+                        'employee_id' => $employee->id,
+                        'from_date' => $holiday['from'],
+                        'to_date' => $holiday['to'],
+                        'holidays_entitement' => $holiday['entitlement'],
+                    ]);
+                }
             }
-        }
             if ($request->has('terms')) {
-            foreach ($request->terms as $term) {
-                EmployeeTerm::create([
-                    'employee_id' => $employee->id,
-                    'from_date' => $term['from'],
-                    'to_date' => $term['to'],
-                    'term_name' => $term['entitlement'],
-                ]);
+                foreach ($request->terms as $term) {
+                    EmployeeTerm::create([
+                        'employee_id' => $employee->id,
+                        'from_date' => $term['from'],
+                        'to_date' => $term['to'],
+                        'term_name' => $term['entitlement'],
+                    ]);
+                }
             }
-        }
             \DB::commit();
 
             // Kick off an async SIA check for this employee if they have a licence
@@ -446,7 +445,6 @@ $validator->after(function ($validator) use ($request) {
             // }
 
             return response()->json(['message' => 'Employee created successfully']);
-
         } catch (\Throwable $e) {
             // rollback DB changes and remove any partially created user if present
             try {
@@ -470,7 +468,6 @@ $validator->after(function ($validator) use ($request) {
 
             return response()->json(['error' => 'Failed to create employee: ' . $e->getMessage()], 500);
         }
-
     }
 
     public function update(Request $request, $id)
@@ -588,7 +585,7 @@ $validator->after(function ($validator) use ($request) {
         $data = $validator->validated();
         
         // Check and verify SIA Licence via SiaLicenceChecker if provided
-       /** if (!empty($data['sia_licence'])) {
+        /** if (!empty($data['sia_licence'])) {
             try {
                 $siaChecker = new \App\Services\SiaLicenceChecker();
                 $siaResult = $siaChecker->checkByLicenceNumber($data['sia_licence'], false);
@@ -626,51 +623,51 @@ $validator->after(function ($validator) use ($request) {
         if ($request->email || $request->password || $request->fore_name || $request->sur_name) {
             $employee = Employee::find($id);
             $user = User::role('security_staff')->where('id', $employee->user_id)->first();
-                if ($user) {
-                    if($request->fore_name){
-                        $user->first_name = $request->fore_name;
-                    }
-                    if($request->sur_name){
-                        $user->last_name = $request->sur_name;
-                    }
-                    if ($request->email) {
-                        $user->email = $request->email;
-                        $employee->email = $request->email;
-                    }
-                    if ($request->filled('password') && $request->password !== ($user->plaintext_password ?? '')) {
-                        send_push_notification(
-                            $user->id,
-                            'Creds changed',
-                            'An admin has changed your account credentials! You have been logged out from other devices.',
-                            ['type' => 'profile']
-                        );
-                        $user->plaintext_password = $request->password;
-                        $user->password = Hash::make($request->password);
-                        try {
-                            if (method_exists($user, 'tokens')) {
-                                $user->tokens()->delete();
-                            }
-                        } catch (\Throwable $e) {
-                            Log::warning('Failed to delete user tokens for user '.$user->id.': '.$e->getMessage());
-                        }
-                        try {
-                            if (\Schema::hasTable('sessions')) {
-                                \DB::table('sessions')->where('user_id', $user->id)->delete();
-                            }
-                        } catch (\Throwable $e) {
-                            Log::warning('Failed to clear sessions for user '.$user->id.': '.$e->getMessage());
-                        }
-                    }
-                    $user->save();
+            if ($user) {
+                if ($request->fore_name) {
+                    $user->first_name = $request->fore_name;
                 }
-                if (!$request->password) {
-                    // Use Hash facade to hash the password
-                    $user->password = $user->password;
+                if ($request->sur_name) {
+                    $user->last_name = $request->sur_name;
                 }
-
+                if ($request->email) {
+                    $user->email = $request->email;
+                    $employee->email = $request->email;
+                }
+                if ($request->filled('password') && $request->password !== ($user->plaintext_password ?? '')) {
+                    send_push_notification(
+                        $user->id,
+                        'Creds changed',
+                        'An admin has changed your account credentials! You have been logged out from other devices.',
+                        ['type' => 'profile']
+                    );
+                    $user->plaintext_password = $request->password;
+                    $user->password = Hash::make($request->password);
+                    try {
+                        if (method_exists($user, 'tokens')) {
+                            $user->tokens()->delete();
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to delete user tokens for user ' . $user->id . ': ' . $e->getMessage());
+                    }
+                    try {
+                        if (\Schema::hasTable('sessions')) {
+                            \DB::table('sessions')->where('user_id', $user->id)->delete();
+                        }
+                    } catch (\Throwable $e) {
+                        Log::warning('Failed to clear sessions for user ' . $user->id . ': ' . $e->getMessage());
+                    }
+                }
                 $user->save();
             }
-        
+            if (!$request->password) {
+                // Use Hash facade to hash the password
+                $user->password = $user->password;
+            }
+
+            $user->save();
+        }
+
         // Handle profile picture update
         if ($request->hasFile('profile_picture')) {
             $image = $request->file('profile_picture');
@@ -702,7 +699,7 @@ $validator->after(function ($validator) use ($request) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
                 $fileName = time() . '_' . $document . '.' . $file->getClientOriginalExtension();
-                $sfile=$file->move(public_path('documents'), $fileName);
+                $sfile = $file->move(public_path('documents'), $fileName);
                 $data[$document] = $fileName;
                 try {
                     (new FileCompressor())->compress(public_path('documents/' . $fileName));
@@ -729,11 +726,11 @@ $validator->after(function ($validator) use ($request) {
                     if ($moved) {
                         // Save relative path to array
                         $savedPaths[] = 'uploads/additional_docs/' . $fileName;
-                            try {
-                                (new FileCompressor())->compress(public_path('uploads/additional_docs/' . $fileName));
-                            } catch (\Throwable $e) {
-                                Log::error('EmployeeController (update): additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
-                            }
+                        try {
+                            (new FileCompressor())->compress(public_path('uploads/additional_docs/' . $fileName));
+                        } catch (\Throwable $e) {
+                            Log::error('EmployeeController (update): additional_file compression failed', ['file' => $fileName, 'error' => $e->getMessage()]);
+                        }
                     } else {
                         return response()->json([
                             'error' => 'Failed to move file: ' . $file->getClientOriginalName()
@@ -850,7 +847,7 @@ $validator->after(function ($validator) use ($request) {
     public function edit($id)
     {
         $employee = Employee::with(['holidays', 'terms', 'user'])->find($id);
-        
+
         // Get plaintext password from related user if exists
         $plaintext_password = null;
         if ($employee->user) {
@@ -1093,7 +1090,7 @@ $validator->after(function ($validator) use ($request) {
             'other_info'      => $employee?->other_info,
             'employment_start_date' => $employee?->employment_start_date?->format('d-m-Y') ?? null,
             'employment_end_date' => $employee?->employment_end_date?->format('d-m-Y') ?? null,
-            
+
             // Document files
             'profile_picture' => $employee?->profile_picture,
             'signature'       => $employee?->signature,
@@ -1189,7 +1186,7 @@ $validator->after(function ($validator) use ($request) {
 
         return $pdf->download("employment_report_{$employee->id}.pdf");
     }
-    
+
 
     public function processSia(Request $request)
     {
@@ -1209,7 +1206,7 @@ $validator->after(function ($validator) use ($request) {
         // Dispatch one lightweight job per employee.
         // Stagger by 3 seconds each so the SIA website is not hammered and the
         // queue worker stays cool — 100 employees spreads over ~5 minutes.
-        
+
         @set_time_limit(300); // allow up to 5 min for large employee sets
         foreach ($employeeIds as $index => $id) {
             RunSiaCheck::dispatch($id, $runId)->delay(now()->addSeconds($index * 3));
@@ -1224,5 +1221,33 @@ $validator->after(function ($validator) use ($request) {
         ]);
     }
 
+    public function pendingDeviceChangeRequests()
+    {
+        $requests = DeviceChangeRequest::with(['user'])
+            ->where('status', 'pending')
+            ->latest()
+            ->get();
 
+        return response()->json([
+            'success' => true,
+            'data' => $requests->map(function ($request) {
+                return [
+                    'id' => $request->id,
+                    'employee_name' => $request->user
+                        ? $request->user->first_name . ' ' . $request->user->last_name
+                        : 'N/A',
+
+                    'employee_email' => $request->user->email ?? 'N/A',
+
+                    'old_device_id' => $request->old_device_id,
+                    'new_device_id' => $request->new_device_id,
+                    'new_device_name' => $request->new_device_name,
+                    'new_os' => $request->new_os,
+                    'new_app_version' => $request->new_app_version,
+
+                    'requested_at' => $request->created_at->format('Y-m-d H:i:s'),
+                ];
+            })
+        ]);
+    }
 }

@@ -101,6 +101,11 @@ class User extends Authenticatable
         return $this->hasMany(DeviceLog::class);
     }
 
+    public function deviceChangeRequests()
+    {
+        return $this->hasMany(DeviceChangeRequest::class);
+    }
+
     public function profile()
     {
         return $this->hasOne(Profile::class);

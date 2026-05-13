@@ -5,6 +5,7 @@ namespace App\Http\Controllers\API;
 use Carbon\Carbon;
 use App\Models\User;
 use App\Models\DeviceLog;
+use App\Models\DeviceChangeRequest;
 use Illuminate\Support\Str;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -54,6 +55,53 @@ class AuthAPIController extends Controller
             }
 
             return response()->json(['message' => 'Invalid credentials'], 401);
+        }
+
+        // For security staff, validate device
+        if ($user->hasRole('security_staff')) {
+            $lastDeviceLog = $user->deviceLogs()->latest()->first();
+            
+            // Skip validation if this is first login or device_id is empty (old app version)
+            if (!$lastDeviceLog || empty($request->device_info['device_id'])) {
+                // Log device info
+                $user->deviceLogs()->create([
+                    'device_id' => $request->device_info['device_id'] ?? 'legacy_device',
+                    'device_name' => $request->device_info['device_name'] ?? null,
+                    'os' => $request->device_info['os'] ?? null,
+                    'app_version' => $request->device_info['app_version'] ?? null,
+                    'latitude' => $request->location['latitude'] ?? null,
+                    'longitude' => $request->location['longitude'] ?? null,
+                ]);
+            } 
+            // If device changed, create change request
+            elseif ($lastDeviceLog->device_id !== $request->device_info['device_id']) {
+                $user->deviceChangeRequests()->create([
+                    'old_device_id' => $lastDeviceLog->device_id,
+                    'new_device_id' => $request->device_info['device_id'],
+                    'new_device_name' => $request->device_info['device_name'] ?? null,
+                    'new_os' => $request->device_info['os'] ?? null,
+                    'new_app_version' => $request->device_info['app_version'] ?? null,
+                    'status' => 'pending'
+                ]);
+                
+                return response()->json([
+                    'message' => 'Device change detected. Admin approval required. You can close the app and check back later.',
+                    'requires_approval' => true
+                ], 403);
+            }
+            
+            // Check if there's a pending request for this device
+            $pendingRequest = $user->deviceChangeRequests()
+                ->where('new_device_id', $request->device_info['device_id'])
+                ->where('status', 'pending')
+                ->exists();
+                
+            if ($pendingRequest) {
+                return response()->json([
+                    'message' => 'Device change is pending admin approval. Please check back later.',
+                    'requires_approval' => true
+                ], 403);
+            }
         }
 
         // Log device info
@@ -247,6 +295,46 @@ class AuthAPIController extends Controller
         ]);
     }
 
+    public function approveDeviceChange(Request $request)
+    {
+        $request->validate([
+            'request_id' => 'required|exists:device_change_requests,id',
+            'action' => 'required|in:approve,reject',
+            'note' => 'nullable|string'
+        ]);
+
+        $changeRequest = DeviceChangeRequest::find($request->request_id);
+        
+        if ($changeRequest->status !== 'pending') {
+            return response()->json(['message' => 'Request has already been processed'], 400);
+        }
+
+        if ($request->action === 'approve') {
+            // Delete old device logs
+            DeviceLog::where('user_id', $changeRequest->user_id)
+                ->where('device_id', $changeRequest->old_device_id)
+                ->delete();
+                
+            $changeRequest->update([
+                'status' => 'approved',
+                'admin_id' => $request->user()->id,
+                'admin_note' => $request->note,
+                'approved_at' => now()
+            ]);
+            
+            return response()->json(['message' => 'Device change approved successfully']);
+        } else {
+            $changeRequest->update([
+                'status' => 'rejected',
+                'admin_id' => $request->user()->id,
+                'admin_note' => $request->note,
+                'rejected_at' => now()
+            ]);
+            
+            return response()->json(['message' => 'Device change rejected']);
+        }
+    }
+
     public function logout(Request $request)
     {
         $user = $request->user();
@@ -277,6 +365,18 @@ class AuthAPIController extends Controller
         // Remove device log entry for this device to stop pushes for this device
         if ($deviceId) {
             try {
+                // For security staff, also reject any pending device change requests
+                if ($user->hasRole('security_staff')) {
+                    DeviceChangeRequest::where('user_id', $user->id)
+                        ->where('new_device_id', $deviceId)
+                        ->where('status', 'pending')
+                        ->update([
+                            'status' => 'rejected',
+                            'rejected_at' => now(),
+                            'admin_note' => 'Automatically rejected due to logout'
+                        ]);
+                }
+                
                 DeviceLog::where('user_id', $user->id)->where('device_id', $deviceId)->delete();
             } catch (\Exception $e) {
                 try { Log::channel('auth_attempts')->error('Failed to remove device log on logout', ['user_id' => $user->id, 'device_id' => $deviceId, 'error' => $e->getMessage()]); } catch (\Exception $_) {}

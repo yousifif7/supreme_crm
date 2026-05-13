@@ -1,49 +1,50 @@
 <?php
 
-use App\Models\User;
-use App\Models\ShiftDate;
-use App\Models\BookingAlarm;
-use App\Models\Notification;
-use Illuminate\Http\Request;
-use App\Models\TrainingMaterial;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Route;
-use Illuminate\Support\Facades\DB;
-use App\Http\Controllers\DobController;
-use App\Http\Controllers\LogController;
-use Illuminate\Support\Facades\Artisan;
-use App\Http\Controllers\ChatController;
-use App\Http\Controllers\RoleController;
-use App\Http\Controllers\SiteController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\ShiftController;
-use App\Http\Controllers\ClientController;
-use App\Http\Controllers\ExportController;
-use App\Http\Controllers\ReportController;
-use App\Http\Controllers\InvoiceController;
-use App\Http\Controllers\PayrollController;
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\SettingController;
-use App\Http\Controllers\VehicleController;
-use App\Http\Controllers\DocumentController;
-use App\Http\Controllers\EmployeeController;
-use App\Http\Controllers\PermissionController;
-use App\Http\Controllers\API\TrainingController;
 use App\Http\Controllers\AlertReminderController;
-use App\Http\Controllers\API\CheckCallController;
+use App\Http\Controllers\API\AuthAPIController;
 use App\Http\Controllers\API\BookingMediaController;
-use App\Http\Controllers\EmployeeLeaveController;
-use App\Http\Controllers\NotificationsController;
-use App\Http\Controllers\SubContractorController;
-use App\Http\Controllers\IncidentReportController;
+use App\Http\Controllers\API\CheckCallController;
 use App\Http\Controllers\API\LocationAPIController;
 use App\Http\Controllers\API\NotificationController;
-use App\Http\Controllers\ShiftNotificationController;
-use App\Http\Controllers\VehicleComplianceController;
-use App\Http\Controllers\VehicleMaintenanceController;
+use App\Http\Controllers\API\TrainingController;
+use App\Http\Controllers\ChatController;
+use App\Http\Controllers\ClientController;
+use App\Http\Controllers\DobController;
 use App\Http\Controllers\DocumentationUploadController;
+use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\EmployeeController;
+use App\Http\Controllers\EmployeeLeaveController;
+use App\Http\Controllers\ExportController;
+use App\Http\Controllers\IncidentReportController;
+use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\LogController;
+use App\Http\Controllers\NotificationsController;
+use App\Http\Controllers\PayrollController;
+use App\Http\Controllers\PermissionController;
+use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ReportController;
 use App\Http\Controllers\RoadworthinessCheckController;
+use App\Http\Controllers\RoleController;
+use App\Http\Controllers\SettingController;
+use App\Http\Controllers\ShiftController;
+use App\Http\Controllers\ShiftNotificationController;
 use App\Http\Controllers\SiaReportController;
+use App\Http\Controllers\SiteController;
+use App\Http\Controllers\SubContractorController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\VehicleComplianceController;
+use App\Http\Controllers\VehicleController;
+use App\Http\Controllers\VehicleMaintenanceController;
+use App\Models\BookingAlarm;
+use App\Models\Notification;
+use App\Models\ShiftDate;
+use App\Models\TrainingMaterial;
+use App\Models\User;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('auth.login');
@@ -439,6 +440,9 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/leaves/{id}/logs/ajax', [EmployeeLeaveController::class, 'getLogs'])->name('leaves.logs.ajax');
     Route::get('/leaves/{id}/view', [EmployeeLeaveController::class, 'view'])->name('leaves.view');
 
+    Route::get('/device-change-requests/pending', [EmployeeController::class, 'pendingDeviceChangeRequests'])->name('device-change-requests.pending');
+    Route::post('/device-change-requests/action', [AuthAPIController::class, 'approveDeviceChange'])->name('device-change-requests.action');
+    
     /** End: Holiday Controller */
 
 

@@ -33,6 +33,7 @@
                     <div class="dropdown">
                         <button class="btn btn-primary" id="bulkDeleteBtn">Delete Selected</button>
                         <button class="btn btn-outline-secondary ms-2" id="viewPendingDeletesBtn">Pending Deletes</button>
+                        <button class="btn btn-outline-primary ms-2" id="viewDeviceChangeRequestsBtn">Device Change Requests</button>
                         <a href="javascript:void(0);"
                             class="dropdown-toggle export_btn btn btn-white d-inline-flex align-items-center"
                             data-bs-toggle="dropdown">
@@ -357,6 +358,39 @@
             </div>
         </div>
     </div>
+    {{-- Device Change Requests Modal --}}
+    <div class="modal fade" id="deviceChangeRequestsModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Pending Device Change Requests</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped" id="deviceChangeRequestsTable">
+                            <thead>
+                                <tr>
+                                    <th>Employee</th>
+                                    <th>Old Device</th>
+                                    <th>New Device</th>
+                                    <th>Requested At</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Will be populated via AJAX -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     {{-- Employee logs partial (modal) --}}
     @include('employees.logs')
     <style>
@@ -2163,6 +2197,146 @@
             }
         });
     </script>
+
+
+<script>
+
+$(document).on('click', '.approve-device-request', function () {
+
+    let requestId = $(this).data('id');
+
+    processDeviceChangeRequest(requestId, 'approve');
+});
+
+$(document).on('click', '.reject-device-request', function () {
+
+    let requestId = $(this).data('id');
+
+    let note = prompt('Enter rejection reason (optional):');
+
+    processDeviceChangeRequest(requestId, 'reject', note);
+});
+
+
+$('#viewDeviceChangeRequestsBtn').on('click', function () {
+
+    // Open modal
+    $('#deviceChangeRequestsModal').modal('show');
+
+    // Load requests
+    loadPendingDeviceChangeRequests();
+});
+
+function processDeviceChangeRequest(requestId, action, note = null)
+{
+    $.ajax({
+        url: "{{ route('device-change-requests.action') }}",
+        type: "POST",
+
+        data: {
+            request_id: requestId,
+            action: action,
+            note: note,
+            _token: "{{ csrf_token() }}"
+        },
+
+        success: function(response) {
+
+            alert(response.message);
+
+            // Reload table after action
+            loadPendingDeviceChangeRequests();
+        },
+
+        error: function(xhr) {
+
+            console.error(xhr);
+
+            if (xhr.responseJSON && xhr.responseJSON.message) {
+                alert(xhr.responseJSON.message);
+            } else {
+                alert('Something went wrong');
+            }
+        }
+    });
+}
+
+</script>
+
+    <script>
+function loadPendingDeviceChangeRequests() {
+
+    $.ajax({
+        url: "{{ route('device-change-requests.pending') }}",
+        type: "GET",
+        success: function(response) {
+
+            let tbody = $('#deviceChangeRequestsTable tbody');
+
+            tbody.empty();
+
+            if (!response.data || response.data.length === 0) {
+
+                tbody.append(`
+                    <tr>
+                        <td colspan="5" class="text-center">
+                            No pending requests found
+                        </td>
+                    </tr>
+                `);
+
+                return;
+            }
+
+            response.data.forEach(function(request) {
+
+                tbody.append(`
+                    <tr>
+                        <td>
+                            <strong>${request.employee_name}</strong><br>
+                            <small>${request.employee_email}</small>
+                        </td>
+
+                        <td>
+                            <small>${request.old_device_id ?? '-'}</small>
+                        </td>
+
+                        <td>
+                            <strong>${request.new_device_name ?? '-'}</strong><br>
+                            <small>${request.new_device_id ?? '-'}</small><br>
+                            <small>${request.new_os ?? '-'}</small><br>
+                            <small>v${request.new_app_version ?? '-'}</small>
+                        </td>
+
+                        <td>
+                            ${request.requested_at}
+                        </td>
+
+                        <td>
+                            <button 
+                                class="btn btn-success btn-sm approve-device-request"
+                                data-id="${request.id}">
+                                Approve
+                            </button>
+
+                            <button 
+                                class="btn btn-danger btn-sm reject-device-request"
+                                data-id="${request.id}">
+                                Reject
+                            </button>
+                        </td>
+                    </tr>
+                `);
+            });
+        },
+
+        error: function(xhr) {
+            console.error(xhr);
+            alert('Failed to load pending device requests');
+        }
+    });
+}
+</script>
 
     {!! $dataTable->scripts() !!}
 @endsection
