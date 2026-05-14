@@ -73,7 +73,9 @@ class ShiftController extends Controller
     {
         $cacheSuffix = BelongsToAdmin::cacheSuffix();
 
-        return Cache::remember("subcontractors_min_list_{$cacheSuffix}", 300, function () {
+        // 1 hour TTL — role-based user queries are expensive (large JOIN against
+        // model_has_roles); long cache + explicit invalidation keeps requests fast.
+        return Cache::remember("subcontractors_min_list_{$cacheSuffix}", 3600, function () {
             return User::role('subcontractor')
                 ->orderBy('first_name', 'asc')
                 ->get(['id', 'first_name', 'last_name', 'email']);
@@ -3006,6 +3008,7 @@ if (!is_null($ownerAdminId)) {
     public function view(ShiftDate $shiftDate)
     {
         // Single eager-load pass — eliminates all blade-level queries and N+1 issues.
+        // patrols.scans.media added so the blade no longer issues 1 query per scan.
         $shiftDate->load([
             'staff',
             'shift.client',
@@ -3013,28 +3016,43 @@ if (!is_null($ownerAdminId)) {
             'logs',
             'checkCalls',
             'patrols.media',
-            'patrols.scans',
+            'patrols.scans.media',
         ]);
 
         $subcontractors = $this->getSubcontractors();
 
-        // Security staff list (needed for assign-shift-modal) — cached 5 min.
-        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+        // Security staff list (needed for assign-shift-modal) — cached 1 hour.
+        // Was 5 min; on DB-backed cache the miss cost ~860ms (role join scan), so
+        // we make this a long-lived cache and invalidate explicitly when staff change.
+        $staffs = Cache::remember('security_staff_min_list', 3600, function () {
             return \App\Models\User::role('security_staff')
                 ->orderBy('first_name')
                 ->get(['id', 'first_name', 'last_name']);
         });
 
-        // Fetch only first/last GPS points (avoid hydrating full location history in this request).
-        $firstLocation = Location::query()
+        // Fetch first AND last GPS points in a single round-trip.
+        // Previously two separate ORDER BY queries — now one MIN/MAX-style pull.
+        // (Requires locations_shiftdate_timestamp_idx for fast plan; see migrations.)
+        $bounds = \Illuminate\Support\Facades\DB::table('locations')
             ->where('shiftdate_id', $shiftDate->id)
-            ->orderBy('timestamp', 'asc')
-            ->first(['latitude', 'longitude', 'timestamp']);
+            ->selectRaw('MIN(`timestamp`) AS first_ts, MAX(`timestamp`) AS last_ts')
+            ->first();
 
-        $lastLocation = Location::query()
-            ->where('shiftdate_id', $shiftDate->id)
-            ->orderBy('timestamp', 'desc')
-            ->first(['latitude', 'longitude', 'timestamp']);
+        $firstLocation = null;
+        $lastLocation = null;
+        if ($bounds && $bounds->first_ts) {
+            $firstLocation = Location::query()
+                ->where('shiftdate_id', $shiftDate->id)
+                ->where('timestamp', $bounds->first_ts)
+                ->first(['latitude', 'longitude', 'timestamp']);
+
+            $lastLocation = ($bounds->last_ts && $bounds->last_ts !== $bounds->first_ts)
+                ? Location::query()
+                    ->where('shiftdate_id', $shiftDate->id)
+                    ->where('timestamp', $bounds->last_ts)
+                    ->first(['latitude', 'longitude', 'timestamp'])
+                : $firstLocation;
+        }
 
         // Client user record.
         $client = $shiftDate->shift?->client ?? null;
@@ -3057,6 +3075,21 @@ if (!is_null($ownerAdminId)) {
         // Check calls (already loaded via relation — just alias for clarity in blade).
         $checkcalls = $shiftDate->checkCalls->sortBy('scheduled_time');
 
+        // Pre-load check call related users + media in controller (previously done inline in the blade).
+        $checkCallEmployeeIds = $checkcalls->pluck('employee_id')->filter()->unique()->values();
+        $checkCallUsersById = $checkCallEmployeeIds->isNotEmpty()
+            ? \App\Models\User::whereIn('id', $checkCallEmployeeIds)
+                ->get(['id', 'first_name', 'last_name'])
+                ->keyBy('id')
+            : collect();
+
+        $checkCallIds = $checkcalls->pluck('id');
+        $checkCallMediaByCallId = $checkCallIds->isNotEmpty()
+            ? \App\Models\CheckCallMedia::whereIn('check_call_id', $checkCallIds)
+                ->get(['id', 'check_call_id', 'file_path'])
+                ->groupBy('check_call_id')
+            : collect();
+
         // Load booking media once in controller (avoid DB queries inside blade).
         $bookingMedia = \App\Models\BookingMedia::query()
             ->where('shift_date_id', $shiftDate->id)
@@ -3070,11 +3103,21 @@ if (!is_null($ownerAdminId)) {
         $siteLat = null;
         $siteLng = null;
 
+        // Resolve superadmin flag once (avoids hitting roles/permissions tables from blade).
+        $isSuperAdmin = false;
+        if ($user = auth()->user()) {
+            $cacheKey = "user_is_superadmin_{$user->id}";
+            $isSuperAdmin = (bool) Cache::remember($cacheKey, 300, function () use ($user) {
+                return $user->hasRole('superadmin');
+            });
+        }
+
         return view('security_boards.shift-detail', compact(
             'shiftDate', 'subcontractors', 'siteLat', 'siteLng',
             'staffs', 'firstLocation', 'lastLocation',
             'client', 'employee', 'patrols', 'checkpoints', 'checkcalls',
-            'bookOnMedia', 'bookOffMedia'
+            'checkCallUsersById', 'checkCallMediaByCallId',
+            'bookOnMedia', 'bookOffMedia', 'isSuperAdmin'
         ));
     }
 

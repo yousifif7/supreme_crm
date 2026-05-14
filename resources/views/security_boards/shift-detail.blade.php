@@ -297,7 +297,7 @@
                                         <div class="profile-detail">
                                             <div class="avater">
                                                 <img src="{{ $shiftDate->staff?->profile_picture ?? 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png' }}"
-                                                    class="profile-avater profile_picture" id="profile_picture">
+                                                    class="profile-avater profile_picture" id="profile_picture" loading="lazy" decoding="async">
                                             </div>
 
                                             <div class="profile-details">
@@ -489,7 +489,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('sia_licence_file', true)) }}"
-                                                        alt="SIA Licence" class="document-image" />
+                                                        alt="SIA Licence" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('sia_licence_file') }}"
                                                             target="_blank" class="view-btn">
@@ -509,7 +509,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('passport_file', true)) }}"
-                                                        alt="Passport" class="document-image" />
+                                                        alt="Passport" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('passport_file') }}" target="_blank"
                                                             class="view-btn">
@@ -529,7 +529,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('act_certificate_file', true)) }}"
-                                                        alt="ACT Certificate" class="document-image" />
+                                                        alt="ACT Certificate" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('act_certificate_file') }}"
                                                             target="_blank" class="view-btn">
@@ -552,7 +552,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('proof_of_address_file', true)) }}"
-                                                        alt="Proof of Address" class="document-image" />
+                                                        alt="Proof of Address" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('proof_of_address_file') }}"
                                                             target="_blank" class="view-btn">
@@ -572,7 +572,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('ni_letter_file', true)) }}"
-                                                        alt="NI Letter" class="document-image" />
+                                                        alt="NI Letter" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('ni_letter_file') }}"
                                                             target="_blank" class="view-btn">
@@ -592,7 +592,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('first_aid_certificate_file', true)) }}"
-                                                        alt="First Aid Certificate" class="document-image" />
+                                                        alt="First Aid Certificate" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('first_aid_certificate_file') }}"
                                                             target="_blank" class="view-btn">
@@ -648,16 +648,7 @@
                     <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2">
 
                         @if ($checkcalls->isNotEmpty())
-                            @php
-                                // Avoid per-row DB lookups: preload related users/media once.
-                                $checkCallEmployeeIds = $checkcalls->pluck('employee_id')->filter()->unique()->values();
-                                $checkCallUsersById = $checkCallEmployeeIds->isNotEmpty()
-                                    ? \App\Models\User::whereIn('id', $checkCallEmployeeIds)->get()->keyBy('id')
-                                    : collect();
-                                $checkCallMediaByCallId = \App\Models\CheckCallMedia::whereIn('check_call_id', $checkcalls->pluck('id'))
-                                    ->get()
-                                    ->groupBy('check_call_id');
-                            @endphp
+                            {{-- $checkCallUsersById and $checkCallMediaByCallId are preloaded in controller. --}}
                             <table class="table table-bordered table-striped">
                                 <thead>
                                     <tr>
@@ -866,6 +857,7 @@
                                                             <small class="text-muted">{{ strtoupper($scan->scan_method) }} — {{ optional(\Carbon\Carbon::parse($scan->timestamp))->format('d-m H:i') }}</small>
                                                             <div>
                                                                 @php
+                                                                    // Use the eager-loaded relation (no extra DB hit per scan).
                                                                     $scanPayload = [
                                                                         'id' => $scan->id,
                                                                         'scan_method' => $scan->scan_method,
@@ -874,7 +866,7 @@
                                                                         'issues_found' => $scan->issues_found ?? null,
                                                                         'latitude' => $scan->latitude ?? null,
                                                                         'longitude' => $scan->longitude ?? null,
-                                                                        'media' => $scan->media()->pluck('file_path')->toArray(),
+                                                                        'media' => ($scan->relationLoaded('media') ? $scan->media : collect())->pluck('file_path')->all(),
                                                                     ];
                                                                 @endphp
                                                                 {{-- <a href="#" class="btn btn-sm btn-outline-primary view-scan-btn"
@@ -1081,10 +1073,24 @@
         $apiKey = env('GOOGLE_MAPS_API_KEY');
     @endphp
 
+    {{-- Leaflet loaded with defer so it parses in parallel without blocking initial render. --}}
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js" defer></script>
+
     <script>
-        // Initialize isSuperAdmin flag FIRST before any other scripts
-        window.isSuperAdmin = @json(auth()->check() && auth()->user() && auth()->user()->getRoleNames()->contains('superadmin'));
-        console.log('[INIT] window.isSuperAdmin set to:', window.isSuperAdmin);
+        // isSuperAdmin resolved in controller (cached) — avoids hitting the roles table on every render.
+        window.isSuperAdmin = @json($isSuperAdmin ?? false);
+
+        // Helper: wait for a global (e.g. Leaflet's `L`) to become available, then run callback.
+        window._waitFor = function (test, cb, max = 50) {
+            if (test()) return cb();
+            let tries = 0;
+            const t = setInterval(() => {
+                if (test() || ++tries > max) {
+                    clearInterval(t);
+                    if (test()) cb();
+                }
+            }, 60);
+        };
     </script>
 
     <script>
@@ -1547,38 +1553,69 @@
     </script>
     <script>
         document.addEventListener("DOMContentLoaded", function() {
-            @if ($firstLocation)
-                var mapOn = L.map('map-on-{{ $shiftDate->id }}').setView(
-                    [{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}],
-                    15
-                );
+            window._waitFor(() => typeof L !== 'undefined', function () {
+                @if ($firstLocation)
+                    var mapOn = L.map('map-on-{{ $shiftDate->id }}').setView(
+                        [{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}],
+                        15
+                    );
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: ''
-                }).addTo(mapOn);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: ''
+                    }).addTo(mapOn);
 
-                L.marker([{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}]).addTo(mapOn);
-            @endif
+                    L.marker([{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}]).addTo(mapOn);
+                @endif
 
-            @if ($lastLocation)
-                var mapOff = L.map('map-off-{{ $shiftDate->id }}').setView(
-                    [{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}],
-                    15
-                );
+                @if ($lastLocation)
+                    var mapOff = L.map('map-off-{{ $shiftDate->id }}').setView(
+                        [{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}],
+                        15
+                    );
 
-                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                    attribution: ''
-                }).addTo(mapOff);
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: ''
+                    }).addTo(mapOff);
 
-                L.marker([{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}]).addTo(mapOff);
-            @endif
+                    L.marker([{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}]).addTo(mapOff);
+                @endif
+            });
         });
     </script>
 
     <script>
+        // Ensure Google Maps API is loaded (the heavy site map in map.blade.php loads it lazily
+        // via IntersectionObserver — so if the user opens the Patrols tab before scrolling to
+        // the site map, we need to load Google Maps ourselves here).
+        window._gmapsApiLoader = window._gmapsApiLoader || function () {
+            return new Promise((resolve, reject) => {
+                if (window.google && window.google.maps) return resolve();
+                if (document.getElementById('gm-maps-script')) {
+                    const check = () => (window.google && window.google.maps) ? resolve() : setTimeout(check, 120);
+                    return check();
+                }
+                const cb = '_gmapsApiCb_' + Math.floor(Math.random() * 1e9);
+                window[cb] = () => resolve();
+                const s = document.createElement('script');
+                s.id = 'gm-maps-script';
+                s.async = true;
+                s.defer = true;
+                s.src = `https://maps.googleapis.com/maps/api/js?key={{ $apiKey }}&callback=${cb}`;
+                s.onerror = () => reject(new Error('Failed to load Google Maps API'));
+                document.head.appendChild(s);
+            });
+        };
+
         function initPatrolMap(patrolId, shiftDateId, checkpoints) {
             const mapDiv = document.getElementById("patrol-map-" + patrolId);
             if (!mapDiv) return;
+
+            // Wait for Google Maps to be available before constructing the map.
+            if (!(window.google && window.google.maps)) {
+                window._gmapsApiLoader().then(() => initPatrolMap(patrolId, shiftDateId, checkpoints))
+                    .catch(err => console.error('[patrol map] gmaps load failed', err));
+                return;
+            }
 
             const map = new google.maps.Map(mapDiv, {
                 zoom: 12,
@@ -1894,18 +1931,46 @@
             }
             updateLocations();
 
-            // Auto-refresh every 15s
+            // Auto-refresh — but only while patrols tab is visible AND page is foregrounded.
+            // (Previously every patrol map polled every 15s forever, even on hidden tabs.)
             const refreshInterval = 15000;
-            const intervalId = setInterval(updateLocations, refreshInterval);
+            let intervalId = null;
+            const patrolsTabPane = document.getElementById('patrols');
+            const isTabVisible = () => patrolsTabPane && patrolsTabPane.classList.contains('active');
 
-            // If the patrols tab is shown later, trigger resize & re-fit
+            function startPolling() {
+                if (intervalId) return;
+                if (!isTabVisible() || document.hidden) return;
+                intervalId = setInterval(updateLocations, refreshInterval);
+            }
+            function stopPolling() {
+                if (intervalId) { clearInterval(intervalId); intervalId = null; }
+            }
+
+            startPolling();
+
+            // Pause when the page is hidden, resume when visible.
+            document.addEventListener('visibilitychange', () => {
+                if (document.hidden) stopPolling();
+                else startPolling();
+            });
+
+            // Tab show/hide listeners.
             const patrolsTabBtn = document.getElementById('patrols-tab2');
             if (patrolsTabBtn) {
                 patrolsTabBtn.addEventListener('shown.bs.tab', () => {
                     google.maps.event.trigger(map, 'resize');
                     if (lastBounds) clampAndFit(lastBounds);
+                    startPolling();
                 });
+                patrolsTabBtn.addEventListener('hidden.bs.tab', () => stopPolling());
             }
+            // Stop polling if user navigates to a sibling tab that hides the patrols pane.
+            document.querySelectorAll('.tabs-parent .nav-link').forEach(btn => {
+                if (btn !== patrolsTabBtn) {
+                    btn.addEventListener('shown.bs.tab', () => stopPolling());
+                }
+            });
         }
 
         // 🔸 Adds toggle, radius, opacity, gradient controls
@@ -1963,15 +2028,30 @@
 
 
         // Initialize patrol maps lazily when Patrols tab is first opened.
+        // Maps are constructed in batches across animation frames so a shift with many
+        // patrols doesn't freeze the main thread.
         let patrolMapsInitialized = false;
 
         function initAllPatrolMapsOnce() {
             if (patrolMapsInitialized) return;
             patrolMapsInitialized = true;
 
-            @foreach ($patrols as $patrol)
-                initPatrolMap({{ $patrol->id }}, {{ $shiftDate->id }}, siteCheckpoints);
-            @endforeach
+            const patrolIds = @json($patrols->pluck('id')->values());
+            const shiftDateId = {{ $shiftDate->id }};
+            const BATCH = 2; // construct 2 maps per frame to keep UI responsive
+
+            // Ensure Google Maps loads before initing any patrol map (loads once, shared).
+            window._gmapsApiLoader().then(() => {
+                let i = 0;
+                function next() {
+                    const end = Math.min(i + BATCH, patrolIds.length);
+                    for (; i < end; i++) {
+                        try { initPatrolMap(patrolIds[i], shiftDateId, siteCheckpoints); } catch (e) { console.error('[patrol map init]', e); }
+                    }
+                    if (i < patrolIds.length) requestAnimationFrame(next);
+                }
+                next();
+            }).catch(err => console.error('[patrol maps] gmaps load failed', err));
         }
 
         document.addEventListener('DOMContentLoaded', function() {
@@ -2231,7 +2311,7 @@
             setup24hTimeInput("absentee_end_time");
         });
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
 
     <script>
         function closeTab() {
@@ -2239,6 +2319,14 @@
         }
 
         function unassignShift(shiftId) {
+            if (typeof Swal === 'undefined') {
+                // SweetAlert still loading — fall back to a basic confirm so the click is never lost.
+                if (!confirm('Unassign this shift?')) return;
+                return fetch(`/shifts/${shiftId}/unassign`, {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': '{{ csrf_token() }}', 'Accept': 'application/json' },
+                }).then(r => r.json()).then(d => { if (d && d.success) location.reload(); });
+            }
             Swal.fire({
                 title: 'Are you sure?',
                 text: "Do you want to unassign this shift?",
@@ -2285,8 +2373,6 @@
 
 
     <!-- Google Maps API is loaded dynamically by the included map partial (map.blade.php) -->
-
-    <!-- Leaflet JS -->
     <script>
         // Confirmation toast for delete actions. If `anchorEl` provided, place toast under it.
         function positionToastAtAnchor(toast, anchorEl) {
@@ -2539,8 +2625,6 @@
             }, submitBtn);
         });
     </script>
-
-    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
 
     <script>
         // Edit shift function

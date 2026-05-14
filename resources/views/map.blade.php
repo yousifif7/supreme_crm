@@ -536,6 +536,46 @@ document.getElementById('gm-autorefresh').addEventListener('change', function ()
   }
 });
 
-// Initialize
-initMapAndDeck();
+// Lazy-init: only load the heavy Google Maps API + fetch points once the map container
+// is actually scrolled into view. Saves a large script + ajax round-trip on initial load
+// when the user doesn't immediately look at the map.
+(function lazyInit() {
+  const target = document.getElementById('gm-deck-map');
+  if (!target) return;
+
+  let started = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    initMapAndDeck();
+  };
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          io.disconnect();
+          start();
+          break;
+        }
+      }
+    }, { rootMargin: '200px' });
+    io.observe(target);
+  } else {
+    // Older browsers: fall back to a short timeout so we don't block first paint.
+    setTimeout(start, 500);
+  }
+
+  // Pause polling when the tab/window is hidden — saves Google Maps quota & bandwidth.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (window._gm_deck_interval) {
+        clearInterval(window._gm_deck_interval);
+        window._gm_deck_interval = null;
+      }
+    } else if (started && document.getElementById('gm-autorefresh')?.checked && !window._gm_deck_interval) {
+      window._gm_deck_interval = setInterval(() => refreshData(), 30000);
+    }
+  });
+})();
 </script>
