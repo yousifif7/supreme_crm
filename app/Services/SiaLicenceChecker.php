@@ -816,6 +816,13 @@ foreach ($attempts as $idx => $attempt) {
         }
 
         $candidates = array_values(array_unique($candidates));
+
+        // Shuffle so requests spread across the pool instead of always hitting candidate #1
+        // until it fails. Disable with SIA_PROXY_SHUFFLE=false to preserve declared order.
+        if ((bool) env('SIA_PROXY_SHUFFLE', true) && count($candidates) > 1) {
+            shuffle($candidates);
+        }
+
         $allowDirectFallback = (bool) env('SIA_ALLOW_DIRECT_FALLBACK', true);
 
         if ($allowDirectFallback || empty($candidates)) {

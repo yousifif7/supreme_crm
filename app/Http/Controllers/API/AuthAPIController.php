@@ -2,20 +2,21 @@
 
 namespace App\Http\Controllers\API;
 
-use Carbon\Carbon;
-use App\Models\User;
-use App\Models\DeviceLog;
-use App\Models\DeviceChangeRequest;
-use Illuminate\Support\Str;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use App\Mail\ResetPasswordCodeMail;
-use Illuminate\Support\Facades\Log;
 use App\Http\Controllers\Controller;
+use App\Mail\ResetPasswordCodeMail;
+use App\Models\DeviceChangeRequest;
+use App\Models\DeviceLog;
+use App\Models\Notification;
+use App\Models\User;
+use Carbon\Carbon;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 
 
 class AuthAPIController extends Controller
@@ -83,6 +84,17 @@ class AuthAPIController extends Controller
                     'new_app_version' => $request->device_info['app_version'] ?? null,
                     'status' => 'pending'
                 ]);
+
+
+            Notification::create([
+                'user_id' => 1,
+                'employee_id' => null,
+                'type' => 'alert',
+                'title' => 'Mobile Change Detected',
+                'message' => 'Guard ' . $user->first_name . ' ' . $user->last_name . ' has logged in from a new device. Please review and approve the change.',
+                'read' => false,
+                'action_url' => ""
+            ]);
                 
                 return response()->json([
                     'message' => 'Device change detected. Admin approval required. You can close the app and check back later.',
@@ -321,6 +333,13 @@ class AuthAPIController extends Controller
                 'admin_note' => $request->note,
                 'approved_at' => now()
             ]);
+
+            send_push_notification(
+                $changeRequest->user_id,
+                'Device change Approved',
+                'Your Device change request was approved by Admins! You can login to the new device now.',
+                ['type' => 'profile']
+            );
             
             return response()->json(['message' => 'Device change approved successfully']);
         } else {
@@ -331,6 +350,13 @@ class AuthAPIController extends Controller
                 'rejected_at' => now()
             ]);
             
+            send_push_notification(
+                $changeRequest->user_id,
+                'Device change Denied',
+                'Your Device change request was denied by Admins! If this is truly you, Contact with an Administrator to resolve the issue.',
+                ['type' => 'profile']
+            );
+
             return response()->json(['message' => 'Device change rejected']);
         }
     }
