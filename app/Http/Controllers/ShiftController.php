@@ -796,6 +796,8 @@ public function scheduling()
                             }
                         }
 
+                        $isPastDate = Carbon::parse($date->format('Y-m-d'))->lt(Carbon::today());
+
                         $shiftDate = ShiftDate::create([
                             'shift_id'    => $shift->id,
                             'staff_id'    => $shift->staff_id ?? null,
@@ -803,7 +805,8 @@ public function scheduling()
                             'start_time'  => $request->start_shift[$i],
                             'end_time'    => $request->end_shift[$i],
                             'subcontractor_id'    => $shift->subcontractor_id ?? null,
-                            'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
+                            'is_assign'   => $isPastDate ? 4 : (!empty($shift->staff_id) ? 1 : 0),
+                            'status'      => $isPastDate ? 'booked_off' : null,
                             'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
                             'total_hours' => $this->calculateTotalHours(
                                 $request->start_shift[$i],
@@ -4047,14 +4050,16 @@ if (!is_null($ownerAdminId)) {
                     }
                 }
 
+                $isPastDate = Carbon::parse($date->format('Y-m-d'))->lt(Carbon::today());
+
                 $shiftDate = ShiftDate::create([
                     'shift_id'    => $shift->id,
                     'staff_id'    => $shift->staff_id ?? null,
                     'shift_date'  => $date->format('Y-m-d'),
                     'start_time'  => $request->start_shift[$i],
-                    'status'      => $shift->staff_id ? 'pending' : 'unassigned',
+                    'status'      => $isPastDate ? 'booked_off' : ($shift->staff_id ? 'pending' : 'unassigned'),
                     'end_time'    => $request->end_shift[$i],
-                    'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
+                    'is_assign'   => $isPastDate ? 4 : (!empty($shift->staff_id) ? 1 : 0),
                     'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
                     'total_hours' => $this->calculateTotalHours(
                         $request->start_shift[$i],

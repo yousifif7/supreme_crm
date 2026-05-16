@@ -376,14 +376,20 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Same rate priority as security staff invoice:
-            // shift_date.guard_rate → site.guard_rate → site.payable_rate → shift.employee_rate → subcontractor default rate
-            $hourlyRate = $shiftDate->guard_rate
-                ?? ($shiftDate->shift->site->guard_rate ?? null)
-                ?? ($shiftDate->shift->site->payable_rate ?? null)
-                ?? ($shiftDate->shift->employee_rate ?? null)
-                ?? $subDefaultRate
-                ?? 0;
+            // Subcontractor payroll is always based on the site's guard rate,
+            // falling back to the shift-date's stored guard rate when the site
+            // has no rate configured. Treat 0/empty as "not set" so a stale 0
+            // on a shift date doesn't zero out the item.
+            $siteGuardRate = $shiftDate->shift->site->guard_rate ?? null;
+            $shiftDateGuardRate = $shiftDate->guard_rate;
+
+            if (! empty($siteGuardRate)) {
+                $hourlyRate = $siteGuardRate;
+            } elseif (! empty($shiftDateGuardRate)) {
+                $hourlyRate = $shiftDateGuardRate;
+            } else {
+                $hourlyRate = 0;
+            }
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
