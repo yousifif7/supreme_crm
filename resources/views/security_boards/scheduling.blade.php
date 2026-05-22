@@ -2342,7 +2342,10 @@
                         e.stopPropagation();
                         return;
                     }
-                    if (shiftIdLocal) window.open(`${baseUrl}/shift-dates/${shiftIdLocal}/view`, '_blank');
+                    if (shiftIdLocal) {
+                        const from = encodeURIComponent(window.location.pathname + window.location.search);
+                        window.open(`${baseUrl}/shift-dates/${shiftIdLocal}/view?from=${from}`, '_blank');
+                    }
                 });
 
                 // Checkbox click: prevent bubbling to bar click

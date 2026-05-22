@@ -1334,17 +1334,26 @@ public function scheduling()
         }
         $shiftDate->forceDelete();
 
+        // Preserve filters from the originating page (Scheduling or Shifts list).
+        // The shift-detail view forwards the opener's path+query as `from` so we can
+        // redirect back to the exact filtered view the user came from.
+        $from = (string) request('from', '');
+        $redirectTarget = '/scheduling';
+        if ($from !== '' && preg_match('#^/(scheduling|shifts)(?:[/?].*)?$#', $from) === 1) {
+            $redirectTarget = $from;
+        }
+
         // If the request expects JSON (AJAX), return JSON response.
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Shift deleted successfully',
-                'redirect' => url('/scheduling'),
+                'redirect' => url($redirectTarget),
             ]);
         }
 
-        // Non-AJAX: redirect back to scheduling page
-        return redirect('/scheduling');
+        // Non-AJAX: redirect back to the originating page (preserving its filters)
+        return redirect($redirectTarget);
     }
 
     public function bulkDelete(Request $request)
@@ -1638,7 +1647,9 @@ public function getShifts(Request $request)
 
     // short cache to reduce repeated load. Increase default TTL to reduce CPU spikes
     // and allow DB to use an index for ordered scans.
-    $cacheKey = 'gantt_v2:' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
+    // Cache key MUST include the admin scope — otherwise a system-level user populates
+    // the cache and an admin loading the same view gets the system rota until TTL expires.
+    $cacheKey = 'gantt_v2:' . ShiftDate::cacheSuffix() . ':' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
     if ($cached = Cache::get($cacheKey)) {
         return response()->json(['data' => $cached]);
     }

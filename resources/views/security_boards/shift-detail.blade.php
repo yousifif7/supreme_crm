@@ -249,6 +249,9 @@
                     <form action="/deleteshift/{{$shiftDate->id}}" method="post" class="delete-shift-form">
                         @csrf
                         @method('DELETE')
+                        @if(request('from'))
+                            <input type="hidden" name="from" value="{{ request('from') }}">
+                        @endif
                         <button class="btn btn-danger" type="submit">Delete</button>
                     </form>
                     <button class="btn btn-primary" onclick="closeTab()">× Close</button>

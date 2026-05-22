@@ -1,7 +1,8 @@
 <div class="action-icon d-inline-flex">
-<a href="{{ route('shiftDates.view', $shiftDate) }}" 
-   class="me-2" 
-   target="_blank">
+<a href="{{ route('shiftDates.view', $shiftDate) }}"
+   class="me-2 shift-view-link"
+   target="_blank"
+   onclick="this.href='{{ route('shiftDates.view', $shiftDate) }}' + '?from=' + encodeURIComponent(window.location.pathname + window.location.search);">
     <i class="ti ti-eye"></i>
 </a>
     </a>

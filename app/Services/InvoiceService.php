@@ -16,6 +16,39 @@ use App\Models\LeaveRequest;
 
 class InvoiceService
 {
+    /**
+     * Resolve the live billing rate for a single shift date.
+     *
+     * Why live: shifts.site_rate is captured once at creation, so later edits to
+     * Site office_rate or additions to site_holiday_rates would otherwise never
+     * reach the invoice. This lookup is the single source of truth for billing.
+     *
+     * Priority: holiday rate for that date → site.office_rate → client.office_rate → 0.
+     */
+    protected function resolveClientHourlyRate($shiftDate, $client)
+    {
+        $site = $shiftDate->shift->site ?? null;
+
+        if ($site) {
+            $holidayRate = $site->siteHolidayRates
+                ->first(function ($r) use ($shiftDate) {
+                    $hd = $r->holiday_date;
+                    $hdStr = $hd instanceof Carbon ? $hd->format('Y-m-d') : (string) $hd;
+                    return $hdStr === Carbon::parse($shiftDate->shift_date)->format('Y-m-d');
+                });
+
+            if ($holidayRate && !is_null($holidayRate->site_rate)) {
+                return (float) $holidayRate->site_rate;
+            }
+
+            if (!is_null($site->office_rate)) {
+                return (float) $site->office_rate;
+            }
+        }
+
+        return (float) ($client->office_rate ?? 0);
+    }
+
     public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null, $frequency = null)
     {
         // Normalize and validate dates to Y-m-d strings
@@ -46,8 +79,9 @@ class InvoiceService
             $clientUserId = $client->user_id ?? $clientId;
         }
 
-        // Fetch ShiftDate rows for this client (by client user id) and the given site
-        $shiftDates = ShiftDate::with(['shift.site', 'staff'])
+        // Fetch ShiftDate rows for this client (by client user id) and the given site.
+        // Eager-load siteHolidayRates so resolveClientHourlyRate() doesn't N+1.
+        $shiftDates = ShiftDate::with(['shift.site.siteHolidayRates', 'staff'])
             ->whereHas('shift', function ($q) use ($clientUserId, $siteId) {
                 $q->where('client_id', $clientUserId)
                   ->where('site_id', $siteId);
@@ -71,8 +105,7 @@ class InvoiceService
                 'shiftIds' => $shiftDates->pluck('shift_id')->unique()->values()->all(),
                 'shift_samples' => $shiftDates->take(20)->map(function($sd) use ($client) {
                     // Debug: use same billing rate logic as invoice generation
-                    $hourlyRate = $sd->shift->site_rate
-                        ?? ($sd->shift->site?->office_rate ?? ($client->office_rate ?? 0));
+                    $hourlyRate = $this->resolveClientHourlyRate($sd, $client);
                     $computed = [];
                     try {
                         // For client-facing debug we compute using scheduled shift hours
@@ -113,9 +146,8 @@ class InvoiceService
         $totalAmount = 0; // Track actual billed amount
 
         foreach ($shiftDates as $shiftDate) {
-            // Client invoices: bill using parent shift's site_rate → site.office_rate → client.office_rate
-            $hourlyRate = $shiftDate->shift->site_rate
-                ?? ($shiftDate->shift->site?->office_rate ?? ($client->office_rate ?? 0));
+            // Resolve live billing rate (holiday → site → client). Frozen shifts.site_rate is intentionally ignored.
+            $hourlyRate = $this->resolveClientHourlyRate($shiftDate, $client);
 
             // For client invoices, bill based on scheduled shift times (ignore book on/off)
             $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
@@ -129,8 +161,8 @@ class InvoiceService
         }
 
         $totalDeductionsHours = $totalBreaks + $totalBookOnHours + $totalBookOffHours;
-        $averageRate = ($totalHours - $totalDeductionsHours) > 0 
-            ? $totalAmount / ($totalHours - $totalDeductionsHours) 
+        $averageRate = ($totalHours - $totalDeductionsHours) > 0
+            ? $totalAmount / ($totalHours - $totalDeductionsHours)
             : ($client->office_rate ?? 0);
 
         $invoice = Invoice::create([
@@ -198,8 +230,9 @@ class InvoiceService
         $totalBookOffHours = 0;
         $totalAmount = 0; // Track actual billed amount
 
-        // Fetch all ShiftDate rows for these sites (client-scoped) in one query and group by site
-        $shiftDates = ShiftDate::with(['shift.site', 'staff'])
+        // Fetch all ShiftDate rows for these sites (client-scoped) in one query and group by site.
+        // Eager-load siteHolidayRates so the per-date rate lookup doesn't N+1.
+        $shiftDates = ShiftDate::with(['shift.site.siteHolidayRates', 'staff'])
             ->whereHas('shift', function ($q) use ($clientUserId, $siteIds) {
                 $q->where('client_id', $clientUserId)
                   ->whereIn('site_id', $siteIds);
@@ -216,9 +249,8 @@ class InvoiceService
 
         foreach ($grouped as $siteId => $datesForSite) {
             foreach ($datesForSite as $shiftDate) {
-                // Client invoices: bill using parent shift's site_rate → site.office_rate → client.office_rate
-                $hourlyRate = $shiftDate->shift->site_rate
-                    ?? ($shiftDate->shift->site?->office_rate ?? ($client->office_rate ?? 0));
+                // Resolve live billing rate (holiday → site → client). Frozen shifts.site_rate is intentionally ignored.
+                $hourlyRate = $this->resolveClientHourlyRate($shiftDate, $client);
                 // For client invoices across sites, bill based on scheduled shift times
                 $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
                 $invoiceItems[] = $item;
