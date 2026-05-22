@@ -769,7 +769,15 @@ public function scheduling()
                     $lastCreated = null;
                     for ($q = 0; $q < $quantity; $q++) {
                         $currentSiteRate = $computedSiteRate; // Start with the base site rate
-                        $currentGuardRate = $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0; // Start with base guard rate
+                        // Pay rate priority: form value (employee_rate) -> site.guard_rate -> 0.
+                        // Treat empty string as "not provided" so a blank form field still
+                        // falls through to the site's configured guard rate.
+                        $formEmployeeRate = $request->employee_rate[$i] ?? null;
+                        if ($formEmployeeRate === '' || $formEmployeeRate === null) {
+                            $currentGuardRate = $site?->guard_rate ?? 0;
+                        } else {
+                            $currentGuardRate = (float) $formEmployeeRate;
+                        }
 
                         // Check for holiday rates
                         if ($site && $site->siteHolidayRates && $site->siteHolidayRates->isNotEmpty()) {
@@ -4035,7 +4043,14 @@ if (!is_null($ownerAdminId)) {
                 if (!in_array($date->format('D'), $selectedDays)) continue;
 
                 $currentSiteRate = $computedSiteRate;
-                $currentGuardRate = $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0;
+                // Treat empty string as "not provided" so a blank form field falls through
+                // to the site's configured guard rate instead of being written as "".
+                $formGuardRate = $request->guard_rate[$i] ?? null;
+                if ($formGuardRate === '' || $formGuardRate === null) {
+                    $currentGuardRate = $shift->site?->guard_rate ?? 0;
+                } else {
+                    $currentGuardRate = (float) $formGuardRate;
+                }
 
                 if ($site && $site->siteHolidayRates && $site->siteHolidayRates->isNotEmpty()) {
                     $holidayRate = $site->siteHolidayRates->first(function ($r) use ($date) {
