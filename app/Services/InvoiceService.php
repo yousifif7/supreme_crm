@@ -17,16 +17,24 @@ use App\Models\LeaveRequest;
 class InvoiceService
 {
     /**
-     * Resolve the live billing rate for a single shift date.
+     * Resolve the billing rate for a single shift date.
      *
-     * Why live: shifts.site_rate is captured once at creation, so later edits to
-     * Site office_rate or additions to site_holiday_rates would otherwise never
-     * reach the invoice. This lookup is the single source of truth for billing.
+     * Priority:
+     *   1. shift_dates.site_rate (snapshot kept in sync by RateResolver::propagateForSite)
+     *   2. Holiday rate for that calendar date
+     *   3. site.office_rate
+     *   4. client.office_rate
      *
-     * Priority: holiday rate for that date → site.office_rate → client.office_rate → 0.
+     * The stored snapshot is the primary source because rate edits explicitly recompute
+     * it for shifts >= effective_from. Legacy shift_dates with NULL site_rate fall back
+     * to the live lookup so old rows aren't billed at zero.
      */
     protected function resolveClientHourlyRate($shiftDate, $client)
     {
+        if (!is_null($shiftDate->site_rate) && (float) $shiftDate->site_rate > 0) {
+            return (float) $shiftDate->site_rate;
+        }
+
         $site = $shiftDate->shift->site ?? null;
 
         if ($site) {
@@ -408,17 +416,16 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Subcontractor payroll is always based on the site's guard rate,
-            // falling back to the shift-date's stored guard rate when the site
-            // has no rate configured. Treat 0/empty as "not set" so a stale 0
-            // on a shift date doesn't zero out the item.
-            $siteGuardRate = $shiftDate->shift->site->guard_rate ?? null;
+            // Prefer the stored snapshot on shift_dates (kept in sync by
+            // RateResolver::propagateForSite on every site rate edit).
+            // Treat 0/empty as "not set" so legacy rows fall through to the live site rate.
             $shiftDateGuardRate = $shiftDate->guard_rate;
+            $siteGuardRate = $shiftDate->shift->site->guard_rate ?? null;
 
-            if (! empty($siteGuardRate)) {
-                $hourlyRate = $siteGuardRate;
-            } elseif (! empty($shiftDateGuardRate)) {
+            if (! empty($shiftDateGuardRate)) {
                 $hourlyRate = $shiftDateGuardRate;
+            } elseif (! empty($siteGuardRate)) {
+                $hourlyRate = $siteGuardRate;
             } else {
                 $hourlyRate = 0;
             }
@@ -676,6 +683,11 @@ class InvoiceService
         $shiftDates = $shiftDatesQuery->get();
 
         $totalHours = $totalBreaks = $totalBookOnHours = $totalBookOffHours = 0;
+        // Per-shift accumulation so each shift_date uses its own stored guard_rate.
+        // This is what makes mid-period rate changes (e.g. 17→18 from May 5) flow through.
+        $grossAmount = 0;
+        $deductions  = 0;
+        $employeeRateFallback = $staff->guard_rate ?? 0;
 
         foreach ($shiftDates as $shiftDate) {
             // Normalize again inside alternate code path
@@ -709,27 +721,46 @@ class InvoiceService
 
             // Worked hours minus breaks
             $workedMinutes = max(0, $shiftDurationMinutes - $breakMinutes);
-            $totalHours += $workedMinutes / 60;
+            $workedHours = $workedMinutes / 60;
+            $totalHours += $workedHours;
             $totalBreaks += $breakMinutes / 60;
 
+            // Resolve the rate for THIS shift_date. Prefer the stored snapshot
+            // (kept in sync by RateResolver), then the live site rate, then the
+            // employee-level rate as a last-resort legacy fallback.
+            $shiftRate = 0;
+            if (! empty($shiftDate->guard_rate)) {
+                $shiftRate = (float) $shiftDate->guard_rate;
+            } elseif (! empty(optional($shiftDate->shift->site ?? null)->guard_rate)) {
+                $shiftRate = (float) $shiftDate->shift->site->guard_rate;
+            } else {
+                $shiftRate = (float) $employeeRateFallback;
+            }
+
+            $grossAmount += $workedHours * $shiftRate;
+
             // Deduct absentee hours if within shift
+            $shiftBookOnHours = 0;
+            $shiftBookOffHours = 0;
             if ($shiftDate->absentee_start_time) {
                 $absStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
                 if ($absStart->between($startDT, $endDT)) {
-                    $totalBookOnHours += $startDT->diffInMinutes($absStart) / 60;
+                    $shiftBookOnHours = $startDT->diffInMinutes($absStart) / 60;
+                    $totalBookOnHours += $shiftBookOnHours;
                 }
             }
             if ($shiftDate->absentee_end_time) {
                 $absEnd = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_end_time);
                 if ($absEnd->between($startDT, $endDT)) {
-                    $totalBookOffHours += $absEnd->diffInMinutes($endDT) / 60;
+                    $shiftBookOffHours = $absEnd->diffInMinutes($endDT) / 60;
+                    $totalBookOffHours += $shiftBookOffHours;
                 }
             }
+            $deductions += ($shiftBookOnHours + $shiftBookOffHours) * $shiftRate;
         }
 
-        $rate = $staff->guard_rate ?? 0;
-        $grossAmount = $totalHours * $rate;
-        $deductions  = ($totalBookOnHours + $totalBookOffHours) * $rate;
+        // Effective average rate across the period, for legacy callers that read $rate.
+        $rate = $totalHours > 0 ? round($grossAmount / $totalHours, 4) : $employeeRateFallback;
 
         // 2️⃣ Handle approved leaves
         $leaves = LeaveRequest::where('employee_id', $staff->id)

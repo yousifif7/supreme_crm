@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Client;
 use App\Helpers\Logger;
 use App\Models\EmployeeType;
+use App\Services\RateResolver;
 use Illuminate\Http\Request;
 use App\DataTables\SitesDataTable;
 use Illuminate\Support\Facades\Auth;
@@ -14,6 +15,7 @@ use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
 
 class SiteController extends Controller
 {
@@ -393,6 +395,21 @@ class SiteController extends Controller
             }
         } else {
             $site->siteHolidayRates()->delete();
+        }
+
+        // Propagate the new rate configuration to existing shift_dates.
+        // Effective_from = today (silent default). Shifts on/after today are recomputed,
+        // plus any shift_date matching a SiteHolidayRate.holiday_date (calendar-anchored).
+        try {
+            $changed = app(RateResolver::class)->propagateForSite(
+                $site->fresh(['siteHolidayRates', 'staffRates']),
+                Carbon::today()
+            );
+            if ($changed > 0) {
+                Log::info("Rate propagation: site {$site->id} → {$changed} shift_dates updated");
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Rate propagation failed for site {$site->id}: " . $e->getMessage());
         }
 
         return response()->json(['message' => 'Site updated successfully']);
