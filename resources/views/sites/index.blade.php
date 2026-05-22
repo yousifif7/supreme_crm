@@ -251,6 +251,10 @@
                                 <td id="address_detail"></td>
                             </tr>
                             <tr>
+                                <th>Google Address</th>
+                                <td id="plus_code_detail"></td>
+                            </tr>
+                            <tr>
                                 <th>Post Code</th>
                                 <td id="post_code_detail"></td>
                             </tr>
@@ -598,6 +602,7 @@
                     $('#site_group').val(data.site.site_group);
                     $('#address').val(data.site.address);
                     $('#post_code').val(data.site.post_code);
+                    $('#plus_code').val(data.site.plus_code);
                     $('#site_code').val(data.site.site_code);
                     $('#contact_number').val(data.site.contact_number);
                     $('#note').val(data.site.note);
@@ -815,6 +820,7 @@
             $('#site_name_detail').text(data.site_name);
             $('#guard_names_detail').text(data.guard_names);
             $('#address_detail').text(data.address);
+            $('#plus_code_detail').text(data.plus_code);
             $('#post_code_detail').text(data.post_code);
             $('#site_code_detail').text(data.site_code);
             $('#contact_number_detail').text(data.contact_number);

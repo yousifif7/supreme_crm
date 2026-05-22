@@ -42,13 +42,17 @@
                                              <textarea class="form-control" name="address" cols="30" rows="4"></textarea>
                                              <span class="text-danger form-error" id="error_address"></span>
                                          </div>
+                                         <div class="col-md-12 mb-3">
+                                             <label class="form-label">Google Address </label>
+                                             <input type="text" name="plus_code" class="form-control"
+                                                 placeholder="Enter Google Plus Code">
+                                             <span class="text-danger form-error" id="error_plus_code"></span>
+                                         </div>
                                          <div class="col-md-6 mb-3">
                                              <label class="form-label">Post Code </label>
                                              <input type="text" name="post_code" class="form-control"
                                                  placeholder="Enter Post Code">
                                              <span class="text-danger form-error" id="error_post_code"></span>
-
-
                                          </div>
                                          <div class="col-md-6 mb-3">
                                              <label class="form-label">Site Code </label>
