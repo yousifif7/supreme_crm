@@ -61,10 +61,40 @@ class GeoService
             // Google Maps UI returns. Try plus-code first (if present), then
             // the full query. If a Places result is found, treat it as the
             // authoritative location.
+            //
+            // Plus codes come in two forms:
+            //   • global (e.g. "9C4W9RFG+R3"): uniquely resolvable on its own
+            //   • short / compound (e.g. "9R8H+GX"): MUST be combined with a
+            //     locality, otherwise Google may snap to the wrong country
+            //     (e.g. "9R8H+GX" alone → Northampton County, NC instead of
+            //     Northampton, UK). Detect a short plus code by length of the
+            //     prefix before '+' (global codes have 8 chars, short have 4).
             if ($plusCode) {
-                $placePlus = $this->placeFindRequest($plusCode, $isLikelyUk ? 'GB' : '', $apiKey);
-                if ($placePlus !== null) {
-                    return $placePlus;
+                $isShortPlus = (bool) preg_match('/^[23456789CFGHJMPQRVWX]{4}\+\w{2,3}$/i', $plusCode);
+                $plusQueries = [];
+                if ($isShortPlus) {
+                    // Build progressively wider context. Order: most specific first.
+                    if ($postal !== '') {
+                        $plusQueries[] = $plusCode . ' ' . $postal;
+                    }
+                    if ($addressClean !== '') {
+                        $plusQueries[] = $plusCode . ' ' . $addressClean;
+                    }
+                    if ($isLikelyUk) {
+                        $plusQueries[] = $plusCode . ' United Kingdom';
+                    }
+                    // Last resort: bare plus code
+                    $plusQueries[] = $plusCode;
+                } else {
+                    // Global plus code — always uniquely resolvable; use as-is.
+                    $plusQueries[] = $plusCode;
+                }
+
+                foreach ($plusQueries as $plusQuery) {
+                    $placePlus = $this->placeFindRequest($plusQuery, $isLikelyUk ? 'GB' : '', $apiKey);
+                    if ($placePlus !== null) {
+                        return $placePlus;
+                    }
                 }
             }
 

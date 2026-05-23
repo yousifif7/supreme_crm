@@ -124,11 +124,15 @@ class BackfillSitePlusCodes extends Command
             }
 
             // Sometimes Places returns plus_code directly — use it if present.
-            if (!empty($candidate['plus_code']['compound_code'])) {
-                return preg_replace('/\s.*$/', '', $candidate['plus_code']['compound_code']);
-            }
+            // PREFER global_code (e.g. "9C4W9RFG+R3") — it's uniquely resolvable
+            // anywhere on Earth. compound_code (e.g. "9R8H+GX Northampton")
+            // depends on its locality suffix, which Google sometimes
+            // mis-resolves (e.g. UK Northampton → US Northampton County).
             if (!empty($candidate['plus_code']['global_code'])) {
                 return $candidate['plus_code']['global_code'];
+            }
+            if (!empty($candidate['plus_code']['compound_code'])) {
+                return $candidate['plus_code']['compound_code']; // keep locality intact
             }
 
             // Step 2 — fall back to reverse-geocoding the coordinates.
@@ -156,17 +160,21 @@ class BackfillSitePlusCodes extends Command
             }
 
             // The top-level plus_code on the geocode response is the most reliable source.
-            if (!empty($geoData['plus_code']['compound_code'])) {
-                return preg_replace('/\s.*$/', '', $geoData['plus_code']['compound_code']);
-            }
+            // Prefer global_code over compound_code (see comment above on uniqueness).
             if (!empty($geoData['plus_code']['global_code'])) {
                 return $geoData['plus_code']['global_code'];
+            }
+            if (!empty($geoData['plus_code']['compound_code'])) {
+                return $geoData['plus_code']['compound_code'];
             }
 
             // Last resort — scan individual results for a plus_code.
             foreach ($geoData['results'] ?? [] as $result) {
+                if (!empty($result['plus_code']['global_code'])) {
+                    return $result['plus_code']['global_code'];
+                }
                 if (!empty($result['plus_code']['compound_code'])) {
-                    return preg_replace('/\s.*$/', '', $result['plus_code']['compound_code']);
+                    return $result['plus_code']['compound_code'];
                 }
             }
 

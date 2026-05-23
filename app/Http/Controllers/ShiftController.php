@@ -26,6 +26,7 @@ use App\Models\Site;
 use App\Models\SiteStaffRate;
 use App\Models\Subcontractor;
 use App\Models\User;
+use App\Services\GeoService;
 use App\Traits\BelongsToAdmin;
 use Barryvdh\DomPDF\Facade\Pdf as PDF;
 use Carbon\Carbon;
@@ -3121,9 +3122,31 @@ if (!is_null($ownerAdminId)) {
         $bookOnMedia = $bookingMedia->where('type', 'book_on')->values();
         $bookOffMedia = $bookingMedia->where('type', 'book_off')->values();
 
-        // Avoid blocking request on server-side geocoding; frontend map does async fallback.
+        // Resolve site coords server-side so the tracking map always pins the
+        // correct location (frontend geocoding is unreliable for plus codes
+        // embedded in address strings). plus_code > address > postcode order.
+        // GeoService caches results for 24h so this is effectively free after
+        // the first call per site.
         $siteLat = null;
         $siteLng = null;
+        try {
+            $site = $shiftDate->shift?->site;
+            if ($site) {
+                $coords = app(GeoService::class)->getCoordinatesFromAddress(
+                    $site->address,
+                    $site->post_code ?: null,
+                    $site->plus_code ?: null
+                );
+                if ($coords && isset($coords['lat'], $coords['lng'])) {
+                    $siteLat = $coords['lat'];
+                    $siteLng = $coords['lng'];
+                }
+            }
+        } catch (\Exception $e) {
+            Log::warning('ShiftController shift-detail geocode failed: ' . $e->getMessage(), [
+                'shift_date_id' => $shiftDate->id ?? null,
+            ]);
+        }
 
         // Resolve superadmin flag once (avoids hitting roles/permissions tables from blade).
         $isSuperAdmin = false;

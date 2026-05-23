@@ -13,6 +13,7 @@ use Illuminate\Http\Request;
 use App\DataTables\SitesDataTable;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
@@ -248,6 +249,11 @@ class SiteController extends Controller
 
         // ✅ Update site
         $site->update($data);
+
+        // Invalidate cached site coordinates so the next map render geocodes
+        // against the freshly-saved address / postcode / plus_code rather than
+        // serving a stale 24h-old result.
+        $this->forgetSiteGeoCache($site);
 
         // Handle QR generation or removal on update
         try {
@@ -756,6 +762,28 @@ class SiteController extends Controller
     private function getNfcDir()
     {
         return public_path('nfcForSites');
+    }
+
+    /**
+     * Invalidate any cached GeoService coordinate lookups for this site.
+     * Mirrors the cache key format used inside GeoService::getCoordinatesFromAddress.
+     */
+    private function forgetSiteGeoCache(Site $site): void
+    {
+        $address = trim((string) ($site->address ?? ''));
+        $postal  = trim((string) ($site->post_code ?? ''));
+
+        if ($postal !== '' && strpos($address, $postal) === false) {
+            $fullQuery = trim($address . ', ' . $postal);
+        } else {
+            $fullQuery = $address !== '' ? $address : $postal;
+        }
+
+        if ($fullQuery === '') {
+            return;
+        }
+
+        Cache::forget('geo_coords_v6_' . md5(strtolower($fullQuery)));
     }
 
     /**
