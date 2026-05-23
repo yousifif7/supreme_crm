@@ -583,9 +583,9 @@
                     { data: 'net_amount', className: 'text-end' },
                     { data: 'total_amount', className: 'text-end' },
                     { data: 'status', render: function(data) { if (data === 'Paid') return '<span class="badge bg-success">Paid</span>'; return '<span class="badge bg-warning text-dark">Unpaid</span>'; } },
-                    { data: 'id', orderable: false, render: function(data) { return '<a href="javascript:void(0)" class="btn btn-sm btn-danger" onclick="deleteRecord(' + data + ', \"subcontractor\")">Delete</a>'; } }
+                    { data: 'id', orderable: false, render: function(data) { return '<a href="javascript:void(0)" class="btn btn-sm btn-danger" onclick="deleteRecord(' + data + ', \'subcontractor\')">Delete</a>'; } }
                 ],
-                order: [[1, 'desc']],
+                order: [[1, 'asc']],
                 pageLength: 25,
                 responsive: true
             });
