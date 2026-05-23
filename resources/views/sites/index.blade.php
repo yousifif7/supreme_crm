@@ -644,7 +644,6 @@
                     }
                     let lat = data.site.latitude ?? 51.505;
                     let lng = data.site.longitude ?? -0.09;
-                    console.log(data)
 
                     // ✅ Init map with site + checkpoints
                     initEditMap(lat, lng, data.site.checkpoints || []);
@@ -963,6 +962,44 @@
 
         setTimeout(() => editMap.invalidateSize(), 300);
     }
+
+    // ─────────────────────────────────────────────────────────────
+    // Live re-center of the edit map when the user edits plus_code,
+    // address, or post_code. Calls the server-side /sites/geocode
+    // endpoint which uses GeoService (Google) and respects plus_code
+    // priority. Debounced to avoid hammering the API on every keystroke.
+    // ─────────────────────────────────────────────────────────────
+    if (typeof window.__siteGeocodeTimer === 'undefined') window.__siteGeocodeTimer = null;
+    function recenterEditMapFromInputs() {
+        if (!editMap || !siteMarker) return;
+        const plus = ($('#plus_code').val() || '').trim();
+        const addr = ($('#address').val() || '').trim();
+        const post = ($('#post_code').val() || '').trim();
+        if (!plus && !addr && !post) return;
+
+        clearTimeout(window.__siteGeocodeTimer);
+        window.__siteGeocodeTimer = setTimeout(function() {
+            $.ajax({
+                url: `${baseUrl}/sites/geocode`,
+                method: 'POST',
+                data: { plus_code: plus, address: addr, post_code: post, _token: $('input[name="_token"]').val() },
+                success: function(resp) {
+                    if (resp && resp.ok && resp.lat && resp.lng) {
+                        editMap.setView([resp.lat, resp.lng], 17);
+                        siteMarker.setLatLng([resp.lat, resp.lng]);
+                        $('#edit_latitude').val(resp.lat);
+                        $('#edit_longitude').val(resp.lng);
+                    }
+                }
+            });
+        }, 700);
+    }
+
+    // Bind once at document level (delegated) so it works for dynamically shown modal.
+    $(document).off('change.siteGeocode', '#edit_site #plus_code, #edit_site #post_code')
+               .on('change.siteGeocode', '#edit_site #plus_code, #edit_site #post_code', recenterEditMapFromInputs);
+    $(document).off('blur.siteGeocode', '#edit_site #address')
+               .on('blur.siteGeocode', '#edit_site #address', recenterEditMapFromInputs);
 
     function renderSiteStaffRates() {
         const $tbody = $('#site_staff_rates_list');

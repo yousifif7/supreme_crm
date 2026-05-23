@@ -55,6 +55,10 @@ Route::get('/dashboard', function () {
     //return view('dashboard');
 })->middleware(['auth', 'verified'])->name('dashboard');
 */
+Route::get('/optimize-server', function () {
+    Artisan::call('optimize:clear');
+    return '<pre>' . e(Artisan::output()) . '</pre>';
+})->middleware('auth');
 
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
 
@@ -352,6 +356,7 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/sites/{id}/generate-qr', [SiteController::class, 'generateQr'])->name('sites.generateQr');
     // Generate additional NFC tag for a site (keeps existing tags)
     Route::post('/sites/{id}/generate-nfc', [SiteController::class, 'generateNfc'])->name('sites.generateNfc');
+    Route::post('/sites/geocode', [SiteController::class, 'geocode'])->name('sites.geocode');
 
     Route::get('/holidays', [SiteController::class, 'holidays'])->name('holidays.list');
 

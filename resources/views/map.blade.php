@@ -49,9 +49,10 @@
 const DECK_LOCATIONS_URL = "{{ route('shift.locations', ['shiftDateId' => $shiftDate->id]) }}";
 const GM_API_KEY = "{{ env('GOOGLE_MAPS_API_KEY') }}";
 // Site metadata — prefer server-resolved coords (accurate) over client-side geocoding
-const SITE_ADDRESS  = @json(trim($shiftDate->shift->site->address ?? ''));
-const SITE_POSTCODE = @json(trim($shiftDate->shift->site->post_code ?? ''));
-const SITE_QUERY    = SITE_ADDRESS && SITE_POSTCODE
+const SITE_ADDRESS   = @json(trim($shiftDate->shift->site->address ?? ''));
+const SITE_POSTCODE  = @json(trim($shiftDate->shift->site->post_code ?? ''));
+const SITE_PLUS_CODE = @json(trim($shiftDate->shift->site->plus_code ?? ''));
+const SITE_QUERY     = SITE_ADDRESS && SITE_POSTCODE
   ? SITE_ADDRESS + ' ' + SITE_POSTCODE
   : (SITE_ADDRESS || SITE_POSTCODE);
 const SITE_TITLE = @json($shiftDate->shift->site->site_name ?? '');
@@ -65,13 +66,14 @@ const statusEl = document.getElementById('gm-deck-status');
 let siteMarker = null;
 let siteCircle = null;
 
-// 3-tier geocode strategy:
+// 4-tier geocode strategy:
+//   Tier 0: plus code (if stored) → highest precision, no country restriction needed
 //   Tier 1: full address + GB restriction → accept only ROOFTOP / RANGE_INTERPOLATED
 //   Tier 2: if imprecise (GEOMETRIC_CENTER / APPROXIMATE) → retry with postcode only
 //   Tier 3: if full address call fails entirely → postcode only
 function geocodeAndCenterSite(query) {
   return new Promise((resolve) => {
-    if (!query || !window.google || !google.maps) return resolve(null);
+    if (!window.google || !google.maps) return resolve(null);
     const geocoder = new google.maps.Geocoder();
     const preciseTypes = ['ROOFTOP', 'RANGE_INTERPOLATED'];
 
@@ -89,22 +91,37 @@ function geocodeAndCenterSite(query) {
       });
     }
 
-    // Tier 1: full query + GB restriction
-    geocoder.geocode({ address: query, componentRestrictions: { country: 'GB' } }, (results, status) => {
-      if (status === 'OK' && results && results[0]) {
-        const locType = results[0].geometry.location_type;
-        if (preciseTypes.includes(locType)) {
-          // Precise hit — use directly
+    function tryAddressQuery() {
+      if (!query) return tryPostcodeOnly();
+      // Tier 1: full query + GB restriction
+      geocoder.geocode({ address: query, componentRestrictions: { country: 'GB' } }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
+          const locType = results[0].geometry.location_type;
+          if (preciseTypes.includes(locType)) {
+            return applyResult(results[0].geometry.location);
+          }
+          // Tier 2: imprecise result — retry with postcode only
+          console.info('Geocode tier 1 imprecise (' + locType + '), retrying with postcode', SITE_POSTCODE);
+          return tryPostcodeOnly();
+        }
+        // Tier 3: full query failed — fall back to postcode
+        console.warn('Geocode tier 1 failed (' + status + '), falling back to postcode');
+        tryPostcodeOnly();
+      });
+    }
+
+    // Tier 0: plus code — most precise, try first
+    if (SITE_PLUS_CODE) {
+      geocoder.geocode({ address: SITE_PLUS_CODE }, (results, status) => {
+        if (status === 'OK' && results && results[0]) {
           return applyResult(results[0].geometry.location);
         }
-        // Tier 2: imprecise result (GEOMETRIC_CENTER / APPROXIMATE) — retry with postcode only
-        console.info('Geocode tier 1 imprecise (' + locType + '), retrying with postcode', SITE_POSTCODE);
-        return tryPostcodeOnly();
-      }
-      // Tier 3: full query failed — fall back to postcode
-      console.warn('Geocode tier 1 failed (' + status + '), falling back to postcode');
-      tryPostcodeOnly();
-    });
+        console.info('Plus code geocode failed (' + status + '), falling back to address');
+        tryAddressQuery();
+      });
+    } else {
+      tryAddressQuery();
+    }
   });
 }
 

@@ -3209,7 +3209,8 @@ public function workHours(Request $request)
             'site_postcode' => $postCode,
         ]);
 
-        $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null);
+        $plusCode = trim((string) ($site->plus_code ?? ''));
+        $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null, $plusCode ?: null);
 
         if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
             Log::warning('Address geocoding failed for site', [

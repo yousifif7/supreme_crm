@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\Log;
 
 class GeoService
 {
-    public function getCoordinatesFromAddress(?string $address, ?string $postalCode = null): ?array
+    public function getCoordinatesFromAddress(?string $address, ?string $postalCode = null, ?string $explicitPlusCode = null): ?array
     {
         $addressClean = trim((string) ($address ?? ''));
         $postal       = trim((string) ($postalCode ?? ''));
@@ -20,7 +20,7 @@ class GeoService
             $fullQuery = $addressClean !== '' ? $addressClean : $postal;
         }
 
-        if ($fullQuery === '') {
+        if ($fullQuery === '' && ($explicitPlusCode === null || $explicitPlusCode === '')) {
             return null;
         }
 
@@ -32,8 +32,11 @@ class GeoService
         // lift them out so we can try geocoding the plus-code directly. Plus
         // codes are highly precise and often resolve where free-form
         // business-name addresses do not.
+        // An explicitly stored plus_code takes highest priority.
         $plusCode = null;
-        if (preg_match('/[23456789CFGHJMPQRVWX]{1,}\+\w{2,}/i', $fullQuery, $m)) {
+        if ($explicitPlusCode !== null && $explicitPlusCode !== '') {
+            $plusCode = trim($explicitPlusCode);
+        } elseif (preg_match('/[23456789CFGHJMPQRVWX]{1,}\+\w{2,}/i', $fullQuery, $m)) {
             $plusCode = $m[0];
         }
 

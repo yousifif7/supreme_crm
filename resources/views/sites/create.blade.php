@@ -536,24 +536,59 @@
          // Initialize map for create modal
          initCreateMap();
 
-         // Address field change event
-         $('textarea[name="address"]').on('change', function() {
-             const address = $(this).val().trim();
-             if (address) {
-                 updateMapFromAddress(address);
-             }
-         });
+         // ─────────────────────────────────────────────────────────
+         // Re-center the create map from any of:
+         //   • plus_code (highest priority — most precise)
+         //   • address + post_code (fallback)
+         // Uses the server endpoint /sites/geocode → GeoService (Google),
+         // which respects plus_code priority and country bias.
+         // ─────────────────────────────────────────────────────────
+         let createGeocodeTimer = null;
+         function recenterCreateMapFromInputs(immediate = false) {
+             if (!createMap || !createSiteMarker) return;
+             const plus = ($('input[name="plus_code"]').val() || '').trim();
+             const addr = ($('textarea[name="address"]').val() || '').trim();
+             const post = ($('input[name="post_code"]').val() || '').trim();
+             if (!plus && !addr && !post) return;
 
-         // Optional: Add debouncing to prevent too many API calls
+             clearTimeout(createGeocodeTimer);
+             createGeocodeTimer = setTimeout(function() {
+                 $.ajax({
+                     url: `${baseUrl}/sites/geocode`,
+                     method: 'POST',
+                     data: { plus_code: plus, address: addr, post_code: post, _token: $('input[name="_token"]').val() },
+                     success: function(resp) {
+                         if (resp && resp.ok && resp.lat && resp.lng) {
+                             createMap.setView([resp.lat, resp.lng], 17);
+                             createSiteMarker.setLatLng([resp.lat, resp.lng]);
+                             $('#latitude').val(resp.lat);
+                             $('#longitude').val(resp.lng);
+                             if (resp.formatted_address) {
+                                 createSiteMarker.bindPopup(`<b>Location:</b><br>${resp.formatted_address}`).openPopup();
+                             }
+                         }
+                     }
+                 });
+             }, immediate ? 0 : 700);
+         }
+
+         // Plus code change (precise) — small debounce
+         $('input[name="plus_code"]').on('change', () => recenterCreateMapFromInputs(true));
+         $('input[name="plus_code"]').on('input', () => recenterCreateMapFromInputs());
+
+         // Post code change
+         $('input[name="post_code"]').on('change', () => recenterCreateMapFromInputs(true));
+
+         // Address debounced — 1.5s after typing stops
          let addressTimeout;
+         $('textarea[name="address"]').on('change', () => recenterCreateMapFromInputs(true));
          $('textarea[name="address"]').on('input', function() {
              clearTimeout(addressTimeout);
              addressTimeout = setTimeout(() => {
-                 const address = $(this).val().trim();
-                 if (address.length > 5) { // Only search if address is reasonably long
-                     updateMapFromAddress(address);
+                 if (($(this).val() || '').trim().length > 5) {
+                     recenterCreateMapFromInputs(true);
                  }
-             }, 1500); // Wait 1.5 seconds after typing stops
+             }, 1500);
          });
 
          $('#add_site-form').on('submit', function(e) {

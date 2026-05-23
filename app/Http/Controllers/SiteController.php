@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Helpers\Logger;
 use App\Models\EmployeeType;
 use App\Services\RateResolver;
+use App\Services\GeoService;
 use Illuminate\Http\Request;
 use App\DataTables\SitesDataTable;
 use Illuminate\Support\Facades\Auth;
@@ -424,6 +425,24 @@ class SiteController extends Controller
             $site->nfc_tags = [];
         }
 
+        // Resolve site coordinates so the edit modal map opens centered on the site.
+        // Priority: plus_code → address+postcode (GeoService handles fallbacks).
+        $site->latitude = null;
+        $site->longitude = null;
+        try {
+            $coords = app(GeoService::class)->getCoordinatesFromAddress(
+                $site->address,
+                $site->post_code ?: null,
+                $site->plus_code ?: null
+            );
+            if ($coords && isset($coords['lat'], $coords['lng'])) {
+                $site->latitude = $coords['lat'];
+                $site->longitude = $coords['lng'];
+            }
+        } catch (\Exception $e) {
+            Log::warning('SiteController::edit geocode failed: ' . $e->getMessage(), ['site_id' => $site->id]);
+        }
+
         $staffs = User::role('security_staff')->orderBy('first_name','asc')->get(['id','first_name','last_name']);
         $staffRates = $site->staffRates ? $site->staffRates->map(function ($r) {
             return [
@@ -565,12 +584,31 @@ class SiteController extends Controller
     {
         $site = Site::with(['client', 'checkpoints'])->findOrFail($id);
 
+        // Resolve site coordinates for the detail map (plus_code first).
+        $siteLat = null;
+        $siteLng = null;
+        try {
+            $coords = app(GeoService::class)->getCoordinatesFromAddress(
+                $site->address,
+                $site->post_code ?: null,
+                $site->plus_code ?: null
+            );
+            if ($coords && isset($coords['lat'], $coords['lng'])) {
+                $siteLat = $coords['lat'];
+                $siteLng = $coords['lng'];
+            }
+        } catch (\Exception $e) {
+            Log::warning('SiteController::view geocode failed: ' . $e->getMessage(), ['site_id' => $site->id]);
+        }
+
         return response()->json([
             'site_name'        => $site->site_name,
             'guard_names'      => $site->guard_names,
             'address'          => $site->address,
             'post_code'        => $site->post_code,
             'plus_code'        => $site->plus_code,
+            'latitude'         => $siteLat,
+            'longitude'        => $siteLng,
             'site_code'        => $site->site_code,
             'contact_number'   => $site->contact_number,
             'contact_person'   => $site->contact_person,
@@ -604,6 +642,45 @@ class SiteController extends Controller
                 ];
             })->toArray(),
                     'radius' => $site->radius,
+        ]);
+    }
+
+    /**
+     * Resolve a plus_code / address / postcode to lat/lng for live map updates
+     * in the site create + edit modals. Used by the JS to re-center the
+     * Leaflet map without loading the Google Maps client library on the page.
+     */
+    public function geocode(Request $request)
+    {
+        $request->validate([
+            'plus_code' => 'nullable|string|max:255',
+            'address'   => 'nullable|string|max:1000',
+            'post_code' => 'nullable|string|max:50',
+        ]);
+
+        $plus = trim((string) $request->input('plus_code', ''));
+        $addr = trim((string) $request->input('address', ''));
+        $post = trim((string) $request->input('post_code', ''));
+
+        if ($plus === '' && $addr === '' && $post === '') {
+            return response()->json(['ok' => false, 'message' => 'No location input provided.'], 422);
+        }
+
+        $coords = app(GeoService::class)->getCoordinatesFromAddress(
+            $addr ?: null,
+            $post ?: null,
+            $plus ?: null
+        );
+
+        if (!$coords || !isset($coords['lat'], $coords['lng'])) {
+            return response()->json(['ok' => false, 'message' => 'Could not resolve location.'], 404);
+        }
+
+        return response()->json([
+            'ok'  => true,
+            'lat' => $coords['lat'],
+            'lng' => $coords['lng'],
+            'formatted_address' => $coords['formatted_address'] ?? null,
         ]);
     }
 

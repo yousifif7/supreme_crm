@@ -45,7 +45,7 @@
                                           </div>
                                         <div class="col-md-12 mb-3">
                                              <label class="form-label">Google Address </label>
-                                             <input type="text" name="plus_code" class="form-control"
+                                             <input type="text" name="plus_code" id="plus_code" class="form-control"
                                                  placeholder="Enter Google Plus Code">
                                              <span class="text-danger form-error" id="error_plus_code"></span>
                                          </div>

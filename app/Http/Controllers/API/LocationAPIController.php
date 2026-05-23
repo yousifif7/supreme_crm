@@ -93,7 +93,8 @@ class LocationAPIController extends Controller
         //     'site_postcode' => $postCode,
         // ]);
 
-        $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null);
+        $plusCode = trim((string) ($site->plus_code ?? ''));
+        $siteCoords = $geoService->getCoordinatesFromAddress($address, $postCode ?: null, $plusCode ?: null);
         if (!$siteCoords || !isset($siteCoords['lat'], $siteCoords['lng'])) {
             Log::warning('Address geocoding failed for site (location API)', [
                 'shift_date_id' => $shiftDate->id ?? null,
