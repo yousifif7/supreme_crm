@@ -63,9 +63,9 @@ class RateResolver
 
     /**
      * Recompute and persist rates for every shift_date attached (via shifts.site_id) to
-     * the given site, where shift_date >= $effectiveFrom. Holiday rates are an exception:
-     * they are calendar-anchored, so we also recompute any shift_date whose calendar date
-     * matches a SiteHolidayRate.holiday_date for this site (past or future).
+     * the given site, where shift_date >= $effectiveFrom. Past shift_dates are intentionally
+     * left untouched — they keep whatever guard_rate/site_rate was snapshot at the time so
+     * historical invoices remain stable, even when holiday or site rates are edited later.
      *
      * Returns the count of shift_dates that had at least one rate column changed.
      */
@@ -76,18 +76,8 @@ class RateResolver
             return 0;
         }
 
-        $holidayDates = SiteHolidayRate::where('site_id', $site->id)
-            ->pluck('holiday_date')
-            ->map(fn ($d) => Carbon::parse($d)->format('Y-m-d'))
-            ->all();
-
-        $query = ShiftDate::whereIn('shift_id', $shiftIds);
-        $query->where(function ($q) use ($effectiveFrom, $holidayDates) {
-            $q->whereDate('shift_date', '>=', $effectiveFrom->format('Y-m-d'));
-            if (!empty($holidayDates)) {
-                $q->orWhereIn('shift_date', $holidayDates);
-            }
-        });
+        $query = ShiftDate::whereIn('shift_id', $shiftIds)
+            ->whereDate('shift_date', '>=', $effectiveFrom->format('Y-m-d'));
 
         $changed = 0;
         $query->with('shift.site')->chunkById(500, function ($shiftDates) use ($site, &$changed) {

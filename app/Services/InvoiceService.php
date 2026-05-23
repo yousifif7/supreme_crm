@@ -19,42 +19,15 @@ class InvoiceService
     /**
      * Resolve the billing rate for a single shift date.
      *
-     * Priority:
-     *   1. shift_dates.site_rate (snapshot kept in sync by RateResolver::propagateForSite)
-     *   2. Holiday rate for that calendar date
-     *   3. site.office_rate
-     *   4. client.office_rate
-     *
-     * The stored snapshot is the primary source because rate edits explicitly recompute
-     * it for shifts >= effective_from. Legacy shift_dates with NULL site_rate fall back
-     * to the live lookup so old rows aren't billed at zero.
+     * The shift_date snapshot is the only source. The snapshot is stamped at shift creation
+     * and re-stamped by RateResolver::propagateForSite for today+future when site/holiday
+     * rates are edited, so it always reflects what the shift was supposed to bill at.
+     * A NULL snapshot is treated as 0 — we do NOT fall back to the current site/client rate,
+     * because that would retroactively bill legacy shifts at today's rate.
      */
     protected function resolveClientHourlyRate($shiftDate, $client)
     {
-        if (!is_null($shiftDate->site_rate) && (float) $shiftDate->site_rate > 0) {
-            return (float) $shiftDate->site_rate;
-        }
-
-        $site = $shiftDate->shift->site ?? null;
-
-        if ($site) {
-            $holidayRate = $site->siteHolidayRates
-                ->first(function ($r) use ($shiftDate) {
-                    $hd = $r->holiday_date;
-                    $hdStr = $hd instanceof Carbon ? $hd->format('Y-m-d') : (string) $hd;
-                    return $hdStr === Carbon::parse($shiftDate->shift_date)->format('Y-m-d');
-                });
-
-            if ($holidayRate && !is_null($holidayRate->site_rate)) {
-                return (float) $holidayRate->site_rate;
-            }
-
-            if (!is_null($site->office_rate)) {
-                return (float) $site->office_rate;
-            }
-        }
-
-        return (float) ($client->office_rate ?? 0);
+        return (float) ($shiftDate->site_rate ?? 0);
     }
 
     public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null, $frequency = null)
@@ -154,7 +127,6 @@ class InvoiceService
         $totalAmount = 0; // Track actual billed amount
 
         foreach ($shiftDates as $shiftDate) {
-            // Resolve live billing rate (holiday → site → client). Frozen shifts.site_rate is intentionally ignored.
             $hourlyRate = $this->resolveClientHourlyRate($shiftDate, $client);
 
             // For client invoices, bill based on scheduled shift times (ignore book on/off)
@@ -257,7 +229,6 @@ class InvoiceService
 
         foreach ($grouped as $siteId => $datesForSite) {
             foreach ($datesForSite as $shiftDate) {
-                // Resolve live billing rate (holiday → site → client). Frozen shifts.site_rate is intentionally ignored.
                 $hourlyRate = $this->resolveClientHourlyRate($shiftDate, $client);
                 // For client invoices across sites, bill based on scheduled shift times
                 $item = $this->processShiftDate($shiftDate, $hourlyRate, true);
@@ -416,19 +387,8 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Prefer the stored snapshot on shift_dates (kept in sync by
-            // RateResolver::propagateForSite on every site rate edit).
-            // Treat 0/empty as "not set" so legacy rows fall through to the live site rate.
-            $shiftDateGuardRate = $shiftDate->guard_rate;
-            $siteGuardRate = $shiftDate->shift->site->guard_rate ?? null;
-
-            if (! empty($shiftDateGuardRate)) {
-                $hourlyRate = $shiftDateGuardRate;
-            } elseif (! empty($siteGuardRate)) {
-                $hourlyRate = $siteGuardRate;
-            } else {
-                $hourlyRate = 0;
-            }
+            // Shift snapshot only — no fallback to the live site rate (legacy NULL → 0).
+            $hourlyRate = (float) ($shiftDate->guard_rate ?? 0);
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -525,14 +485,8 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Staff payroll: prefer the historical rate stored on the ShiftDate to preserve
-            // past billing when rates are edited later. If no ShiftDate guard_rate exists,
-            // fall back to the site's guard_rate. No further fallbacks are used here.
-            if (!is_null($shiftDate->guard_rate)) {
-                $hourlyRate = $shiftDate->guard_rate;
-            } else {
-                $hourlyRate = $shiftDate->shift->site->guard_rate ?? 0;
-            }
+            // Shift snapshot only — no fallback to the live site rate (legacy NULL → 0).
+            $hourlyRate = (float) ($shiftDate->guard_rate ?? 0);
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -725,17 +679,9 @@ class InvoiceService
             $totalHours += $workedHours;
             $totalBreaks += $breakMinutes / 60;
 
-            // Resolve the rate for THIS shift_date. Prefer the stored snapshot
-            // (kept in sync by RateResolver), then the live site rate, then the
-            // employee-level rate as a last-resort legacy fallback.
-            $shiftRate = 0;
-            if (! empty($shiftDate->guard_rate)) {
-                $shiftRate = (float) $shiftDate->guard_rate;
-            } elseif (! empty(optional($shiftDate->shift->site ?? null)->guard_rate)) {
-                $shiftRate = (float) $shiftDate->shift->site->guard_rate;
-            } else {
-                $shiftRate = (float) $employeeRateFallback;
-            }
+            // Shift snapshot only — no fallback to the live site or employee rate
+            // (legacy NULL → 0). Past shifts must reflect what was stored at the time.
+            $shiftRate = (float) ($shiftDate->guard_rate ?? 0);
 
             $grossAmount += $workedHours * $shiftRate;
 

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Document Report')
+@section('title', 'SPL Connect - Shift Report')
 
 @section('contents')
     <div id="shift-report" class="page-wrapper">
@@ -132,6 +132,8 @@
                                         <th>Shift Date</th>
                                         <th>Start Time</th>
                                         <th>End Time</th>
+                                        <th>Book On</th>
+                                        <th>Book Off</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -151,6 +153,18 @@
                                             <td>{{ format_date($shiftDate->shift_date) }}</td>
                                             <td>{{ $shiftDate->start_time ?? '-' }}</td>
                                             <td>{{ $shiftDate->end_time ?? '-' }}</td>
+                                            <td>
+                                                {{ $shiftDate->absentee_start_time ?? '-' }}
+                                                @if($shiftDate->book_on_late_display)
+                                                    <br><small class="text-danger">{{ $shiftDate->book_on_late_display }} late</small>
+                                                @endif
+                                            </td>
+                                            <td>
+                                                {{ $shiftDate->absentee_end_time ?? '-' }}
+                                                @if($shiftDate->book_off_early_display)
+                                                    <br><small class="text-danger">{{ $shiftDate->book_off_early_display }} early</small>
+                                                @endif
+                                            </td>
                                             <td>{!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}</td>
                                         </tr>
                                     @endforeach

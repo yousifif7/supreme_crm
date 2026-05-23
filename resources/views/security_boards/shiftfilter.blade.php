@@ -34,7 +34,7 @@
         <div class="right mt-4">
             @yield('filter')
             @if (Request::is('scheduling*'))
-                <button id="bulkUnassignBtn" class="btn btn-danger" style="display:none;">
+                <button id="bulkUnassignBtn" class="btn btn-danger" hidden style="background:red;">
                     <i class="ti ti-user-off"></i> Unassign Selected
                 </button>
                 <button id="editSelectedBtn" class="btn add-btn btn-success" hidden style="background: gray;">Multiple

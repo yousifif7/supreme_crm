@@ -1,0 +1,2527 @@
+@extends('layouts.app')
+@section('title')
+    SPL Connect | Shift detail
+@endsection
+
+@section('styles')
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <style>
+        .profile-map {
+            width: 100px;
+            /* Fixed width */
+            height: 100px;
+            /* Fixed height */
+            overflow: hidden;
+            /* Hide anything outside the circle */
+            position: relative;
+            /* Ensure child elements (map tiles) are contained */
+        }
+
+        .leaflet-control-attribution {
+            display: none !important;
+        }
+    </style>
+    <style>
+        .document-card {
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            transition: all 0.3s ease;
+            height: 100%;
+        }
+
+        .document-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+        }
+
+        .document-image-wrapper {
+            position: relative;
+            width: 70%;
+            margin: 0 auto;
+            aspect-ratio: 1;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+
+        .document-image {
+            width: 100%;
+            height: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .document-card:hover .document-image {
+            transform: scale(1.05);
+        }
+
+        .document-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .document-card:hover .document-overlay {
+            opacity: 1;
+        }
+
+        .view-btn {
+            background: #fff;
+            color: #333;
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .view-btn:hover {
+            background: #007bff;
+            color: #fff;
+            transform: scale(1.1);
+        }
+
+        .document-label {
+            padding: 10px;
+            background: #fff;
+            text-align: center;
+            border-top: 1px solid #e9ecef;
+        }
+
+        .document-label h6 {
+            color: #333;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .document-card {
+                margin-bottom: 15px;
+            }
+
+            .document-label {
+                padding: 8px;
+            }
+
+            .document-label h6 {
+                font-size: 10px;
+            }
+
+            .document-image-wrapper {
+                width: 80%;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .col-md-4 {
+                flex: 0 0 50%;
+                max-width: 50%;
+            }
+        }
+
+        .toast-actions button {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            flex: 1 1 auto;
+            /* Make buttons responsive */
+            min-width: 100px;
+        }
+
+        .override-btn {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .confirm-btn {
+            background-color: #28a745;
+            color: #fff;
+        }
+
+        .cancel-btn {
+            background-color: #dc3545;
+            color: #fff;
+        }
+
+        /* Custom toast container and styles */
+        #custom-toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 99999;
+            pointer-events: none;
+            width: auto;
+            max-width: none;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        .custom-toast {
+            display: flex;
+            align-items: center;
+            background: #fff3cd;
+            border-left: 5px solid #ffc107;
+            padding: 12px 20px 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 6px;
+            min-width: 320px;
+            max-width: 640px;
+            width: auto;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.12);
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all .28s cubic-bezier(.2, .8, .2, 1);
+            font-family: Arial, sans-serif;
+            pointer-events: auto;
+            position: relative;
+            overflow: visible;
+        }
+
+        .custom-toast.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .custom-toast .toast-icon {
+            font-size: 20px;
+            margin-right: 12px;
+        }
+
+        .custom-toast .toast-content {
+            flex: 1;
+        }
+
+        .custom-toast .toast-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        /* Optional: small screens tweaks */
+        @media (max-width: 480px) {
+            #custom-toast-container {
+                width: 100%;
+            }
+
+            .toast-actions button {
+                font-size: 14px;
+                padding: 8px;
+            }
+        }
+
+        /* Inline actions: close + delete aligned */
+        .inline-actions {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .inline-actions form {
+            margin: 0;
+        }
+    </style>
+@endsection
+@section('contents')
+    <div class="page-wrapper">
+        <div class="content">
+            <!-- Breadcrumb -->
+            <div class="d-md-flex d-block align-items-center justify-content-between mb-1">
+                <div class="my-auto mb-2">
+                    <h2 class="mb-1">Shift details</h2>
+                </div>
+                <div class="my-auto mb-2 inline-actions">
+                    <form action="/deleteshift/{{$shiftDate->id}}" method="post" class="delete-shift-form">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-danger" type="submit">Delete</button>
+                    </form>
+                    <button class="btn btn-primary" onclick="closeTab()">× Close</button>
+                </div>
+            </div>
+
+
+            <div class="row" id="eventModal">
+                <div class="tabs-parent_main">
+                    <div class="tabs-parent nav nav-tabs" role="tablist">
+                        <button class="nav-link active" id="info-tab2" data-bs-toggle="tab" data-bs-target="#basic-info2"
+                            type="button" role="tab" aria-controls="basic-info2" aria-selected="true">Rota
+                            Detail</button>
+                        <button class="nav-link" id="address-tab2" data-bs-toggle="tab" data-bs-target="#address2"
+                            type="button" role="tab" aria-controls="address2" aria-selected="false">Office
+                            Validation</button>
+                        <button class="nav-link" id="logs-tab2" data-bs-toggle="tab" data-bs-target="#logs2" type="button"
+                            role="tab" aria-controls="logs2" aria-selected="false">Logs</button>
+                        <button class="nav-link" id="checkcalls-tab2" data-bs-toggle="tab" data-bs-target="#checkcalls"
+                            type="button" role="tab" aria-controls="checkcalls" aria-selected="false">Check
+                            Calls</button>
+                        <button class="nav-link" id="patrols-tab2" data-bs-toggle="tab" data-bs-target="#patrols"
+                            type="button" role="tab" aria-controls="patrols" aria-selected="false">Patrols</button>
+                    </div>
+
+                    <div class="expiry_date">
+                        <div class="form-check form-check-lg form-switch">
+                            <input class="form-check-input" type="checkbox" role="switch" id="switch-lg">
+                            <label class="form-check-label" for="switch-lg">
+                                Stand-downSIA Number : <span id="sia_number">
+                                    {{ $shiftDate->staff?->sia_licence ?? '' }}</span>
+                                &nbsp;&nbsp;Expiry: <span id="sia_expiry">{{ $shiftDate->staff?->sia_expiry ?? '' }}</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" name="shift_id" value="{{ $shiftDate->id }}">
+                <input type="hidden" name="user_id" value="{{ $shiftDate->staff->id ?? '' }}">
+
+                <div class="tab-content rota-detail_tab-content" id="myTabContent2">
+                    <div class="tab-pane fade show active" id="basic-info2" role="tabpanel" aria-labelledby="info-tab2">
+                        <div class="modal-body pb-0 ">
+                            <div class="row">
+                                <div class="col-md-6 col-12">
+                                    <div class="upper-stats-box">
+                                        <div class="profile-detail">
+                                            <div class="avater">
+                                                <img src="{{ $shiftDate->staff?->profile_picture ?? 'https://banffventureforum.com/wp-content/uploads/2019/08/no-photo-icon-22.png' }}"
+                                                    class="profile-avater profile_picture" id="profile_picture">
+                                            </div>
+
+                                            <div class="profile-details">
+                                                <h6 id="name">
+                                                    {{ $shiftDate->staff?->first_name ?? '' }}
+                                                    {{ $shiftDate->staff?->last_name ?? '' }}
+
+                                                    <!-- Edit Icon -->
+                                                    <a href="#" onclick="editShift({{ $shiftDate->id }})"
+                                                        title="Edit Shift">
+                                                        <i class="fas fa-edit"></i> <!-- FontAwesome Edit Icon -->
+                                                    </a>
+
+                                                    <!-- Unassign Icon -->
+                                                    @if ($shiftDate->staff)
+                                                        <a href="#" onclick="unassignShift({{ $shiftDate->id }})"
+                                                            title="Unassign Shift">
+                                                            <i class="fas fa-user-slash"></i>
+                                                            <!-- FontAwesome Unassign Icon -->
+                                                        </a>
+                                                    @endif
+                                                </h6>
+
+                                                <div class="mb-1">
+                                                    <i class="ti ti-phone"></i>
+                                                    <span id="phone_number">{{ $shiftDate->staff?->contact ?? '' }}</span>
+                                                </div>
+                                                <div>
+                                                    <i class="ti ti-mail"></i>
+                                                    <span id="email">{{ $shiftDate->staff?->email ?? '' }}</span>
+                                                </div>
+                                                <button id="assignShiftBtn" type="button"
+                                                    class="btn btn-assign {{ in_array($shiftDate->is_assign, [0, 5, 6]) ? '' : 'd-none' }}">
+                                                    <i class="bi bi-person-plus"></i> Assign Shift
+                                                </button>
+
+                                            </div>
+                                        </div>
+                                        <div class="partner-details">
+                                            <h6>Partner</h6>
+                                            <span id="subcontractor">{{ $shiftDate->staff?->subcontractor ?? '' }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="bottom-stats-box">
+                                        <div class="other-detail_boxes">
+                                            <div class="box">
+                                                <h6>Site Address</h6>
+                                                <span
+                                                    id="site_address">{{ $shiftDate->shift->site->address ?? '' }}</span>
+                                            </div>
+                                            <div class="box">
+                                                <h6>Date</h6>
+                                                <span id="date">{{ format_date($shiftDate->shift_date) }}</span>
+                                            </div>
+                                            <div class="box">
+                                                <h6>Shift Time</h6>
+                                                <span id="shift_time">
+                                                    @if (!empty($shiftDate->start_time) && !empty($shiftDate->end_time))
+                                                        {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->start_time)->format('H:i') }}
+                                                        -
+                                                        {{ \Carbon\Carbon::createFromFormat('H:i:s', $shiftDate->end_time)->format('H:i') }}
+                                                        {{ sprintf('%02d hr %02d min', floor($shiftDate->total_hours), round(($shiftDate->total_hours - floor($shiftDate->total_hours)) * 60)) }}
+                                                    @else
+                                                        Not available
+                                                    @endif
+                                                </span>
+                                            </div>
+                                            <div class="box">
+                                                <h6>Customer</h6>
+                                                <span id="client_name">{{ $client->name ?? '' }}</span>
+                                            </div>
+                                            <div class="box">
+                                                <h6>Site Name</h6>
+                                                <span id="site_name">{{ $shiftDate->shift->site->site_name ?? '' }}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-6 col-12">
+                                    <div class="book-on_box">
+                                        <div class="profile-detail">
+                                            <div class="avater">
+                                                @if ($firstLocation)
+                                                    <div id="map-on-{{ $shiftDate->id }}" class="profile-map"></div>
+                                                @else
+                                                    <p class="bg-light">No starting location found.</p>
+                                                @endif
+                                            </div>
+                                            <div class="profile-details">
+                                                <h6>Book on</h6>
+                                                <div class="mb-1">
+                                                    <i class="ti ti-calendar"></i>
+                                                    <span
+                                                        id="book_on">{{ ($shiftDate->shift_date ?: '') . ', at ' . \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}</span>
+                                                </div>
+                                                <div>
+                                                    <i class="ti ti-map-pin"></i>
+                                                    <span
+                                                        id="site_address1">{{ $shiftDate->shift->site->address ?? '' }}</span>
+                                                </div>
+                                            </div>
+                                            @if($bookOnMedia->isNotEmpty())
+                                                <div class="mt-2 book-media-list">
+                                                    @foreach($bookOnMedia as $m)
+                                                        <a href="{{ asset($m->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">View file</a>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+
+                                        </div>
+                                        <form id="bookonForm" action="{{ route('shift.bookon.store') }}" method="post">
+                                            @csrf
+                                            <input type="hidden" id="book_on_id" name="book_on_id"
+                                                value="{{ $shiftDate->id }}">
+
+                                            <input type="text" id="absentee_start_time" name="absentee_start_time"
+                                                placeholder="HH:MM" class="form-control mb-2"
+                                                value="{{ \Carbon\Carbon::parse($shiftDate->absentee_start_time ?? $shiftDate->start_time)->format('H:i') }}">
+
+                                            <button type="submit" class="btn btn-primary">Manually book on the guard</button>
+                                        </form>
+                                    </div>
+                                    <div class="book-off_box">
+                                        <div class="profile-detail">
+                                            <div class="avater">
+                                                @if ($lastLocation)
+                                                    <div id="map-off-{{ $shiftDate->id }}" class="profile-map"></div>
+                                                @else
+                                                    <p class="bg-white">No ending location found.</p>
+                                                @endif
+                                            </div>
+                                            <div class="profile-details">
+                                                <h6>Book Off </h6>
+                                                <div class="mb-1">
+                                                    <i class="ti ti-calendar"></i>
+                                                    <span
+                                                        id="book_off">{{ ($shiftDate->shift_date ?: '') . ', at ' . \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}</span>
+                                                </div>
+                                                <div>
+                                                    <i class="ti ti-map-pin"></i>
+                                                    <span
+                                                        id="site_address2">{{ $shiftDate->shift->site->address ?? '' }}</span>
+                                                </div>
+                                            </div>
+                                            @if($bookOffMedia->isNotEmpty())
+                                                <div class="mt-2 book-media-list">
+                                                    @foreach($bookOffMedia as $m)
+                                                        <a href="{{ asset($m->file_path) }}" target="_blank" class="btn btn-sm btn-outline-primary me-1">View file</a>
+                                                    @endforeach
+                                                </div>
+                                            @endif
+                                        </div>
+                                        <form id="bookoffForm" action="{{ route('shift.bookoff.store') }}"
+                                            method="post">
+                                            @csrf
+                                            <input type="hidden" id="book_off_id" name="book_off_id"
+                                                value="{{ $shiftDate->id }}">
+                                            <input type="text" id="absentee_end_time" name="absentee_end_time"
+                                                placeholder="HH:MM" class="form-control mb-2"
+                                                value="{{ \Carbon\Carbon::parse($shiftDate->absentee_end_time ?? $shiftDate->end_time)->format('H:i') }}">
+                                            <button type="submit" class="btn btn-danger">Manually book off the guard</button>
+                                        </form>
+                                    </div>
+                                </div>
+                                @if ($shiftDate->staff_id)
+                                    <div class="col-12">
+                                        {{-- <div class="tab-pane fade show active" id="basic-info2" role="tabpanel">
+                                            <a href="{{ route('shift.map', ['shiftId' => $shiftDate->id]) }}"
+                                                class="btn btn-primary" target="_blank">
+                                                View Heatmap
+                                            </a>
+                                        </div> --}}
+                                        <div>
+                                            @include('map')
+                                        </div>
+                                    </div>
+                                @endif
+                            </div>
+                        </div>
+                    </div>
+                    <div class="tab-pane fade" id="address2" role="tabpanel" aria-labelledby="address-tab2">
+                        @if ($shiftDate->staff)
+                            @php $staff = $employee; @endphp
+                            <div class="container-fluid p-3">
+                                <!-- First Row - 3 Images -->
+                                <div class="row mb-4">
+                                    @if ($staff->sia_licence_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('sia_licence_file', true)) }}"
+                                                        alt="SIA Licence" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('sia_licence_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">SIA Licence</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if ($staff->passport_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('passport_file', true)) }}"
+                                                        alt="Passport" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('passport_file') }}" target="_blank"
+                                                            class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">Passport</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if ($staff->act_certificate_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('act_certificate_file', true)) }}"
+                                                        alt="ACT Certificate" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('act_certificate_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">ACT Certificate</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+
+                                <!-- Second Row - 3 Images -->
+                                <div class="row mb-4">
+                                    @if ($staff->proof_of_address_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('proof_of_address_file', true)) }}"
+                                                        alt="Proof of Address" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('proof_of_address_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">Proof of Address</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if ($staff->ni_letter_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('ni_letter_file', true)) }}"
+                                                        alt="NI Letter" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('ni_letter_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">NI Letter</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if ($staff->first_aid_certificate_file)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('first_aid_certificate_file', true)) }}"
+                                                        alt="First Aid Certificate" class="document-image" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('first_aid_certificate_file') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">Right to work</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+                                </div>
+                            </div>
+                        @else
+                            <div class="alert alert-warning" role="alert">
+                                No staff assigned to this shift.
+                            </div>
+                        @endif
+                    </div>
+                    <div class="tab-pane fade" id="progress2" role="tabpanel" aria-labelledby="progress-tab2">
+                        <div class="modal-body">Job Progress content goes here.</div>
+                    </div>
+                    <div class="tab-pane fade" id="logs2" role="tabpanel" aria-labelledby="logs-tab2"
+                        data-lazy-url="{{ route('shiftDates.tabs.logs', $shiftDate->id) }}" style="overflow-x:auto;">
+                        <div class="p-3 text-muted">Open this tab to load logs.</div>
+                    </div>
+                    <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2"
+                        data-lazy-url="{{ route('shiftDates.tabs.checkcalls', $shiftDate->id) }}" style="overflow-x:auto;">
+                        <div class="p-3 text-muted">Open this tab to load check calls.</div>
+                    </div>
+                    <div class="tab-pane fade" id="patrols" role="tabpanel" aria-labelledby="patrols-tab2"
+                        data-lazy-url="{{ route('shiftDates.tabs.patrols', $shiftDate->id) }}" style="overflow-x:auto;">
+                        <div class="p-3 text-muted">Open this tab to load patrols and maps.</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal fade" id="editCheckCallModal" tabindex="-1" aria-labelledby="editCheckCallLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <form id="editCheckCallForm">
+                        @csrf
+                        @method('PUT')
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="editCheckCallLabel">Edit Check Call</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" name="id" id="checkcall_id">
+                                <div class="mb-3">
+                                    <label>Name</label>
+                                    <input type="text" class="form-control" name="name" id="checkpoint_name"
+                                        required>
+                                </div>
+                                <div class="mb-3">
+                                    <label>Scheduled Time</label>
+                                    <input type="text" class="form-control" name="scheduled_time"
+                                        id="scheduled_time" placeholder="dd-MM-yyyy HH:mm:ss" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label>Status</label>
+                                    <select class="form-select" name="status" id="status" required>
+                                        <option value="pending">Pending</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="missed">Missed</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label>Approval Status</label>
+                                    <select class="form-select" name="approval_status" id="approval_status" required>
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Approve/Reject Check Call Confirmation Modal -->
+            <div class="modal fade" id="approvalCheckCallModal" tabindex="-1" aria-labelledby="approvalCheckCallLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="approvalCheckCallLabel">Confirm Action</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            <p id="approval-message"></p>
+                            <div class="alert alert-info">
+                                <strong>Check Call:</strong> <span id="approval-checkcall-name"></span><br>
+                                <strong>Scheduled Time:</strong> <span id="approval-checkcall-time"></span>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                            <button type="button" class="btn btn-primary" id="confirm-approval-btn">Confirm</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Edit Patrol Modal -->
+            <div class="modal fade" id="editPatrolModal" tabindex="-1" role="dialog">
+                <div class="modal-dialog" role="document">
+                    <form id="editPatrolForm">
+                        @csrf
+                        <input type="hidden" name="id" id="edit_patrol_id">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Edit Patrol</h5>
+                                <button type="button" class="close" data-bs-dismiss="modal">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Patrol Name</label>
+                                    <input type="text" id="edit_patrol_name" name="name" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Start Time</label>
+                                    <input type="time" id="edit_patrol_time" name="start_time" class="form-control">
+                                </div>
+                                <div class="form-group">
+                                    <label>Status</label>
+                                    <select id="edit_patrol_status" name="status" class="form-control">
+                                        <option value="pending">Pending</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="missed">Missed</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Approval Status</label>
+                                    <select id="edit_patrol_approval_status" name="approval_status" class="form-control">
+                                        <option value="pending">Pending</option>
+                                        <option value="approved">Approved</option>
+                                        <option value="rejected">Rejected</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Assign Shift Modal -->
+            @include('security_boards.assign-shift-modal')
+            @include('security_boards.edit')
+        </div>
+
+    </div>
+    <!-- Scan Detail Modal -->
+    <div class="modal fade" id="scanModal" tabindex="-1" aria-labelledby="scanModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="scanModalLabel">Scan details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="scanDetailsContainer">
+                        <!-- populated by JS -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+@endsection
+@section('scripts')
+    @php
+        $apiKey = env('GOOGLE_MAPS_API_KEY');
+    @endphp
+
+    <script>
+        // Initialize isSuperAdmin flag FIRST before any other scripts
+        window.isSuperAdmin = @json(auth()->check() && auth()->user() && auth()->user()->getRoleNames()->contains('superadmin'));
+        console.log('[INIT] window.isSuperAdmin set to:', window.isSuperAdmin);
+    </script>
+
+    <script>
+        const shiftDateId = {{ $shiftDate->id }};
+        const siteCheckpoints = @json($checkpoints ?? []);
+
+        // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
+        function formatToDisplay(raw) {
+            if (!raw) return '';
+            const d = raw.replace('T', ' ').split(/[- :]/);
+            if (d.length < 6) return raw;
+            return `${d[2]}-${d[1]}-${d[0]} ${d[3]}:${d[4]}:${d[5]}`;
+        }
+
+        // Parse dd-MM-yyyy HH:mm:ss to yyyy-MM-dd HH:mm:ss
+        function parseToBackend(display) {
+            if (!display) return '';
+            const m = display.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+            if (!m) return display;
+            return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+        }
+
+        window.loadTabContentOnDemand = async function(tabPaneId) {
+            const pane = document.getElementById(tabPaneId);
+            if (!pane || pane.dataset.loaded === '1') return;
+
+            const url = pane.dataset.lazyUrl;
+            if (!url) return;
+
+            pane.innerHTML = '<div class="p-3 text-muted">Loading...</div>';
+
+            try {
+                const response = await fetch(url, {
+                    credentials: 'same-origin',
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' }
+                });
+
+                if (!response.ok) {
+                    throw new Error('Failed to load tab content');
+                }
+
+                pane.innerHTML = await response.text();
+                pane.dataset.loaded = '1';
+
+                if (tabPaneId === 'patrols' && typeof window.initPatrolMapsOnceForLoadedTab === 'function') {
+                    window.initPatrolMapsOnceForLoadedTab();
+                }
+            } catch (error) {
+                console.error('Lazy tab load failed:', error);
+                pane.innerHTML = '<div class="alert alert-danger m-3">Failed to load this tab. Please retry.</div>';
+            }
+        };
+
+        // Handle scan view button clicks
+        $(document).on('click', '.view-scan-btn', function(e) {
+            e.preventDefault();
+            let raw = $(this).attr('data-scan');
+            if (!raw) return;
+            try {
+                const scan = JSON.parse(raw);
+                const container = $('#scanDetailsContainer');
+                let html = `<p><strong>Method:</strong> ${scan.scan_method ? scan.scan_method.toUpperCase() : 'N/A'}</p>`;
+                html += `<p><strong>Time:</strong> ${scan.timestamp ? scan.timestamp : 'N/A'}</p>`;
+                if (scan.notes) html += `<p><strong>Notes:</strong> ${scan.notes}</p>`;
+                if (scan.issues_found) html += `<p><strong>Issues:</strong> ${scan.issues_found}</p>`;
+                if (scan.latitude && scan.longitude) {
+                    html += `<p><strong>Location:</strong> ${scan.latitude}, ${scan.longitude}</p>`;
+                }
+
+                // Media
+                if (Array.isArray(scan.media) && scan.media.length) {
+                    html += `<hr><h6>Media</h6><div class="d-flex flex-column">`;
+                    scan.media.forEach(function(p) {
+                        // Build absolute URL
+                        const url = p.startsWith('http') ? p : (baseUrl.replace(/\/$/, '') + '/' + p.replace(/^\//, ''));
+                        html += `<a href="${url}" target="_blank" class="btn btn-sm btn-outline-primary mb-1">Open file</a>`;
+                    });
+                    html += `</div>`;
+                } else {
+                    html += `<p class="text-muted">No media attached.</p>`;
+                }
+
+                container.html(html);
+                $('#scanModal').modal('show');
+            } catch (err) {
+                console.error('Failed to parse scan payload', err);
+            }
+        });
+    </script>
+
+    <script>
+        function showRestrictionToast(message, onOverride) {
+            let container = document.getElementById('custom-toast-container');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'custom-toast-container';
+                document.body.appendChild(container);
+            }
+
+            const toast = document.createElement('div');
+            toast.className = 'custom-toast';
+
+            const actionsHtml = (typeof onOverride === 'function') ? '<div class="toast-actions"><button class="override-btn">Override Restriction</button></div>' : '<div class="toast-actions"></div>';
+
+            toast.innerHTML = `
+        <div class="toast-icon">⚠</div>
+        <div class="toast-content">
+            <p>${message}</p>
+            ${actionsHtml}
+        </div>
+    `;
+
+            container.appendChild(toast);
+
+            setTimeout(() => toast.classList.add('show'), 50);
+
+            // Step 1: Override clicked (only if override is allowed)
+            if (typeof onOverride === 'function') {
+                const overrideBtn = toast.querySelector('.override-btn');
+                if (overrideBtn) {
+                    overrideBtn.addEventListener('click', function() {
+                        // Replace actions with confirmation buttons
+                        const actions = toast.querySelector('.toast-actions');
+                        actions.innerHTML = `
+                    <button class="confirm-btn">Yes, Override</button>
+                    <button class="cancel-btn">Cancel</button>
+                `;
+
+                        // Step 2: Confirm override
+                        actions.querySelector('.confirm-btn').addEventListener('click', function() {
+                            try { onOverride(); } catch (e) { console.error(e); }
+                            closeToast();
+                        });
+
+                        // Step 2: Cancel override
+                        actions.querySelector('.cancel-btn').addEventListener('click', function() {
+                            closeToast();
+                        });
+                    });
+                }
+            }
+
+            function closeToast() {
+                toast.classList.remove('show');
+                setTimeout(() => {
+                    if (toast.parentNode) container.removeChild(toast);
+                }, 300);
+            }
+        }
+
+        $(document).off('submit', '#bookonForm, #bookoffForm')
+            .on('submit', '#bookonForm, #bookoffForm', function(e) {
+                e.preventDefault(); // prevent default form submission
+
+                const $form = $(this);
+                const actionUrl = $form.attr('action');
+
+                $.ajax({
+                    url: actionUrl,
+                    type: 'POST',
+                    data: $form.serialize(),
+                    dataType: 'json', // ensures proper JSON parsing
+                    success: function(response) {
+                        if (response.success) {
+                            // Show success toast
+                            showToast(response.success, 'success', 5000);
+                            // Close modal if needed
+                            closeBsModal('#eventModal');
+                        } else if (response.error) {
+                            // Show error toast
+                            showToast(response.error, 'error', 5000);
+                        } else {
+                            // Unexpected response
+                            showToast('Unexpected response from server.', 'error', 5000);
+                        }
+                    },
+                    error: function(xhr) {
+                        if (xhr.status === 422 && xhr.responseJSON) {
+                            // Validation errors
+                            const errors = xhr.responseJSON.errors;
+                            if (errors) {
+                                const messages = Object.values(errors).flat().join('\n');
+                                showToast(messages, 'error', 5000);
+                            } else if (xhr.responseJSON.error) {
+                                showToast(xhr.responseJSON.error, 'error', 5000);
+                            }
+                        } else {
+                            // Other errors
+                            showToast('An unexpected error occurred while assigning the shift.', 'error',
+                                5000);
+                        }
+                    }
+                });
+            });
+
+
+        $(document).off('click', '#assignShiftBtn').on('click', '#assignShiftBtn', function() {
+            $('#assign_shift_modal_shift_id').val({{ $shiftDate->id }});
+            $('#assignShiftModal').modal('show');
+            // Guard Select2 init - some pages may not include the library
+            try {
+                if ($.fn && $.fn.select2) {
+                    $(".selec2_assign_modal").select2({ dropdownParent: $("#assignShiftModal") });
+                } else {
+                    console.warn('Select2 not available when opening assign modal');
+                }
+            } catch (e) {
+                console.warn('Error initializing select2 in assign modal:', e);
+            }
+        });
+        
+
+
+
+        $(document).on('click', '.edit-checkcall-btn', function() {
+            $('#checkcall_id').val($(this).data('id'));
+            $('#checkpoint_name').val($(this).data('name'));
+            // Format ISO or DB datetime to dd-MM-yyyy HH:mm:ss
+            let rawTime = $(this).data('time');
+            let formatted = formatToDisplay(rawTime);
+            $('#scheduled_time').val(formatted);
+
+            // Set the status select based on the data-status attribute
+            $('#status').val($(this).data('status'));
+            $('#approval_status').val($(this).data('approval_status'));
+
+            $('#editCheckCallModal').modal('show');
+        });
+        
+        // Handle update form submit
+        $('#editCheckCallForm').on('submit', function(e) {
+            e.preventDefault();
+            let id = $('#checkcall_id').val();
+
+            // Parse display format back to yyyy-MM-dd HH:mm:ss for backend
+            let displayTime = $('#scheduled_time').val();
+            let backendTime = parseToBackend(displayTime);
+            if (!backendTime || backendTime.length < 16) {
+                showToast('Invalid date/time format. Please use dd-MM-yyyy HH:mm:ss', 'error', 5000);
+                return;
+            }
+            const updatedName         = $('#checkpoint_name').val();
+            const updatedStatus       = $('#status').val();
+            const updatedApproval     = $('#approval_status').val();
+            const updatedDisplayTime  = $('#scheduled_time').val();
+
+            $.ajax({
+                url: `/checkcalls/${id}`,
+                type: 'PUT',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    name: updatedName,
+                    scheduled_time: backendTime,
+                    status: updatedStatus,
+                    approval_status: updatedApproval
+                },
+                success: function(res) {
+                    $('#editCheckCallModal').modal('hide');
+
+                    // Update row in place without reloading
+                    let row = $("button.edit-checkcall-btn[data-id='" + id + "']").closest('tr');
+
+                    // Name
+                    row.find('td:eq(0)').text(updatedName);
+
+                    // Time (show as dd-MM-yyyy HH:mm from display value)
+                    let timeParts = updatedDisplayTime.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}:\d{2})/);
+                    if (timeParts) row.find('td:eq(2)').text(timeParts[1] + '-' + timeParts[2] + '-' + timeParts[3] + ' ' + timeParts[4]);
+
+                    // Status badge
+                    let statusHtml = '';
+                    if (updatedStatus === 'pending')   statusHtml = '<p class="bg-warning text-center">Pending</p>';
+                    else if (updatedStatus === 'missed') statusHtml = '<p class="bg-danger text-center">Missed</p>';
+                    else if (updatedStatus === 'completed') statusHtml = '<p class="bg-success text-center">Completed</p>';
+                    row.find('td:eq(3)').html(statusHtml);
+
+                    // Approval status badge + approve/reject buttons
+                    let approvalHtml = '';
+                    if (updatedApproval === 'approved')  approvalHtml = '<a class="bg-success">Approved</a>';
+                    else if (updatedApproval === 'rejected') approvalHtml = '<a class="bg-danger">Rejected</a>';
+                    else approvalHtml = '<p class="bg-warning">Pending</p>';
+
+                    // Show approve/reject buttons only if completed & approval still pending
+                    if (updatedStatus === 'completed' && (updatedApproval === 'pending' || !updatedApproval)) {
+                        let checkcallName = updatedName.replace(/"/g, '&quot;');
+                        let checkcallTime = timeParts ? (timeParts[1]+'-'+timeParts[2]+'-'+timeParts[3]+' '+timeParts[4]) : '';
+                        approvalHtml += `<div class="mt-1">
+                            <button class="btn btn-sm btn-success approve-checkcall-btn" data-id="${id}" data-name="${checkcallName}" data-time="${checkcallTime}">Approve</button>
+                            <button class="btn btn-sm btn-danger reject-checkcall-btn" data-id="${id}" data-name="${checkcallName}" data-time="${checkcallTime}">Reject</button>
+                        </div>`;
+                    }
+                    row.find('td:eq(4)').html(approvalHtml);
+
+                    // Update edit button data attributes for future edits
+                    let editBtn = row.find('.edit-checkcall-btn');
+                    editBtn.data('name', updatedName);
+                    editBtn.data('status', updatedStatus);
+                    editBtn.data('approval_status', updatedApproval);
+
+                    showToast('Check call updated successfully', 'success', 5000);
+                },
+                error: function(xhr) {
+                    let msg = 'Error updating check call';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    showToast(msg, 'error', 5000);
+                }
+            });
+                // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
+                function formatToDisplay(raw) {
+                    if (!raw) return '';
+                    // Accepts '2026-01-06T11:52:37' or '2026-01-06 11:52:37'
+                    let d = raw.replace('T', ' ').split(/[- :]/);
+                    if (d.length < 6) return raw;
+                    return `${d[2]}-${d[1]}-${d[0]} ${d[3]}:${d[4]}:${d[5]}`;
+                }
+
+                // Parse dd-MM-yyyy HH:mm:ss to yyyy-MM-dd HH:mm:ss
+                function parseToBackend(display) {
+                    if (!display) return '';
+                    // Accepts '06-01-2026 11:40:37'
+                    let m = display.match(/(\d{2})-(\d{2})-(\d{4}) (\d{2}):(\d{2}):(\d{2})/);
+                    if (!m) return display;
+                    return `${m[3]}-${m[2]}-${m[1]} ${m[4]}:${m[5]}:${m[6]}`;
+                }
+        });
+
+        $(document).on('click', '.delete-checkcall-btn', function() {
+            if (!confirm('Are you sure you want to delete this check call?')) return;
+            let id = $(this).data('id');
+            let $row = $(this).closest('tr');
+
+            $.ajax({
+                url: `/checkcalls/${id}`,
+                type: 'DELETE',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function() {
+                    $row.remove();
+                    showToast('Check call deleted successfully', 'success', 5000);
+                },
+                error: function() {
+                    alert('Error deleting check call');
+                }
+            });
+        });
+
+        // Approve Check Call
+        let approvalAction = '';
+        let approvalCheckCallId = null;
+
+        $(document).on('click', '.approve-checkcall-btn', function() {
+            approvalCheckCallId = $(this).data('id');
+            approvalAction = 'approve';
+            
+            $('#approval-message').text('Are you sure you want to approve this check call?');
+            $('#approval-checkcall-name').text($(this).data('name'));
+            $('#approval-checkcall-time').text($(this).data('time'));
+            $('#confirm-approval-btn').removeClass('btn-danger').addClass('btn-success');
+            
+            $('#approvalCheckCallModal').modal('show');
+        });
+
+        // Reject Check Call
+        $(document).on('click', '.reject-checkcall-btn', function() {
+            approvalCheckCallId = $(this).data('id');
+            approvalAction = 'reject';
+            
+            $('#approval-message').text('Are you sure you want to reject this check call?');
+            $('#approval-checkcall-name').text($(this).data('name'));
+            $('#approval-checkcall-time').text($(this).data('time'));
+            $('#confirm-approval-btn').removeClass('btn-success').addClass('btn-danger');
+            
+            $('#approvalCheckCallModal').modal('show');
+        });
+
+        // Confirm Approval/Rejection
+        $('#confirm-approval-btn').on('click', function() {
+            if (!approvalCheckCallId || !approvalAction) return;
+
+            const _actionId  = approvalCheckCallId;
+            const _action    = approvalAction;
+
+            $.ajax({
+                url: `/checkcalls/${_actionId}/${_action}`,
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}'
+                },
+                success: function(response) {
+                    $('#approvalCheckCallModal').modal('hide');
+
+                    // Update approval cell in the row without reloading
+                    let $approveBtn = $("button.approve-checkcall-btn[data-id='" + _actionId + "']");
+                    let $rejectBtn  = $("button.reject-checkcall-btn[data-id='" + _actionId + "']");
+                    let $row = $approveBtn.length ? $approveBtn.closest('tr') : $rejectBtn.closest('tr');
+
+                    if (_action === 'approve') {
+                        $row.find('td:eq(4)').html('<a class="bg-success">Approved</a>');
+                    } else {
+                        $row.find('td:eq(4)').html('<a class="bg-danger">Rejected</a>');
+                        // Reset status badge to Pending on rejection
+                        $row.find('td:eq(3)').html('<p class="bg-warning text-center">Pending</p>');
+                    }
+
+                    // Remove approve/reject buttons from the row
+                    $approveBtn.remove();
+                    $rejectBtn.remove();
+
+                    showToast(
+                        response.message || `Check call ${_action}d successfully`,
+                        'success',
+                        5000
+                    );
+                },
+                error: function(xhr) {
+                    $('#approvalCheckCallModal').modal('hide');
+                    showToast(
+                        xhr.responseJSON?.message || `Error ${_action}ing check call`,
+                        'error',
+                        5000
+                    );
+                }
+            });
+        });
+    </script>
+
+
+    <script>
+        $(document).off('submit', '#assignShiftForm').on('submit', '#assignShiftForm', function(e) {
+            e.preventDefault();
+
+            const submitData = (override = false) => {
+                let formData = $(this).serialize();
+                if (override) {
+                    formData += '&override=1';
+                }
+
+                $.ajax({
+                    url: `${baseUrl}/assign-shift`,
+                    type: 'POST',
+                    data: formData,
+                    success: function(response) {
+                        showToast(response.success || 'Shift assigned successfully!', 'success', 5000);
+                        location.reload();
+                    },
+                    error: function(xhr) {
+                        console.log("Assign shift error - Status:", xhr.status);
+                        console.log("Response:", xhr.responseJSON);
+                        console.log("Is SuperAdmin:", window.isSuperAdmin);
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat();
+                            console.log("Error messages:", messages);
+
+                            if (messages.length) {
+                                console.log("Checking isSuperAdmin:", window.isSuperAdmin);
+                                if (window.isSuperAdmin) {
+                                    console.log("Showing override toast for:", messages[0]);
+                                    // Show restriction toast with override option
+                                    showRestrictionToast(messages[0], () => {
+                                        console.log("Override confirmed, resubmitting with override=1");
+                                        submitData(true); // retry with override
+                                    });
+                                } else {
+                                    console.log("Not superadmin, showing error toasts");
+                                    messages.forEach(msg => showToast(msg, 'error', 5000));
+                                }
+                            } else {
+                                showToast('Validation failed, but no message returned.', 'error', 5000);
+                            }
+                        } else if (xhr.responseJSON?.error) {
+                            showToast(xhr.responseJSON.error, 'error', 5000);
+                        } else {
+                            showToast('An unexpected error occurred while assigning the shift.', 'error', 5000);
+                        }
+                    }
+                });
+            };
+
+            // Initial submit
+            submitData();
+        });
+        setTimeout(() => {
+            const alertBox = document.querySelector('.alert');
+            if (alertBox) {
+                alertBox.classList.remove('show');
+                alertBox.classList.add('hide');
+            }
+        }, 3000);
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            @if ($firstLocation)
+                var mapOn = L.map('map-on-{{ $shiftDate->id }}').setView(
+                    [{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}],
+                    15
+                );
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: ''
+                }).addTo(mapOn);
+
+                L.marker([{{ $firstLocation->latitude }}, {{ $firstLocation->longitude }}]).addTo(mapOn);
+            @endif
+
+            @if ($lastLocation)
+                var mapOff = L.map('map-off-{{ $shiftDate->id }}').setView(
+                    [{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}],
+                    15
+                );
+
+                L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    attribution: ''
+                }).addTo(mapOff);
+
+                L.marker([{{ $lastLocation->latitude }}, {{ $lastLocation->longitude }}]).addTo(mapOff);
+            @endif
+        });
+    </script>
+
+    <script>
+        function initPatrolMap(patrolId, shiftDateId, checkpoints) {
+            const mapDiv = document.getElementById("patrol-map-" + patrolId);
+            if (!mapDiv) return;
+
+            const map = new google.maps.Map(mapDiv, {
+                zoom: 12,
+                center: { lat: 0, lng: 0 },
+                mapTypeId: "roadmap",
+            });
+
+            // State containers for dynamic layers
+            const checkpointMarkers = [];
+            const guardMarkers = [];
+            let routePolyline = null;
+            let heatmap = null;
+            let lastBounds = null;
+            const MAX_ZOOM = 18;
+            const MIN_ZOOM = 8;
+
+            // Pre-compute checkpoint markers & bounds
+            const checkpointBounds = new google.maps.LatLngBounds();
+            const infoWindows = []; // Store info windows to close others when one opens
+            
+            checkpoints.forEach(cp => {
+                const lat = parseFloat(cp.latitude);
+                const lng = parseFloat(cp.longitude);
+                if (!isNaN(lat) && !isNaN(lng)) {
+                    const pos = new google.maps.LatLng(lat, lng);
+                    
+                    // Create custom marker with enhanced appearance
+                    const m = new google.maps.Marker({
+                        position: pos,
+                        map,
+                        title: cp.name,
+                        icon: {
+                            url: "http://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+                            scaledSize: new google.maps.Size(45, 45)
+                        },
+                        animation: google.maps.Animation.DROP,
+                        cursor: 'pointer'
+                    });
+                    
+                    // Create info window for this checkpoint
+                    const infoWindow = new google.maps.InfoWindow({
+                        content: `
+                            <div style="padding: 8px; min-width: 150px;">
+                                <h6 style="margin: 0 0 8px 0; color: #2c3e50; font-weight: 600;">
+                                    📍 Checkpoint
+                                </h6>
+                                <p style="margin: 0; color: #34495e; font-size: 14px;">
+                                    <strong>${cp.name}</strong>
+                                </p>
+                                ${cp.description ? `<p style="margin: 4px 0 0 0; color: #7f8c8d; font-size: 12px;">${cp.description}</p>` : ''}
+                            </div>
+                        `
+                    });
+                    
+                    infoWindows.push(infoWindow);
+                    
+                    // Add click listener to show info window
+                    m.addListener('click', function() {
+                        // Close all other info windows
+                        infoWindows.forEach(iw => iw.close());
+                        // Open this info window
+                        infoWindow.open(map, m);
+                    });
+                    
+                    checkpointMarkers.push(m);
+                    checkpointBounds.extend(pos);
+                }
+            });
+
+            function clearGuardLayers() {
+                guardMarkers.forEach(m => m.setMap(null));
+                guardMarkers.length = 0;
+                if (routePolyline) { routePolyline.setMap(null); routePolyline = null; }
+                if (heatmap) { heatmap.setMap(null); heatmap = null; }
+            }
+
+            function clampAndFit(bounds, zoomBoost = 1) {
+                if (!bounds) return;
+                lastBounds = bounds;
+                map.fitBounds(bounds);
+                google.maps.event.addListenerOnce(map, 'bounds_changed', function() {
+                    let currentZoom = map.getZoom();
+                    if (currentZoom > MAX_ZOOM) currentZoom = MAX_ZOOM;
+                    if (currentZoom < MIN_ZOOM) currentZoom = MIN_ZOOM;
+                    // apply a small boost so the fit is a bit tighter
+                    const boosted = Math.min(currentZoom + Math.max(0, zoomBoost), MAX_ZOOM);
+                    // delay to ensure fitBounds finished
+                    setTimeout(() => map.setZoom(boosted), 100);
+                });
+            }
+
+            async function updateLocations() {
+                try {
+                    const res = await fetch(`/patrol/${patrolId}/locations?shiftDateId=${shiftDateId}`);
+                    const data = await res.json();
+                    const locations = data.locations || [];
+
+                    const valid = locations.filter(loc => {
+                        const lat = parseFloat(loc.latitude);
+                        const lng = parseFloat(loc.longitude);
+                        return !isNaN(lat) && !isNaN(lng);
+                    });
+
+                    clearGuardLayers();
+
+                    // If we have guard locations, draw polyline + markers + heatmap
+                    if (valid.length > 0) {
+                        const coords = valid.map(loc => new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude)));
+                        
+                        // FILTER GPS NOISE & DUPLICATES
+                       const filteredCoords = filterGPSNoise(coords, 5); // 5 meter threshold
+
+            // Only draw if we have meaningful movement
+            if (filteredCoords.length > 1) {
+                // Create smooth curved path
+                const smoothPath = createSmoothCurve(filteredCoords, 15);
+
+                routePolyline = new google.maps.Polyline({
+                    path: smoothPath,
+                    geodesic: false,
+                    strokeColor: "#FF0000",
+                    strokeOpacity: 0.7,
+                    strokeWeight: 3,
+                    map: map
+                });
+
+                // START marker
+                const first = filteredCoords[0];
+                guardMarkers.push(new google.maps.Marker({ 
+                    position: first, 
+                    map, 
+                    label: { text: 'START', color: '#FFF', fontWeight: 'bold' }, 
+                    icon: { 
+                        url: 'http://maps.google.com/mapfiles/ms/icons/green-dot.png', 
+                        scaledSize: new google.maps.Size(45,45) 
+                    },
+                    zIndex: 1000
+                }));
+                
+                // END marker (only if guard actually moved)
+                const last = filteredCoords[filteredCoords.length - 1];
+                guardMarkers.push(new google.maps.Marker({ 
+                    position: last, 
+                    map, 
+                    label: { text: 'END', color: '#FFF', fontWeight: 'bold' }, 
+                    icon: { 
+                        url: 'http://maps.google.com/mapfiles/ms/icons/red-dot.png', 
+                        scaledSize: new google.maps.Size(45,45) 
+                    },
+                    zIndex: 1000
+                }));
+            } else {
+                // Guard is standing still - just show single marker
+                const position = filteredCoords[0];
+                guardMarkers.push(new google.maps.Marker({ 
+                    position: position, 
+                    map, 
+                    label: { color: '#FFF', fontWeight: 'bold' }, 
+                    icon: { 
+                        url: 'http://maps.google.com/mapfiles/ms/icons/blue-dot.png', 
+                        scaledSize: new google.maps.Size(45,45) 
+                    },
+                    zIndex: 1000
+                }));
+            }
+
+            // Optional heatmap (use original coords, not filtered)
+            if (typeof google.maps.visualization !== 'undefined') {
+                heatmap = new google.maps.visualization.HeatmapLayer({
+                    data: coords,
+                    radius: 20,
+                    opacity: 0.7,
+                    dissipating: true,
+                    maxIntensity: 5,
+                    map: map
+                });
+            }
+        }
+
+
+                    // Determine bounds - prioritize guard locations if they exist
+                    const combinedBounds = new google.maps.LatLngBounds();
+                    let points = 0;
+                    
+                    // If guard locations exist, focus on them only
+                    if (valid.length > 0) {
+                        valid.forEach(loc => {
+                            combinedBounds.extend(new google.maps.LatLng(parseFloat(loc.latitude), parseFloat(loc.longitude)));
+                        });
+                        points = valid.length;
+                    } 
+                    // Otherwise, show checkpoints
+                    else if (checkpointMarkers.length > 0) {
+                        checkpointMarkers.forEach(m => {
+                            combinedBounds.extend(m.getPosition());
+                        });
+                        points = checkpointMarkers.length;
+                    }
+
+                    if (points === 0) {
+                        // nothing to show
+                        map.setCenter({ lat: 51.5074, lng: -0.1278 });
+                        map.setZoom(12);
+                    } else if (points === 1) {
+                        // Single point: center & zoom in tightly
+                        const ne = combinedBounds.getNorthEast();
+                        map.setCenter({ lat: ne.lat(), lng: ne.lng() });
+                        // pick a tight zoom but clamp to MAX_ZOOM
+                        map.setZoom(Math.min(MAX_ZOOM, 17));
+                    } else {
+                        // For multiple points, fit and apply a small boost to zoom tighter
+                        clampAndFit(combinedBounds, 1);
+                    }
+                } catch (err) {
+                    console.error('Error fetching patrol locations:', err);
+                    // fallback: if checkpoints exist, fit them
+                    if (checkpointMarkers.length > 0) {
+                        clampAndFit(checkpointBounds);
+                    } else {
+                        map.setCenter({ lat: 51.5074, lng: -0.1278 });
+                        map.setZoom(12);
+                    }
+                }
+            }
+            
+            // Filter GPS noise and duplicates
+            function filterGPSNoise(coords, minDistanceMeters = 5) {
+    if (coords.length === 0) return [];
+    
+    const filtered = [coords[0]]; // Always keep first point
+    
+    for (let i = 1; i < coords.length; i++) {
+        const lastPoint = filtered[filtered.length - 1];
+        const currentPoint = coords[i];
+        
+        // Calculate distance using Haversine formula
+        const distance = haversineDistance(lastPoint, currentPoint);
+        
+        // Only add point if it's far enough from the last filtered point
+        if (distance >= minDistanceMeters) {
+            filtered.push(currentPoint);
+        }
+    }
+    
+    return filtered;
+}
+
+            function haversineDistance(p1, p2) {
+    const R = 6371000; // Earth's radius in meters
+    const lat1 = p1.lat() * Math.PI / 180;
+    const lat2 = p2.lat() * Math.PI / 180;
+    const dLat = (p2.lat() - p1.lat()) * Math.PI / 180;
+    const dLng = (p2.lng() - p1.lng()) * Math.PI / 180;
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1) * Math.cos(lat2) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    
+    return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+            // Catmull-Rom spline for smooth curves through points
+            function createSmoothCurve(points, segmentPoints = 20) {
+    if (points.length < 2) return points;
+    if (points.length === 2) return points; // Just a straight line
+    
+    const smoothPath = [];
+    
+    // Add first point
+    smoothPath.push(points[0]);
+    
+    // For each segment between points
+    for (let i = 0; i < points.length - 1; i++) {
+        // Get control points for Catmull-Rom spline
+        const p0 = i > 0 ? points[i - 1] : points[i];
+        const p1 = points[i];
+        const p2 = points[i + 1];
+        const p3 = i < points.length - 2 ? points[i + 2] : points[i + 1];
+        
+        // Generate interpolated points between p1 and p2
+        for (let t = 1; t <= segmentPoints; t++) {
+            const tt = t / segmentPoints;
+            const lat = catmullRomInterpolate(
+                p0.lat(), p1.lat(), p2.lat(), p3.lat(), tt
+            );
+            const lng = catmullRomInterpolate(
+                p0.lng(), p1.lng(), p2.lng(), p3.lng(), tt
+            );
+            smoothPath.push(new google.maps.LatLng(lat, lng));
+        }
+    }
+    
+    return smoothPath;
+}
+
+            // Catmull-Rom interpolation formula
+            function catmullRomInterpolate(p0, p1, p2, p3, t) {
+            const t2 = t * t;
+            const t3 = t2 * t;
+            
+            return 0.5 * (
+                (2 * p1) +
+                (-p0 + p2) * t +
+                (2 * p0 - 5 * p1 + 4 * p2 - p3) * t2 +
+                (-p0 + 3 * p1 - 3 * p2 + p3) * t3
+            );
+        }
+
+            // initial render
+            if (checkpointMarkers.length > 0) {
+                // if there are only checkpoints, use them as baseline until guard data arrives
+                clampAndFit(checkpointBounds);
+            }
+            updateLocations();
+
+            // Auto-refresh every 15s
+            const refreshInterval = 15000;
+            const intervalId = setInterval(updateLocations, refreshInterval);
+
+            // If the patrols tab is shown later, trigger resize & re-fit
+            const patrolsTabBtn = document.getElementById('patrols-tab2');
+            if (patrolsTabBtn) {
+                patrolsTabBtn.addEventListener('shown.bs.tab', () => {
+                    google.maps.event.trigger(map, 'resize');
+                    if (lastBounds) clampAndFit(lastBounds);
+                });
+            }
+        }
+
+        // 🔸 Adds toggle, radius, opacity, gradient controls
+        function addHeatmapControls(map, heatmap) {
+            const controlDiv = document.createElement("div");
+            controlDiv.style.background = "#fff";
+            controlDiv.style.border = "1px solid #999";
+            controlDiv.style.borderRadius = "6px";
+            controlDiv.style.padding = "6px";
+            controlDiv.style.margin = "10px";
+            controlDiv.style.boxShadow = "0 2px 6px rgba(0,0,0,0.3)";
+            controlDiv.innerHTML = `
+        <button id="toggleHeatmap">Toggle Heatmap</button>
+        <button id="changeGradient">Change Gradient</button>
+        <button id="changeRadius">Change Radius</button>
+        <button id="changeOpacity">Change Opacity</button>
+    `;
+            map.controls[google.maps.ControlPosition.TOP_CENTER].push(controlDiv);
+
+            // Default gradient from Google demo
+            const gradient = [
+                "rgba(0, 255, 255, 0)",
+                "rgba(0, 255, 255, 1)",
+                "rgba(0, 191, 255, 1)",
+                "rgba(0, 127, 255, 1)",
+                "rgba(0, 63, 255, 1)",
+                "rgba(0, 0, 255, 1)",
+                "rgba(0, 0, 223, 1)",
+                "rgba(0, 0, 191, 1)",
+                "rgba(0, 0, 159, 1)",
+                "rgba(0, 0, 127, 1)",
+                "rgba(63, 0, 91, 1)",
+                "rgba(127, 0, 63, 1)",
+                "rgba(191, 0, 31, 1)",
+                "rgba(255, 0, 0, 1)"
+            ];
+
+            // Button actions
+            controlDiv.querySelector("#toggleHeatmap").addEventListener("click", () => {
+                heatmap.setMap(heatmap.getMap() ? null : map);
+            });
+
+            controlDiv.querySelector("#changeGradient").addEventListener("click", () => {
+                heatmap.set("gradient", heatmap.get("gradient") ? null : gradient);
+            });
+
+            controlDiv.querySelector("#changeRadius").addEventListener("click", () => {
+                heatmap.set("radius", heatmap.get("radius") === 20 ? 40 : 20);
+            });
+
+            controlDiv.querySelector("#changeOpacity").addEventListener("click", () => {
+                heatmap.set("opacity", heatmap.get("opacity") === 0.7 ? 0.3 : 0.7);
+            });
+        }
+
+
+        let patrolMapsInitialized = false;
+
+        window.initPatrolMapsOnceForLoadedTab = function() {
+            if (patrolMapsInitialized) return;
+
+            const mapNodes = document.querySelectorAll('#patrols [id^="patrol-map-"]');
+            if (!mapNodes.length) return;
+
+            patrolMapsInitialized = true;
+
+            mapNodes.forEach(function(node) {
+                const patrolId = parseInt(node.id.replace('patrol-map-', ''), 10);
+                if (!Number.isNaN(patrolId)) {
+                    initPatrolMap(patrolId, shiftDateId, siteCheckpoints);
+                }
+            });
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const tabMap = {
+                'logs-tab2': 'logs2',
+                'checkcalls-tab2': 'checkcalls',
+                'patrols-tab2': 'patrols',
+            };
+
+            Object.keys(tabMap).forEach(function(tabBtnId) {
+                const btn = document.getElementById(tabBtnId);
+                if (!btn) return;
+
+                btn.addEventListener('shown.bs.tab', function() {
+                    if (typeof window.loadTabContentOnDemand === 'function') {
+                        window.loadTabContentOnDemand(tabMap[tabBtnId]);
+                    }
+                });
+            });
+        });
+
+        $(document).ready(function() {
+            // Open edit modal
+            $(document).on("click", ".edit-patrol-btn", function() {
+                $("#edit_patrol_id").val($(this).data("id"));
+                $("#edit_patrol_name").val($(this).data("name"));
+                $("#edit_patrol_time").val($(this).data("time"));
+                $("#edit_patrol_status").val($(this).data("status"));
+                $("#edit_patrol_approval_status").val($(this).data("approval-status") || 'pending');
+                $("#editPatrolModal").modal("show");
+            });
+
+            // Submit edit form
+            $("#editPatrolForm").on("submit", function(e) {
+                e.preventDefault();
+
+                let id = $("#edit_patrol_id").val();
+                let formData = $(this).serialize();
+
+                $.ajax({
+                    url: "/patrols/" + id,
+                    type: "PUT",
+                    data: formData,
+                    success: function(response) {
+                        $("#editPatrolModal").modal("hide");
+
+                        let patrol = response.patrol;
+                        let row = $("button.edit-patrol-btn[data-id='" + patrol.id + "']")
+                            .closest("tr");
+
+                        // Update row values directly
+                        row.find("td:eq(0)").text(patrol.name); // assuming first td is name
+                        row.find("td:eq(1)").text(patrol.start_time); // second column = time
+
+                        let statusCell = row.find("td:eq(7)"); // status column
+                        if (patrol.status === "pending") {
+                            statusCell.html('<p class="bg-warning text-center">Pending</p>');
+                        } else if (patrol.status === "in_progress") {
+                            statusCell.html(
+                                '<p class="bg-primary text-center">In Progress</p>');
+                        } else if (patrol.status === "completed") {
+                            statusCell.html('<p class="bg-success text-center">Completed</p>');
+                        } else if (patrol.status === "missed") {
+                            statusCell.html('<p class="bg-danger text-center">Missed</p>');
+                        }
+
+                        // Update approval status badge
+                        let approvalCell = row.find("td:eq(8)"); // approval status column
+                        if (patrol.approval_status === "pending") {
+                            approvalCell.html('<span class="badge bg-warning">Pending</span>');
+                        } else if (patrol.approval_status === "approved") {
+                            approvalCell.html('<span class="badge bg-success">Approved</span>');
+                        } else if (patrol.approval_status === "rejected") {
+                            approvalCell.html('<span class="badge bg-danger">Rejected</span>');
+                        }
+
+                        // Update button data attributes
+                        let editBtn = row.find(".edit-patrol-btn");
+                        editBtn.data("status", patrol.status);
+                        editBtn.data("approval-status", patrol.approval_status);
+
+                        showToast(
+                            "Updated successfully!", // message
+                            'success', // type
+                            5000 // duration in ms
+                        );
+
+                    },
+                    error: function() {
+                        showToast(
+                            "Update failed!", // message
+                            'error', // type
+                            5000 // duration in ms
+                        );
+                    }
+                });
+            });
+
+            // Delete patrol
+            $(document).on("click", ".delete-patrol-btn", function() {
+                if (!confirm("Are you sure you want to delete this patrol?")) return;
+
+                let id = $(this).data("id");
+
+                $.ajax({
+                    url: "/patrols/" + id,
+                    type: "DELETE",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function() {
+                        $("button.delete-patrol-btn[data-id='" + id + "']").closest("tr")
+                            .remove();
+                    },
+                    error: function() {
+                        alert("Delete failed!");
+                    }
+                });
+            });
+
+            // Approve patrol
+            $(document).on("click", ".approve-patrol-btn", function() {
+                if (!confirm("Are you sure you want to approve this patrol?")) return;
+
+                let id = $(this).data("id");
+
+                $.ajax({
+                    url: "/patrols/" + id + "/approve",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        let row = $("button.approve-patrol-btn[data-id='" + id + "']").closest("tr");
+                        
+                        // Update approval status badge
+                        row.find("td:eq(8)").html('<span class="badge bg-success">Approved</span>');
+                        
+                        // Remove approve/reject buttons
+                        $("button.approve-patrol-btn[data-id='" + id + "']").remove();
+                        $("button.reject-patrol-btn[data-id='" + id + "']").remove();
+                        
+                        showToast("Patrol approved successfully!", 'success', 5000);
+                    },
+                    error: function(xhr) {
+                        let message = xhr.responseJSON?.message || "Approval failed!";
+                        showToast(message, 'error', 5000);
+                    }
+                });
+            });
+
+            // Reject patrol
+            $(document).on("click", ".reject-patrol-btn", function() {
+                if (!confirm("Are you sure you want to reject this patrol?")) return;
+
+                let id = $(this).data("id");
+
+                $.ajax({
+                    url: "/patrols/" + id + "/reject",
+                    type: "POST",
+                    data: {
+                        _token: "{{ csrf_token() }}"
+                    },
+                    success: function(response) {
+                        let row = $("button.reject-patrol-btn[data-id='" + id + "']").closest("tr");
+                        
+                        // Update approval status badge
+                        row.find("td:eq(8)").html('<span class="badge bg-danger">Rejected</span>');
+                        
+                        // Update status to pending
+                        row.find("td:eq(7)").html('<p class="bg-warning text-center">Pending</p>');
+                        
+                        // Remove approve/reject buttons
+                        $("button.approve-patrol-btn[data-id='" + id + "']").remove();
+                        $("button.reject-patrol-btn[data-id='" + id + "']").remove();
+                        
+                        showToast("Patrol rejected successfully!", 'success', 5000);
+                    },
+                    error: function(xhr) {
+                        let message = xhr.responseJSON?.message || "Rejection failed!";
+                        showToast(message, 'error', 5000);
+                    }
+                });
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            const timeInput = document.getElementById("absentee_start_time");
+
+            // Set default current time (24h)
+            function setCurrentTime() {
+                const now = new Date();
+                const h = ("0" + now.getHours()).slice(-2);
+                const m = ("0" + now.getMinutes()).slice(-2);
+                timeInput.value = `${h}:${m}`;
+            }
+            if (!timeInput.value) {
+                setCurrentTime();
+            }
+
+            // Allow only HH:MM format
+            timeInput.addEventListener("input", function() {
+                this.value = this.value.replace(/[^0-9:]/g, ""); // only numbers + colon
+            });
+
+            // Validate on blur
+            timeInput.addEventListener("blur", function() {
+                const match = this.value.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+                if (!match) {
+                    alert("Please enter time in 24-hour format (HH:MM). Example: 08:30 or 15:45");
+                    setCurrentTime();
+                    return;
+                }
+
+                // Format to HH:mm
+                const h = ("0" + match[1]).slice(-2);
+                const m = ("0" + match[2]).slice(-2);
+                this.value = `${h}:${m}`;
+            });
+        });
+    </script>
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            function setup24hTimeInput(inputId) {
+                const input = document.getElementById(inputId);
+
+                if (!input) return; // skip if not found
+
+                // Default value = now (HH:mm)
+                function setCurrentTime() {
+                    const now = new Date();
+                    const h = ("0" + now.getHours()).slice(-2);
+                    const m = ("0" + now.getMinutes()).slice(-2);
+                    input.value = `${h}:${m}`;
+                }
+                if (!input.value) {
+                    setCurrentTime();
+                }
+
+                // Allow only digits and colon
+                input.addEventListener("input", function() {
+                    this.value = this.value.replace(/[^0-9:]/g, "");
+                });
+
+                // Validate on blur
+                input.addEventListener("blur", function() {
+                    const match = this.value.match(/^([01]?\d|2[0-3]):([0-5]\d)$/);
+                    if (!match) {
+                        alert("Please enter time in 24-hour format (HH:MM). Example: 08:30 or 15:45");
+                        setCurrentTime();
+                        return;
+                    }
+                    const h = ("0" + match[1]).slice(-2);
+                    const m = ("0" + match[2]).slice(-2);
+                    this.value = `${h}:${m}`;
+                });
+            }
+
+            // Apply for both Book On & Book Off
+            setup24hTimeInput("absentee_start_time");
+            setup24hTimeInput("absentee_end_time");
+        });
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        function closeTab() {
+            window.close(); // Attempts to close the current tab
+        }
+
+        function unassignShift(shiftId) {
+            Swal.fire({
+                title: 'Are you sure?',
+                text: "Do you want to unassign this shift?",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#28a745',
+                cancelButtonColor: '#dc3545',
+                confirmButtonText: 'Yes, Unassign',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    fetch(`/shifts/${shiftId}/unassign`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                                'Accept': 'application/json',
+                            },
+                        })
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.success) {
+                                Swal.fire(
+                                    'Unassigned!',
+                                    'Shift has been unassigned successfully.',
+                                    'success'
+                                ).then(() => location.reload()); // refresh after success
+                            } else {
+                                Swal.fire(
+                                    'Error!',
+                                    'Failed to unassign shift.',
+                                    'error'
+                                );
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            Swal.fire('Error!', 'Something went wrong.', 'error');
+                        });
+                }
+            });
+        }
+    </script>
+
+
+
+    <!-- Google Maps API is loaded dynamically by the included map partial (map.blade.php) -->
+
+    <!-- Leaflet JS -->
+    <script>
+        // Confirmation toast for delete actions. If `anchorEl` provided, place toast under it.
+        function positionToastAtAnchor(toast, anchorEl) {
+            if (!anchorEl) return false;
+            const rect = anchorEl.getBoundingClientRect();
+
+            // measure toast after it's in the DOM
+            const padding = 8;
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+
+            toast.style.position = 'absolute';
+            toast.style.zIndex = '999999';
+
+            // default place below anchor
+            let left = rect.left + window.scrollX;
+            let top = rect.bottom + window.scrollY + padding;
+
+            // compute size
+            const box = toast.getBoundingClientRect();
+            const toastWidth = box.width || toast.offsetWidth || 200;
+            const toastHeight = box.height || toast.offsetHeight || 40;
+
+            // if toast would overflow right edge, shift left so it fits
+            const maxRight = window.scrollX + viewportWidth - padding;
+            if (left + toastWidth > maxRight) {
+                left = Math.max(padding + window.scrollX, maxRight - toastWidth);
+            }
+
+            // if toast would overflow left edge, clamp
+            if (left < padding + window.scrollX) {
+                left = padding + window.scrollX;
+            }
+
+            // if toast would overflow bottom edge, place above the anchor instead
+            const maxBottom = window.scrollY + viewportHeight - padding;
+            if (top + toastHeight > maxBottom) {
+                // place above anchor
+                top = rect.top + window.scrollY - toastHeight - padding;
+                // if still off-screen at top, clamp to padding
+                if (top < padding + window.scrollY) top = padding + window.scrollY;
+            }
+
+            toast.style.left = left + 'px';
+            toast.style.top = top + 'px';
+            return true;
+        }
+
+        function showConfirmToast(message, onConfirm, anchorEl) {
+            const container = document.createElement('div');
+            container.className = 'confirm-toast-wrapper';
+
+            const toast = document.createElement('div');
+            toast.className = 'confirm-toast';
+            toast.style.background = '#fff';
+            toast.style.border = '1px solid rgba(0,0,0,0.08)';
+            toast.style.padding = '12px';
+            toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
+            toast.style.borderRadius = '8px';
+            toast.style.minWidth = '220px';
+            toast.style.display = 'flex';
+            toast.style.alignItems = 'center';
+            toast.style.gap = '12px';
+
+            toast.innerHTML = `
+                <div style="flex:1">${message}</div>
+                <div style="display:flex;gap:8px"> 
+                    <button class="btn btn-sm btn-danger confirm-yes">Yes</button>
+                    <button class="btn btn-sm btn-secondary confirm-no">No</button>
+                </div>
+            `;
+
+            container.appendChild(toast);
+            document.body.appendChild(container);
+
+            // position under anchor if provided, otherwise bottom-right
+            const placed = positionToastAtAnchor(container, anchorEl);
+            if (!placed) {
+                container.style.position = 'fixed';
+                container.style.bottom = '20px';
+                container.style.right = '20px';
+                container.style.zIndex = '99999';
+            }
+
+            function cleanup() {
+                if (container.parentNode) container.parentNode.removeChild(container);
+            }
+
+            toast.querySelector('.confirm-yes').addEventListener('click', function() {
+                try { onConfirm(); } catch (e) { console.error(e); }
+                cleanup();
+            });
+
+            toast.querySelector('.confirm-no').addEventListener('click', function() {
+                cleanup();
+            });
+        }
+
+        // show a short success toast under the same anchor then run callback (optional)
+        function showSuccessToast(message, anchorEl, cb) {
+            const container = document.createElement('div');
+            container.className = 'success-toast-wrapper';
+
+            const toast = document.createElement('div');
+            toast.className = 'success-toast';
+            toast.style.background = '#28a745';
+            toast.style.color = '#fff';
+            toast.style.padding = '10px 14px';
+            toast.style.borderRadius = '6px';
+            toast.style.boxShadow = '0 6px 18px rgba(0,0,0,0.08)';
+            toast.style.minWidth = '160px';
+            toast.style.textAlign = 'center';
+            toast.textContent = message;
+
+            container.appendChild(toast);
+            document.body.appendChild(container);
+
+            const placed = positionToastAtAnchor(container, anchorEl);
+            if (!placed) {
+                container.style.position = 'fixed';
+                container.style.bottom = '20px';
+                container.style.right = '20px';
+                container.style.zIndex = '99999';
+            }
+
+            setTimeout(() => {
+                if (container.parentNode) container.parentNode.removeChild(container);
+                if (typeof cb === 'function') cb();
+            }, 1100);
+        }
+
+        // Intercept delete shift form and show confirmation toast.
+        // If the form is not marked for AJAX (data-ajax="1"), perform the DELETE via fetch,
+        // then close the tab and redirect to scheduling (or a form-provided data-redirect).
+        $(document).on('submit', '.delete-shift-form', function(e) {
+            e.preventDefault();
+            const form = this;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            showConfirmToast('Are you sure you want to delete this shift?', function() {
+                // If another script intends to handle via AJAX, honor it when explicit
+                if (form.dataset.ajax === '1') {
+                    form.submit();
+                    return;
+                }
+
+                const url = form.action;
+                // build FormData (includes _token and _method hidden inputs)
+                const fd = new FormData(form);
+
+                // ensure method override for DELETE is present
+                if (!fd.has('_method')) fd.append('_method', 'DELETE');
+
+                const csrfInput = form.querySelector('input[name="_token"]');
+                const csrf = csrfInput ? csrfInput.value : null;
+
+                fetch(url, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    headers: csrf ? { 'X-Requested-With': 'XMLHttpRequest', 'X-CSRF-TOKEN': csrf } : { 'X-Requested-With': 'XMLHttpRequest' },
+                    body: fd,
+                }).then(async res => {
+                    // If server performs a redirect, follow it
+                    if (res.redirected) {
+                        // show success toast then redirect/close
+                        showSuccessToast('Shift deleted', submitBtn, function() {
+                            try { closeTab(); } catch (e) { /* ignore */ }
+
+                            // Signal other tabs to refresh scheduling
+                            try {
+                                localStorage.setItem('scheduling:refresh', Date.now());
+                            } catch (e) { /* ignore */ }
+
+                            // Try to refresh opener/parent if present
+                            try {
+                                const redirect = res.url + (res.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                                if (window.opener && !window.opener.closed) {
+                                    try { window.opener.location.href = redirect; } catch (e) { /* ignore cross-origin */ }
+                                } else if (window.parent && window.parent !== window) {
+                                    try { window.parent.location.href = redirect; } catch (e) { /* ignore cross-origin */ }
+                                }
+                            } catch (e) { /* ignore */ }
+
+                            // Finally navigate this window to the scheduling page
+                            window.location = res.url + (res.url.includes('?') ? '&' : '?') + 't=' + Date.now();
+                        });
+                        return;
+                    }
+
+                    if (res.ok) {
+                        // try JSON response for redirect
+                        try {
+                            const data = await res.json();
+                            const redirect = data?.redirect || form.dataset.redirect || '/scheduling';
+                            showSuccessToast('Shift deleted', submitBtn, function() {
+                                try { closeTab(); } catch (e) { /* ignore */ }
+
+                                // Signal other tabs to refresh scheduling
+                                try {
+                                    localStorage.setItem('scheduling:refresh', Date.now());
+                                } catch (e) { /* ignore */ }
+
+                                // Try to refresh opener/parent if present
+                                try {
+                                    const dest = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                                    if (window.opener && !window.opener.closed) {
+                                        try { window.opener.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    } else if (window.parent && window.parent !== window) {
+                                        try { window.parent.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    }
+                                } catch (e) { /* ignore */ }
+
+                                // Finally navigate this window to the scheduling page
+                                window.location = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                            });
+                            return;
+                        } catch (e) {
+                            // not JSON, fallback to dataset redirect
+                            const redirect = form.dataset.redirect || '/scheduling';
+                            showSuccessToast('Shift deleted', submitBtn, function() {
+                                try { closeTab(); } catch (e) { /* ignore */ }
+
+                                // Signal other tabs to refresh scheduling
+                                try {
+                                    localStorage.setItem('scheduling:refresh', Date.now());
+                                } catch (e) { /* ignore */ }
+
+                                // Try to refresh opener/parent if present
+                                try {
+                                    const dest = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                                    if (window.opener && !window.opener.closed) {
+                                        try { window.opener.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    } else if (window.parent && window.parent !== window) {
+                                        try { window.parent.location.href = dest; } catch (e) { /* ignore cross-origin */ }
+                                    }
+                                } catch (e) { /* ignore */ }
+
+                                // Finally navigate this window to the scheduling page
+                                window.location = redirect + (redirect.includes('?') ? '&' : '?') + 't=' + Date.now();
+                            });
+                            return;
+                        }
+                    }
+
+                    // Non-ok response: fallback to normal submit to allow server to render errors
+                    form.submit();
+                }).catch(err => {
+                    console.error('Delete request failed, falling back to normal submit', err);
+                    form.submit();
+                });
+            }, submitBtn);
+        });
+    </script>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+    <script>
+        // Edit shift function
+        function editShift(shiftId) {
+            console.log('Edit shift called with ID:', shiftId);
+            
+            // Set the shift_id immediately
+            $('#shift_id').val(shiftId);
+            
+            $.ajax({
+                url: `${baseUrl}/editshift/${shiftId}`,
+                type: 'GET',
+                success: function(response) {
+                    console.log('Shift data received:', response);
+                    const data = response.shift;
+                    
+                    $('#shift_id').val(data.id);
+                    $('#staff_id').val(data.staff_id).trigger('change');
+                    $('#shift_date').val(data.shift_date);
+                    $('#start_shift').val(data.start_time ? data.start_time.substring(0, 5) : '');
+                    $('#end_shift').val(data.end_time ? data.end_time.substring(0, 5) : '');
+                    $('#guard_rate').val(data.guard_rate || '');
+                    $('#book_on').val(data.absentee_start_time ? data.absentee_start_time.substring(0, 5) : (data.start_time ? data.start_time.substring(0, 5) : ''));
+                    $('#book_off').val(data.absentee_end_time ? data.absentee_end_time.substring(0, 5) : (data.end_time ? data.end_time.substring(0, 5) : ''));
+                    $('#status_id').val(data.is_assign || data.status_id || '').trigger('change');
+                    
+                    // Initialize Select2 in modal (guarded)
+                    try {
+                        if ($.fn && $.fn.select2) {
+                            $('.select2_modal').select2({ dropdownParent: $('#edit_shift') });
+                        } else {
+                            console.warn('Select2 not available for edit modal');
+                        }
+                    } catch (e) { console.warn('select2 init error in editShift', e); }
+                    
+                    $('#edit_shift').modal('show');
+                },
+                error: function(xhr) {
+                    console.error('Failed to load shift details:', xhr);
+                    showToast('Failed to load shift details', 'error', 5000);
+                }
+            });
+        }
+
+        // Handle edit shift form submission
+        $(document).off('submit', '#edit_shift-form').on('submit', '#edit_shift-form', function(e) {
+            e.preventDefault();
+            
+            const shiftId = $('#shift_id').val();
+            const formData = $('#edit_shift-form').serialize();
+            
+            const submitData = (useOverride = false) => {
+                // Generate URLs properly
+                const url = useOverride 
+                    ? `${baseUrl}/updateshift/${shiftId}/override`
+                    : `${baseUrl}/updateshift/${shiftId}`;
+                
+                console.log('Submitting to URL:', url);
+                
+                $.ajax({
+                    url: url,
+                    type: 'POST',
+                    data: formData,
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                    },
+                    success: function(response) {
+                        $('#edit_shift').modal('hide');
+                        showToast(response.success || response.message || 'Shift updated successfully!', 'success', 5000);
+                        setTimeout(() => location.reload(), 1000);
+                    },
+                    error: function(xhr) {
+                        console.log("Edit shift error - Status:", xhr.status);
+                        console.log("Response:", xhr.responseJSON);
+                        console.log("Is SuperAdmin:", window.isSuperAdmin);
+
+                        if (xhr.status === 422 && xhr.responseJSON?.errors) {
+                            let messages = Object.values(xhr.responseJSON.errors).flat();
+                            console.log("Error messages:", messages);
+
+                            if (messages.length) {
+                                console.log("Checking isSuperAdmin:", window.isSuperAdmin);
+                                if (window.isSuperAdmin && !useOverride) {
+                                    showRestrictionToast(messages[0], function() {
+                                        submitData(true);
+                                    });
+                                } else {
+                                    showToast(messages[0], 'error', 5000);
+                                }
+                            } else {
+                                showToast('Validation failed, but no message returned.', 'error', 5000);
+                            }
+                        } else if (xhr.responseJSON?.error) {
+                            if (window.isSuperAdmin && !useOverride) {
+                                showRestrictionToast(xhr.responseJSON.error, function() {
+                                    submitData(true);
+                                });
+                            } else {
+                                showToast(xhr.responseJSON.error, 'error', 5000);
+                            }
+                        } else {
+                            showToast('An unexpected error occurred while updating the shift.', 'error', 5000);
+                        }
+                    }
+                });
+            };
+
+            // Initial submit (without override)
+            submitData(false);
+        });
+
+           // --- Edit modal subcontractor wiring moved here to ensure script runs where modal is included ---
+        $(document).ready(function() { try {
+            // Initialize Select2 for staff inside edit modal (use existing customMatcher if present)
+            if ($.fn.select2) {
+                $('.selec2_assign_modal').each(function() {
+                    if (!$(this).hasClass('select2-hidden-accessible')) {
+                        var opts = { dropdownParent: $('#edit_shift'), width: '100%' };
+                        if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
+                        try { $(this).select2(opts); } catch (e) { console.warn('[edit_shift] select2 init failed', e); }
+                    }
+                });
+            }
+
+            function populateEditSubcontractorsAssign(staffId, preserveValue) {
+                var $modal = $('#edit_shift');
+                var $sub = $modal.find('#subcontractor');
+                $sub.prop('disabled', true).html('<option value="">Loading...</option>');
+
+                if (!staffId) {
+                    $sub.html('<option value="">--choose--</option>').prop('disabled', false).trigger('change');
+                    return;
+                }
+
+                $.ajax({
+                    url: `${baseUrl}/subcontractors/for-employee/${staffId}`,
+                    method: 'GET',
+                    dataType: 'json'
+                }).done(function(res) {
+                    $sub.empty().append('<option value="">--choose--</option>');
+                    if (res && res.data && res.data.length) {
+                        res.data.forEach(function(s) {
+                            var label = s.company_name || (s.first_name ? (s.first_name + ' ' + (s.last_name||'')) : ('Subcontractor ' + s.id));
+                            $sub.append(`<option value="${s.id}">${label}</option>`);
+                        });
+                    }
+
+                    if (typeof preserveValue !== 'undefined' && preserveValue) {
+                        try { $sub.val(preserveValue); } catch (e) {}
+                    }
+
+                    $sub.prop('disabled', false);
+                    if ($sub.hasClass('select2-hidden-accessible')) $sub.trigger('change.select2');
+                    else $sub.trigger('change');
+                }).fail(function() {
+                    $sub.empty().append('<option value="">--choose--</option>').prop('disabled', false);
+                });
+            }
+            // ensure existing delegated handlers removed to avoid duplicates
+            $('#edit_shift').off('change', '#staff_id');
+            $('#edit_shift').off('select2:select', '#staff_id');
+
+            // initialize subcontractor select2 inside modal
+            (function initSubSelect() {
+                var $modal = $('#edit_shift');
+                var $sub = $modal.find('#subcontractor');
+                try {
+                    if ($.fn.select2 && !$sub.hasClass('select2-hidden-accessible')) {
+                        $sub.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 });
+                    }
+                } catch (e) { console.warn('[edit_shift] subcontractor select2 init failed', e); }
+            })();
+
+            // debounce wrapper to collapse multiple rapid events
+            var _editSubDebounce = null;
+            function debouncedPopulate(staffId, preserve) {
+                clearTimeout(_editSubDebounce);
+                _editSubDebounce = setTimeout(function() { populateEditSubcontractorsAssign(staffId, preserve); }, 120);
+            }
+
+            // Delegated handlers inside modal
+            $('#edit_shift').on('change', '#staff_id', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+            $('#edit_shift').on('select2:select', '#staff_id', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+
+            // Scoped direct bindings (ensure only bound once)
+            $('#edit_shift').find('#staff_id').off('.editStaff').on('change.editStaff', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            }).on('select2:select.editStaff', function() {
+                var staffId = $(this).val();
+                debouncedPopulate(staffId);
+            });
+
+            $('#edit_shift').on('shown.bs.modal', function() {
+                var $modal = $('#edit_shift');
+                var staffId = $modal.find('#staff_id').val();
+                var preserve = $modal.find('#subcontractor').val();
+
+                // Defer heavy work to idle time so modal shows immediately
+                var doInit = function() {
+                    if (staffId) debouncedPopulate(staffId, preserve);
+                };
+
+                if (window.requestIdleCallback) {
+                    requestIdleCallback(doInit, {timeout: 200});
+                } else {
+                    setTimeout(doInit, 80);
+                }
+
+                // Lazy-init Select2 instances only on first interaction to reduce initial work
+                $modal.find('#staff_id').one('focus.editLazy click.editLazy', function() {
+                    var $el = $(this);
+                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                        try {
+                            var opts = { dropdownParent: $modal, width: '100%' };
+                            if (typeof window.customMatcher === 'function') opts.matcher = window.customMatcher;
+                            $el.select2(opts);
+                        } catch (e) { console.warn('[edit_shift] lazy select2 init failed', e); }
+                    }
+                });
+
+                $modal.find('#subcontractor').one('focus.editLazy click.editLazy', function() {
+                    var $el = $(this);
+                    if ($.fn.select2 && !$el.hasClass('select2-hidden-accessible')) {
+                        try { $el.select2({ dropdownParent: $modal, width: '100%', minimumResultsForSearch: 0 }); } catch (e) { console.warn('[edit_shift] lazy subcontractor select2 init failed', e); }
+                    }
+                });
+            });
+        } catch (e) { console.error('[edit_shift] ready failed', e); } });
+
+    </script>
+@endsection

@@ -1012,6 +1012,41 @@ class EmployeeController extends Controller
         ]);
     }
 
+    public function getLogsByEmail($email)
+    {
+        // Verify authentication
+        if (!auth()->check()) {
+            return response()->json(['error' => 'Unauthorized'], 403);
+        }
+
+        // Find employee by email
+        $employee = Employee::where('email', urldecode($email))->first();
+        
+        if (!$employee) {
+            return response()->json(['error' => 'Employee not found'], 404);
+        }
+
+        // Get logs from ActivityLog
+        $query = ActivityLog::where('user_name', $employee->email)
+            ->orWhere(function($q) use ($employee) {
+                $q->where('loggable_type', Employee::class)
+                  ->where('loggable_id', $employee->id);
+            });
+
+        $logs = $query->orderBy('created_at', 'desc')->get();
+
+        return response()->json([
+            'logs' => $logs->map(function ($log) {
+                return [
+                    'user_name' => $log->user_name,
+                    'action' => $log->action,
+                    'description' => $log->description,
+                    'time' => $log->created_at->diffForHumans(),
+                ];
+            }),
+            'employee' => $employee->only(['id', 'fore_name', 'sur_name', 'email'])
+        ]);
+    }
 
     public function view($id)
     {

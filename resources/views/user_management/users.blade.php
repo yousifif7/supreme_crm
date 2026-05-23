@@ -11,8 +11,8 @@
                     <h2 class="mb-1">Dashboard / Users</h2>
 
                 </div>
-
             </div>
+            
             <div class="d-flex my-xl-auto justify-content-between align-items-center flex-wrap ">
                 <div class="me-2">
                     <div class="dropdown">
@@ -39,7 +39,7 @@
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_user"
-                        class=" add_btn btn btn-white d-inline-flex align-items-center"">
+                        class="add_btn btn btn-white d-inline-flex align-items-center">
                         <i class="ti ti-plus me-2"></i>User
                     </a>
 
@@ -55,14 +55,52 @@
             </div>
             <!-- /Breadcrumb -->
 
-            <div class="card">
-
+            @hasanyrole('superadmin')
+            <!-- Tabs Navigation -->
+            <div class="card mb-4">
                 <div class="card-body p-0">
-                    <div class="custom-datatable-filter table-responsive">
-                        {{ $dataTable->setTableHeadClass('thead-light')->table(['class' => 'table datatable']) }}
+                    <ul class="nav nav-tabs nav-tabs-bordered" id="usersTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-users-tab" data-bs-toggle="tab" data-bs-target="#all-users" type="button" role="tab" aria-controls="all-users" aria-selected="true">
+                                All Users
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#admin-users" type="button" role="tab" aria-controls="admin-users" aria-selected="false">
+                                SaaS
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+            @endhasanyrole
+            <!-- /Tabs Navigation -->
+
+            <!-- Tabs Content -->
+            <div class="tab-content" id="usersTabContent">
+                <!-- All Users Tab -->
+                <div class="tab-pane fade show active" id="all-users" role="tabpanel" aria-labelledby="all-users-tab">
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <div class="custom-datatable-filter table-responsive">
+                                <table class="table datatable" id="all-users-table"></table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SaaS Users Tab -->
+                <div class="tab-pane fade" id="admin-users" role="tabpanel" aria-labelledby="admin-users-tab">
+                    <div class="card">
+                        <div class="card-body p-0">
+                            <div class="custom-datatable-filter table-responsive">
+                                <table class="table datatable" id="saas-users-table"></table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
+            <!-- /Tabs Content -->
         </div>
 
         <!-- Add Client -->
@@ -512,7 +550,93 @@
         });
     </script>
     <script>
+        // Global variables for DataTables
+        let allUsersTable = null;
+        let saasUsersTable = null;
+
         $(document).ready(function() {
+            // Initialize All Users DataTable
+            allUsersTable = $('#all-users-table').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: '{{ route("users.index") }}',
+                    data: function(d) {
+                        d.filter = 'all';
+                    }
+                },
+                columns: [
+                    { data: 'checkbox', name: 'checkbox', orderable: false, searchable: false, className: 'text-center px-2' },
+                    { data: 'number', name: 'number', orderable: false, searchable: false, className: 'px-2' },
+                    { data: 'name', name: 'name', className: 'ps-0' },
+                    { data: 'email', name: 'email' },
+                    { data: 'roles', name: 'roles', orderable: false },
+                    { data: 'status', name: 'status' },
+                    { data: 'created_at', name: 'created_at' },
+                    { data: 'action', name: 'action', orderable: false, searchable: false, width: '80px' }
+                ],
+                order: [[6, 'desc']],
+                pageLength: 25,
+                scrollX: true,
+                drawCallback: function(settings) {
+                    feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
+                },
+                dom: 't<"d-flex justify-content-between mt-2"<"col-sm-12 col-md-5 align-self-center ps-3"i><"d-flex justify-content-between" p>>'
+            });
+
+            // Initialize SaaS Users DataTable (admin users only)
+            saasUsersTable = $('#saas-users-table').DataTable({
+                processing: true,
+                serverSide: true,
+                ajax: {
+                    url: '{{ route("users.index") }}',
+                    data: function(d) {
+                        d.filter = 'saas';
+                    }
+                },
+                columns: [
+                    { data: 'checkbox', name: 'checkbox', orderable: false, searchable: false, className: 'text-center px-2' },
+                    { data: 'number', name: 'number', orderable: false, searchable: false, className: 'px-2' },
+                    { data: 'name', name: 'name', className: 'ps-0' },
+                    { data: 'email', name: 'email' },
+                    { data: 'roles', name: 'roles', orderable: false },
+                    { data: 'status', name: 'status' },
+                    { data: 'created_at', name: 'created_at' },
+                    { data: 'action', name: 'action', orderable: false, searchable: false, width: '80px' }
+                ],
+                order: [[6, 'desc']],
+                pageLength: 25,
+                scrollX: true,
+                drawCallback: function(settings) {
+                    feather.replace();
+                    var api = this.api();
+                    var start = api.page.info().start;
+                    api.column(1, {page: 'current'}).nodes().each(function(cell, i) {
+                        cell.innerHTML = start + i + 1;
+                    });
+                },
+                dom: 't<"d-flex justify-content-between mt-2"<"col-sm-12 col-md-5 align-self-center ps-3"i><"d-flex justify-content-between" p>>'
+            });
+
+            // Tab switching - redraw DataTable when tab becomes visible
+            $('#usersTab button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
+                var target = $(e.target).attr("data-bs-target");
+                if (target === '#all-users') {
+                    if (allUsersTable) {
+                        allUsersTable.columns.adjust().responsive.recalc();
+                    }
+                } else if (target === '#admin-users') {
+                    if (saasUsersTable) {
+                        saasUsersTable.columns.adjust().responsive.recalc();
+                    }
+                }
+            });
+
             $('#add_user_form').on('submit', function(e) {
                 e.preventDefault();
 
@@ -535,7 +659,9 @@
                         $('#add_user_form')[0].reset();
                         closeBsModal('#add_user');
                         toast_success('User Added Successfully');
-                        reloadDatatable('#users-table');
+                        // Reload both tables
+                        if (allUsersTable) allUsersTable.ajax.reload();
+                        if (saasUsersTable) saasUsersTable.ajax.reload();
                     },
                 error: function (xhr) {
                     if (xhr.status === 422) {
@@ -577,7 +703,9 @@
                     success: function(response) {
                         closeBsModal('#edit_user');
                         toast_success('User updated successfully!');
-                        reloadDatatable('#users-table');
+                        // Reload both tables
+                        if (allUsersTable) allUsersTable.ajax.reload();
+                        if (saasUsersTable) saasUsersTable.ajax.reload();
                     },
                 error: function (xhr) {
                     if (xhr.status === 422) {
@@ -634,7 +762,9 @@
                     success: function(response) {
                         closeBsModal('#delete_modal');
                         toast_success('User deleted successfully!');
-                        reloadDatatable('#users-table');
+                        // Reload both tables
+                        if (allUsersTable) allUsersTable.ajax.reload();
+                        if (saasUsersTable) saasUsersTable.ajax.reload();
                     },
                     error: function(xhr) {
                         closeBsModal('#delete_modal');
@@ -644,9 +774,23 @@
             }
         });
 
-        // Bulk delete button
+        // Bulk delete button - works with current active table
         $('#bulkDeleteBtn').on('click', function() {
-            const selected = $('.dT-row-checkbox:checked').map(function() {
+            // Determine which table is active
+            let activeTable = null;
+            let tableId = null;
+            
+            if ($('#all-users').hasClass('active')) {
+                activeTable = allUsersTable;
+                tableId = '#all-users-table';
+            } else if ($('#admin-users').hasClass('active')) {
+                activeTable = saasUsersTable;
+                tableId = '#saas-users-table';
+            }
+            
+            if (!activeTable) return;
+            
+            const selected = $(tableId + ' .dT-row-checkbox:checked').map(function() {
                 return this.value;
             }).get();
 
@@ -666,13 +810,28 @@
                 },
                 success: function(response) {
                     toast_success('Selected users deleted successfully!');
-                    reloadDatatable('#users-table');
+                    // Reload both tables
+                    if (allUsersTable) allUsersTable.ajax.reload();
+                    if (saasUsersTable) saasUsersTable.ajax.reload();
                 },
                 error: function() {
                     toast_danger('Something went wrong during bulk delete.');
                 }
             });
         });
+
+        // Helper function to reload the appropriate datatable
+        function reloadDatatable(tableId) {
+            if (tableId === '#all-users-table' && allUsersTable) {
+                allUsersTable.ajax.reload();
+            } else if (tableId === '#saas-users-table' && saasUsersTable) {
+                saasUsersTable.ajax.reload();
+            } else {
+                // Reload both if unsure
+                if (allUsersTable) allUsersTable.ajax.reload();
+                if (saasUsersTable) saasUsersTable.ajax.reload();
+            }
+        }
     </script>
 
     <script>
@@ -733,5 +892,4 @@
             });
         }
     </script>
-    {!! $dataTable->scripts() !!}
 @endsection

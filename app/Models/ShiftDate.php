@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Traits\LogsChanges;
 use App\Traits\BelongsToAdmin;
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -113,5 +114,87 @@ class ShiftDate extends Model
     public function logs()
     {
         return $this->morphMany(Log::class, 'loggable');
+    }
+
+    /**
+     * Minutes the guard was late booking on (actual absentee_start_time vs scheduled start_time).
+     * Returns 0 when on-time or early; null when either time is missing.
+     */
+    public function getBookOnLateMinutesAttribute(): ?int
+    {
+        if (empty($this->absentee_start_time) || empty($this->start_time)) {
+            return null;
+        }
+        try {
+            $scheduled = Carbon::parse($this->start_time);
+            $actual = Carbon::parse($this->absentee_start_time);
+            if ($actual->lessThanOrEqualTo($scheduled)) {
+                return 0;
+            }
+            return (int) $scheduled->diffInMinutes($actual);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Minutes the guard booked off early (actual absentee_end_time before scheduled end_time).
+     * Returns 0 when on-time or late; null when either time is missing.
+     */
+    public function getBookOffEarlyMinutesAttribute(): ?int
+    {
+        if (empty($this->absentee_end_time) || empty($this->end_time)) {
+            return null;
+        }
+        try {
+            $scheduled = Carbon::parse($this->end_time);
+            $actual = Carbon::parse($this->absentee_end_time);
+            if ($actual->greaterThanOrEqualTo($scheduled)) {
+                return 0;
+            }
+            return (int) $actual->diffInMinutes($scheduled);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Human-readable book-on lateness (e.g. "1 hour 15 mins"). Null when not late or unknown.
+     */
+    public function getBookOnLateDisplayAttribute(): ?string
+    {
+        return $this->formatDurationMinutes($this->book_on_late_minutes);
+    }
+
+    /**
+     * Human-readable book-off earliness (e.g. "1 hour 15 mins"). Null when not early or unknown.
+     */
+    public function getBookOffEarlyDisplayAttribute(): ?string
+    {
+        return $this->formatDurationMinutes($this->book_off_early_minutes);
+    }
+
+    /**
+     * Format a minute count as "X hour(s) Y min(s)" with correct singular/plural.
+     * Returns null for null/zero so callers can skip rendering altogether.
+     */
+    protected function formatDurationMinutes(?int $mins): ?string
+    {
+        if ($mins === null || $mins <= 0) {
+            return null;
+        }
+
+        $hours = intdiv($mins, 60);
+        $remaining = $mins % 60;
+
+        $parts = [];
+        if ($hours > 0) {
+            $parts[] = $hours . ' ' . ($hours === 1 ? 'hour' : 'hours');
+        }
+        if ($remaining > 0) {
+            $parts[] = $remaining . ' ' . ($remaining === 1 ? 'min' : 'mins');
+        }
+
+        return implode(' ', $parts);
     }
 }

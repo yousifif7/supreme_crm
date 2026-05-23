@@ -219,7 +219,7 @@
                                                     'name' => $site->site_name ?? ($item->site_name ?? 'N/A'),
                                                     'hours' => 0,
                                                     'amount' => 0,
-                                                    'rate' => $item->rate ?? $invoice->rate_per_hour ?? 0,
+                                                    'rate' => 0,
                                                     'shifts' => 0,
                                                 ];
                                             }
@@ -228,6 +228,14 @@
                                             $siteGroups[$siteId]['amount'] += floatval($item->amount ?? 0);
                                             $siteGroups[$siteId]['shifts'] += 1;
                                         }
+
+                                        // Derive displayed rate as weighted average (amount/hours) so groups with
+                                        // mixed per-shift rates show a meaningful figure instead of just the first
+                                        // item's rate.
+                                        foreach ($siteGroups as &$g) {
+                                            $g['rate'] = $g['hours'] > 0 ? ($g['amount'] / $g['hours']) : 0;
+                                        }
+                                        unset($g);
                                     @endphp
 
                                     @if(count($siteGroups) > 0)

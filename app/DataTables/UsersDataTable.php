@@ -70,7 +70,10 @@ class UsersDataTable extends DataTable
      */
     public function query(User $model): QueryBuilder
     {
-        if ($this->filter === 'archived') {
+        // Get filter from request
+        $filter = request()->input('filter', 'all');
+        
+        if ($filter === 'archived') {
             $query = $model->onlyTrashed()->with(['roles'])->select('users.*');
         } else {
             $query = $model->newQuery()->with(['roles'])->select('users.*');
@@ -80,6 +83,23 @@ class UsersDataTable extends DataTable
         $query->whereDoesntHave('roles', function ($q) {
             $q->whereIn('name', ['client', 'subcontractor', 'security_staff']);
         });
+
+        // Filter for admin/SaaS users if requested
+        if ($filter === 'admin' || $filter === 'saas') {
+            // For SaaS tab, we want to show all admin users regardless of admin_id scope
+            // We need to remove the admin scope to see all admin users
+            $query = $model::withoutAdminScope()->with(['roles'])->select('users.*');
+            
+            // Re-apply role-exclusion
+            $query->whereDoesntHave('roles', function ($q) {
+                $q->whereIn('name', ['client', 'subcontractor', 'security_staff']);
+            });
+            
+            // Filter for admin role
+            $query->whereHas('roles', function ($q) {
+                $q->where('name', 'admin');
+            });
+        }
 
         return $query;
     }

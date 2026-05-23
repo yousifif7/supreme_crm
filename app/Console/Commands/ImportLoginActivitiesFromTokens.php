@@ -129,7 +129,6 @@ class ImportLoginActivitiesFromTokens extends Command
                 }
 
                 LoginActivity::create([
-                    'admin_id' => $user->admin_id,
                     'user_id' => $user->id,
                     'login_at' => $loginAt,
                     'ip_address' => null,

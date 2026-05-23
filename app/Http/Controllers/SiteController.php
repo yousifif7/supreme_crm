@@ -397,9 +397,8 @@ class SiteController extends Controller
             $site->siteHolidayRates()->delete();
         }
 
-        // Propagate the new rate configuration to existing shift_dates.
-        // Effective_from = today (silent default). Shifts on/after today are recomputed,
-        // plus any shift_date matching a SiteHolidayRate.holiday_date (calendar-anchored).
+        // Propagate the new rate configuration only to shifts from today onward.
+        // Past shift_dates keep their snapshot so historical invoices stay stable.
         try {
             $changed = app(RateResolver::class)->propagateForSite(
                 $site->fresh(['siteHolidayRates', 'staffRates']),
