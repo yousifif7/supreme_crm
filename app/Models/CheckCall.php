@@ -23,6 +23,11 @@ class CheckCall extends Model
         return $this->belongsTo(Employee::class);
     }
 
+    public function media()
+    {
+        return $this->hasMany(CheckCallMedia::class, 'check_call_id');
+    }
+
     public function logs()
     {
         return $this->morphMany(Log::class, 'loggable');

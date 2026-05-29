@@ -16,6 +16,8 @@ use Illuminate\Http\Request;
 use App\Models\Subcontractor;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\PatrolCheckPoint;
+use App\Models\CheckCall;
+use App\Models\Patrol;
 use App\Services\InvoiceService;
 use App\Exports\Reports\ArrayExport;
 use Maatwebsite\Excel\Facades\Excel;
@@ -1159,6 +1161,109 @@ class ReportController extends Controller
             'startTime' => $startTime,
             'endDate' => $endDate,
             'endTime' => $endTime,
+        ]);
+    }
+
+    /**
+     * Check Calls & Patrols report.
+     *
+     * Shows ONLY check calls and patrols that are completed AND awaiting
+     * approval (status = completed, approval_status = pending/null). Admins can
+     * approve/reject them inline (reusing the existing approve/reject endpoints),
+     * see uploaded media, and jump straight to the parent shift. Data only loads
+     * once at least one filter (client, site, staff, date range) is applied.
+     */
+    public function checkCallsPatrolsReport(Request $request)
+    {
+        $clientId = $request->input('client_id');
+        $siteId   = $request->input('site_id');
+        $staffId  = $request->input('staff_id');
+        $fromDate = $request->input('from_date');
+        $toDate   = $request->input('to_date');
+
+        // If the user entered the range backwards (from after to), swap them so
+        // the filter still returns the intended window instead of nothing.
+        if ($fromDate && $toDate && $fromDate > $toDate) {
+            [$fromDate, $toDate] = [$toDate, $fromDate];
+        }
+
+        $hasFilters = $request->filled('client_id')
+            || $request->filled('site_id')
+            || $request->filled('staff_id')
+            || $request->filled('from_date')
+            || $request->filled('to_date');
+
+        $checkcalls = collect();
+        $patrols    = collect();
+
+        if ($hasFilters) {
+            // Completed + pending-approval (treat null approval_status as pending).
+            $pendingApproval = function ($q) {
+                $q->whereNull('approval_status')->orWhere('approval_status', 'pending');
+            };
+
+            // ---------------- Check Calls ----------------
+            // CheckCall -> shiftDate (via shift_id) -> shift -> site/client
+            $checkcalls = CheckCall::query()
+                ->with([
+                    'shiftDate.shift.site',
+                    'shiftDate.shift.client',
+                    'shiftDate.staff',
+                    'employee',
+                    'media',
+                ])
+                ->where('status', 'completed')
+                ->where($pendingApproval)
+                ->when($fromDate, fn ($q) => $q->whereDate('scheduled_time', '>=', $fromDate))
+                ->when($toDate, fn ($q) => $q->whereDate('scheduled_time', '<=', $toDate))
+                ->when($staffId, function ($q) use ($staffId) {
+                    $q->where(function ($q2) use ($staffId) {
+                        $q2->where('employee_id', $staffId)
+                            ->orWhereHas('shiftDate', fn ($qq) => $qq->where('staff_id', $staffId));
+                    });
+                })
+                ->when($siteId, fn ($q) => $q->whereHas('shiftDate.shift', fn ($qq) => $qq->where('site_id', $siteId)))
+                ->when($clientId, fn ($q) => $q->whereHas('shiftDate.shift', fn ($qq) => $qq->where('client_id', $clientId)))
+                ->orderByDesc('scheduled_time')
+                ->get();
+
+            // ---------------- Patrols ----------------
+            // Patrol -> shift (ShiftDate via shift_id) -> shift -> site/client
+            $patrols = Patrol::query()
+                ->with([
+                    'shift.shift.site',
+                    'shift.shift.client',
+                    'shift.staff',
+                    'media',
+                ])
+                ->where('status', 'completed')
+                ->where($pendingApproval)
+                ->when($fromDate, fn ($q) => $q->whereDate('start_time', '>=', $fromDate))
+                ->when($toDate, fn ($q) => $q->whereDate('start_time', '<=', $toDate))
+                ->when($staffId, fn ($q) => $q->whereHas('shift', fn ($qq) => $qq->where('staff_id', $staffId)))
+                ->when($siteId, fn ($q) => $q->whereHas('shift.shift', fn ($qq) => $qq->where('site_id', $siteId)))
+                ->when($clientId, fn ($q) => $q->whereHas('shift.shift', fn ($qq) => $qq->where('client_id', $clientId)))
+                ->orderByDesc('start_time')
+                ->get();
+        }
+
+        // Filter dropdown data (matches conventions used by other reports).
+        $clients = User::role('client')->pluck('name', 'id');
+        $sites   = Site::pluck('site_name', 'id');
+        $staffs  = User::role('security_staff')->orderBy('first_name')->get();
+
+        return view('reports.checkcalls-patrols', [
+            'checkcalls'     => $checkcalls,
+            'patrols'        => $patrols,
+            'clients'        => $clients,
+            'sites'          => $sites,
+            'staffs'         => $staffs,
+            'selectedClient' => $clientId,
+            'selectedSite'   => $siteId,
+            'selectedStaff'  => $staffId,
+            'fromDate'       => $fromDate,
+            'toDate'         => $toDate,
+            'hasFilters'     => $hasFilters,
         ]);
     }
 }

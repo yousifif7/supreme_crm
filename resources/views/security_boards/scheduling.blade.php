@@ -401,6 +401,52 @@
             transform: scale(1.08);
         }
 
+        /* Notes thread (inside view-note modal) */
+        .notes-thread {
+            max-height: 360px;
+            overflow-y: auto;
+        }
+
+        .notes-thread .note-card {
+            border: 1px solid #e3e6ea;
+            border-left: 4px solid #c62828;
+            border-radius: 6px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+            background: #fff;
+        }
+
+        .notes-thread .note-card .note-meta {
+            font-size: 12px;
+            color: #6c757d;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .notes-thread .note-card .note-body {
+            white-space: pre-wrap;
+            word-break: break-word;
+            color: #212529;
+        }
+
+        .notes-thread .note-card .note-type-badge {
+            text-transform: capitalize;
+        }
+
+        .notes-thread .note-card .note-actions {
+            margin-top: 8px;
+            display: flex;
+            gap: 6px;
+        }
+
+        .notes-thread .notes-empty {
+            color: #6c757d;
+            font-style: italic;
+        }
+
         /* edit icon (pencil) - inline with time row */
         .gantt-bar .edit-shift-icon {
             cursor: pointer;
@@ -1057,55 +1103,42 @@
         <div class="modal-dialog modal-dialog-centered modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title">Shift Note</h5>
+                    <h5 class="modal-title">Shift Notes</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Note For:</strong> <span id="viewNoteType" class="view-note-type"></span></p>
-                    <p><strong>Note:</strong></p>
-                    <p id="viewNoteText" class="border rounded p-2 bg-light"></p>
+                    <input type="hidden" id="viewNoteShiftId" value="">
 
-                    <div id="editNoteArea" style="display:none; margin-top:8px;">
+                    {{-- Thread of notes (newest first) --}}
+                    <div id="notesThread" class="notes-thread mb-3"></div>
+
+                    {{-- Add-new-note form (hidden until "Add Note" is clicked) --}}
+                    <div id="addNoteInline" class="border rounded p-3 bg-light" style="display:none;">
+                        <h6 class="mb-2" id="addNoteInlineTitle">Add a new note</h6>
+                        <input type="hidden" id="inlineNoteId" value="">
                         <div class="mb-2">
-                            <label for="editNoteType" class="form-label">Note Type</label>
-                            <select id="editNoteType" class="form-select" name="note_type">
+                            <label for="inlineNoteType" class="form-label">Note For</label>
+                            <select id="inlineNoteType" class="form-select">
                                 <option value="guard">Guard</option>
                                 <option value="control">Control Room</option>
                                 <option value="both">Both</option>
                             </select>
                         </div>
                         <div class="mb-2">
-                            <label for="editNoteText" class="form-label">Note</label>
-                            <textarea id="editNoteText" class="form-control" rows="4"></textarea>
+                            <label for="inlineNoteText" class="form-label">Note</label>
+                            <textarea id="inlineNoteText" class="form-control" rows="3"></textarea>
+                        </div>
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-primary btn-sm" id="inlineNoteSaveBtn">Save</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="inlineNoteCancelBtn">Cancel</button>
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer justify-content-between">
-                    <div>
-                        <button type="button" class="btn btn-danger" id="deleteNoteBtn">Delete</button>
-                        <button type="button" class="btn btn-outline-primary" id="editNoteBtn">Edit</button>
-                        <button type="button" class="btn btn-primary d-none" id="saveNoteEditBtn">Save</button>
-                        <button type="button" class="btn btn-secondary d-none" id="cancelEditNoteBtn">Cancel</button>
-                    </div>
+                    <button type="button" class="btn btn-success" id="addNewNoteBtn">
+                        <i class="fa-solid fa-plus"></i> Add Note
+                    </button>
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered modal-sm">
-            <div class="modal-content text-center">
-                <div class="modal-header">
-                    <h5 class="modal-title">Confirm Delete</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to delete this note?</p>
-                </div>
-                <div class="modal-footer justify-content-center">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
                 </div>
             </div>
         </div>
@@ -1265,95 +1298,6 @@
 
                     columnWidths.forEach(c => {
                         c.width += extraPerDay;
-                    });
-
-                    // --- View-note edit handlers: Edit / Cancel / Save ---
-                    $(document).on('click', '#editNoteBtn', function() {
-                        $('#editNoteArea').show();
-                        $('#viewNoteText').hide();
-                        $('#editNoteBtn').addClass('d-none');
-                        $('#saveNoteEditBtn').removeClass('d-none');
-                        $('#cancelEditNoteBtn').removeClass('d-none');
-                    });
-
-                    $(document).on('click', '#cancelEditNoteBtn', function() {
-                        const orig = $('#viewNoteModal').data('orig-note') || '';
-                        const origType = $('#viewNoteModal').data('orig-type') || '';
-                        $('#editNoteText').val(orig);
-                        $('#editNoteType').val(origType);
-                        $('#editNoteArea').hide();
-                        $('#viewNoteText').show();
-                        $('#editNoteBtn').removeClass('d-none');
-                        $('#saveNoteEditBtn').addClass('d-none');
-                        $('#cancelEditNoteBtn').addClass('d-none');
-                    });
-
-                    $(document).on('click', '#saveNoteEditBtn', function(e) {
-                        e.preventDefault();
-                        const btn = $(this);
-                        // prevent duplicate submissions across multiple handlers
-                        if (btn.data('saving')) return;
-                        btn.data('saving', true);
-
-                        const shiftId = $('#shiftId').val() || $('#deleteNoteBtn').data('shift-id');
-                        if (!shiftId) {
-                            btn.data('saving', false);
-                            return;
-                        }
-                        const note = $('#editNoteText').val();
-                        const note_type = $('#editNoteType').val();
-
-                        btn.prop('disabled', true).text('Saving...');
-
-                        $.ajax({
-                            url: `/shift-dates/${shiftId}/note`,
-                            type: 'POST',
-                            data: {
-                                _token: $('meta[name="csrf-token"]').attr('content'),
-                                note: note,
-                                note_type: note_type
-                            },
-                            success: function(resp) {
-                                // resp.note may be a string or an object {note: 'text', ...}
-                                let updatedNote;
-                                if (resp && resp.note) {
-                                    updatedNote = (typeof resp.note === 'object') ? (resp.note.note ||
-                                        '') : resp.note;
-                                } else {
-                                    updatedNote = note;
-                                }
-                                const updatedType = (resp && resp.note_type) ? resp.note_type :
-                                    note_type;
-
-                                $('#viewNoteText').text(updatedNote).show();
-                                $('#viewNoteType').text(updatedType);
-                                $('#editNoteArea').hide();
-                                $('#editNoteBtn').removeClass('d-none');
-                                $('#saveNoteEditBtn').addClass('d-none');
-                                $('#cancelEditNoteBtn').addClass('d-none');
-                                $('#viewNoteModal').data('orig-note', updatedNote);
-                                $('#viewNoteModal').data('orig-type', updatedType);
-                                try {
-                                    showToast('Note saved!', 'success', 4000);
-                                } catch (e) {}
-
-                                // pass normalized note object to refreshShiftBar
-                                if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, {
-                                    id: (resp && resp.id) ? resp.id : null,
-                                    note: updatedNote
-                                });
-                            },
-                            error: function(xhr) {
-                                try {
-                                    showToast('Error saving note', 'error', 5000);
-                                } catch (e) {}
-                                console.error(xhr.responseText);
-                            },
-                            complete: function() {
-                                btn.prop('disabled', false).text('Save');
-                                btn.data('saving', false);
-                            }
-                        });
                     });
 
                     totalWidth = containerWidth;
@@ -2427,31 +2371,14 @@
                     $('#noteModal').modal('show');
                 });
 
-                // View-note icon: load and show existing note
+                // View-note icon: open the full notes thread for this shift
                 $chart.on('click', '.view-note-icon', function(e) {
                     e.stopPropagation();
                     e.preventDefault();
                     const shiftIdLocal = $(this).data('shift-id');
-                    $('#shiftId').val(shiftIdLocal);
-                    $.get(`/shift-dates/${shiftIdLocal}/note`, function(data) {
-                        if (data && data.note) {
-                            const noteText = (typeof data.note === 'object' && data.note.note) ? data.note.note : data.note;
-                            const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
-                            $('#viewNoteText').text(noteText).show();
-                            $('#viewNoteType').text(noteType);
-                            $('#editNoteText').val(noteText);
-                            $('#editNoteType').val(noteType);
-                            $('#viewNoteModal').data('orig-note', noteText);
-                            $('#viewNoteModal').data('orig-type', noteType);
-                            $('#deleteNoteBtn').data('shift-id', shiftIdLocal);
-                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
-                            $('#editNoteArea').hide();
-                            $('#editNoteBtn').removeClass('d-none');
-                            $('#saveNoteEditBtn').addClass('d-none');
-                            $('#cancelEditNoteBtn').addClass('d-none');
-                            $('#viewNoteModal').modal('show');
-                        }
-                    });
+                    if (typeof window.openNotesThread === 'function') {
+                        window.openNotesThread(shiftIdLocal);
+                    }
                 });
             })();
 
@@ -3623,8 +3550,7 @@
         }
         let currentShiftId = null;
 
-        // Handle both add-note (📝) and view-note (👁️) icons
-        // Only global delegated click handler
+        // Handle both add-note and view-note icons (global delegated handler).
         $(document).on('click', '.note-icon, .view-note-icon', function(e) {
             e.stopPropagation(); // Prevent the bar click from firing
 
@@ -3632,40 +3558,181 @@
             if (!shiftId) return;
 
             if ($(this).hasClass('note-icon')) {
-                // Add note modal
+                // No notes yet -> open the simple "add first note" modal.
                 $('#shiftId').val(shiftId);
                 $('#noteForm')[0].reset();
                 $('#noteType').val('guard');
                 $('#noteText').val('');
                 $('#noteModal').modal('show');
             } else if ($(this).hasClass('view-note-icon')) {
-                // View note modal
-                $('#shiftId').val(shiftId);
-                $.get(`/shift-dates/${shiftId}/note`, function(data) {
-                    if (data && data.note) {
-                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note
-                            .note : data.note;
-                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
-                        $('#viewNoteText').text(noteText).show();
-                        $('#viewNoteType').text(noteType);
-                        $('#editNoteText').val(noteText);
-                        $('#editNoteType').val(noteType);
-                        $('#viewNoteModal').data('orig-note', noteText);
-                        $('#viewNoteModal').data('orig-type', noteType);
+                // Notes exist -> open the full thread.
+                if (typeof window.openNotesThread === 'function') {
+                    window.openNotesThread(shiftId);
+                }
+            }
+        });
 
-                        // store both note ID and shift-date ID on the Delete button
-                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
-                        $('#deleteNoteBtn').data('shift-id', shiftId);
+        // ---------- Multiple notes per shift: thread view ----------
 
-                        $('#editNoteArea').hide();
-                        $('#editNoteBtn').removeClass('d-none');
-                        $('#saveNoteEditBtn').addClass('d-none');
-                        $('#cancelEditNoteBtn').addClass('d-none');
+        // Render the list of notes (newest first) inside the view modal.
+        function renderNotesThread(notes) {
+            const $thread = $('#notesThread');
+            $thread.empty();
 
-                        $('#viewNoteModal').modal('show');
+            if (!notes || !notes.length) {
+                $thread.html('<p class="notes-empty">No notes yet. Use “Add Note” to create one.</p>');
+                return;
+            }
+
+            const escapeHtml = (s) => $('<div>').text(s == null ? '' : String(s)).html();
+
+            notes.forEach(function(n) {
+                const card = `
+                    <div class="note-card" data-note-id="${n.id}">
+                        <div class="note-meta">
+                            <span>
+                                <strong>${escapeHtml(n.author)}</strong>
+                                · <span class="note-type-badge badge bg-secondary">${escapeHtml(n.note_type)}</span>
+                            </span>
+                            <span>${escapeHtml(n.created_at)}</span>
+                        </div>
+                        <div class="note-body">${escapeHtml(n.note)}</div>
+                        <div class="note-actions">
+                            <button type="button" class="btn btn-outline-primary btn-sm note-edit-btn"
+                                data-note-id="${n.id}" data-note-type="${escapeHtml(n.note_type)}">Edit</button>
+                            <button type="button" class="btn btn-outline-danger btn-sm note-delete-btn"
+                                data-note-id="${n.id}">Delete</button>
+                        </div>
+                    </div>`;
+                $thread.append(card);
+            });
+
+            // Stash the raw note bodies so Edit can prefill the textarea safely.
+            $thread.find('.note-card').each(function(i) {
+                $(this).find('.note-edit-btn').data('note-body', notes[i].note);
+            });
+        }
+
+        // Fetch a shift's notes and open the thread modal.
+        window.openNotesThread = function(shiftId) {
+            $('#viewNoteShiftId').val(shiftId);
+            $('#addNoteInline').hide();
+            $('#notesThread').html('<p class="notes-empty">Loading…</p>');
+            $('#viewNoteModal').modal('show');
+
+            $.get(`/shift-dates/${shiftId}/note`)
+                .done(function(data) {
+                    renderNotesThread(data && data.notes ? data.notes : []);
+                })
+                .fail(function() {
+                    $('#notesThread').html('<p class="text-danger">Failed to load notes.</p>');
+                });
+        };
+
+        // Reload just the thread (after add/edit/delete) without closing the modal.
+        function reloadNotesThread() {
+            const shiftId = $('#viewNoteShiftId').val();
+            if (!shiftId) return;
+            $.get(`/shift-dates/${shiftId}/note`)
+                .done(function(data) {
+                    renderNotesThread(data && data.notes ? data.notes : []);
+                    // Keep the gantt icon in sync with whether any notes remain.
+                    const hasNotes = !!(data && data.count);
+                    if (typeof refreshShiftBar === 'function') {
+                        refreshShiftBar(shiftId, hasNotes ? true : null);
                     }
                 });
+        }
+
+        // Show the inline add-note form (in "add" mode).
+        $(document).on('click', '#addNewNoteBtn', function() {
+            $('#inlineNoteId').val('');
+            $('#inlineNoteType').val('guard');
+            $('#inlineNoteText').val('');
+            $('#addNoteInlineTitle').text('Add a new note');
+            $('#addNoteInline').show();
+            $('#inlineNoteText').focus();
+        });
+
+        // Edit an existing note: load it into the inline form (in "edit" mode).
+        $(document).on('click', '.note-edit-btn', function() {
+            $('#inlineNoteId').val($(this).data('note-id'));
+            $('#inlineNoteType').val($(this).data('note-type') || 'guard');
+            $('#inlineNoteText').val($(this).data('note-body') || '');
+            $('#addNoteInlineTitle').text('Edit note');
+            $('#addNoteInline').show();
+            $('#inlineNoteText').focus();
+        });
+
+        // Cancel the inline add/edit form.
+        $(document).on('click', '#inlineNoteCancelBtn', function() {
+            $('#addNoteInline').hide();
+        });
+
+        // Save the inline form — POST a new note or PUT an existing one.
+        $(document).on('click', '#inlineNoteSaveBtn', function() {
+            const shiftId = $('#viewNoteShiftId').val();
+            const noteId = $('#inlineNoteId').val();
+            const noteType = $('#inlineNoteType').val();
+            const noteText = $('#inlineNoteText').val().trim();
+            const token = $('meta[name="csrf-token"]').attr('content') || '{{ csrf_token() }}';
+
+            if (!noteText) {
+                showToast('Please enter a note.', 'error', 4000);
+                return;
             }
+
+            const isEdit = !!noteId;
+            const ajaxOpts = isEdit ? {
+                url: `/shift-notes/${noteId}`,
+                type: 'PUT'
+            } : {
+                url: `/shift-dates/${shiftId}/note`,
+                type: 'POST'
+            };
+
+            $.ajax({
+                url: ajaxOpts.url,
+                type: ajaxOpts.type,
+                data: {
+                    _token: token,
+                    note_type: noteType,
+                    note: noteText
+                },
+                success: function() {
+                    $('#addNoteInline').hide();
+                    showToast(isEdit ? 'Note updated!' : 'Note added!', 'success', 4000);
+                    reloadNotesThread();
+                },
+                error: function(xhr) {
+                    let msg = isEdit ? 'Error updating note' : 'Error adding note';
+                    if (xhr.responseJSON && xhr.responseJSON.message) msg = xhr.responseJSON.message;
+                    showToast(msg, 'error', 5000);
+                }
+            });
+        });
+
+        // Delete a single note from the thread.
+        $(document).on('click', '.note-delete-btn', function() {
+            const noteId = $(this).data('note-id');
+            if (!noteId) return;
+            if (!confirm('Delete this note?')) return;
+            const token = $('meta[name="csrf-token"]').attr('content') || '{{ csrf_token() }}';
+
+            $.ajax({
+                url: `/shift-notes/${noteId}`,
+                type: 'DELETE',
+                data: {
+                    _token: token
+                },
+                success: function() {
+                    showToast('Note deleted!', 'success', 4000);
+                    reloadNotesThread();
+                },
+                error: function() {
+                    showToast('Error deleting note', 'error', 5000);
+                }
+            });
         });
 
         // 2️⃣ Save or update note
@@ -3680,113 +3747,18 @@
                 data: $('#noteForm').serialize(), // form data includes note_type, note, shift_id, CSRF
                 success: function(res) {
                     $('#noteModal').modal('hide');
-                    showToast(
-                        'Success on saving note!', // message
-                        'success', // type
-                        5000 // duration in ms
-                    );
-                    // Mark the icon as "has note"
-                    // Update the specific shift bar in-place so the UI reflects the new note
-                    console.debug('Note save success for shiftId=', shiftId, res);
+                    showToast('Success on saving note!', 'success', 5000);
+
+                    // Flip the bar icon to "has notes" immediately, then reload the
+                    // chart so it re-renders from authoritative data.
                     if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, res.note);
-                    // Also robustly update the bar's icon and data attributes so other clients/pollers pick it up
-                    try {
-                        const $bar = $(`.gantt-bar[data-shift-id="${shiftId}"]`);
-                        if ($bar && $bar.length) {
-                            if (res.note && res.note.id) $bar.attr('data-note-id', res.note.id);
-                            let $existingIcon = $bar.find('.note-icon, .view-note-icon');
-                            if ($existingIcon.length) {
-                                // replace class and rebind handlers
-                                $existingIcon.off('click').removeClass('note-icon').addClass(
-                                    'view-note-icon').attr('title', 'View note').html(
-                                    '<i class="fa-solid fa-note-sticky"></i>');
-                                // bind view-note click
-                                $existingIcon.on('click', function(e) {
-                                    e.stopPropagation();
-                                    const sid = $(this).data('shift-id');
-                                    $('#shiftId').val(sid);
-                                    $.get(`/shift-dates/${sid}/note`, function(data) {
-                                        if (data && data.note) {
-                                            const noteText = (typeof data.note ===
-                                                    'object' && data.note.note) ? data
-                                                .note.note : data.note;
-                                            const noteType = data.note_type || (data
-                                                    .note && data.note.note_type) ||
-                                                'guard';
-                                            $('#viewNoteText').text(noteText).show();
-                                            $('#viewNoteType').text(noteType);
-                                            $('#editNoteText').val(noteText);
-                                            $('#editNoteType').val(noteType);
-                                            $('#viewNoteModal').data('orig-note',
-                                                noteText);
-                                            $('#viewNoteModal').data('orig-type',
-                                                noteType);
-                                            if (data.id) $('#deleteNoteBtn').data(
-                                                'note-id', data.id);
-                                            $('#deleteNoteBtn').data('shift-id', sid);
-                                            $('#editNoteArea').hide();
-                                            $('#editNoteBtn').removeClass('d-none');
-                                            $('#saveNoteEditBtn').addClass('d-none');
-                                            $('#cancelEditNoteBtn').addClass('d-none');
-                                            $('#viewNoteModal').modal('show');
-                                        }
-                                    });
-                                });
-                            } else {
-                                // create and append icon, then bind
-                                const $newIcon = $(
-                                    `<span class="view-note-icon" data-shift-id="${shiftId}" title="View note"><i class="fa-solid fa-note-sticky"></i></span>`
-                                );
-                                const $actions = $bar.find('.bar-actions').first();
-                                if ($actions.length) $actions.prepend($newIcon);
-                                else $bar.find('.time-text').first().append($('<div class="bar-actions"></div>').append($newIcon));
-                                $newIcon.on('click', function(e) {
-                                    e.stopPropagation();
-                                    const sid = $(this).data('shift-id');
-                                    $('#shiftId').val(sid);
-                                    $.get(`/shift-dates/${sid}/note`, function(data) {
-                                        if (data && data.note) {
-                                            const noteText = (typeof data.note ===
-                                                    'object' && data.note.note) ? data
-                                                .note.note : data.note;
-                                            const noteType = data.note_type || (data
-                                                    .note && data.note.note_type) ||
-                                                'guard';
-                                            $('#viewNoteText').text(noteText).show();
-                                            $('#viewNoteType').text(noteType);
-                                            $('#editNoteText').val(noteText);
-                                            $('#editNoteType').val(noteType);
-                                            $('#viewNoteModal').data('orig-note',
-                                                noteText);
-                                            $('#viewNoteModal').data('orig-type',
-                                                noteType);
-                                            if (data.id) $('#deleteNoteBtn').data(
-                                                'note-id', data.id);
-                                            $('#deleteNoteBtn').data('shift-id', sid);
-                                            $('#editNoteArea').hide();
-                                            $('#editNoteBtn').removeClass('d-none');
-                                            $('#saveNoteEditBtn').addClass('d-none');
-                                            $('#cancelEditNoteBtn').addClass('d-none');
-                                            $('#viewNoteModal').modal('show');
-                                        }
-                                    });
-                                });
-                            }
-                        }
-                    } catch (e) {
-                        console.debug('bar icon update failed', e);
-                    }
-                    // Force reload of shifts so the Gantt chart re-renders with authoritative data
                     if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
                         try {
                             window.loadAllShiftsData();
                         } catch (e) {
                             console.debug('window.loadAllShiftsData failed', e);
                         }
-                    } else {
-                        console.debug('window.loadAllShiftsData not available yet');
                     }
-                    console.log("Saved note:", res);
                 },
                 error: function(xhr) {
                     console.error(xhr.responseText);
@@ -3890,58 +3862,7 @@
             });
         })();
 
-        // Click delete button (from view modal)
-        $(document).on('click', '#deleteNoteBtn', function() {
-            // prefer shift-date id, fall back to stored note-id if that's being used
-            const shiftId = $(this).data('shift-id') || $(this).data('note-id') || $('#shiftId').val();
-            $('#confirmDeleteBtn').data('shift-id', shiftId);
-            $('#viewNoteModal').modal('hide');
-            $('#confirmDeleteModal').modal('show');
-        });
-
-        $(document).on('click', '#confirmDeleteBtn', function() {
-            const shiftId = $(this).data('shift-id') || $(this).data('note-id') || $('#shiftId').val();
-            if (!shiftId) return;
-
-            $.ajax({
-                url: `/shift-dates/${shiftId}/note`, // route expects shift_date id
-                type: 'DELETE',
-                data: {
-                    _token: $('meta[name="csrf-token"]').attr('content')
-                },
-                success: function() {
-                    $('#confirmDeleteModal').modal('hide');
-                    showToast(
-                        'Note deleted!', // message
-                        'success', // type
-                        5000 // duration in ms
-                    );
-                    // update any view-note-icons for this shift-date id
-                    // Update only the affected bar so we don't reload the whole chart
-                    console.debug('Note delete success for shiftId=', shiftId);
-                    if (typeof refreshShiftBar === 'function') refreshShiftBar(shiftId, null);
-                    // Force reload to ensure UI updates (safe, avoids full page refresh)
-                    if (window.loadAllShiftsData && typeof window.loadAllShiftsData === 'function') {
-                        try {
-                            window.loadAllShiftsData();
-                        } catch (e) {
-                            console.debug('window.loadAllShiftsData failed', e);
-                        }
-                    } else {
-                        console.debug('window.loadAllShiftsData not available yet');
-                    }
-                },
-                error: function(xhr) {
-                    $('#confirmDeleteModal').modal('hide');
-                    showToast(
-                        'Error deleting note!', // message
-                        'error', // type
-                        5000 // duration in ms
-                    );
-                    console.error(xhr.responseText);
-                }
-            });
-        });
+        // (Note delete is handled per-note by .note-delete-btn in the thread view.)
 
         /**
          * Refresh a single shift bar in the Gantt chart.
@@ -3964,32 +3885,11 @@
                         if (noteIcon.length) {
                             noteIcon.off('click').removeClass('note-icon').addClass('view-note-icon').attr(
                                 'title', 'View note').html('<i class="fa-solid fa-note-sticky"></i>');
-                            // bind view-note click
+                            // bind view-note click -> open the notes thread
                             noteIcon.on('click', function(e) {
                                 e.stopPropagation();
                                 const sid = $(this).data('shift-id');
-                                $('#shiftId').val(sid);
-                                $.get(`/shift-dates/${sid}/note`, function(data) {
-                                    if (data && data.note) {
-                                        const noteText = (typeof data.note === 'object' && data.note.note) ?
-                                            data.note.note : data.note;
-                                        const noteType = data.note_type || (data.note && data.note
-                                            .note_type) || 'guard';
-                                        $('#viewNoteText').text(noteText).show();
-                                        $('#viewNoteType').text(noteType);
-                                        $('#editNoteText').val(noteText);
-                                        $('#editNoteType').val(noteType);
-                                        $('#viewNoteModal').data('orig-note', noteText);
-                                        $('#viewNoteModal').data('orig-type', noteType);
-                                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
-                                        $('#deleteNoteBtn').data('shift-id', sid);
-                                        $('#editNoteArea').hide();
-                                        $('#editNoteBtn').removeClass('d-none');
-                                        $('#saveNoteEditBtn').addClass('d-none');
-                                        $('#cancelEditNoteBtn').addClass('d-none');
-                                        $('#viewNoteModal').modal('show');
-                                    }
-                                });
+                                if (typeof window.openNotesThread === 'function') window.openNotesThread(sid);
                             });
                         }
                         // also set bar-level data attribute if note id present
@@ -4151,28 +4051,7 @@
                                     $('#noteText').val('');
                                     $('#noteModal').modal('show');
                                 } else {
-                                    $('#shiftId').val(sid);
-                                    $.get(`/shift-dates/${sid}/note`, function(data) {
-                                        if (data && data.note) {
-                                            const noteText = (typeof data.note === 'object' && data.note
-                                                .note) ? data.note.note : data.note;
-                                            const noteType = data.note_type || (data.note && data.note
-                                                .note_type) || 'guard';
-                                            $('#viewNoteText').text(noteText).show();
-                                            $('#viewNoteType').text(noteType);
-                                            $('#editNoteText').val(noteText);
-                                            $('#editNoteType').val(noteType);
-                                            $('#viewNoteModal').data('orig-note', noteText);
-                                            $('#viewNoteModal').data('orig-type', noteType);
-                                            if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
-                                            $('#deleteNoteBtn').data('shift-id', sid);
-                                            $('#editNoteArea').hide();
-                                            $('#editNoteBtn').removeClass('d-none');
-                                            $('#saveNoteEditBtn').addClass('d-none');
-                                            $('#cancelEditNoteBtn').addClass('d-none');
-                                            $('#viewNoteModal').modal('show');
-                                        }
-                                    });
+                                    if (typeof window.openNotesThread === 'function') window.openNotesThread(sid);
                                 }
                             });
 
@@ -4396,27 +4275,7 @@
             $bar.find('.view-note-icon').on('click', function(e) {
                 e.stopPropagation();
                 const sid = $(this).data('shift-id');
-                $('#shiftId').val(sid);
-                $.get(`/shift-dates/${sid}/note`, function(data) {
-                    if (data && data.note) {
-                        const noteText = (typeof data.note === 'object' && data.note.note) ? data.note
-                            .note : data.note;
-                        const noteType = data.note_type || (data.note && data.note.note_type) || 'guard';
-                        $('#viewNoteText').text(noteText).show();
-                        $('#viewNoteType').text(noteType);
-                        $('#editNoteText').val(noteText);
-                        $('#editNoteType').val(noteType);
-                        $('#viewNoteModal').data('orig-note', noteText);
-                        $('#viewNoteModal').data('orig-type', noteType);
-                        if (data.id) $('#deleteNoteBtn').data('note-id', data.id);
-                        $('#deleteNoteBtn').data('shift-id', sid);
-                        $('#editNoteArea').hide();
-                        $('#editNoteBtn').removeClass('d-none');
-                        $('#saveNoteEditBtn').addClass('d-none');
-                        $('#cancelEditNoteBtn').addClass('d-none');
-                        $('#viewNoteModal').modal('show');
-                    }
-                });
+                if (typeof window.openNotesThread === 'function') window.openNotesThread(sid);
             });
 
             // edit icon: open edit modal and populate

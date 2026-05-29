@@ -136,13 +136,13 @@
                           @can('Read Reports Managment')
                               <li class="submenu">
                                   <a href="javascript:void(0);"
-                                      class="{{ request()->is('documents*') || request()->is('invoices') ? 'subdrop' : '' }}">
+                                      class="{{ request()->is('documents*') || request()->is('invoices') || request()->is('reports/checkcalls-patrols*') ? 'subdrop' : '' }}">
                                       <i class="fa fa-file"></i>
                                       <span>Reports</span>
                                       <span class="menu-arrow"></span>
                                   </a>
 
-                                  <ul style="display: {{ request()->is('documents*') ? 'block' : 'none' }};">
+                                  <ul style="display: {{ request()->is('documents*') || request()->is('reports/checkcalls-patrols*') ? 'block' : 'none' }};">
                                       <li class="{{ request()->is('documents*') ? 'active' : '' }}"><a
                                               href="{{ route('documents.report') }}"><i
                                                   class="fa-solid fa-file-import"></i>Document Report</a>
@@ -193,6 +193,12 @@
                                       <li class="{{ request()->is('reports/checkpoints*') ? 'active' : '' }}">
                                           <a href="{{ route('report.checkpoints') }}">
                                               <i class="ti ti-map-pin"></i> Check Point Report
+                                          </a>
+                                      </li>
+
+                                      <li class="{{ request()->is('reports/checkcalls-patrols*') ? 'active' : '' }}">
+                                          <a href="{{ route('report.checkcalls_patrols') }}">
+                                              <i class="ti ti-checklist"></i> Check Calls &amp; Patrols
                                           </a>
                                       </li>
 

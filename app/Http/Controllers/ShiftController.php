@@ -1590,15 +1590,16 @@ public function getShifts(Request $request)
             'shift_dates.subcontractor_id',
             'shifts.subcontractor_id as parent_subcontractor',
 
-            'shift_notes.note',
-            'shift_notes.note_type',
+            // A shift can hold a thread of notes — expose only the count so the
+            // gantt row isn't duplicated by a join (the icon just needs to know
+            // whether any notes exist). The full thread is fetched on demand.
+            DB::raw('(SELECT COUNT(*) FROM shift_notes WHERE shift_notes.shift_date_id = shift_dates.id) as notes_count'),
         ])
         ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
         ->leftJoin('clients', 'clients.user_id', '=', 'shifts.client_id')
         ->leftJoin('sites', 'sites.id', '=', 'shifts.site_id')
         ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
         // subcontractor resolved via Subcontractor model in PHP (avoid extra joins)
-        ->leftJoin('shift_notes', 'shift_notes.shift_date_id', '=', 'shift_dates.id')
         // Exclude soft-deleted parent shifts (raw JOIN bypasses Eloquent scope)
         ->whereNull('shifts.deleted_at');
 
@@ -1763,8 +1764,11 @@ private function formatGanttData($shiftDates)
             'duration_hours' => $durationHours + ($durationMinutes / 60),
             'start_datetime' => $startDate->format('Y-m-d\TH:i:s'),
             'end_datetime' => $endDate->format('Y-m-d\TH:i:s'),
-            'note' => $sd->note,
-            'note_type' => $sd->note_type,
+            // Icon presence is driven by whether any notes exist for the shift.
+            // `note` kept as a truthy/falsy flag for backward-compatible JS checks.
+            'notes_count' => (int) ($sd->notes_count ?? 0),
+            'has_notes' => ((int) ($sd->notes_count ?? 0)) > 0,
+            'note' => ((int) ($sd->notes_count ?? 0)) > 0 ? true : null,
             // Subcontractor data: prefer joined alias columns -> relation -> parent shift subcontractor
             'subcontractor_id' => $resolvedSubcontractorId,
             'subcontractor_name' => $resolvedSubcontractorName ?: '',
@@ -1895,8 +1899,10 @@ private function formatGanttArray($shiftDates)
             'color_class' => $statusColorMap[$sd->is_assign] ?? 'bg-secondary',
             'status' => $sd->is_assign,
             'is_assigned' => $sd->is_assign != 0,
-            'note' => $sd->note,
-            'note_type' => $sd->note_type,
+            // Icon presence is driven by whether any notes exist for the shift.
+            'notes_count' => (int) ($sd->notes_count ?? 0),
+            'has_notes' => ((int) ($sd->notes_count ?? 0)) > 0,
+            'note' => ((int) ($sd->notes_count ?? 0)) > 0 ? true : null,
             'subcontractor_id' => $resolvedSubcontractorId,
             'subcontractor_name' => $resolvedSubcontractorName,
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
@@ -3627,8 +3633,33 @@ if (!is_null($ownerAdminId)) {
 
     public function showNote($id)
     {
-        $note = ShiftNote::where('shift_date_id', $id)->first();
-        return response()->json($note);
+        // Return the full thread of notes for this shift date (newest first),
+        // each enriched with author name + formatted timestamp for the UI.
+        $notes = ShiftNote::with('user:id,first_name,last_name')
+            ->where('shift_date_id', $id)
+            ->orderBy('created_at', 'desc')
+            ->orderBy('id', 'desc')
+            ->get()
+            ->map(function ($note) {
+                $author = $note->user
+                    ? trim(($note->user->first_name ?? '') . ' ' . ($note->user->last_name ?? ''))
+                    : null;
+
+                return [
+                    'id'         => $note->id,
+                    'note'       => $note->note,
+                    'note_type'  => $note->note_type,
+                    'user_id'    => $note->user_id,
+                    'author'     => $author ?: 'System',
+                    'created_at' => optional($note->created_at)->format('d-m-Y H:i'),
+                ];
+            });
+
+        return response()->json([
+            'shift_date_id' => (int) $id,
+            'count'         => $notes->count(),
+            'notes'         => $notes,
+        ]);
     }
 
     public function storeNote(Request $request, $id)
@@ -3638,18 +3669,36 @@ if (!is_null($ownerAdminId)) {
             'note' => 'required|string',
         ]);
 
-        $note = ShiftNote::updateOrCreate(
-            ['shift_date_id' => $id],
-            [
-                'note_type' => $request->note_type,
-                'note'      => $request->note,
-                'user_id'   => Auth::id(),
-            ]
-        );
+        // Always create a new note so a shift can hold a thread of notes.
+        $note = ShiftNote::create([
+            'shift_date_id' => $id,
+            'note_type'     => $request->note_type,
+            'note'          => $request->note,
+            'user_id'       => Auth::id(),
+        ]);
 
         return response()->json([
             'success' => true,
             'note' => $note
+        ]);
+    }
+
+    public function updateNote(Request $request, $noteId)
+    {
+        $request->validate([
+            'note_type' => 'required|in:guard,control,both',
+            'note' => 'required|string',
+        ]);
+
+        $note = ShiftNote::findOrFail($noteId);
+        $note->update([
+            'note_type' => $request->note_type,
+            'note'      => $request->note,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'note' => $note,
         ]);
     }
 
@@ -3662,17 +3711,25 @@ if (!is_null($ownerAdminId)) {
         return response()->json(['notes' => $notes]);
     }
 
-    public function deleteNote($shiftDateId)
+    public function deleteNote($noteId)
     {
-        // The routes use /shift-dates/{id}/note for GET/POST/DELETE where {id}
-        // refers to the shift_date id. For consistency, delete the ShiftNote
-        // associated with the given shift_date_id.
-        $note = ShiftNote::where('shift_date_id', $shiftDateId)->first();
+        // Delete a single note from the thread by its own id.
+        $note = ShiftNote::find($noteId);
         if ($note) {
+            $shiftDateId = $note->shift_date_id;
             $note->delete();
-            return response()->json(['success' => true]);
+
+            // Report whether the shift still has any notes left so the UI can
+            // decide whether to switch the icon back to "add note".
+            $remaining = ShiftNote::where('shift_date_id', $shiftDateId)->count();
+
+            return response()->json([
+                'success'        => true,
+                'shift_date_id'  => $shiftDateId,
+                'remaining'      => $remaining,
+            ]);
         }
-        return response()->json(['success' => false]);
+        return response()->json(['success' => false], 404);
     }
 
     public function assignWithOverride(Request $request)

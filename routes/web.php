@@ -634,9 +634,11 @@ Route::post('/shifts/store-override', [ShiftController::class, 'storeOverride'])
     ->middleware('auth')
     ->name('shifts.store.override');
 
+// Notes thread: show/store are keyed by shift_date id; update/delete act on a single note id.
 Route::get('/shift-dates/{id}/note', [ShiftController::class, 'showNote'])->name('shift.note.show');
 Route::post('/shift-dates/{id}/note', [ShiftController::class, 'storeNote'])->name('shift.note.store');
-Route::delete('/shift-dates/{id}/note', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
+Route::put('/shift-notes/{noteId}', [ShiftController::class, 'updateNote'])->name('shift.note.update');
+Route::delete('/shift-notes/{noteId}', [ShiftController::class, 'deleteNote'])->name('shift.note.delete');
 // Endpoint for polling recent notes (used for near-real-time updates)
 Route::get('/shift-dates/notes/updates', [ShiftController::class, 'recentNotes'])->name('shift.note.updates');
 
@@ -652,8 +654,9 @@ Route::get('/reports/shifts', [ReportController::class, 'shiftReport'])
 Route::get('/reports/clients', [ReportController::class, 'clientReport'])
     ->name('reports.clients');
 
-Route::get('/reports/checkpoints', [ReportController::class, 'checkpointReport'])->name('report.checkpoints');    
-Route::get('/reports/salary', [ReportController::class, 'salaryReport'])->name('salary.report');    
+Route::get('/reports/checkpoints', [ReportController::class, 'checkpointReport'])->name('report.checkpoints');
+Route::get('/reports/salary', [ReportController::class, 'salaryReport'])->name('salary.report');
+Route::get('/reports/checkcalls-patrols', [ReportController::class, 'checkCallsPatrolsReport'])->name('report.checkcalls_patrols');
 
 Route::get('/reports/clients/export/pdf', [ReportController::class, 'exportClientReportPDF'])->name('client.report.export.pdf');
 Route::get('/reports/clients/export/excel', [ReportController::class, 'exportClientReportExcel'])->name('client.report.export.excel');

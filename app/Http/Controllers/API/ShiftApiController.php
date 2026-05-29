@@ -168,7 +168,12 @@ private function parseUKTimestamp($timestamp)
             }
 
             // Fetch the note for this shift
-            $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first(); // assuming you have a relation: ShiftDate -> note
+            // Latest guard-facing note only (note_type 'guard' or 'both'); control-only notes are hidden from the guard.
+            $note = ShiftNote::where('shift_date_id', $shiftDate->id)
+                ->whereIn('note_type', ['guard', 'both'])
+                ->orderByDesc('created_at')
+                ->orderByDesc('id')
+                ->first();
 
                 // Load trainings from the site (materials belong to site), not the shift
                 $siteTrainings = collect();
@@ -229,7 +234,7 @@ private function parseUKTimestamp($timestamp)
                 'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
                 'category' => $category,
                 'trainings' => $trainings,
-                'note' => (in_array(strtolower(trim((string)($note?->note_type ?? ''))), ['guard', 'both'])) ? [
+                'note' => $note ? [
                     'id'        => $note->id,
                     'note_type' => $note->note_type,
                     'note'      => $note->note,
@@ -2712,7 +2717,12 @@ elseif ($request->hasFile('media_files')) {
             $category = 'upcoming';
         }
 
-        $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
+        // Latest guard-facing note only (note_type 'guard' or 'both'); control-only notes are hidden from the guard.
+        $note = ShiftNote::where('shift_date_id', $shiftDate->id)
+            ->whereIn('note_type', ['guard', 'both'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
 
         // Load trainings from the site (materials belong to site), not the shift
         $siteTrainings = collect();
@@ -2772,7 +2782,7 @@ elseif ($request->hasFile('media_files')) {
             'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
             'category' => $category,
             'trainings' => $trainings,
-            'note' => ($note?->note_type === 'guard') ? [
+            'note' => $note ? [
                 'id' => $note->id,
                 'note_type' => $note->note_type,
                 'note' => $note->note,
@@ -2851,7 +2861,12 @@ elseif ($request->hasFile('media_files')) {
             $category = 'upcoming';
         }
 
-        $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
+        // Latest guard-facing note only (note_type 'guard' or 'both'); control-only notes are hidden from the guard.
+        $note = ShiftNote::where('shift_date_id', $shiftDate->id)
+            ->whereIn('note_type', ['guard', 'both'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
 
         // Load trainings from the site (materials belong to site), not the shift
         $siteTrainings = collect();
@@ -2911,7 +2926,7 @@ elseif ($request->hasFile('media_files')) {
             'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
             'category' => $category,
             'trainings' => $trainings,
-            'note' => ($note?->note_type === 'guard' ?? $note?->note_type === 'both' ) ? [
+            'note' => $note ? [
                 'id' => $note->id,
                 'note_type' => $note->note_type,
                 'note' => $note->note,
@@ -3062,7 +3077,12 @@ public function workHours(Request $request)
                 $category = 'upcoming';
             }
 
-            $note = ShiftNote::where('shift_date_id', $shiftDate->id)->first();
+            // Latest guard-facing note only (note_type 'guard' or 'both'); control-only notes are hidden from the guard.
+        $note = ShiftNote::where('shift_date_id', $shiftDate->id)
+            ->whereIn('note_type', ['guard', 'both'])
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->first();
 
             // Load trainings from the site (materials belong to site), not the shift
             $siteTrainings = collect();
@@ -3124,7 +3144,7 @@ public function workHours(Request $request)
                 'risk_assessment_pdf' => $shift?->risk_assessment_pdf_url,
                 'category' => $category,
                 'trainings' => $trainings,
-                'note' => ($note?->note_type === 'guard') ? [
+                'note' => $note ? [
                     'id'        => $note->id,
                     'note_type' => $note->note_type,
                     'note'      => $note->note,
