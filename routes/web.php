@@ -60,6 +60,7 @@ Route::get('/optimize-server', function () {
     return '<pre>' . e(Artisan::output()) . '</pre>';
 })->middleware('auth');
 
+
 Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
 
 // Site tracking view (public)

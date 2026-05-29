@@ -25,8 +25,10 @@
                 <th>Date</th>
                 <th>Start</th>
                 <th>End</th>
+                <th>Planned Duration</th>
                 <th>Book On</th>
                 <th>Book Off</th>
+                <th>Actual Duration</th>
                 <th>Status</th>
             </tr>
         </thead>
@@ -40,6 +42,7 @@
                     <td>{{ format_date($shiftDate->shift_date) }}</td>
                     <td>{{ $shiftDate->start_time }}</td>
                     <td>{{ $shiftDate->end_time }}</td>
+                    <td>{{ $shiftDate->planned_duration_display ?? '-' }}</td>
                     <td>
                         {{ $shiftDate->absentee_start_time ?? '-' }}
                         @if($shiftDate->book_on_late_minutes > 0)
@@ -52,10 +55,11 @@
                             <br><span style="color:#c00; font-size:0.85em;">{{ $shiftDate->book_off_early_minutes }} mins early</span>
                         @endif
                     </td>
+                    <td>{{ $shiftDate->actual_duration_display ?? '-' }}</td>
                     <td>{!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}</td>
                 </tr>
             @empty
-                <tr><td colspan="10" style="text-align:center;">No records found</td></tr>
+                <tr><td colspan="12" style="text-align:center;">No records found</td></tr>
             @endforelse
         </tbody>
     </table>

@@ -2,43 +2,41 @@
 
 namespace App\Http\Controllers;
 
-use App\DataTables\ShiftsDataTable;
-use App\Exports\PatrolsExport;
-use App\Helpers\Logger;
-use App\Models\CheckCall;
-use App\Models\CheckpointScan;
+use Notify;
+use Carbon\Carbon;
+use App\Models\Site;
+use App\Models\User;
+use App\Models\Shift;
 use App\Models\Client;
+use App\Models\Patrol;
+use App\Helpers\Logger;
 use App\Models\Employee;
 use App\Models\EmployeeBan;
+use App\Models\Location;
+use Carbon\CarbonPeriod;
+use App\Models\CheckCall;
+use App\Models\ShiftDate;
+use App\Models\ShiftNote;
+use App\Models\PatrolMedia;
 use App\Models\EmployeeTerm;
 use App\Models\EmployeeType;
 use App\Models\LeaveRequest;
-use App\Models\Location;
 use App\Models\Notification;
-use App\Models\Patrol;
-use App\Models\PatrolCheckPoint;
-use App\Models\PatrolMedia;
-use App\Models\Shift;
 use App\Models\ShiftBooking;
-use App\Models\ShiftDate;
-use App\Models\ShiftNote;
-use App\Models\Site;
-use App\Models\SiteStaffRate;
-use App\Models\Subcontractor;
-use App\Models\User;
-use App\Services\GeoService;
-use App\Traits\BelongsToAdmin;
-use Barryvdh\DomPDF\Facade\Pdf as PDF;
-use Carbon\Carbon;
-use Carbon\CarbonPeriod;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Cache;
+use App\Models\Subcontractor;
+use App\Models\SiteStaffRate;
+use App\Exports\PatrolsExport;
+use App\Models\CheckpointScan;
+use App\Models\PatrolCheckPoint;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+use App\DataTables\ShiftsDataTable;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\Auth;
 use Maatwebsite\Excel\Facades\Excel;
-use Notify;
+use Barryvdh\DomPDF\Facade\Pdf as PDF;
+use Illuminate\Support\Facades\Validator;
 
 class ShiftController extends Controller
 {
@@ -72,16 +70,13 @@ class ShiftController extends Controller
      */
     protected function getSubcontractors()
     {
-        $cacheSuffix = BelongsToAdmin::cacheSuffix();
-
-        // 1 hour TTL — role-based user queries are expensive (large JOIN against
-        // model_has_roles); long cache + explicit invalidation keeps requests fast.
-        return Cache::remember("subcontractors_min_list_{$cacheSuffix}", 3600, function () {
+        return Cache::remember('subcontractors_min_list', 300, function () {
             return User::role('subcontractor')
                 ->orderBy('first_name', 'asc')
                 ->get(['id', 'first_name', 'last_name', 'email']);
         });
     }
+
     protected function resolveSubcontractorUserId($subcontractorId): ?int
     {
         if (empty($subcontractorId)) {
@@ -115,48 +110,6 @@ class ShiftController extends Controller
         return Subcontractor::with('user')->where('user_id', $storedValue)->first();
     }
 
-
-    public function bulkUnassign(Request $request)
-    {
-
-        foreach ($request->shift_ids as $id) {
-            $shiftDate = ShiftDate::findOrFail($id);
-
-        send_push_notification(
-            $shiftDate->staff->id,
-            'Shift Unassigned',
-            'An admin unassigned a shift for you, check your schedule.',
-            ['type' => 'shift', 'shiftId' => $shiftDate->id],
-        );
-
-        ShiftBooking::where('shift_id', $shiftDate->id)->delete();
-
-
-        $bookings = $shiftDate->bookings;
-        foreach ($bookings as $booking) {
-            $booking->delete();
-        }
-
-        $shiftDate->staff_id = null; // Remove assigned staff
-        $shiftDate->is_assign=0;
-        $shiftDate->status="pending";
-
-
-        $shiftDate->save();
-
-        try { $this->rescheduleShiftEvents($shiftDate); } catch (\Throwable $_) {}
-
-        $checkcalls = $shiftDate->checkCalls;
-        foreach ($checkcalls as $checkcall) {
-            if($checkcall->status !=='completed'){
-                $checkcall->employee_id = null;
-                $checkcall->save();
-            }
-        }
-
-        }
-        return response()->json(['success' => true]);
-    }
 
     public function unassign(Request $request, $id)
     {
@@ -263,47 +216,31 @@ class ShiftController extends Controller
         $services = EmployeeType::select(['id', 'name'])->get();
         return $dataTable->render('security_boards.shifts', compact('clients', 'sites', 'staffs', 'subcontractors', 'services'));
     }
-public function scheduling()
-{
-    $cacheSuffix = BelongsToAdmin::cacheSuffix();
-
-    $clients = Cache::remember("clients_min_list_{$cacheSuffix}", 300, function () {
-        return User::role('client')
-            ->select(['id', 'first_name', 'last_name', 'email'])
-            ->orderBy('first_name')
-            ->get();
-    });
-
-    $sites = Cache::remember("sites_min_list_{$cacheSuffix}", 300, function () {
-        return Site::select(['id', 'site_name', 'client_id'])
-            ->orderBy('site_name')
-            ->get();
-    });
-
-    $staffs = Cache::remember("security_staff_min_list_{$cacheSuffix}", 300, function () {
-        return User::role('security_staff')
-            ->select(['id', 'first_name', 'last_name', 'email'])
-            ->orderBy('first_name')
-            ->get();
-    });
-
-    $subcontractors = $this->getSubcontractors();
-
-    $services = Cache::remember('employee_types_min_list', 300, function () {
-        return EmployeeType::select(['id', 'name'])
-            ->orderBy('name')
-            ->get();
-    });
-
-    return view('security_boards.scheduling', compact(
-        'sites',
-        'staffs',
-        'clients',
-        'services',
-        'subcontractors'
-    ));
-}
-
+    public function scheduling()
+    {
+        // Load only the columns consumed by dropdown selects and count badges —
+        // prevents hydrating large text/blob columns for every user/site.
+        $clients = Cache::remember('clients_min_list', 300, function () {
+            return User::role('client')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')
+                ->get();
+        });
+        $sites = Cache::remember('sites_min_list', 300, function () {
+            return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
+        });
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+            return User::role('security_staff')
+                ->select(['id', 'first_name', 'last_name', 'email'])
+                ->orderBy('first_name')
+                ->get();
+        });
+        $subcontractors = $this->getSubcontractors();
+        $services = Cache::remember('employee_types_min_list', 300, function () {
+            return EmployeeType::select(['id', 'name'])->orderBy('name')->get();
+        });
+        return view('security_boards.scheduling', compact('sites', 'staffs', 'clients', 'services', 'subcontractors'));
+    }
     public function worker_calendar()
     {
         $clients = Cache::remember('clients_min_list', 300, function () {
@@ -690,8 +627,7 @@ public function scheduling()
             $serviceType2 = DB::table('employee_types')->where('id', $request->service_type_2[$i])->first();
             $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
 
-            $site = Site::with('siteHolidayRates')->find($request->site_id[$i]);
-
+            $site = Site::find($request->site_id[$i]);
             // Determine parent site_rate: prefer explicit non-empty request value,
             // otherwise fall back to site-level office_rate -> site.guard_rate -> 0
             if (isset($request->site_rate[$i]) && $request->site_rate[$i] !== '') {
@@ -701,10 +637,6 @@ public function scheduling()
             } else {
                 $computedSiteRate = 0;
             }
-
-            $computedEmployeeRate = isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== ''
-                ? (float) $request->employee_rate[$i]
-                : null;
 
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
@@ -720,7 +652,7 @@ public function scheduling()
                 'restrict_location_check' => $data['restrict_location_check'],
 
                 'site_rate'        =>  $computedSiteRate,
-                'employee_rate'    => $computedEmployeeRate,
+                'employee_rate'    => isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== '' ? (float) $request->employee_rate[$i] : null,
             ]);
 
             $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
@@ -769,43 +701,16 @@ public function scheduling()
 
                     $lastCreated = null;
                     for ($q = 0; $q < $quantity; $q++) {
-                        $currentSiteRate = $computedSiteRate; // Start with the base site rate
-                        // Pay rate priority: form value (employee_rate) -> site.guard_rate -> 0.
-                        // Treat empty string as "not provided" so a blank form field still
-                        // falls through to the site's configured guard rate.
-                        $formEmployeeRate = $request->employee_rate[$i] ?? null;
-                        if ($formEmployeeRate === '' || $formEmployeeRate === null) {
-                            $currentGuardRate = $site?->guard_rate ?? 0;
-                        } else {
-                            $currentGuardRate = (float) $formEmployeeRate;
-                        }
-
-                        // Check for holiday rates
-                        if ($site && $site->siteHolidayRates && $site->siteHolidayRates->isNotEmpty()) {
-                            $holidayRate = $site->siteHolidayRates->first(function ($r) use ($date) {
-                                $holidayDate = $r->holiday_date;
-                                if ($holidayDate instanceof \Carbon\Carbon) {
-                                    return $holidayDate->format('Y-m-d') === $date->format('Y-m-d');
-                                }
-                                return $holidayDate == $date->format('Y-m-d');
-                            });
-                            if ($holidayRate) {
-                                $currentSiteRate = $holidayRate->site_rate ?? $currentSiteRate;
-                                $currentGuardRate = $holidayRate->guard_rate ?? $currentGuardRate;
-                            }
-                        }
-
                         // Resolve guard rate, preferring site-specific staff override when present
+                        $resolvedGuardRate = $request->employee_rate[$i] ?? $request->site_rate[$i] ?? 0;
                         if (!empty($shift->staff_id) && !empty($shift->site_id)) {
                             $siteOverride = SiteStaffRate::where('site_id', $shift->site_id)
                                 ->where('user_id', $shift->staff_id)
                                 ->value('guard_rate');
                             if (!is_null($siteOverride)) {
-                                $currentGuardRate = $siteOverride;
+                                $resolvedGuardRate = $siteOverride;
                             }
                         }
-
-                        $isPastDate = Carbon::parse($date->format('Y-m-d'))->lt(Carbon::today());
 
                         $shiftDate = ShiftDate::create([
                             'shift_id'    => $shift->id,
@@ -814,15 +719,13 @@ public function scheduling()
                             'start_time'  => $request->start_shift[$i],
                             'end_time'    => $request->end_shift[$i],
                             'subcontractor_id'    => $shift->subcontractor_id ?? null,
-                            'is_assign'   => $isPastDate ? 4 : (!empty($shift->staff_id) ? 1 : 0),
-                            'status'      => $isPastDate ? 'booked_off' : (!empty($shift->staff_id) ? 'pending' : null),
+                            'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
                             'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
                             'total_hours' => $this->calculateTotalHours(
                                 $request->start_shift[$i],
                                 $request->end_shift[$i]
                             ),
-                            'guard_rate'  => $currentGuardRate,
-                            'site_rate'   => $currentSiteRate,
+                            'guard_rate'  => $resolvedGuardRate,
                             'require_media' => !empty($request->require_media_upload[$i]) ? 1 : 0,
                         ]);
 
@@ -1343,26 +1246,17 @@ public function scheduling()
         }
         $shiftDate->forceDelete();
 
-        // Preserve filters from the originating page (Scheduling or Shifts list).
-        // The shift-detail view forwards the opener's path+query as `from` so we can
-        // redirect back to the exact filtered view the user came from.
-        $from = (string) request('from', '');
-        $redirectTarget = '/scheduling';
-        if ($from !== '' && preg_match('#^/(scheduling|shifts)(?:[/?].*)?$#', $from) === 1) {
-            $redirectTarget = $from;
-        }
-
         // If the request expects JSON (AJAX), return JSON response.
         if (request()->ajax() || request()->wantsJson()) {
             return response()->json([
                 'success' => true,
                 'message' => 'Shift deleted successfully',
-                'redirect' => url($redirectTarget),
+                'redirect' => url('/scheduling'),
             ]);
         }
 
-        // Non-AJAX: redirect back to the originating page (preserving its filters)
-        return redirect($redirectTarget);
+        // Non-AJAX: redirect back to scheduling page
+        return redirect('/scheduling');
     }
 
     public function bulkDelete(Request $request)
@@ -1546,21 +1440,7 @@ public function getShifts(Request $request)
     // These web-internal endpoints are at /api/* so BelongsToAdmin scope is bypassed.
     // Apply it manually here.
     $authUser = Auth::user();
-
-    $ownerAdminId = null;
-
-    if ($authUser) {
-        if ($authUser->hasRole('admin')) {
-            $ownerAdminId = (int) $authUser->id;
-        } elseif (
-            !$authUser->hasRole('superadmin') &&
-            !$authUser->hasRole('security_staff') &&
-            !is_null($authUser->admin_id)
-        ) {
-            // Normal user belonging to an admin
-            $ownerAdminId = (int) $authUser->admin_id;
-        }
-    }
+    $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
 
     $query = \App\Models\ShiftDate::query()
         ->select([
@@ -1647,18 +1527,15 @@ public function getShifts(Request $request)
     $query->whereBetween('shift_dates.shift_date', [$from->format('Y-m-d'), $to->format('Y-m-d')]);
 
     // Admin scoping (scope bypassed because URL starts with /api/)
-    if (!is_null($ownerAdminId)) {
-        $query->where('shift_dates.admin_id', $ownerAdminId);
+    if ($adminId !== null) {
+        $query->where('shift_dates.admin_id', $adminId);
     } else {
-        // Superadmin/system-level access
         $query->whereNull('shift_dates.admin_id');
     }
 
     // short cache to reduce repeated load. Increase default TTL to reduce CPU spikes
     // and allow DB to use an index for ordered scans.
-    // Cache key MUST include the admin scope — otherwise a system-level user populates
-    // the cache and an admin loading the same view gets the system rota until TTL expires.
-    $cacheKey = 'gantt_v2:' . ShiftDate::cacheSuffix() . ':' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
+    $cacheKey = 'gantt_v2:' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
     if ($cached = Cache::get($cacheKey)) {
         return response()->json(['data' => $cached]);
     }
@@ -1911,7 +1788,8 @@ private function formatGanttArray($shiftDates)
 public function getShiftsWithStaff()
 {
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
-    $ownerAdminId = ShiftDate::resolveOwnerAdminId();
+    $authUser = Auth::user();
+    $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
 
     $startDefault = now()->subMonths(2)->startOfDay();
     $endDefault   = now()->addMonths(1)->endOfDay();
@@ -1929,11 +1807,7 @@ public function getShiftsWithStaff()
     ];
 
     // Short cache to avoid hammering the DB on rapid calendar navigations.
-$cacheKey = 'shifts_with_staff:' .
-    ShiftDate::cacheSuffix() . ':' .
-    $startDefault->format('Y-m-d') . ':' .
-    $endDefault->format('Y-m-d');
-    
+    $cacheKey = 'shifts_with_staff:' . ($adminId ?? 'null') . ':' . $startDefault->format('Y-m-d') . ':' . $endDefault->format('Y-m-d');
     if ($cached = Cache::get($cacheKey)) {
         return response()->json($cached);
     }
@@ -1962,8 +1836,8 @@ $cacheKey = 'shifts_with_staff:' .
         ->orderBy('shift_dates.shift_date', 'asc');
 
     // Admin scoping
-    if (!is_null($ownerAdminId)) {
-        $shiftDates->where('shift_dates.admin_id', $ownerAdminId);
+    if ($adminId !== null) {
+        $shiftDates->where('shift_dates.admin_id', $adminId);
     } else {
         $shiftDates->whereNull('shift_dates.admin_id');
     }
@@ -2034,8 +1908,7 @@ public function getShiftsBySite()
     $user = Auth::user();
 
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
-    $ownerAdminId = ShiftDate::resolveOwnerAdminId();
-
+    $adminId = ($user && $user->hasRole('admin')) ? $user->id : null;
 
     $startDefault = now()->subMonths(2)->startOfDay();
     $endDefault   = now()->addMonths(1)->endOfDay();
@@ -2054,12 +1927,7 @@ public function getShiftsBySite()
 
     // Short cache — scope by admin + client role so different users get correct data.
     $clientScopeId = ($user && method_exists($user, 'hasRole') && $user->hasRole('client')) ? $user->id : 'all';
-$cacheKey = 'shifts_by_site:' .
-    ShiftDate::cacheSuffix() . ':' .
-    $clientScopeId . ':' .
-    $startDefault->format('Y-m-d') . ':' .
-    $endDefault->format('Y-m-d');
-    
+    $cacheKey = 'shifts_by_site:' . ($adminId ?? 'null') . ':' . $clientScopeId . ':' . $startDefault->format('Y-m-d') . ':' . $endDefault->format('Y-m-d');
     if ($cached = Cache::get($cacheKey)) {
         return response()->json($cached);
     }
@@ -2083,8 +1951,8 @@ $cacheKey = 'shifts_by_site:' .
         ->orderBy('shift_dates.shift_date', 'asc');
 
     // Admin scoping
-    if (!is_null($ownerAdminId)) {
-        $query->where('shift_dates.admin_id', $ownerAdminId);
+    if ($adminId !== null) {
+        $query->where('shift_dates.admin_id', $adminId);
     } else {
         $query->whereNull('shift_dates.admin_id');
     }
@@ -2152,7 +2020,8 @@ $cacheKey = 'shifts_by_site:' .
 public function getTodayShifts()
 {
     // Web-internal endpoint at /api/* — BelongsToAdmin scope bypassed, apply manually.
-    $ownerAdminId = ShiftDate::resolveOwnerAdminId();
+    $authUser = Auth::user();
+    $adminId = ($authUser && $authUser->hasRole('admin')) ? $authUser->id : null;
 
     $today     = now()->toDateString(); // Y-m-d
     $todayDay  = now()->format('D');    // Mon, Tue...
@@ -2191,12 +2060,12 @@ public function getTodayShifts()
         ->leftJoin('users', 'users.id', '=', 'shift_dates.staff_id')
         ->whereDate('shift_dates.shift_date', $today);
 
-// Admin scoping
-if (!is_null($ownerAdminId)) {
-    $rows->where('shift_dates.admin_id', $ownerAdminId);
-} else {
-    $rows->whereNull('shift_dates.admin_id');
-}
+    // Admin scoping
+    if ($adminId !== null) {
+        $rows->where('shift_dates.admin_id', $adminId);
+    } else {
+        $rows->whereNull('shift_dates.admin_id');
+    }
 
     $rows = $rows->get();
 
@@ -3030,52 +2899,32 @@ if (!is_null($ownerAdminId)) {
 
     public function view(ShiftDate $shiftDate)
     {
-        // Single eager-load pass — eliminates all blade-level queries and N+1 issues.
-        // patrols.scans.media added so the blade no longer issues 1 query per scan.
+        // Keep initial load focused on first-screen data only.
         $shiftDate->load([
             'staff',
             'shift.client',
             'shift.site',
-            'logs',
-            'checkCalls',
-            'patrols.media',
-            'patrols.scans.media',
         ]);
 
         $subcontractors = $this->getSubcontractors();
 
-        // Security staff list (needed for assign-shift-modal) — cached 1 hour.
-        // Was 5 min; on DB-backed cache the miss cost ~860ms (role join scan), so
-        // we make this a long-lived cache and invalidate explicitly when staff change.
-        $staffs = Cache::remember('security_staff_min_list', 3600, function () {
+        // Security staff list (needed for assign-shift-modal) — cached 5 min.
+        $staffs = Cache::remember('security_staff_min_list', 300, function () {
             return \App\Models\User::role('security_staff')
                 ->orderBy('first_name')
                 ->get(['id', 'first_name', 'last_name']);
         });
 
-        // Fetch first AND last GPS points in a single round-trip.
-        // Previously two separate ORDER BY queries — now one MIN/MAX-style pull.
-        // (Requires locations_shiftdate_timestamp_idx for fast plan; see migrations.)
-        $bounds = \Illuminate\Support\Facades\DB::table('locations')
+        // Fetch only first/last GPS points (avoid hydrating full location history in this request).
+        $firstLocation = Location::query()
             ->where('shiftdate_id', $shiftDate->id)
-            ->selectRaw('MIN(`timestamp`) AS first_ts, MAX(`timestamp`) AS last_ts')
-            ->first();
+            ->orderBy('timestamp', 'asc')
+            ->first(['latitude', 'longitude', 'timestamp']);
 
-        $firstLocation = null;
-        $lastLocation = null;
-        if ($bounds && $bounds->first_ts) {
-            $firstLocation = Location::query()
-                ->where('shiftdate_id', $shiftDate->id)
-                ->where('timestamp', $bounds->first_ts)
-                ->first(['latitude', 'longitude', 'timestamp']);
-
-            $lastLocation = ($bounds->last_ts && $bounds->last_ts !== $bounds->first_ts)
-                ? Location::query()
-                    ->where('shiftdate_id', $shiftDate->id)
-                    ->where('timestamp', $bounds->last_ts)
-                    ->first(['latitude', 'longitude', 'timestamp'])
-                : $firstLocation;
-        }
+        $lastLocation = Location::query()
+            ->where('shiftdate_id', $shiftDate->id)
+            ->orderBy('timestamp', 'desc')
+            ->first(['latitude', 'longitude', 'timestamp']);
 
         // Client user record.
         $client = $shiftDate->shift?->client ?? null;
@@ -3085,33 +2934,13 @@ if (!is_null($ownerAdminId)) {
             ? \App\Models\Employee::where('user_id', $shiftDate->staff_id)->first()
             : null;
 
-        // Patrols & checkpoint data for patrols tab.
-        $patrols = $shiftDate->patrols->sortBy('start_time');
-
+        // Patrol checkpoints are lightweight and needed by map rendering logic.
         $site = $shiftDate->shift?->site ?? null;
         $checkpoints = collect();
         if ($site) {
             $checkpoints = \App\Models\PatrolCheckPoint::where('site_id', $site->id)
                 ->get(['id', 'name', 'latitude', 'longitude']);
         }
-
-        // Check calls (already loaded via relation — just alias for clarity in blade).
-        $checkcalls = $shiftDate->checkCalls->sortBy('scheduled_time');
-
-        // Pre-load check call related users + media in controller (previously done inline in the blade).
-        $checkCallEmployeeIds = $checkcalls->pluck('employee_id')->filter()->unique()->values();
-        $checkCallUsersById = $checkCallEmployeeIds->isNotEmpty()
-            ? \App\Models\User::whereIn('id', $checkCallEmployeeIds)
-                ->get(['id', 'first_name', 'last_name'])
-                ->keyBy('id')
-            : collect();
-
-        $checkCallIds = $checkcalls->pluck('id');
-        $checkCallMediaByCallId = $checkCallIds->isNotEmpty()
-            ? \App\Models\CheckCallMedia::whereIn('check_call_id', $checkCallIds)
-                ->get(['id', 'check_call_id', 'file_path'])
-                ->groupBy('check_call_id')
-            : collect();
 
         // Load booking media once in controller (avoid DB queries inside blade).
         $bookingMedia = \App\Models\BookingMedia::query()
@@ -3122,48 +2951,45 @@ if (!is_null($ownerAdminId)) {
         $bookOnMedia = $bookingMedia->where('type', 'book_on')->values();
         $bookOffMedia = $bookingMedia->where('type', 'book_off')->values();
 
-        // Resolve site coords server-side so the tracking map always pins the
-        // correct location (frontend geocoding is unreliable for plus codes
-        // embedded in address strings). plus_code > address > postcode order.
-        // GeoService caches results for 24h so this is effectively free after
-        // the first call per site.
+        // Avoid blocking request on server-side geocoding; frontend map does async fallback.
         $siteLat = null;
         $siteLng = null;
-        try {
-            $site = $shiftDate->shift?->site;
-            if ($site) {
-                $coords = app(GeoService::class)->getCoordinatesFromAddress(
-                    $site->address,
-                    $site->post_code ?: null,
-                    $site->plus_code ?: null
-                );
-                if ($coords && isset($coords['lat'], $coords['lng'])) {
-                    $siteLat = $coords['lat'];
-                    $siteLng = $coords['lng'];
-                }
-            }
-        } catch (\Exception $e) {
-            Log::warning('ShiftController shift-detail geocode failed: ' . $e->getMessage(), [
-                'shift_date_id' => $shiftDate->id ?? null,
-            ]);
-        }
-
-        // Resolve superadmin flag once (avoids hitting roles/permissions tables from blade).
-        $isSuperAdmin = false;
-        if ($user = auth()->user()) {
-            $cacheKey = "user_is_superadmin_{$user->id}";
-            $isSuperAdmin = (bool) Cache::remember($cacheKey, 300, function () use ($user) {
-                return $user->hasRole('superadmin');
-            });
-        }
 
         return view('security_boards.shift-detail', compact(
             'shiftDate', 'subcontractors', 'siteLat', 'siteLng',
             'staffs', 'firstLocation', 'lastLocation',
-            'client', 'employee', 'patrols', 'checkpoints', 'checkcalls',
-            'checkCallUsersById', 'checkCallMediaByCallId',
-            'bookOnMedia', 'bookOffMedia', 'isSuperAdmin'
+            'client', 'employee', 'checkpoints',
+            'bookOnMedia', 'bookOffMedia'
         ));
+    }
+
+    public function tabLogs(ShiftDate $shiftDate)
+    {
+        $shiftDate->load('logs');
+
+        return view('security_boards.tabs.logs-content', compact('shiftDate'));
+    }
+
+    public function tabCheckcalls(ShiftDate $shiftDate)
+    {
+        $checkcalls = CheckCall::query()
+            ->where('shift_id', $shiftDate->id)
+            ->orderBy('scheduled_time', 'asc')
+            ->get();
+
+        return view('security_boards.tabs.checkcalls-content', compact('checkcalls'));
+    }
+
+    public function tabPatrols(ShiftDate $shiftDate)
+    {
+        $shiftDate->load([
+            'patrols.media',
+            'patrols.scans.media',
+        ]);
+
+        $patrols = $shiftDate->patrols->sortBy('start_time');
+
+        return view('security_boards.tabs.patrols-content', compact('shiftDate', 'patrols'));
     }
 
     public function patrolUpdate(Request $request, $id)
@@ -4010,18 +3836,7 @@ if (!is_null($ownerAdminId)) {
             $resolvedSubcontractorUserId = $this->resolveSubcontractorUserId($request->subcontractor_id[$i] ?? null);
             
             // Create main Shift
-            $site = Site::with('siteHolidayRates')->find($request->site_id[$i]);
-
-            $dayString = $request->days[$i] ?? 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
-            $selectedDays = array_map('trim', explode(',', $dayString));
-            $selectedDays = array_map(function ($day) {
-                return ucfirst(substr($day, 0, 3));
-            }, $selectedDays);
-
-            $fromDate = Carbon::parse($request->from_shift[$i]);
-            $toDate   = Carbon::parse($request->to_shift[$i]);
-            $period   = CarbonPeriod::create($fromDate, $toDate);
-
+            $site = Site::find($request->site_id[$i]);
             // Determine parent site_rate: prefer explicit non-empty request value,
             // otherwise fall back to site-level office_rate -> site.guard_rate -> 0
             if (isset($request->site_rate[$i]) && $request->site_rate[$i] !== '') {
@@ -4031,10 +3846,6 @@ if (!is_null($ownerAdminId)) {
             } else {
                 $computedSiteRate = 0;
             }
-
-            $computedEmployeeRate = isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== ''
-                ? (float) $request->employee_rate[$i]
-                : null;
 
             $shift = Shift::create([
                 'client_id'   => $request->client_id[$i],
@@ -4049,7 +3860,7 @@ if (!is_null($ownerAdminId)) {
                 'enforce_picture_check' => $data['enforce_picture_check'],
                 'restrict_location_check' => $data['restrict_location_check'],
                 'site_rate'    => $computedSiteRate,
-                'employee_rate' => $computedEmployeeRate,
+                'employee_rate' => isset($request->employee_rate[$i]) && $request->employee_rate[$i] !== '' ? (float) $request->employee_rate[$i] : null,
             ]);
 
             // Expand to ShiftDates
@@ -4065,57 +3876,31 @@ if (!is_null($ownerAdminId)) {
             foreach ($period as $date) {
                 if (!in_array($date->format('D'), $selectedDays)) continue;
 
-                $currentSiteRate = $computedSiteRate;
-                // Treat empty string as "not provided" so a blank form field falls through
-                // to the site's configured guard rate instead of being written as "".
-                $formGuardRate = $request->guard_rate[$i] ?? null;
-                if ($formGuardRate === '' || $formGuardRate === null) {
-                    $currentGuardRate = $shift->site?->guard_rate ?? 0;
-                } else {
-                    $currentGuardRate = (float) $formGuardRate;
-                }
-
-                if ($site && $site->siteHolidayRates && $site->siteHolidayRates->isNotEmpty()) {
-                    $holidayRate = $site->siteHolidayRates->first(function ($r) use ($date) {
-                        $holidayDate = $r->holiday_date;
-                        if ($holidayDate instanceof \Carbon\Carbon) {
-                            return $holidayDate->format('Y-m-d') === $date->format('Y-m-d');
-                        }
-                        return $holidayDate == $date->format('Y-m-d');
-                    });
-
-                    if ($holidayRate) {
-                        $currentSiteRate = $holidayRate->site_rate ?? $currentSiteRate;
-                        $currentGuardRate = $holidayRate->guard_rate ?? $currentGuardRate;
-                    }
-                }
-
+                // resolve guard rate, prefer site-specific staff override
+                $resolvedGuardRate = $request->guard_rate[$i] ?? $shift->site?->guard_rate ?? 0;
                 if (!empty($shift->staff_id) && !empty($shift->site_id)) {
                     $siteOverride = SiteStaffRate::where('site_id', $shift->site_id)
                         ->where('user_id', $shift->staff_id)
                         ->value('guard_rate');
                     if (!is_null($siteOverride)) {
-                        $currentGuardRate = $siteOverride;
+                        $resolvedGuardRate = $siteOverride;
                     }
                 }
-
-                $isPastDate = Carbon::parse($date->format('Y-m-d'))->lt(Carbon::today());
 
                 $shiftDate = ShiftDate::create([
                     'shift_id'    => $shift->id,
                     'staff_id'    => $shift->staff_id ?? null,
                     'shift_date'  => $date->format('Y-m-d'),
                     'start_time'  => $request->start_shift[$i],
-                    'status'      => $isPastDate ? 'booked_off' : ($shift->staff_id ? 'pending' : null),
+                    'status'  => $shift->staff_id ? 'pending' : 'unassigned',
                     'end_time'    => $request->end_shift[$i],
-                    'is_assign'   => $isPastDate ? 4 : (!empty($shift->staff_id) ? 1 : 0),
+                    'is_assign'   => !empty($shift->staff_id) ? 1 : 0,
                     'break_time'  => $request->{'break-mins_shift'}[$i] ?? null,
                     'total_hours' => $this->calculateTotalHours(
                         $request->start_shift[$i],
                         $request->end_shift[$i]
                     ),
-                    'site_rate'   => $currentSiteRate,
-                    'guard_rate'  => $currentGuardRate,
+                    'guard_rate'  => $resolvedGuardRate,
                 ]);
 
                 $shiftDatesCreated++;

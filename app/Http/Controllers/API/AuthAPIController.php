@@ -73,9 +73,23 @@ class AuthAPIController extends Controller
                     'latitude' => $request->location['latitude'] ?? null,
                     'longitude' => $request->location['longitude'] ?? null,
                 ]);
-            } 
-            // If device changed, create change request
+            }
+            // If device changed
             elseif ($lastDeviceLog->device_id !== $request->device_info['device_id']) {
+                // If there is already a pending request for this same new device, do not create a duplicate
+                $existingPendingRequest = $user->deviceChangeRequests()
+                    ->where('new_device_id', $request->device_info['device_id'])
+                    ->where('status', 'pending')
+                    ->exists();
+
+                if ($existingPendingRequest) {
+                    return response()->json([
+                        'message' => 'Your previous device change request is still pending admin approval. Please check back later.',
+                        'requires_approval' => true,
+                        'already_requested' => true
+                    ], 403);
+                }
+
                 $user->deviceChangeRequests()->create([
                     'old_device_id' => $lastDeviceLog->device_id,
                     'new_device_id' => $request->device_info['device_id'],
@@ -95,22 +109,9 @@ class AuthAPIController extends Controller
                 'read' => false,
                 'action_url' => ""
             ]);
-                
+
                 return response()->json([
                     'message' => 'Device change detected. Admin approval required. You can close the app and check back later.',
-                    'requires_approval' => true
-                ], 403);
-            }
-            
-            // Check if there's a pending request for this device
-            $pendingRequest = $user->deviceChangeRequests()
-                ->where('new_device_id', $request->device_info['device_id'])
-                ->where('status', 'pending')
-                ->exists();
-                
-            if ($pendingRequest) {
-                return response()->json([
-                    'message' => 'Device change is pending admin approval. Please check back later.',
                     'requires_approval' => true
                 ], 403);
             }

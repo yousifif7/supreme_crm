@@ -172,9 +172,6 @@ class ReportController extends Controller
             $query = ShiftDate::query()
                 ->select('shift_dates.*')
                 ->join('shifts', 'shifts.id', '=', 'shift_dates.shift_id')
-                // join subcontractors table as aliases so we can match either a direct user id or a subcontractor record
-                ->leftJoin('sub_contractors as sd_sub', 'sd_sub.id', '=', 'shift_dates.subcontractor_id')
-                ->leftJoin('sub_contractors as p_sub', 'p_sub.id', '=', 'shifts.subcontractor_id')
                 ->with(['shift.client', 'shift.site', 'shift.staff', 'note']);
 
             // Filter by client (directly on joined shifts table)
@@ -191,15 +188,61 @@ class ReportController extends Controller
                 });
             }
 
-            // Filter by subcontractor (match user-based subcontractors or sub_contractors.user_id via joins)
+            // Filter by subcontractor — match the scheduling gantt's grouping exactly.
+            //
+            // Scheduling resolves a shift's subcontractor via findSubcontractorByStoredId():
+            //   1. Subcontractor::find($stored_value)              ← tried first
+            //   2. Subcontractor::where('user_id', $stored_value)  ← fallback
+            // And it uses shift_dates.subcontractor_id when set, else falls back to the
+            // parent shifts.subcontractor_id (NOT both — it's a COALESCE, not an OR).
+            //
+            // So for the selected Subcontractor row to "own" a shift on the gantt, the
+            // shift's effective stored value (the COALESCE of the two columns) must
+            // resolve back to that exact row under the rules above.
             if ($request->filled('subcontractor_id')) {
-                $subId = (int) $request->input('subcontractor_id');
-                $query->where(function ($q) use ($subId) {
-                    $q->where('shift_dates.subcontractor_id', $subId)
-                        ->orWhere('shifts.subcontractor_id', $subId)
-                        ->orWhere('sd_sub.user_id', $subId)
-                        ->orWhere('p_sub.user_id', $subId);
-                });
+                $selected = Subcontractor::find((int) $request->input('subcontractor_id'));
+
+                if (!$selected) {
+                    $query->whereRaw('1 = 0');
+                } else {
+                    // Build the set of stored values that resolve to THIS row:
+                    // - The row's own id is always a match (rule #1 hits it directly).
+                    // - The row's user_id matches only if (a) no other Subcontractor row
+                    //   collides on `id = user_id` (which would steal rule #1), AND
+                    //   (b) this row is the lowest-id Subcontractor with that user_id
+                    //   (since rule #2 returns ->first()).
+                    $candidateIds = [(int) $selected->id];
+
+                    if (!empty($selected->user_id)) {
+                        $u = (int) $selected->user_id;
+
+                        $idCollision = Subcontractor::whereKey($u)->exists();
+
+                        if (!$idCollision) {
+                            $firstByUser = Subcontractor::where('user_id', $u)
+                                ->orderBy('id')
+                                ->value('id');
+
+                            if ((int) $firstByUser === (int) $selected->id) {
+                                $candidateIds[] = $u;
+                            }
+                        }
+                    }
+
+                    $candidateIds = array_values(array_unique($candidateIds));
+                    $placeholders = implode(',', array_fill(0, count($candidateIds), '?'));
+
+                    $query->whereRaw(
+                        "COALESCE(shift_dates.subcontractor_id, shifts.subcontractor_id) IN ({$placeholders})",
+                        $candidateIds
+                    );
+
+                    // Scheduling only labels a shift bar with a subcontractor when a
+                    // staff is assigned (staff_id IS NOT NULL — see ShiftController
+                    // formatGanttArray()). Mirror that so the report's "shifts under
+                    // Subcontractor X" matches the gantt's bars labeled X 1:1.
+                    $query->whereNotNull('shift_dates.staff_id');
+                }
             }
 
             // Filter by date range (shift_date between from_date and to_date)
@@ -245,12 +288,24 @@ class ReportController extends Controller
         // Dropdowns
         $clients = User::role('client')->pluck('name', 'id');
         $employees = User::role('security_staff')->orderBy('first_name')->get();
-        // Subcontractors list: only use users with role 'subcontractor' to avoid mixing models
-        $subcontractors = User::role('subcontractor')
-            ->orderBy('first_name')
-            ->get()
-            ->mapWithKeys(function ($u) {
-                return [$u->id => trim($u->first_name . ' ' . $u->last_name)];
+
+        // Subcontractors dropdown: one entry per Subcontractor row (sub_contractors table) —
+        // same primary key the scheduling modal sends via /subcontractors/for-employee/{id}.
+        // Label prefers company_name (what shows on the gantt's shift bars), falling back to
+        // contact_person and finally the linked user's name. The filter above resolves the
+        // selected Subcontractor.id to both its id AND its user_id when matching shifts.
+        $subcontractors = Subcontractor::with('user:id,first_name,last_name')
+            ->orderBy('company_name')
+            ->get(['id', 'user_id', 'company_name', 'contact_person'])
+            ->mapWithKeys(function ($s) {
+                $label = trim((string) ($s->company_name ?? ''));
+                if ($label === '') {
+                    $label = trim((string) ($s->contact_person ?? ''));
+                }
+                if ($label === '' && $s->user) {
+                    $label = trim(($s->user->first_name ?? '') . ' ' . ($s->user->last_name ?? ''));
+                }
+                return [$s->id => $label ?: ('Subcontractor #' . $s->id)];
             });
 
         // Sites for filter dropdown

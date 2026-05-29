@@ -98,6 +98,12 @@
                                 <button type="submit" class="btn btn-primary w-100">Filter</button>
                             </div>
 
+                            <div class="col-md-2 d-flex align-items-end">
+                                <a href="{{ route('reports.shift') }}" class="btn btn-secondary w-100">
+                                    <i class="fa fa-rotate-left"></i> Reset
+                                </a>
+                            </div>
+
                             <div class="col-md-4 d-flex align-items-end">
                                 <a href="{{ route('reports.shift', array_merge(request()->all(), ['export' => 'pdf'])) }}"
                                     class="btn btn-danger" style="margin-right:10px;">
@@ -132,8 +138,10 @@
                                         <th>Shift Date</th>
                                         <th>Start Time</th>
                                         <th>End Time</th>
+                                        <th>Planned Duration</th>
                                         <th>Book On</th>
                                         <th>Book Off</th>
+                                        <th>Actual Duration</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
@@ -153,6 +161,7 @@
                                             <td>{{ format_date($shiftDate->shift_date) }}</td>
                                             <td>{{ $shiftDate->start_time ?? '-' }}</td>
                                             <td>{{ $shiftDate->end_time ?? '-' }}</td>
+                                            <td>{{ $shiftDate->planned_duration_display ?? '-' }}</td>
                                             <td>
                                                 {{ $shiftDate->absentee_start_time ?? '-' }}
                                                 @if($shiftDate->book_on_late_display)
@@ -165,6 +174,7 @@
                                                     <br><small class="text-danger">{{ $shiftDate->book_off_early_display }} early</small>
                                                 @endif
                                             </td>
+                                            <td>{{ $shiftDate->actual_duration_display ?? '-' }}</td>
                                             <td>{!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}</td>
                                         </tr>
                                     @endforeach

@@ -192,6 +192,23 @@
 
                     <div class="mb-4">
                         <div class="table-responsive mb-3">
+                            {{-- Breakdown by site, further split by rate so a site that ran at
+                                 multiple rates in this period shows one row per rate instead
+                                 of a single averaged figure. --}}
+                            @php
+                                $invoiceItems = collect($invoice->items)->filter(function ($item) use ($invoice) {
+                                    // If invoice is scoped to a single site, only include that site
+                                    if ($invoice->site && isset($invoice->site->id) && $item->site) {
+                                        return $item->site->id == $invoice->site->id;
+                                    }
+                                    return true;
+                                });
+
+                                $bySite = $invoiceItems
+                                    ->groupBy(fn($i) => $i->site->site_name ?? ($i->site_name ?? 'N/A'))
+                                    ->sortKeys();
+                            @endphp
+
                             <table class="table table-bordered">
                                 <thead class="thead-default">
                                     <tr>
@@ -202,63 +219,47 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @php
-                                        // Group invoice items by site and sum hours/amounts.
-                                        $siteGroups = [];
-                                        foreach ($invoice->items as $item) {
-                                            $site = $item->site ?? null;
-                                            $siteId = $site->id ?? 'unknown_'.$loop->index ?? null;
+                                    @forelse($bySite as $siteName => $siteItems)
+                                        @php
+                                            $byRate = $siteItems
+                                                ->groupBy(fn($i) => number_format((float) ($i->rate ?? 0), 2, '.', ''))
+                                                ->sortKeys();
+                                            $rateCount = $byRate->count();
+                                        @endphp
 
-                                            // If invoice has a specific site selected, only include that site
-                                            if ($invoice->site && isset($invoice->site->id) && $site && $site->id != $invoice->site->id) {
-                                                continue;
-                                            }
-
-                                            if (!isset($siteGroups[$siteId])) {
-                                                $siteGroups[$siteId] = [
-                                                    'name' => $site->site_name ?? ($item->site_name ?? 'N/A'),
-                                                    'hours' => 0,
-                                                    'amount' => 0,
-                                                    'rate' => 0,
-                                                    'shifts' => 0,
-                                                ];
-                                            }
-
-                                            $siteGroups[$siteId]['hours'] += floatval($item->hours ?? 0);
-                                            $siteGroups[$siteId]['amount'] += floatval($item->amount ?? 0);
-                                            $siteGroups[$siteId]['shifts'] += 1;
-                                        }
-
-                                        // Derive displayed rate as weighted average (amount/hours) so groups with
-                                        // mixed per-shift rates show a meaningful figure instead of just the first
-                                        // item's rate.
-                                        foreach ($siteGroups as &$g) {
-                                            $g['rate'] = $g['hours'] > 0 ? ($g['amount'] / $g['hours']) : 0;
-                                        }
-                                        unset($g);
-                                    @endphp
-
-                                    @if(count($siteGroups) > 0)
-                                        @foreach($siteGroups as $siteId => $group)
+                                        @foreach($byRate as $rateKey => $rateItems)
+                                            @php
+                                                $rowRate   = (float) $rateKey;
+                                                $rowHours  = $rateItems->sum(fn($it) => (float) ($it->hours ?? 0));
+                                                $rowAmount = $rateItems->sum(fn($it) => (float) ($it->hours ?? 0) * (float) ($it->rate ?? 0));
+                                            @endphp
                                             <tr>
-                                                <td>{{ $group['name'] }}</td>
-                                                <td class="text-end">{{ number_format($group['hours'], 2) }}</td>
-                                                <td class="text-end">£{{ number_format($group['rate'], 2) }}</td>
-                                                <td class="text-end">£{{ number_format($group['amount'], 2) }}</td>
+                                                <td>{{ $siteName }}</td>
+                                                <td class="text-end">{{ number_format($rowHours, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($rowRate, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($rowAmount, 2) }}</td>
                                             </tr>
                                         @endforeach
-                                    @else
-                                        {{-- Fallback: show raw items if grouping produced nothing --}}
-                                        @foreach ($invoice->items as $item)
-                                            <tr>
-                                                <td>{{ $item->site->site_name ?? 'N/A' }}</td>
-                                                <td class="text-end">{{ number_format($item->hours, 2) }}</td>
-                                                <td class="text-end">£{{ number_format($item->rate, 2) }}</td>
-                                                <td class="text-end">£{{ number_format($item->amount, 2) }}</td>
-                                            </tr>
-                                        @endforeach
-                                    @endif
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">No shifts on this invoice.</td>
+                                        </tr>
+                                    @endforelse
                                 </tbody>
+                                @if($invoiceItems->count())
+                                    <tfoot>
+                                        @php
+                                            $sumHours = $invoiceItems->sum(fn($i) => (float) ($i->hours ?? 0));
+                                            $sumAmount = $invoiceItems->sum(fn($i) => (float) ($i->hours ?? 0) * (float) ($i->rate ?? 0));
+                                        @endphp
+                                        <tr>
+                                            <th class="text-end">Totals</th>
+                                            <th class="text-end">{{ number_format($sumHours, 2) }}</th>
+                                            <th></th>
+                                            <th class="text-end">£{{ number_format($sumAmount, 2) }}</th>
+                                        </tr>
+                                    </tfoot>
+                                @endif
                             </table>
                         </div>
                     </div>

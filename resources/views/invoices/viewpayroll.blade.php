@@ -268,39 +268,68 @@
                     </div>
 
                         <div class="table-responsive mb-3">
+                            {{-- Breakdown by site, further split by rate so a site that ran at
+                                 multiple rates in this period shows one row per rate instead
+                                 of a single averaged figure. --}}
                             @php
-                                // Group items by site name and compute totals per site
-                                $grouped = $invoice->items->groupBy(function ($i) {
-                                    return $i->site->site_name ?? 'No Site';
-                                });
+                                // Group by site → then by rate (rounded to 2dp so float wobble
+                                // doesn't split what should be the same rate).
+                                $bySite = $invoice->items
+                                    ->groupBy(fn($i) => $i->site->site_name ?? 'No Site')
+                                    ->sortKeys();
                             @endphp
 
                             <table class="table table-bordered mb-4">
                                 <thead>
                                     <tr>
                                         <th>Site</th>
-                                        <th class="text-end">Total Hours</th>
+                                        <th class="text-end">Hours</th>
                                         <th class="text-end">Rate</th>
                                         <th class="text-end">Amount</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    @foreach ($grouped as $siteName => $items)
+                                    @forelse ($bySite as $siteName => $siteItems)
                                         @php
-                                            $siteTotalHours = $items->sum('hours');
-                                            $siteTotalAmount = $items->sum(function($it) {
-                                                return ($it->hours ?? 0) * ($it->rate ?? 0);
-                                            });
-                                            $siteRate = $siteTotalHours > 0 ? ($siteTotalAmount / $siteTotalHours) : 0;
+                                            $byRate = $siteItems
+                                                ->groupBy(fn($i) => number_format((float) ($i->rate ?? 0), 2, '.', ''))
+                                                ->sortKeys();
+                                            $rateCount = $byRate->count();
+                                        @endphp
+
+                                        @foreach ($byRate as $rateKey => $rateItems)
+                                            @php
+                                                $rowRate   = (float) $rateKey;
+                                                $rowHours  = $rateItems->sum(fn($it) => (float) ($it->hours ?? 0));
+                                                $rowAmount = $rateItems->sum(fn($it) => (float) ($it->hours ?? 0) * (float) ($it->rate ?? 0));
+                                            @endphp
+                                            <tr>
+                                                <td>{{ $siteName }}</td>
+                                                <td class="text-end">{{ number_format($rowHours, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($rowRate, 2) }}</td>
+                                                <td class="text-end">£{{ number_format($rowAmount, 2) }}</td>
+                                            </tr>
+                                        @endforeach
+                                    @empty
+                                        <tr>
+                                            <td colspan="4" class="text-center text-muted">No shifts on this payroll.</td>
+                                        </tr>
+                                    @endforelse
+                                </tbody>
+                                @if($invoice->items->count())
+                                    <tfoot>
+                                        @php
+                                            $sumHours = $invoice->items->sum(fn($i) => (float) ($i->hours ?? 0));
+                                            $sumAmount = $invoice->items->sum(fn($i) => (float) ($i->hours ?? 0) * (float) ($i->rate ?? 0));
                                         @endphp
                                         <tr>
-                                            <td>{{ $siteName }}</td>
-                                            <td class="text-end">{{ number_format($siteTotalHours, 2) }}</td>
-                                            <td class="text-end">£{{ number_format($siteRate, 2) }}</td>
-                                            <td class="text-end">£{{ number_format($siteTotalAmount, 2) }}</td>
+                                            <th class="text-end">Totals</th>
+                                            <th class="text-end">{{ number_format($sumHours, 2) }}</th>
+                                            <th></th>
+                                            <th class="text-end">£{{ number_format($sumAmount, 2) }}</th>
                                         </tr>
-                                    @endforeach
-                                </tbody>
+                                    </tfoot>
+                                @endif
                             </table>
                         </div>
                     </div>

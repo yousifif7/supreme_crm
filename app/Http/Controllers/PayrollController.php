@@ -192,13 +192,6 @@ class PayrollController extends Controller
         $invoice->net_amount = $gross;
         $invoice->save();
 
-        send_push_notification(
-            $staff->user_id,
-            'Payroll generated',
-            "A new payroll has been generated for you!",
-            ['type' => 'payment']
-        );
-
         Logger::log(
             Auth::user(),
             'Create',

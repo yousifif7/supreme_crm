@@ -16,12 +16,11 @@ Schedule::command('shifts:process-notifications')
     ->withoutOverlapping()
     ->runInBackground();
 
-// SIA licence check — daily at 16:00 UK time (handles GMT/BST)
 
-/*
+
+// SIA licence check — daily at 11:00 UK time (handles GMT/BST)
 Schedule::command('sia:check')
-    ->dailyAt('11:47')
+    ->dailyAt('10:30')
     ->timezone('Europe/London')
     ->withoutOverlapping();
-*/
 

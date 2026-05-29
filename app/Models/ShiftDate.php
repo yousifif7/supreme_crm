@@ -175,6 +175,64 @@ class ShiftDate extends Model
     }
 
     /**
+     * Scheduled (planned) shift duration in minutes between start_time and end_time.
+     * Handles overnight shifts where end_time is on the next day.
+     */
+    public function getPlannedDurationMinutesAttribute(): ?int
+    {
+        if (empty($this->start_time) || empty($this->end_time)) {
+            return null;
+        }
+        try {
+            $start = Carbon::parse($this->start_time);
+            $end = Carbon::parse($this->end_time);
+            if ($end->lessThanOrEqualTo($start)) {
+                $end->addDay();
+            }
+            return (int) $start->diffInMinutes($end);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Actual worked duration in minutes between absentee_start_time and absentee_end_time.
+     * Handles overnight shifts where the book-off is on the next day.
+     */
+    public function getActualDurationMinutesAttribute(): ?int
+    {
+        if (empty($this->absentee_start_time) || empty($this->absentee_end_time)) {
+            return null;
+        }
+        try {
+            $start = Carbon::parse($this->absentee_start_time);
+            $end = Carbon::parse($this->absentee_end_time);
+            if ($end->lessThanOrEqualTo($start)) {
+                $end->addDay();
+            }
+            return (int) $start->diffInMinutes($end);
+        } catch (\Throwable $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Human-readable planned duration (e.g. "8 hours 30 mins").
+     */
+    public function getPlannedDurationDisplayAttribute(): ?string
+    {
+        return $this->formatDurationMinutes($this->planned_duration_minutes);
+    }
+
+    /**
+     * Human-readable actual duration (e.g. "7 hours 45 mins").
+     */
+    public function getActualDurationDisplayAttribute(): ?string
+    {
+        return $this->formatDurationMinutes($this->actual_duration_minutes);
+    }
+
+    /**
      * Format a minute count as "X hour(s) Y min(s)" with correct singular/plural.
      * Returns null for null/zero so callers can skip rendering altogether.
      */
