@@ -1348,6 +1348,66 @@ private function parseUKTimestamp($timestamp)
     }
     
 
+    public function store(Request $request)
+    {
+        $validated = $request->validate([
+            'shift_id'        => 'required|exists:shift_dates,id',
+            'name'            => 'required|string|max:255',
+            // Full datetime (dd-MM-yyyy HH:mm:ss after frontend normalization → Y-m-d H:i:s)
+            'scheduled_time'  => 'required|string',
+            'status'          => 'required|in:pending,completed,missed',
+            'approval_status' => 'nullable|in:pending,approved,rejected',
+        ]);
+
+        // Normalize the scheduled time from any of the accepted formats to Y-m-d H:i:s.
+        $raw = $request->input('scheduled_time');
+        $formats = [
+            'Y-m-d H:i:s', 'Y-m-d H:i',
+            'd-m-Y H:i:s', 'd-m-Y H:i',
+            'd/m/Y H:i:s', 'd/m/Y H:i',
+        ];
+
+        $parsed = null;
+        foreach ($formats as $fmt) {
+            try {
+                $dt = Carbon::createFromFormat($fmt, trim($raw));
+                if ($dt) { $parsed = $dt; break; }
+            } catch (\Exception $e) {
+                // try next format
+            }
+        }
+
+        if (! $parsed) {
+            return response()->json(['message' => 'The scheduled time field must be a valid datetime (dd-MM-yyyy HH:mm:ss).'], 422);
+        }
+
+        $shiftDate = ShiftDate::find($validated['shift_id']);
+        $checkcall = CheckCall::create([
+            'shift_id'        => $validated['shift_id'],
+            'name'            => $validated['name'],
+            'employee_id'     => $shiftDate->staff_id ?? null,
+            'scheduled_time'  => $parsed->format('Y-m-d H:i:s'),
+            'status'          => $validated['status'],
+            'approval_status' => $validated['approval_status'] ?? 'pending',
+        ]);
+
+        Logger::log($checkcall, 'Created', 'CheckCall created for shift at ' . optional($checkcall->shiftDate?->shift?->site)->site_name);
+
+        if ($checkcall->employee_id) {
+            send_push_notification(
+                $checkcall->employee_id,
+                'New checkcall',
+                'An admin has scheduled a new checkcall for you! check on your app now.',
+                ['type' => 'shift', 'shiftId' => $checkcall->shift_id],
+            );
+        }
+
+        return response()->json([
+            'message'   => 'Check call created successfully',
+            'checkcall' => $checkcall,
+        ], 201);
+    }
+
     public function update(Request $request, $id)
     {
         $checkcall = CheckCall::findOrFail($id);

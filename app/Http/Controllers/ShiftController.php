@@ -3166,6 +3166,61 @@ if (!is_null($ownerAdminId)) {
         ));
     }
 
+    public function patrolStore(Request $request)
+    {
+        $validated = $request->validate([
+            'shift_id'        => 'required|exists:shift_dates,id',
+            'name'            => 'required|string|max:255',
+            'start_time'      => 'required|regex:/^\d{1,2}:\d{2}(:\d{2})?$/',
+            'status'          => 'required|in:pending,in_progress,completed,missed',
+            'approval_status' => 'nullable|in:pending,approved,rejected',
+        ]);
+
+        $shift = ShiftDate::findOrFail($validated['shift_id']);
+
+        // Combine the shift's date with the posted time (H:i or H:i:s).
+        $rawTime  = $validated['start_time'];
+        $timePart = (strlen($rawTime) === 5) ? $rawTime . ':00' : $rawTime;
+        $date     = $shift->shift_date ?? Carbon::now()->toDateString();
+
+        try {
+            $startDateTime = $this->combineDateTime($date, $timePart);
+        } catch (\Exception $e) {
+            $startDateTime = Carbon::parse($date . ' ' . $timePart);
+        }
+
+        // Total checkpoints derive from the site, matching auto/manual patrol creation.
+        $site = $shift->shift?->site;
+        $totalCheckpoints = $site ? $site->checkpoints()->count() : 0;
+
+        $patrol = Patrol::create([
+            'shift_id'              => $shift->id,
+            'name'                  => $validated['name'],
+            'summary'               => 'Patrol at ' . $startDateTime->format('H:i'),
+            'start_time'            => $startDateTime->format('Y-m-d H:i:s'),
+            'status'                => $validated['status'],
+            'approval_status'       => $validated['approval_status'] ?? 'pending',
+            'total_checkpoints'     => $totalCheckpoints,
+            'completed_checkpoints' => 0,
+            'issues_reported'       => 0,
+            'completed_at'          => null,
+        ]);
+
+        Logger::log($patrol, 'Created', 'Patrol created for shift at ' . optional($site)->site_name);
+
+        send_push_notification(
+            $shift->user_id,
+            'New patrol',
+            'An admin has scheduled a new patrol for you! check on your app now.',
+            ['patrol' => $patrol],
+        );
+
+        return response()->json([
+            'success' => true,
+            'patrol'  => $patrol,
+        ], 201);
+    }
+
     public function patrolUpdate(Request $request, $id)
     {
         $patrol = Patrol::findOrFail($id);

@@ -650,6 +650,12 @@
                     </div>
                     <div class="tab-pane fade" id="checkcalls" role="tabpanel" aria-labelledby="checkcalls-tab2">
 
+                        <div class="mb-3 d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-success btn-sm" id="addCheckCallBtn">
+                                <i class="ti ti-plus"></i> Add Check Call
+                            </button>
+                        </div>
+
                         @if ($checkcalls->isNotEmpty())
                             {{-- $checkCallUsersById and $checkCallMediaByCallId are preloaded in controller. --}}
                             <table class="table table-bordered table-striped">
@@ -750,14 +756,15 @@
                     </div>
                     <div class="tab-pane fade" id="patrols" role="tabpanel" aria-labelledby="patrols-tab2">
 
+
                         @if ($patrols->isNotEmpty())
                             <div class="mb-3 d-flex justify-content-end gap-2">
+                                                            <button type="button" class="btn btn-success btn-sm" id="addPatrolBtn">
+                                <i class="ti ti-plus"></i> Add Patrol
+                            </button>
                                 <a href="{{ route('patrols.export.pdf', $shiftDate->id) }}" class="btn btn-danger btn-sm" target="_blank">
                                     <i class="ti ti-file-type-pdf"></i> Export PDF
                                 </a>
-                                {{-- <a href="{{ route('patrols.export.excel', $shiftDate->id) }}" class="btn btn-success btn-sm">
-                                    <i class="ti ti-file-spreadsheet"></i> Export Excel
-                                </a> --}}
                             </div>
                             <script>
                                         // Format DB/ISO datetime to dd-MM-yyyy HH:mm:ss
@@ -1037,6 +1044,98 @@
                             </div>
                             <div class="modal-footer">
                                 <button type="submit" class="btn btn-primary">Save Changes</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Check Call Modal -->
+            <div class="modal fade" id="addCheckCallModal" tabindex="-1" aria-labelledby="addCheckCallLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <form id="addCheckCallForm">
+                        @csrf
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addCheckCallLabel">Add Check Call</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" name="shift_id" value="{{ $shiftDate->id }}">
+                                <div class="mb-3">
+                                    <label>Name</label>
+                                    <input type="text" class="form-control" name="name" id="add_checkcall_name"
+                                        required>
+                                </div>
+                                {{-- <div class="mb-3">
+                                    <label>Staff</label>
+                                    <select class="form-select" name="employee_id" id="add_checkcall_employee">
+                                        <option value="">— Unassigned —</option>
+                                        @foreach ($staffs as $staff)
+                                            <option value="{{ $staff->id }}">{{ $staff->first_name }}
+                                                {{ $staff->last_name }}</option>
+                                        @endforeach
+                                    </select>
+                                </div> --}}
+                                <div class="mb-3">
+                                    <label>Scheduled Time</label>
+                                    <input type="datetime-local" class="form-control" name="scheduled_time"
+                                        id="add_checkcall_time" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label>Status</label>
+                                    <select class="form-select" name="status" id="add_checkcall_status" required>
+                                        <option value="pending">Pending</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="missed">Missed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Create Check Call</button>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Add Patrol Modal -->
+            <div class="modal fade" id="addPatrolModal" tabindex="-1" aria-labelledby="addPatrolLabel"
+                aria-hidden="true">
+                <div class="modal-dialog">
+                    <form id="addPatrolForm">
+                        @csrf
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="addPatrolLabel">Add Patrol</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <div class="modal-body">
+                                <input type="hidden" name="shift_id" value="{{ $shiftDate->id }}">
+                                <div class="form-group mb-3">
+                                    <label>Patrol Name</label>
+                                    <input type="text" id="add_patrol_name" name="name" class="form-control" required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label>Start Time</label>
+                                    <input type="time" id="add_patrol_time" name="start_time" class="form-control"
+                                        required>
+                                </div>
+                                <div class="form-group mb-3">
+                                    <label>Status</label>
+                                    <select id="add_patrol_status" name="status" class="form-control" required>
+                                        <option value="pending">Pending</option>
+                                        <option value="in_progress">In Progress</option>
+                                        <option value="completed">Completed</option>
+                                        <option value="missed">Missed</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="submit" class="btn btn-primary">Create Patrol</button>
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                             </div>
                         </div>
@@ -1381,6 +1480,52 @@
                 },
                 error: function(xhr) {
                     let msg = 'Error updating check call';
+                    if (xhr.responseJSON && xhr.responseJSON.message) {
+                        msg = xhr.responseJSON.message;
+                    }
+                    showToast(msg, 'error', 5000);
+                }
+            });
+        });
+
+        // Open the Add Check Call modal with a clean form
+        $(document).on('click', '#addCheckCallBtn', function() {
+            $('#addCheckCallForm')[0].reset();
+            $('#addCheckCallModal').modal('show');
+        });
+
+        // Submit the Add Check Call form
+        $('#addCheckCallForm').on('submit', function(e) {
+            e.preventDefault();
+
+            // datetime-local gives "YYYY-MM-DDTHH:MM" (or with seconds). Convert to "YYYY-MM-DD HH:MM:SS".
+            let pickedTime = $('#add_checkcall_time').val();
+            let m = pickedTime.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/);
+            if (!m) {
+                showToast('Please select a valid date and time.', 'error', 5000);
+                return;
+            }
+            let backendTime = `${m[1]}-${m[2]}-${m[3]} ${m[4]}:${m[5]}:${m[6] || '00'}`;
+
+            $.ajax({
+                url: `/create/checkcall`,
+                type: 'POST',
+                data: {
+                    _token: '{{ csrf_token() }}',
+                    shift_id: $('input[name="shift_id"]', '#addCheckCallForm').val(),
+                    name: $('#add_checkcall_name').val(),
+                    employee_id: $('#add_checkcall_employee').val() || null,
+                    scheduled_time: backendTime,
+                    status: $('#add_checkcall_status').val()
+                },
+                success: function() {
+                    $('#addCheckCallModal').modal('hide');
+                    showToast('Check call created successfully', 'success', 3000);
+                    // Reload so the new row renders with all derived columns (staff, media, etc.)
+                    setTimeout(function() { window.location.reload(); }, 800);
+                },
+                error: function(xhr) {
+                    let msg = 'Error creating check call';
                     if (xhr.responseJSON && xhr.responseJSON.message) {
                         msg = xhr.responseJSON.message;
                     }
@@ -2072,6 +2217,36 @@
         });
 
         $(document).ready(function() {
+            // Open the Add Patrol modal with a clean form
+            $(document).on("click", "#addPatrolBtn", function() {
+                $("#addPatrolForm")[0].reset();
+                $("#addPatrolModal").modal("show");
+            });
+
+            // Submit the Add Patrol form
+            $("#addPatrolForm").on("submit", function(e) {
+                e.preventDefault();
+
+                $.ajax({
+                    url: "/create/patrol",
+                    type: "POST",
+                    data: $(this).serialize(),
+                    success: function() {
+                        $("#addPatrolModal").modal("hide");
+                        showToast("Patrol created successfully", 'success', 3000);
+                        // Reload so the new row renders with its map and all derived columns
+                        setTimeout(function() { window.location.reload(); }, 800);
+                    },
+                    error: function(xhr) {
+                        let msg = "Error creating patrol";
+                        if (xhr.responseJSON && xhr.responseJSON.message) {
+                            msg = xhr.responseJSON.message;
+                        }
+                        showToast(msg, 'error', 5000);
+                    }
+                });
+            });
+
             // Open edit modal
             $(document).on("click", ".edit-patrol-btn", function() {
                 $("#edit_patrol_id").val($(this).data("id"));

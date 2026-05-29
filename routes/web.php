@@ -410,11 +410,13 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::get('/shift-dates/{shiftDate}/tabs/patrols', [ShiftController::class, 'tabPatrols'])
         ->name('shiftDates.tabs.patrols');
 
+    Route::post('/create/checkcall', [CheckCallController::class, 'store'])->name('checkcalls.store');
     Route::put('/checkcalls/{id}', [CheckCallController::class, 'update']);
     Route::delete('/checkcalls/{id}', [CheckCallController::class, 'destroy']);
     Route::post('/checkcalls/{id}/approve', [CheckCallController::class, 'approve']);
     Route::post('/checkcalls/{id}/reject', [CheckCallController::class, 'reject']);
 
+    Route::post('/create/patrol', [ShiftController::class, 'patrolStore'])->name('patrol.store');
     Route::post('/patrols/{id}/approve', [ShiftController::class, 'patrolApprove']);
     Route::post('/patrols/{id}/reject', [ShiftController::class, 'patrolReject']);
 
