@@ -80,6 +80,10 @@ class SiaReportController extends Controller
         $q = trim((string)$request->input('q', ''));
         $perPage = (int)$request->input('per_page', 50);
 
+        // Optional status filter driven by clicking a summary card.
+        // Accepts: active, inactive, revoked, errors (anything else = no filter).
+        $status = strtolower(trim((string)$request->input('status', '')));
+
         $query = SiaCheckReport::query()->where('run_id', $runId);
         if ($q !== '') {
             $query->where(function ($r) use ($q) {
@@ -88,11 +92,19 @@ class SiaReportController extends Controller
             });
         }
 
+        if (in_array($status, ['active', 'inactive', 'revoked'], true)) {
+            $query->where('status_after', ucfirst($status));
+        } elseif ($status === 'errors') {
+            $query->whereNotNull('error');
+        } else {
+            $status = ''; // normalize any unexpected value
+        }
+
         $perPage = max(10, min(200, $perPage));
 
         $entries = $query->orderBy('checked_at')->paginate($perPage)->withQueryString();
 
-        return view('reports.sia_report_detail', compact('entries', 'runId', 'runDate', 'stats', 'q'));
+        return view('reports.sia_report_detail', compact('entries', 'runId', 'runDate', 'stats', 'q', 'status'));
     }
 
     /**

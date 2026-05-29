@@ -216,7 +216,7 @@
 
                                       <li class="{{ request()->is('reports/sia*') ? 'active' : '' }}">
                                           <a href="{{ route('reports.sia') }}">
-                                              <i class="ti ti-shield-check"></i> SIA Licence Report
+                                              <i class="ti ti-shield-check"></i> SIA Check Report
                                           </a>
                                       </li>
                                       

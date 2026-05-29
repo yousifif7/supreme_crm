@@ -1,5 +1,17 @@
 @extends('layouts.app')
 @section('title', 'SPL Connect - SIA Report Detail')
+@section('styles')
+    <style>
+        .filter-card {
+            transition: transform .12s ease, box-shadow .12s ease;
+            cursor: pointer;
+        }
+        .filter-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 .5rem 1rem rgba(0, 0, 0, .12) !important;
+        }
+    </style>
+@endsection
 @section('contents')
 <div class="page-wrapper">
     <div class="content">
@@ -7,7 +19,7 @@
 
         <div class="d-md-flex d-block align-items-center justify-content-between mb-3">
             <div class="my-auto mb-2">
-                <h2 class="mb-1">SIA Check Run Detail</h2>
+                <h2 class="mb-1">SIA Check Detail Report</h2>
                 <p class="text-muted mb-0">
                     Run: <strong>{{ \Carbon\Carbon::parse($runDate)->format('d M Y, H:i') }}</strong>
                     &mdash; ID: <code class="text-muted" style="font-size:.75rem;">{{ $runId }}</code>
@@ -18,6 +30,10 @@
                     <i class="ti ti-arrow-left"></i> Back to Reports
                 </a>
                 <form method="get" action="" class="d-flex gap-2">
+                    {{-- Preserve the active status filter while searching --}}
+                    @if (!empty($status))
+                        <input type="hidden" name="status" value="{{ $status }}">
+                    @endif
                     <input type="search" name="q" value="{{ $q ?? request('q') }}" class="form-control form-control-sm" placeholder="Search name or licence">
                     <select name="per_page" class="form-select form-select-sm">
                         <option value="25" {{ (request('per_page',50) == 25) ? 'selected' : '' }}>25</option>
@@ -32,49 +48,72 @@
             </div>
         </div>
 
-        {{-- Summary Stats --}}
+        {{-- Summary Stats — click a card to filter the whole run by that status --}}
+        @php
+            $activeStatus = $status ?? '';
+            // Preserve search + page size across filter clicks; runId is a route param.
+            $carry = array_filter([
+                'q'        => request('q'),
+                'per_page' => request('per_page'),
+            ], fn ($v) => $v !== null && $v !== '');
+            $cardLink = fn ($s) => route('reports.sia.show', array_merge([$runId], $carry, $s ? ['status' => $s] : []));
+        @endphp
         <div class="row g-3 mb-4">
             <div class="col-6 col-md-2">
-                <div class="card text-center border-0 shadow-sm">
+                <a href="{{ $cardLink(null) }}"
+                    class="card text-center border-0 shadow-sm text-decoration-none filter-card {{ $activeStatus === '' ? 'border border-2 border-dark' : '' }}">
                     <div class="card-body py-3">
                         <h4 class="mb-1">{{ $stats['total_scanned'] }}</h4>
                         <small class="text-muted">Scanned</small>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-6 col-md-2">
-                <div class="card text-center border-0 shadow-sm bg-success bg-opacity-10">
+                <a href="{{ $cardLink('active') }}"
+                    class="card text-center border-0 shadow-sm text-decoration-none filter-card bg-success bg-opacity-10 {{ $activeStatus === 'active' ? 'border border-2 border-success' : '' }}">
                     <div class="card-body py-3">
                         <h4 class="mb-1 text-success">{{ $stats['active'] }}</h4>
                         <small class="text-muted">Active</small>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-6 col-md-2">
-                <div class="card text-center border-0 shadow-sm bg-danger bg-opacity-10">
+                <a href="{{ $cardLink('inactive') }}"
+                    class="card text-center border-0 shadow-sm text-decoration-none filter-card bg-danger bg-opacity-10 {{ $activeStatus === 'inactive' ? 'border border-2 border-danger' : '' }}">
                     <div class="card-body py-3">
                         <h4 class="mb-1 text-danger">{{ $stats['inactive'] }}</h4>
                         <small class="text-muted">Inactive</small>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-6 col-md-2">
-                <div class="card text-center border-0 shadow-sm bg-secondary bg-opacity-10">
+                <a href="{{ $cardLink('revoked') }}"
+                    class="card text-center border-0 shadow-sm text-decoration-none filter-card bg-secondary bg-opacity-10 {{ $activeStatus === 'revoked' ? 'border border-2 border-secondary' : '' }}">
                     <div class="card-body py-3">
                         <h4 class="mb-1 text-secondary">{{ $stats['revoked'] }}</h4>
                         <small class="text-muted">Revoked</small>
                     </div>
-                </div>
+                </a>
             </div>
             <div class="col-6 col-md-2">
-                <div class="card text-center border-0 shadow-sm bg-warning bg-opacity-10">
+                <a href="{{ $cardLink('errors') }}"
+                    class="card text-center border-0 shadow-sm text-decoration-none filter-card bg-warning bg-opacity-10 {{ $activeStatus === 'errors' ? 'border border-2 border-warning' : '' }}">
                     <div class="card-body py-3">
                         <h4 class="mb-1 text-warning">{{ $stats['errors'] }}</h4>
                         <small class="text-muted">Errors</small>
                     </div>
-                </div>
+                </a>
             </div>
         </div>
+
+        @if ($activeStatus !== '')
+            <div class="mb-3 d-flex align-items-center gap-2">
+                <span class="badge bg-dark">Filtered by: {{ ucfirst($activeStatus) }}</span>
+                <a href="{{ $cardLink(null) }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-x"></i> Clear filter
+                </a>
+            </div>
+        @endif
 
         {{-- Detail Table --}}
         <div class="card">
