@@ -6,6 +6,9 @@ use Illuminate\Http\Request;
 use App\Models\Document;
 use App\Models\Department;
 use App\Models\Employee;
+use App\Exports\DocumentReportExport;
+use Maatwebsite\Excel\Facades\Excel;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class DocumentController extends Controller
 {
@@ -32,99 +35,147 @@ class DocumentController extends Controller
 
   public function report(Request $request)
 {
-    $hasFilters = $request->anyFilled([
-        'document_field', 
-        'department_id', 
-        'status', 
-        'expiry_status', 
-        'upload_status', 
-        'other_document'
-    ]);
+    [$employees, $filters] = $this->buildReport($request);
 
-    $employees = collect();
-    $selectedDocumentFields = (array) $request->input('document_field', []);
-    $departmentId = $request->input('department_id');
-    $status = $request->input('status');
-    $expiryStatus = $request->input('expiry_status');
-    $uploadStatus = $request->input('upload_status');
-    $otherDocument = $request->input('other_document');
-
-    if ($hasFilters) {
-        $query = Employee::with('department');
-
-        // Handle built-in document fields first
-        foreach ($selectedDocumentFields as $field) {
-            if ($field === 'other') continue; // Skip "Other" for now
-            $query->where(function ($q) use ($field, $uploadStatus, $expiryStatus) {
-                // Uploaded/missing filter
-                if ($uploadStatus === 'uploaded') {
-                    $q->whereNotNull($field);
-                } elseif ($uploadStatus === 'missing') {
-                    $q->whereNull($field);
-                }
-
-                // Expiry filter
-                if ($uploadStatus !== 'missing' && $this->hasExpiryField($field) && $expiryStatus) {
-                    $expiryField = $this->getExpiryField($field);
-                    if ($expiryStatus === 'expired') {
-                        $q->whereDate($expiryField, '<', now());
-                    } elseif ($expiryStatus === 'valid') {
-                        $q->whereDate($expiryField, '>=', now());
-                    }
-                }
-            });
-        }
-
-        // Handle "Other" / additional_files
-        if (in_array('other', $selectedDocumentFields)) {
-            $query->where(function ($q) use ($otherDocument, $uploadStatus) {
-                if ($uploadStatus === 'uploaded') {
-                    if ($otherDocument) {
-                        $q->whereJsonContains('additional_files', $otherDocument);
-                    } else {
-                        $q->whereJsonLength('additional_files', '>', 0);
-                    }
-                } elseif ($uploadStatus === 'missing') {
-                    if ($otherDocument) {
-                        $q->where(function ($q2) use ($otherDocument) {
-                            $q2->whereNull('additional_files')
-                               ->orWhereRaw("NOT JSON_CONTAINS(additional_files, ?)", [json_encode($otherDocument)]);
-                        });
-                    } else {
-                        $q->where(function ($q2) {
-                            $q2->whereNull('additional_files')
-                               ->orWhereJsonLength('additional_files', 0);
-                        });
-                    }
-                }
-            });
-        }
-
-        // Department & employee status filters
-        if ($departmentId) {
-            $query->where('department_id', $departmentId);
-        }
-        if ($status) {
-            $query->where('status', $status);
-        }
-
-        $employees = $query->orderBy('sur_name')->get();
-    }
-
-    return view('employees.doc_report', [
+    return view('employees.doc_report', array_merge($filters, [
         'employees' => $employees,
         'documentFields' => $this->documentFields,
         'departments' => Department::all(),
-        'documentField' => $selectedDocumentFields,
-        'departmentId' => $departmentId,
-        'status' => $status,
         'expiryFields' => $this->expiryFields,
-        'expiryStatus' => $expiryStatus,
-        'uploadStatus' => $uploadStatus,
-        'otherDocument' => $otherDocument,
-        'hasFilters' => $hasFilters,
-    ]);
+    ]));
 }
+
+    /**
+     * Export the (filtered) document report to Excel. Uses the same filters as report().
+     */
+    public function exportExcel(Request $request)
+    {
+        [$employees, $filters] = $this->buildReport($request);
+
+        $export = new DocumentReportExport(
+            $employees,
+            $filters['documentField'],
+            $this->documentFields,
+            $this->expiryFields,
+            $filters['otherDocument'],
+        );
+
+        return Excel::download($export, 'document_report_' . now()->format('Ymd_His') . '.xlsx');
+    }
+
+    /**
+     * Export the (filtered) document report to PDF. Uses the same filters as report().
+     */
+    public function exportPdf(Request $request)
+    {
+        [$employees, $filters] = $this->buildReport($request);
+
+        $pdf = Pdf::loadView('employees.doc_report_pdf', array_merge($filters, [
+            'employees' => $employees,
+            'documentFields' => $this->documentFields,
+            'expiryFields' => $this->expiryFields,
+        ]))->setPaper('a4', 'landscape');
+
+        return $pdf->download('document_report_' . now()->format('Ymd_His') . '.pdf');
+    }
+
+    /**
+     * Apply the report filters from the request and return [Collection $employees, array $filters].
+     * Shared by the on-screen report and the Excel/PDF exports so they stay in sync.
+     */
+    private function buildReport(Request $request): array
+    {
+        $hasFilters = $request->anyFilled([
+            'document_field',
+            'department_id',
+            'status',
+            'expiry_status',
+            'upload_status',
+            'other_document',
+        ]);
+
+        $employees = collect();
+        $selectedDocumentFields = (array) $request->input('document_field', []);
+        $departmentId = $request->input('department_id');
+        $status = $request->input('status');
+        $expiryStatus = $request->input('expiry_status');
+        $uploadStatus = $request->input('upload_status');
+        $otherDocument = $request->input('other_document');
+
+        if ($hasFilters) {
+            $query = Employee::with('department');
+
+            // Handle built-in document fields first
+            foreach ($selectedDocumentFields as $field) {
+                if ($field === 'other') continue; // Skip "Other" for now
+                $query->where(function ($q) use ($field, $uploadStatus, $expiryStatus) {
+                    // Uploaded/missing filter
+                    if ($uploadStatus === 'uploaded') {
+                        $q->whereNotNull($field);
+                    } elseif ($uploadStatus === 'missing') {
+                        $q->whereNull($field);
+                    }
+
+                    // Expiry filter
+                    if ($uploadStatus !== 'missing' && $this->hasExpiryField($field) && $expiryStatus) {
+                        $expiryField = $this->getExpiryField($field);
+                        if ($expiryStatus === 'expired') {
+                            $q->whereDate($expiryField, '<', now());
+                        } elseif ($expiryStatus === 'valid') {
+                            $q->whereDate($expiryField, '>=', now());
+                        }
+                    }
+                });
+            }
+
+            // Handle "Other" / additional_files
+            if (in_array('other', $selectedDocumentFields)) {
+                $query->where(function ($q) use ($otherDocument, $uploadStatus) {
+                    if ($uploadStatus === 'uploaded') {
+                        if ($otherDocument) {
+                            $q->whereJsonContains('additional_files', $otherDocument);
+                        } else {
+                            $q->whereJsonLength('additional_files', '>', 0);
+                        }
+                    } elseif ($uploadStatus === 'missing') {
+                        if ($otherDocument) {
+                            $q->where(function ($q2) use ($otherDocument) {
+                                $q2->whereNull('additional_files')
+                                   ->orWhereRaw("NOT JSON_CONTAINS(additional_files, ?)", [json_encode($otherDocument)]);
+                            });
+                        } else {
+                            $q->where(function ($q2) {
+                                $q2->whereNull('additional_files')
+                                   ->orWhereJsonLength('additional_files', 0);
+                            });
+                        }
+                    }
+                });
+            }
+
+            // Department & employee status filters
+            if ($departmentId) {
+                $query->where('department_id', $departmentId);
+            }
+            if ($status) {
+                $query->where('status', $status);
+            }
+
+            $employees = $query->orderBy('sur_name')->get();
+        }
+
+        $filters = [
+            'documentField' => $selectedDocumentFields,
+            'departmentId' => $departmentId,
+            'status' => $status,
+            'expiryStatus' => $expiryStatus,
+            'uploadStatus' => $uploadStatus,
+            'otherDocument' => $otherDocument,
+            'hasFilters' => $hasFilters,
+        ];
+
+        return [$employees, $filters];
+    }
 
     // Return documents for a given user id (AJAX)
     public function byUser($userId)

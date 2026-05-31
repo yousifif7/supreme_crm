@@ -10,6 +10,18 @@
                 <div class="my-auto mb-2">
                     <h2 class="mb-1">Document Report</h2>
                 </div>
+                @if ($hasFilters && $employees->isNotEmpty())
+                    <div class="d-flex align-items-center gap-2">
+                        <a href="{{ route('documents.report.export.pdf', request()->query()) }}"
+                            class="btn btn-danger d-flex align-items-center">
+                            <i class="ti ti-file-type-pdf me-1"></i> Export PDF
+                        </a>
+                        <a href="{{ route('documents.report.export.excel', request()->query()) }}"
+                            class="btn btn-success d-flex align-items-center">
+                            <i class="ti ti-file-type-xls me-1"></i> Export Excel
+                        </a>
+                    </div>
+                @endif
             </div>
 
             @if (session('success'))

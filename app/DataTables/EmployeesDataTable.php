@@ -123,30 +123,20 @@ class EmployeesDataTable extends DataTable
             ->orderBy('fore_name', 'asc')   // 👈 First name
             ->orderBy('sur_name', 'asc');  // 👈 Then last name
 
-        // Apply SIA status filter if provided via request (e.g. 'Active' or 'Inactive')
+        // Apply SIA status filter if provided via request (e.g. 'Active' or 'Inactive').
+        // Status is derived strictly from the SIA expiry date (NOT the sia_status column),
+        // to match the Active/Inactive label rendered in the table:
+        //   - Active   => sia_expiry is set and in the future
+        //   - Inactive => sia_expiry is missing or on/before today (expired)
         $siaStatus = request('sia_status');
         if ($siaStatus) {
             $s = strtolower($siaStatus);
             if ($s === 'active') {
-                // Match sia_status values that mean active (e.g. 'active', 'valid')
-                $query->where(function($q) {
-                    $q->whereRaw('LOWER(sia_status) IN (?, ?)', ['active', 'valid'])
-                      ->orWhere(function($q2) {
-                          // If status missing, use expiry date as a fallback: expiry in future -> active
-                          $q2->whereNull('sia_status')->whereNotNull('sia_expiry')->whereDate('sia_expiry', '>', now());
-                      });
-                });
+                $query->whereNotNull('sia_expiry')->whereDate('sia_expiry', '>', now());
             } elseif ($s === 'inactive') {
-                // Match sia_status values that mean inactive (e.g. 'inactive', 'invalid')
-                $query->where(function($q) {
-                    $q->whereRaw('LOWER(sia_status) IN (?, ?)', ['inactive', 'invalid'])
-                      ->orWhere(function($q2) {
-                          // If status missing, treat missing or expired as inactive
-                          $q2->whereNull('sia_status')->where(function($q3) {
-                              $q3->whereNull('sia_expiry')
-                                 ->orWhereDate('sia_expiry', '<=', now());
-                          });
-                      });
+                $query->where(function ($q) {
+                    $q->whereNull('sia_expiry')
+                      ->orWhereDate('sia_expiry', '<=', now());
                 });
             }
         }

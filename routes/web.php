@@ -500,6 +500,8 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
     Route::post('/documents/bulk-delete', [DocumentationUploadController::class, 'bulkDelete'])->name('documents.bulkDelete');
 
     Route::get('documents/report', [DocumentController::class, 'report'])->name('documents.report');
+    Route::get('documents/report/export/excel', [DocumentController::class, 'exportExcel'])->name('documents.report.export.excel');
+    Route::get('documents/report/export/pdf', [DocumentController::class, 'exportPdf'])->name('documents.report.export.pdf');
 
     //** End: documentation upload controller */
     Route::get('/weekly-hours-alerts', [UserController::class, 'weeklyHoursNotification']);
