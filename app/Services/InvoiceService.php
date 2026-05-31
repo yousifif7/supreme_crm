@@ -592,6 +592,13 @@ class InvoiceService
         // Compute absentee (book on/off) hours only when we are billing using actual attendance.
         // For client invoices we want to bill based on the scheduled shift times, so callers
         // can pass $useScheduledHours = true to ignore these deductions.
+        // Book-on grace window (minutes). A guard who books on within this many
+        // minutes after the scheduled start is treated as on time; only lateness
+        // BEYOND the grace is deducted. e.g. start 10:00, grace 15:
+        //   - book on 10:14 → on time, 0 deducted
+        //   - book on 10:16 → 16 min late − 15 grace = 1 min deducted
+        $bookOnGraceMinutes = 15;
+
         if (! $useScheduledHours) {
             // Compute absentee (book on) hours if within the shift
             if (! empty($shiftDate->absentee_start_time)) {
@@ -600,15 +607,18 @@ class InvoiceService
                     $date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time
                 );
 
-                $graceStart = $start->copy()->subMinutes(15);
+                $graceStart = $start->copy()->subMinutes($bookOnGraceMinutes);
 
+                // Only consider book-ons from within the grace window up to shift end.
                 if ($absStart->between($graceStart, $end)) {
-                    if ($absStart->lt($start)) {
-                        // Early but within grace → no deduction
+                    if ($absStart->lte($start)) {
+                        // On time or early (within grace) → no deduction
                         $bookOnHours = 0;
-                    } elseif ($absStart->gt($start)) {
-                        // Late → deduct from scheduled start
-                        $bookOnHours = $start->diffInMinutes($absStart) / 60;
+                    } else {
+                        // Late → deduct only the lateness beyond the grace window.
+                        $lateMinutes = $start->diffInMinutes($absStart);
+                        $deductibleMinutes = max(0, $lateMinutes - $bookOnGraceMinutes);
+                        $bookOnHours = $deductibleMinutes / 60;
                     }
                 }
             }
@@ -714,13 +724,17 @@ class InvoiceService
 
             $grossAmount += $workedHours * $shiftRate;
 
-            // Deduct absentee hours if within shift
+            // Deduct absentee hours if within shift. Book-on gets a 15-minute grace:
+            // only lateness beyond the grace is deducted (10:16 on a 10:00 start = 1 min).
+            $bookOnGraceMinutes = 15;
             $shiftBookOnHours = 0;
             $shiftBookOffHours = 0;
             if ($shiftDate->absentee_start_time) {
                 $absStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
-                if ($absStart->between($startDT, $endDT)) {
-                    $shiftBookOnHours = $startDT->diffInMinutes($absStart) / 60;
+                if ($absStart->gt($startDT) && $absStart->lte($endDT)) {
+                    $lateMinutes = $startDT->diffInMinutes($absStart);
+                    $deductibleMinutes = max(0, $lateMinutes - $bookOnGraceMinutes);
+                    $shiftBookOnHours = $deductibleMinutes / 60;
                     $totalBookOnHours += $shiftBookOnHours;
                 }
             }

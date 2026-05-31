@@ -52,11 +52,15 @@ class PayrollCalculator
                 $totalHours += ($durationMinutes - $breakMinutes) / 60;
                 $totalBreaks += $breakMinutes / 60;
 
-                // Absentee
+                // Absentee. Book-on gets a 15-minute grace: only lateness beyond the
+                // grace is deducted (e.g. 10:16 on a 10:00 start deducts 1 minute).
+                $bookOnGraceMinutes = 15;
                 if ($shiftDate->absentee_start_time) {
                     $absStart = Carbon::parse($date->format('Y-m-d') . ' ' . $shiftDate->absentee_start_time);
-                    if ($absStart->between($startDateTime, $endDateTime)) {
-                        $totalBookOnHours += $startDateTime->diffInMinutes($absStart) / 60;
+                    if ($absStart->gt($startDateTime) && $absStart->lte($endDateTime)) {
+                        $lateMinutes = $startDateTime->diffInMinutes($absStart);
+                        $deductibleMinutes = max(0, $lateMinutes - $bookOnGraceMinutes);
+                        $totalBookOnHours += $deductibleMinutes / 60;
                     }
                 }
 

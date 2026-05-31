@@ -138,10 +138,10 @@
                                         <th>Shift Date</th>
                                         <th>Start Time</th>
                                         <th>End Time</th>
-                                        <th>Planned Duration</th>
+                                        <th>Total Hours</th>
                                         <th>Book On</th>
                                         <th>Book Off</th>
-                                        <th>Actual Duration</th>
+                                        <th>Worked Hours</th>
                                         <th>Status</th>
                                     </tr>
                                 </thead>
