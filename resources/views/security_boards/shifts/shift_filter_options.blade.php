@@ -6,6 +6,9 @@
     $staffs  = $staffs  ?? App\Models\User::role('security_staff')->select(['id','first_name','last_name'])->orderBy('first_name')->get();
     $sites   = $sites   ?? App\Models\Site::select(['id','site_name'])->orderBy('site_name')->get();
     $clients = $clients ?? App\Models\User::role('client')->select(['id','first_name','last_name'])->orderBy('first_name')->get();
+    // Subcontractors are users with the "subcontractor" role — resolved the same
+    // way the scheduling board resolves them (id => "first_name last_name").
+    $subcontractors = $subcontractors ?? App\Models\User::role('subcontractor')->select(['id','first_name','last_name'])->orderBy('first_name')->get();
 @endphp
 
 <!-- Filter Modal -->
@@ -54,6 +57,18 @@
                                 <option value="">--choose--</option>
                                 @foreach ($sites as $site)
                                     <option value="{{ $site->id }}">{{ $site->site_name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <!-- Subcontractor -->
+                        <div class="col-md-4 mb-3">
+                            <label class="form-label">Subcontractor</label>
+                            <select class="form-select subcontractor-select-filter" name="subcontractor">
+                                <option value="">--choose--</option>
+                                @foreach ($subcontractors as $subcontractor)
+                                    <option value="{{ $subcontractor->id }}">{{ $subcontractor->first_name }}
+                                        {{ $subcontractor->last_name }}</option>
                                 @endforeach
                             </select>
                         </div>

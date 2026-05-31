@@ -1886,7 +1886,7 @@
                 };
             }
 
-            const persistedFilterKeys = ['staff', 'client_id', 'site', 'status', 'from_shift', 'to_shift'];
+            const persistedFilterKeys = ['staff', 'client_id', 'site', 'subcontractor', 'status', 'from_shift', 'to_shift'];
 
             function collectActiveFiltersFromForm(formEl) {
                 const filters = {};
@@ -1909,6 +1909,11 @@
                     const shiftStaffId = shift.staff_id || shift.staffId || shift.staff || null;
                     const shiftClientId = shift.client_id || shift.clientId || shift.client || null;
                     const shiftSiteId = shift.site_id || shift.siteId || shift.site || null;
+                    // Subcontractor filter matches by the resolved subcontractor USER id
+                    // (the dropdown lists subcontractor users). Fall back to the raw
+                    // stored subcontractor_id when the user id wasn't resolved.
+                    const shiftSubcontractorId = shift.subcontractor_user_id || shift.subcontractor_id ||
+                        null;
                     const shiftStatus = (typeof shift.status !== 'undefined') ? shift.status : (shift
                         .state || null);
                     const shiftStartRaw = shift.start_date || shift.shift_date || shift.startDate || shift
@@ -1926,6 +1931,12 @@
                     if (filters.site) {
                         if (shiftSiteId === null || parseInt(shiftSiteId, 10) !== parseInt(filters.site,
                                 10))
+                            return false;
+                    }
+
+                    if (filters.subcontractor) {
+                        if (shiftSubcontractorId === null || parseInt(shiftSubcontractorId, 10) !== parseInt(
+                                filters.subcontractor, 10))
                             return false;
                     }
 
@@ -3335,6 +3346,13 @@
                 minimumResultsForSearch: 0 // force search bar for single select
             })
             $('.site-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
+            $('.subcontractor-select-filter').select2({
                 placeholder: "--choose--",
                 allowClear: true,
                 width: '100%',

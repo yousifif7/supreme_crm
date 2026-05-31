@@ -1731,10 +1731,12 @@ private function formatGanttData($shiftDates)
         $resolvedSubcontractorName   = '';
         $resolvedSubcontractorSearch = '';
         $resolvedSubcontractorId     = null;
+        $resolvedSubcontractorUserId = null;
 
         if (!empty($sd->staff_id)) {
             $candidateId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
             if (!empty($candidateId)) {
+                $subModel = null;
                 try {
                     $subModel = $this->findSubcontractorByStoredId($candidateId);
                     if ($subModel) {
@@ -1760,6 +1762,12 @@ private function formatGanttData($shiftDates)
 
                 // Only expose stored id when staff is assigned
                 $resolvedSubcontractorId = $candidateId;
+                // The subcontractor filter matches by USER id. Resolve the linked
+                // user id; when there is no sub_contractors row the stored id IS
+                // already the user id (mirrors how the board displays the name).
+                $resolvedSubcontractorUserId = ($subModel && $subModel->user_id)
+                    ? $subModel->user_id
+                    : $candidateId;
             }
         }
 
@@ -1794,6 +1802,7 @@ private function formatGanttData($shiftDates)
             'note' => ((int) ($sd->notes_count ?? 0)) > 0 ? true : null,
             // Subcontractor data: prefer joined alias columns -> relation -> parent shift subcontractor
             'subcontractor_id' => $resolvedSubcontractorId,
+            'subcontractor_user_id' => $resolvedSubcontractorUserId,
             'subcontractor_name' => $resolvedSubcontractorName ?: '',
             'subcontractor_search' => $resolvedSubcontractorSearch,
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
@@ -1908,6 +1917,7 @@ private function formatGanttArray($shiftDates)
         // Resolve subcontractor from pre-loaded maps (no extra queries).
         // Only include subcontractor info when a staff is assigned to the shift.
         $resolvedSubcontractorId     = null;
+        $resolvedSubcontractorUserId = null;
         $resolvedSubcontractorName   = '';
         $resolvedSubcontractorSearch = '';
         if (!empty($sd->staff_id)) {
@@ -1918,6 +1928,10 @@ private function formatGanttArray($shiftDates)
                 $resolvedSubcontractorName   = $resolveSubName($subModel);
                 $resolvedSubcontractorSearch = $resolveSubSearch($subModel);
                 $resolvedSubcontractorId     = $candidateId;
+                // The subcontractor dropdown filters by USER id. Resolve the linked
+                // user id from the loaded model; when no sub_contractors row exists
+                // the stored id IS already the user id (matches scheduling display).
+                $resolvedSubcontractorUserId = $subModel ? $subModel->user_id : $candidateId;
             }
         }
 
@@ -1946,6 +1960,7 @@ private function formatGanttArray($shiftDates)
             'has_notes' => ((int) ($sd->notes_count ?? 0)) > 0,
             'note' => ((int) ($sd->notes_count ?? 0)) > 0 ? true : null,
             'subcontractor_id' => $resolvedSubcontractorId,
+            'subcontractor_user_id' => $resolvedSubcontractorUserId,
             'subcontractor_name' => $resolvedSubcontractorName,
             'subcontractor_search' => $resolvedSubcontractorSearch,
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),

@@ -238,7 +238,7 @@
 @section('scripts')
     <script>
         $(document).ready(function() {
-            const FILTER_KEYS = ['staff', 'client_id', 'site', 'status', 'from_shift', 'to_shift'];
+            const FILTER_KEYS = ['staff', 'client_id', 'site', 'subcontractor', 'status', 'from_shift', 'to_shift'];
 
             function getFilterValues() {
                 const values = {};
@@ -270,7 +270,7 @@
                 }
 
                 // Refresh Select2 UIs after value restore
-                $('#shiftFilterForm .staff-select-filter, #shiftFilterForm .client-select-filter, #shiftFilterForm .site-select-filter').trigger('change.select2');
+                $('#shiftFilterForm .staff-select-filter, #shiftFilterForm .client-select-filter, #shiftFilterForm .site-select-filter, #shiftFilterForm .subcontractor-select-filter').trigger('change.select2');
             }
 
             function syncUrlWithCurrentFilters() {
@@ -372,6 +372,13 @@
                 dropdownParent: $('#filterModal'), // make sure this matches your modal ID
                 minimumResultsForSearch: 0 // force search bar for single select
             })
+            $('.subcontractor-select-filter').select2({
+                placeholder: "--choose--",
+                allowClear: true,
+                width: '100%',
+                dropdownParent: $('#filterModal'), // make sure this matches your modal ID
+                minimumResultsForSearch: 0 // force search bar for single select
+            })
 
 
             // Auto-apply when the select changes
@@ -431,7 +438,7 @@
                     $field.val('');
                 });
 
-                $('#shiftFilterForm .staff-select-filter, #shiftFilterForm .client-select-filter, #shiftFilterForm .site-select-filter').trigger('change.select2');
+                $('#shiftFilterForm .staff-select-filter, #shiftFilterForm .client-select-filter, #shiftFilterForm .site-select-filter, #shiftFilterForm .subcontractor-select-filter').trigger('change.select2');
                 $('#shiftStatus').val('');
                 $('.search_box').val('');
 

@@ -16,7 +16,7 @@ class RevokeIdleLoginSessions extends Command
      *
      * @var string
      */
-    protected $signature = 'auth:revoke-idle-sessions {--minutes=30} {--dry-run}';
+    protected $signature = 'auth:revoke-idle-sessions {--minutes=30} {--dry-run} {--fix-existing}';
 
     /**
      * The console command description.
@@ -29,6 +29,33 @@ class RevokeIdleLoginSessions extends Command
     {
         $minutes = max(1, (int) $this->option('minutes'));
         $dryRun  = (bool) $this->option('dry-run');
+
+        // One-time repair: earlier sweeps stamped logout_at from the session's
+        // UTC last_activity, which produced logout times *before* login_at. The
+        // real destroy time can't be recovered for past rows, so clamp those
+        // broken logouts up to their login_at (duration reads ~0 instead of
+        // negative). Run with --fix-existing on the affected environment.
+        if ($this->option('fix-existing')) {
+            $brokenQuery = LoginActivity::whereNotNull('logout_at')
+                ->whereColumn('logout_at', '<', 'login_at');
+            $brokenCount = (clone $brokenQuery)->count();
+
+            if (!$dryRun && $brokenCount > 0) {
+                LoginActivity::whereNotNull('logout_at')
+                    ->whereColumn('logout_at', '<', 'login_at')
+                    ->update(['logout_at' => DB::raw('login_at')]);
+            }
+
+            $this->info(sprintf(
+                'fix-existing: %d row(s) with logout_at before login_at %s.',
+                $brokenCount,
+                $dryRun ? 'would be clamped (dry-run)' : 'clamped to login_at'
+            ));
+            Log::info('auth:revoke-idle-sessions fix-existing', [
+                'broken_rows' => $brokenCount,
+                'dry_run' => $dryRun,
+            ]);
+        }
 
         $threshold = Carbon::now()->subMinutes($minutes);
         $thresholdTs = $threshold->getTimestamp();
@@ -99,7 +126,13 @@ class RevokeIdleLoginSessions extends Command
             }
 
             if ($lastActivityTs < $thresholdTs) {
-                $logoutAt = Carbon::createFromTimestamp($lastActivityTs);
+                // Stamp logout_at with the moment the session is actually destroyed
+                // (now), not the session's stale last_activity. Using last_activity
+                // produced logout times *before* login because (a) it is the last
+                // request time, which can predate this LoginActivity row, and
+                // (b) Carbon::createFromTimestamp() returns UTC, so on a non-UTC app
+                // timezone (Europe/London) it was shifted an hour behind login_at.
+                $logoutAt = Carbon::now();
 
                 if (!$dryRun) {
                     $latest->update(['logout_at' => $logoutAt]);
