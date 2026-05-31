@@ -555,7 +555,7 @@
                                             <div class="document-card">
                                                 <div class="document-image-wrapper">
                                                     <img src="{{ asset($staff?->fileUrl('proof_of_address_file', true)) }}"
-                                                        alt="Proof of Address" class="document-image" loading="lazy" decoding="async" />
+                                                        alt="Proof of Address 1" class="document-image" loading="lazy" decoding="async" />
                                                     <div class="document-overlay">
                                                         <a href="{{ $staff?->fileUrl('proof_of_address_file') }}"
                                                             target="_blank" class="view-btn">
@@ -564,7 +564,27 @@
                                                     </div>
                                                 </div>
                                                 <div class="document-label">
-                                                    <h6 class="mb-0">Proof of Address</h6>
+                                                    <h6 class="mb-0">Proof of Address 1</h6>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    @endif
+
+                                    @if ($staff->proof_of_address_file_2)
+                                        <div class="col-md-4 col-sm-6 mb-3">
+                                            <div class="document-card">
+                                                <div class="document-image-wrapper">
+                                                    <img src="{{ asset($staff?->fileUrl('proof_of_address_file_2', true)) }}"
+                                                        alt="Proof of Address 2" class="document-image" loading="lazy" decoding="async" />
+                                                    <div class="document-overlay">
+                                                        <a href="{{ $staff?->fileUrl('proof_of_address_file_2') }}"
+                                                            target="_blank" class="view-btn">
+                                                            <i class="ti ti-eye"></i>
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                                <div class="document-label">
+                                                    <h6 class="mb-0">Proof of Address 2</h6>
                                                 </div>
                                             </div>
                                         </div>

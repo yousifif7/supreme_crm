@@ -596,7 +596,7 @@
                             </div>
                             <div class="modal-body">
                                 <div class="row">
-                                    <div class="col-md-6">
+                                    <div class="col-md-4">
                                         <h6>Add Ban</h6>
                                         <div class="mb-2">
                                             <label>Client</label>
@@ -618,7 +618,7 @@
                                             <button class="btn btn-primary" id="banSaveBtn">Confirm Ban</button>
                                         </div>
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-md-8">
                                         <h6>Existing Bans</h6>
                                         <div id="banListContainer">Loading...</div>
                                     </div>
@@ -745,7 +745,7 @@
                     const label = b.client ? 'Client' : (b.site ? 'Site' : 'Global');
                     const clientName = b.client ? (b.client.first_name + ' ' + (b.client.last_name||'')) : '';
                     const name = b.site ? b.site.site_name : (clientName ? clientName : '—');
-                    html += `<tr><td>${label}</td><td>${esc(clientName)}</td><td>${esc(name)}</td><td>${esc(b.reason||'')}</td><td>${b.created_at}</td><td><button class="btn btn-sm btn-danger" data-id="${b.id}" onclick="removeBan(${b.id}, ${employeeId})">Remove</button></td></tr>`;
+                    html += `<tr><td>${label}</td><td>${esc(clientName)}</td><td>${esc(name)}</td><td>${esc(b.reason||'')}</td><td>${new Date(b.created_at).toLocaleDateString()}</td><td><button class="btn btn-sm btn-danger" data-id="${b.id}" onclick="removeBan(${b.id}, ${employeeId})">Remove</button></td></tr>`;
                 });
                 html += '</tbody></table></div>';
                 $('#banListContainer').html(html);
@@ -1240,7 +1240,8 @@
                     const documentFields = {
                         'sia_licence_file': 'SIA Licence',
                         'passport_file': 'Passport',
-                        'proof_of_address_file': 'Proof of Address',
+                        'proof_of_address_file': 'Proof of Address 1',
+                        'proof_of_address_file_2': 'Proof of Address 2',
                         'driving_licence_file': 'Driving Licence',
                         'ni_letter_file': 'NI Letter',
                         'first_aid_certificate_file': 'Right to Work',
@@ -1730,7 +1731,8 @@
                 const documentTypes = {
                     sia_licence_file: "SIA Licence",
                     passport_file: "Passport",
-                    proof_of_address_file: "Proof of Address",
+                    proof_of_address_file: "Proof of Address 1",
+                    proof_of_address_file_2: "Proof of Address 2",
                     ni_letter_file: "NI Letter",
                     first_aid_certificate_file: "Right to Work",
                     act_certificate_file: "ACT Certificate",

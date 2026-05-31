@@ -481,9 +481,17 @@
                            </div>
 
                            <div class="col-md-4 mb-3">
-                               <label class="form-label" for="proof_of_address_file">Proof of address</label>
+                               <label class="form-label" for="proof_of_address_file">Proof of address 1</label>
                                <input type="file" name="proof_of_address_file" accept=".jpg,.jpeg,.png,.pdf"
                                    id="proof_of_address_file" class="form-control">
+                               <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
+                                   Pdf)</span>
+                           </div>
+
+                           <div class="col-md-4 mb-3">
+                               <label class="form-label" for="proof_of_address_file_2">Proof of address 2</label>
+                               <input type="file" name="proof_of_address_file_2" accept=".jpg,.jpeg,.png,.pdf"
+                                   id="proof_of_address_file_2" class="form-control">
                                <span class="text-default">Max File size 20MB and Allowed File Types (Jpeg, Jpg, Png,
                                    Pdf)</span>
                            </div>

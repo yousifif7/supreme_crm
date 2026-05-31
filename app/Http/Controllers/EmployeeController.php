@@ -113,6 +113,7 @@ class EmployeeController extends Controller
             'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
+            'proof_of_address_file_2' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
             'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480',
@@ -242,7 +243,7 @@ class EmployeeController extends Controller
             }
         }
 
-        $documents = ['sia_licence_file', 'passport_file', 'driving_licence_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
+        $documents = ['sia_licence_file', 'passport_file', 'driving_licence_file', 'proof_of_address_file', 'proof_of_address_file_2', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file'];
         foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
@@ -533,6 +534,7 @@ class EmployeeController extends Controller
             'sia_licence_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'passport_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'proof_of_address_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
+            'proof_of_address_file_2' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'ni_letter_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'first_aid_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
             'act_certificate_file' => 'file|mimes:jpg,jpeg,png,pdf|max:20480', // max in kilobytes (2048 KB = 20MB)
@@ -694,7 +696,7 @@ class EmployeeController extends Controller
             }
         }
 
-        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file', 'driving_licence_file'];
+        $documents = ['sia_licence_file', 'passport_file', 'proof_of_address_file', 'proof_of_address_file_2', 'ni_letter_file', 'first_aid_certificate_file', 'act_certificate_file', 'driving_licence_file'];
         foreach ($documents as $document) {
             if ($request->hasFile($document)) {
                 $file = $request->file($document);
@@ -1105,6 +1107,7 @@ class EmployeeController extends Controller
             'sia_licence_file' => $employee?->sia_licence_file,
             'passport_file' => $employee?->passport_file,
             'proof_of_address_file' => $employee?->proof_of_address_file,
+            'proof_of_address_file_2' => $employee?->proof_of_address_file_2,
             'ni_letter_file' => $employee?->ni_letter_file,
             'first_aid_certificate_file' => $employee?->first_aid_certificate_file,
             'act_certificate_file' => $employee?->act_certificate_file,

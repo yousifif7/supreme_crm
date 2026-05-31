@@ -16,7 +16,8 @@ class DocumentController extends Controller
     protected $documentFields = [
         'sia_licence_file'          => 'SIA Licence',
         'passport_file'             => 'Passport',
-        'proof_of_address_file'     => 'Proof of Address',
+        'proof_of_address_file'     => 'Proof of Address 1',
+        'proof_of_address_file_2'   => 'Proof of Address 2',
         'ni_letter_file'            => 'NI Letter',
         'first_aid_certificate_file' => 'First Aid Certificate',
         'act_certificate_file'      => 'ACT Certificate',
