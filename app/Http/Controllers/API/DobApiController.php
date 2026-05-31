@@ -6,7 +6,6 @@ use Notify;
 use Carbon\Carbon;
 use App\Models\DobEntry;
 use App\Models\DobMedia;
-use App\Models\Employee;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Traits\MediaWatermark;
@@ -27,11 +26,6 @@ class DobApiController extends Controller
         $payload = $request->all();
 
         $user = Auth::user();
-        $employee = Employee::where('user_id', $user->id)->first();
-
-        if (!$employee) {
-            return response()->json(['message' => 'No employee linked to this user.'], 404);
-        }
 
         // Bulk path
         if (!empty($payload['dobs']) && is_array($payload['dobs'])) {
@@ -52,7 +46,7 @@ class DobApiController extends Controller
 
             $created = [];
             foreach ($payload['dobs'] as $item) {
-                $created[] = $this->createApiDobEntryFromPayload($item, $user, $employee);
+                $created[] = $this->createApiDobEntryFromPayload($item, $user);
             }
 
             return response()->json(['message' => 'DOB entries created', 'created' => $created], 201);
@@ -71,7 +65,7 @@ class DobApiController extends Controller
             'timestamp' => 'nullable|date',
         ]);
 
-        $created = $this->createApiDobEntryFromPayload($data, $user, $employee);
+        $created = $this->createApiDobEntryFromPayload($data, $user);
 
         return response()->json(['entry_id' => $created['id'], 'message' => 'DOB entry created successfully'], 201);
     }
@@ -80,8 +74,10 @@ class DobApiController extends Controller
      * Create an API DOB entry and handle media, notifications, logging.
      * Returns basic created info.
      */
-    private function createApiDobEntryFromPayload(array $payload, $user, $employee)
+    private function createApiDobEntryFromPayload(array $payload, $user)
     {
+        $guardName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->name ?? 'Guard');
+
         // Derive admin_id from the guard's user record so the owning admin can see this entry
         $adminId = \App\Models\User::withoutGlobalScope('admin_scope')
             ->where('id', $user->id)
@@ -160,7 +156,7 @@ class DobApiController extends Controller
                 null,
                 'alert',
                 'DOB uploaded',
-                'DOB uploaded by guard ' . $employee->fore_name . ' ' . $employee->sur_name,
+                'DOB uploaded by guard ' . $guardName,
                 '/dobs'
             );
         } catch (\Throwable $e) {
@@ -178,10 +174,9 @@ class DobApiController extends Controller
 
     public function index(Request $req)
     {
-        $employee = Employee::where('user_id', Auth::id())->first();
         $q = DobEntry::with('media')
             ->latest('created_at')
-            ->where('user_id', $employee->user_id);
+            ->where('user_id', Auth::id());
 
         if ($req->filled('shift_id')) {
             $q->where('shift_id', $req->shift_id);
@@ -233,10 +228,7 @@ class DobApiController extends Controller
         ]);
 
         $user = Auth::user();
-        $employee = Employee::where('user_id', $user->id)->first();
-        if (!$employee) {
-            return response()->json(['message' => 'No employee linked to this user.'], 404);
-        }
+        $guardName = trim(($user->first_name ?? '') . ' ' . ($user->last_name ?? '')) ?: ($user->name ?? 'Guard');
 
         $entry = DobEntry::where('id', $id)
             ->where('user_id', $user->id)
@@ -303,7 +295,7 @@ class DobApiController extends Controller
                 null,
                 'alert',
                 'DOB Updated',
-                'DOB updated by ' . $employee->fore_name . ' ' . $employee->sur_name,
+                'DOB updated by ' . $guardName,
                 '/documents/report'
             );
         } catch (\Exception $e) {
