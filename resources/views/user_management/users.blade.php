@@ -1,5 +1,42 @@
 @extends('layouts.app')
 @section('title', 'SPL Connect - Users')
+@section('styles')
+    <style>
+        /* Single bold toggle button that flips between the All Users / SaaS views.
+           Sized to line up with the standard .btn elements on the same row. */
+        .user-view-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            vertical-align: middle;
+            border: 0;
+            border-radius: 10px;
+            padding: 0.5rem 1.25rem; /* matches Bootstrap .btn vertical padding */
+            font-size: 14px;
+            line-height: 1.5;        /* matches Bootstrap .btn line-height */
+            font-weight: 700;
+            letter-spacing: .2px;
+            color: #fff;
+            background: var(--bs-primary, #6c5ce7);
+            box-shadow: 0 6px 16px -5px rgba(108, 92, 231, 0.55);
+            transition: all .2s ease;
+        }
+
+        .user-view-toggle:hover {
+            color: #fff;
+            filter: brightness(1.05);
+            box-shadow: 0 8px 20px -5px rgba(108, 92, 231, 0.65);
+        }
+
+        .user-view-toggle:active {
+            transform: translateY(1px);
+        }
+
+        .user-view-toggle .ti {
+            font-size: 16px;
+        }
+    </style>
+@endsection
 @section('contents')
     <!-- Page Wrapper -->
     <div id="all-workers" class="page-wrapper">
@@ -36,6 +73,31 @@
                     </div>
                 </div>
                 <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#import_modal">Import</button>
+                
+                @hasanyrole('superadmin')
+                    <!-- View Toggle: a single button that flips between All Users and SaaS.
+                         The label shows the view it will switch TO. Hidden Bootstrap tab
+                         buttons keep driving the existing tab-panes / DataTables. -->
+                    <button type="button" id="viewToggleBtn" class="btn user-view-toggle me-2 mb-2">
+                        <i class="ti ti-building-skyscraper me-2"></i>
+                        <span class="toggle-label">SaaS</span>
+                    </button>
+
+                    <!-- Hidden tab controls — Bootstrap tab logic is triggered via these. -->
+                    <ul class="nav d-none" id="usersTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="all-users-tab" data-bs-toggle="tab"
+                                data-bs-target="#all-users" type="button" role="tab" aria-controls="all-users"
+                                aria-selected="true">All Users</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="admin-users-tab" data-bs-toggle="tab"
+                                data-bs-target="#admin-users" type="button" role="tab" aria-controls="admin-users"
+                                aria-selected="false">SaaS</button>
+                        </li>
+                    </ul>
+                @endhasanyrole
+
                 <div class="me-2 mb-2 filter_area">
 
                     <a href="#" data-bs-toggle="modal" data-bs-target="#add_user"
@@ -54,27 +116,6 @@
                 </div>
             </div>
             <!-- /Breadcrumb -->
-
-            @hasanyrole('superadmin')
-            <!-- Tabs Navigation -->
-            <div class="card mb-4">
-                <div class="card-body p-0">
-                    <ul class="nav nav-tabs nav-tabs-bordered" id="usersTab" role="tablist">
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link active" id="all-users-tab" data-bs-toggle="tab" data-bs-target="#all-users" type="button" role="tab" aria-controls="all-users" aria-selected="true">
-                                All Users
-                            </button>
-                        </li>
-                        <li class="nav-item" role="presentation">
-                            <button class="nav-link" id="admin-users-tab" data-bs-toggle="tab" data-bs-target="#admin-users" type="button" role="tab" aria-controls="admin-users" aria-selected="false">
-                                SaaS
-                            </button>
-                        </li>
-                    </ul>
-                </div>
-            </div>
-            @endhasanyrole
-            <!-- /Tabs Navigation -->
 
             <!-- Tabs Content -->
             <div class="tab-content" id="usersTabContent">
@@ -224,13 +265,24 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label class="form-label">Roles</label>
-                                                <select name="roles[]" class="form-control">
+                                                <select name="roles[]" class="form-control" id="add_roles">
                                                     <option value="">Select Role</option>
                                                     @foreach ($roles as $role)
                                                         <option value="{{ $role }}">{{ $role }}</option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error" id="error_role"></span>
+                                            </div>
+                                        </div>
+
+                                        <div class="col-md-6 company-name-field" id="add_company_name_field"
+                                            style="display: none;">
+                                            <div class="mb-3">
+                                                <label class="form-label">Company Name <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" name="company_name" id="add_company_name"
+                                                    class="form-control">
+                                                <span class="text-danger form-error" id="error_company_name"></span>
                                             </div>
                                         </div>
 
@@ -384,6 +436,17 @@
                                             </div>
                                         </div>
 
+                                        <div class="col-md-6 company-name-field" id="edit_company_name_field"
+                                            style="display: none;">
+                                            <div class="mb-3">
+                                                <label class="form-label">Company Name <span
+                                                        class="text-danger">*</span></label>
+                                                <input type="text" name="company_name" id="company_name_input"
+                                                    class="form-control">
+                                                <span class="text-danger form-error" id="error_company_name"></span>
+                                            </div>
+                                        </div>
+
                                     </div>
                                 </div>
                                 <div class="modal-footer">
@@ -496,6 +559,10 @@
                             <tr>
                                 <th>Full Name</th>
                                 <td id="user_full_name"></td>
+                            </tr>
+                            <tr id="user_company_row" style="display: none;">
+                                <th>Company Name</th>
+                                <td id="user_company_name"></td>
                             </tr>
                             <tr>
                                 <th>Username</th>
@@ -623,19 +690,63 @@
                 dom: 't<"d-flex justify-content-between mt-2"<"col-sm-12 col-md-5 align-self-center ps-3"i><"d-flex justify-content-between" p>>'
             });
 
-            // Tab switching - redraw DataTable when tab becomes visible
-            $('#usersTab button[data-bs-toggle="tab"]').on('shown.bs.tab', function (e) {
-                var target = $(e.target).attr("data-bs-target");
-                if (target === '#all-users') {
-                    if (allUsersTable) {
-                        allUsersTable.columns.adjust().responsive.recalc();
-                    }
-                } else if (target === '#admin-users') {
-                    if (saasUsersTable) {
-                        saasUsersTable.columns.adjust().responsive.recalc();
-                    }
+            // Show/hide the Company Name field depending on whether the selected
+            // role is "admin". Wired for both the Add and Edit modals.
+            function toggleCompanyNameField(roleValue, fieldSelector) {
+                const isAdmin = (roleValue || '').toLowerCase() === 'admin';
+                $(fieldSelector).toggle(isAdmin);
+                if (!isAdmin) {
+                    $(fieldSelector).find('input[name="company_name"]').val('');
                 }
+            }
+
+            $('#add_roles').on('change', function() {
+                toggleCompanyNameField($(this).val(), '#add_company_name_field');
             });
+
+            $('#roles').on('change', function() {
+                toggleCompanyNameField($(this).val(), '#edit_company_name_field');
+            });
+
+            // Reset the Add modal (including the company name field) when it closes.
+            $('#add_user').on('hidden.bs.modal', function() {
+                $('#add_company_name_field').hide();
+            });
+
+            // Single toggle button: flip between All Users and SaaS views.
+            // We manage the panes manually (no Bootstrap Tab, no fade transition, no
+            // async shown.bs.tab event) so a single click switches the content AND the
+            // button label together, every time — no one-click lag.
+            var saasShown = false; // single source of truth for the current view
+
+            function applyUsersView() {
+                var btn = document.getElementById('viewToggleBtn');
+
+                // Show the correct pane, hide the other.
+                $('#all-users').toggleClass('show active', !saasShown);
+                $('#admin-users').toggleClass('show active', saasShown);
+
+                // Button always offers the OTHER view.
+                if (btn) {
+                    btn.innerHTML = saasShown ?
+                        '<i class="ti ti-users me-2"></i><span class="toggle-label">Users</span>' :
+                        '<i class="ti ti-building-skyscraper me-2"></i><span class="toggle-label">SaaS</span>';
+                }
+
+                // Let the now-visible DataTable recalc its layout.
+                var tbl = saasShown ? saasUsersTable : allUsersTable;
+                if (tbl) {
+                    tbl.columns.adjust().responsive.recalc();
+                }
+            }
+
+            $('#viewToggleBtn').on('click', function() {
+                saasShown = !saasShown;
+                applyUsersView();
+            });
+
+            // Initial paint (All Users is the default view).
+            applyUsersView();
 
             $('#add_user_form').on('submit', function(e) {
                 e.preventDefault();
@@ -734,10 +845,13 @@
                     $('#edit_user_id').val(record_id); // store user ID
                     $('#first_name').val(data.user.first_name);
                     $('#last_name').val(data.user.last_name);
+                    $('#company_name_input').val(data.user.company_name || '');
                     $('#email').val(data.user.email);
                     // $('#username').val(data.user.username);
                     $('#phone_number').val(data.user.phone_number);
                     $('#status').val(data.user.status);
+                    // Set the role then trigger change so the Company Name field
+                    // toggles to match the selected role.
                     $('#roles').val(Object.values(data.userRoles)).trigger('change');
                     $('#edit_user').modal('show');
                 }
@@ -872,8 +986,16 @@
 
         function viewUserDetail(id) {
             $.get(`${baseUrl}/users/${id}/view`, function(data) {
+                const first_name= data.first_name ?? '-';
+                const last_name= data.last_name ?? '';
                 $('#user_name_heading').text(data.name);
-                $('#user_full_name').text(data.first_name + ' ' + data.last_name);
+                $('#user_full_name').text(first_name + ' ' + last_name);
+                if (data.company_name) {
+                    $('#user_company_name').text(data.company_name);
+                    $('#user_company_row').show();
+                } else {
+                    $('#user_company_row').hide();
+                }
                 $('#user_username').text(data.username);
                 $('#user_email').text(data.email);
                 $('#user_phone').text(data.phone_number);

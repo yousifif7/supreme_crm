@@ -10,6 +10,11 @@
                 {{ $user->first_name }} {{ $user->last_name }}
             </a>
         </h6>
+        @if (!empty($user->company_name))
+            <span class="fs-10 fw-normal d-block text-muted">
+                <i class="ti ti-building"></i>&nbsp;{{ $user->company_name }}
+            </span>
+        @endif
         <span class="fs-10 fw-normal">
             <i class="ti ti-phone"></i>&nbsp;{{ $user->phone_number }}&nbsp;
             <a href="#"><i class="ti ti-external-link"></i></a>

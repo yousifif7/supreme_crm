@@ -436,6 +436,8 @@ class UserController extends Controller
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
             'roles' => 'nullable|array',
+            // Company name is required only when the admin role is being assigned.
+            'company_name' => [Rule::requiredIf(in_array('admin', (array) $request->input('roles', []), true)), 'nullable', 'string', 'max:255'],
             'profile_picture' => 'nullable|image|max:4096'
         ]);
 
@@ -508,7 +510,10 @@ class UserController extends Controller
     }
     public function edit($id)
     {
-        $user = User::find($id);
+        $user = $this->resolveManageableUser($id);
+        if (!$user) {
+            return response()->json(['error' => 'User not found.'], 404);
+        }
         $roles = $this->availableRolesForCurrentUser();
         $userRoles = $user->roles->pluck('name', 'name')->all();
         return response()->json(['user' => $user, 'userRoles' => $userRoles]);
@@ -516,7 +521,7 @@ class UserController extends Controller
 
     public function update(Request $request, $id)
     {
-        $user = User::find($id);
+        $user = $this->resolveManageableUser($id);
         if (!$user) {
             return response()->json(['error' => 'User not found.'], 404);
         }
@@ -541,6 +546,8 @@ class UserController extends Controller
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
             'roles' => 'nullable',
+            // Company name is required only when the admin role is being assigned.
+            'company_name' => [Rule::requiredIf(in_array('admin', (array) $request->input('roles', []), true)), 'nullable', 'string', 'max:255'],
             'profile_picture' => 'nullable|image|max:4096'
         ]);
 
@@ -608,7 +615,10 @@ class UserController extends Controller
     public function destroy($userId)
     {
         // \Log::info("Destroy called for user: " . $userId);
-        $user = User::findOrFail($userId);
+        $user = $this->resolveManageableUser($userId);
+        if (!$user) {
+            return response()->json(['error' => 'User not found.'], 404);
+        }
         Logger::log(Auth::user(), 'Delete', 'User ' . $user->first_name . ' ' . $user->last_name . ' Deleted');
 
         $user->delete();
@@ -624,7 +634,13 @@ class UserController extends Controller
             'ids.*' => 'exists:users,id',
         ]);
 
-        $users = User::whereIn('id', $request->ids)->get();
+        // Superadmins manage SaaS (admin) users, which live outside their own
+        // (admin_id IS NULL) scope, so bypass the admin scope for them.
+        $usersQuery = (Auth::check() && Auth::user()->hasRole('superadmin'))
+            ? User::withoutAdminScope()
+            : User::query();
+
+        $users = $usersQuery->whereIn('id', $request->ids)->get();
         foreach ($users as $user) {
             Logger::log(Auth::user(), 'Delete', 'User ' . $user->first_name . ' ' . $user->last_name . ' Deleted');
             $user->delete();
@@ -650,12 +666,16 @@ class UserController extends Controller
     }
     public function view($id)
     {
-        $user = User::findOrFail($id);
+        $user = $this->resolveManageableUser($id);
+        if (!$user) {
+            return response()->json(['error' => 'User not found.'], 404);
+        }
 
         return response()->json([
             'name' => $user->name,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
+            'company_name' => $user->company_name,
             'email' => $user->email,
             'username' => $user->username,
             'phone_number' => $user->phone_number,
@@ -723,6 +743,26 @@ class UserController extends Controller
 
         // ✅ Store flag in cache until the end of Thursday (23:59:59)
         Cache::put($cacheKey, true, $today->copy()->endOfDay());
+    }
+
+    /**
+     * Resolve a user the current actor is allowed to manage.
+     *
+     * Admin (SaaS) users have admin_id set to their own id, so they fall outside
+     * a superadmin's default scope (admin_id IS NULL). Superadmins manage these
+     * users from the SaaS tab, so look them up without the admin scope. Everyone
+     * else stays inside their own admin-scoped dataset.
+     */
+    private function resolveManageableUser($id): ?User
+    {
+        /** @var \App\Models\User|null $authUser */
+        $authUser = Auth::user();
+
+        if ($authUser && $authUser->hasRole('superadmin')) {
+            return User::withoutAdminScope()->find($id);
+        }
+
+        return User::find($id);
     }
 
     private function availableRolesForCurrentUser(): array
