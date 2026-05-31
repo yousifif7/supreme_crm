@@ -30,16 +30,7 @@
                     <th>Date</th>
                 </tr>
             </thead>
-            <tbody>
-                @foreach($logs as $log)
-                <tr>
-                    <td>{{ $log->user_name }}</td>
-                    <td>{{ $log->action }}</td>
-                    <td>{{ $log->description }}</td>
-                    <td>{{ $log->created_at->format('Y-m-d H:i:s') }}</td>
-                </tr>
-                @endforeach
-            </tbody>
+            <tbody></tbody>
         </table>
     </div>
 </div>
@@ -56,49 +47,34 @@
 
 <script>
 $(document).ready(function() {
-    $.fn.dataTable.ext.search.push(function(settings, data) {
-        if (settings.nTable.id !== 'logsTable') {
-            return true;
-        }
-
-        const fromDate = $('#filterFromDate').val();
-        const toDate = $('#filterToDate').val();
-        const dateText = data[3];
-
-        if (!dateText) {
-            return true;
-        }
-
-        const rowDate = new Date(dateText.replace(' ', 'T'));
-        if (Number.isNaN(rowDate.getTime())) {
-            return true;
-        }
-
-        if (fromDate) {
-            const minDate = new Date(fromDate + 'T00:00:00');
-            if (rowDate < minDate) {
-                return false;
-            }
-        }
-
-        if (toDate) {
-            const maxDate = new Date(toDate + 'T23:59:59');
-            if (rowDate > maxDate) {
-                return false;
-            }
-        }
-
-        return true;
-    });
-
     const table = $('#logsTable').DataTable({
         responsive: true,
+        processing: true,
+        serverSide: true,
+        deferRender: true,
         pageLength: 25,
+        lengthMenu: [[25, 50, 100, 250], [25, 50, 100, 250]],
         order: [[3, 'desc']], // default sort by Date (latest first)
+        ajax: {
+            url: "{{ route('logs.index') }}",
+            type: 'GET',
+            data: function(d) {
+                d.from_date = $('#filterFromDate').val();
+                d.to_date   = $('#filterToDate').val();
+            }
+        },
+        columns: [
+            { data: 'user_name',   name: 'user_name' },
+            { data: 'action',      name: 'action' },
+            { data: 'description', name: 'description' },
+            { data: 'created_at',  name: 'created_at' }
+        ]
     });
 
+    let dateFilterDebounce;
     $('#filterFromDate, #filterToDate').on('change', function() {
-        table.draw();
+        clearTimeout(dateFilterDebounce);
+        dateFilterDebounce = setTimeout(() => table.draw(), 150);
     });
 
     $('#resetDateFilter').on('click', function() {

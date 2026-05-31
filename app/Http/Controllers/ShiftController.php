@@ -280,7 +280,7 @@ public function scheduling()
             ->get();
     });
 
-    $staffs = Cache::remember("security_staff_min_list_{$cacheSuffix}", 300, function () {
+    $staffs = Cache::remember("security_staff_min_list_v2_{$cacheSuffix}", 300, function () {
         return User::role('security_staff')
             ->select(['id', 'first_name', 'last_name', 'email'])
             ->orderBy('first_name')
@@ -314,7 +314,7 @@ public function scheduling()
         $sites = Cache::remember('sites_min_list', 300, function () {
             return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
         });
-        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+        $staffs = Cache::remember('security_staff_min_list_v2', 300, function () {
             return User::role('security_staff')
                 ->select(['id', 'first_name', 'last_name', 'email'])
                 ->orderBy('first_name')->get();
@@ -335,7 +335,7 @@ public function scheduling()
         $sites = Cache::remember('sites_min_list', 300, function () {
             return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
         });
-        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+        $staffs = Cache::remember('security_staff_min_list_v2', 300, function () {
             return User::role('security_staff')
                 ->select(['id', 'first_name', 'last_name', 'email'])
                 ->orderBy('first_name')->get();
@@ -356,7 +356,7 @@ public function scheduling()
         $sites = Cache::remember('sites_min_list', 300, function () {
             return Site::select(['id', 'site_name', 'client_id'])->orderBy('site_name')->get();
         });
-        $staffs = Cache::remember('security_staff_min_list', 300, function () {
+        $staffs = Cache::remember('security_staff_min_list_v2', 300, function () {
             return User::role('security_staff')
                 ->select(['id', 'first_name', 'last_name', 'email'])
                 ->orderBy('first_name')->get();
@@ -1717,8 +1717,9 @@ private function formatGanttData($shiftDates)
 
         // Simplified subcontractor resolution: only expose subcontractor when a staff
         // is actually assigned for the shift (i.e. staff_id is not null).
-        $resolvedSubcontractorName = '';
-        $resolvedSubcontractorId = null;
+        $resolvedSubcontractorName   = '';
+        $resolvedSubcontractorSearch = '';
+        $resolvedSubcontractorId     = null;
 
         if (!empty($sd->staff_id)) {
             $candidateId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
@@ -1730,6 +1731,17 @@ private function formatGanttData($shiftDates)
                         if (!$resolvedSubcontractorName && isset($subModel->user) && $subModel->user) {
                             $resolvedSubcontractorName = trim((($subModel->user->first_name ?? '') . ' ' . ($subModel->user->last_name ?? '')));
                         }
+
+                        // Build combined searchable string covering every name variant
+                        $searchParts = [
+                            trim($subModel->company_name ?? ''),
+                            trim($subModel->contact_person ?? ''),
+                        ];
+                        if (isset($subModel->user) && $subModel->user) {
+                            $searchParts[] = trim(($subModel->user->first_name ?? '') . ' ' . ($subModel->user->last_name ?? ''));
+                            $searchParts[] = trim($subModel->user->email ?? '');
+                        }
+                        $resolvedSubcontractorSearch = trim(implode(' ', array_filter($searchParts)));
                     }
                 } catch (\Throwable $_) {
                     // ignore resolution errors
@@ -1772,6 +1784,7 @@ private function formatGanttData($shiftDates)
             // Subcontractor data: prefer joined alias columns -> relation -> parent shift subcontractor
             'subcontractor_id' => $resolvedSubcontractorId,
             'subcontractor_name' => $resolvedSubcontractorName ?: '',
+            'subcontractor_search' => $resolvedSubcontractorSearch,
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
         ];
     }
@@ -1841,6 +1854,22 @@ private function formatGanttArray($shiftDates)
         return $name;
     };
 
+    // Helper to build a combined searchable subcontractor string that includes
+    // every variant (company_name, contact_person, user first/last name, email).
+    // Used so the gantt search box can match a subcontractor by any of those.
+    $resolveSubSearch = static function (?Subcontractor $sub): string {
+        if (!$sub) return '';
+        $parts = [
+            trim($sub->company_name ?? ''),
+            trim($sub->contact_person ?? ''),
+        ];
+        if (isset($sub->user) && $sub->user) {
+            $parts[] = trim(($sub->user->first_name ?? '') . ' ' . ($sub->user->last_name ?? ''));
+            $parts[] = trim($sub->user->email ?? '');
+        }
+        return trim(implode(' ', array_filter($parts)));
+    };
+
     $ganttData = [];
 
     foreach ($rows as $sd) {
@@ -1867,15 +1896,17 @@ private function formatGanttArray($shiftDates)
 
         // Resolve subcontractor from pre-loaded maps (no extra queries).
         // Only include subcontractor info when a staff is assigned to the shift.
-        $resolvedSubcontractorId   = null;
-        $resolvedSubcontractorName = '';
+        $resolvedSubcontractorId     = null;
+        $resolvedSubcontractorName   = '';
+        $resolvedSubcontractorSearch = '';
         if (!empty($sd->staff_id)) {
             $candidateId = $sd->subcontractor_id ?? ($sd->parent_subcontractor ?? null);
             if (!empty($candidateId)) {
                 $key = (string) $candidateId;
                 $subModel = $subById[$key] ?? $subByUserId[$key] ?? null;
-                $resolvedSubcontractorName = $resolveSubName($subModel);
-                $resolvedSubcontractorId = $candidateId;
+                $resolvedSubcontractorName   = $resolveSubName($subModel);
+                $resolvedSubcontractorSearch = $resolveSubSearch($subModel);
+                $resolvedSubcontractorId     = $candidateId;
             }
         }
 
@@ -1905,6 +1936,7 @@ private function formatGanttArray($shiftDates)
             'note' => ((int) ($sd->notes_count ?? 0)) > 0 ? true : null,
             'subcontractor_id' => $resolvedSubcontractorId,
             'subcontractor_name' => $resolvedSubcontractorName,
+            'subcontractor_search' => $resolvedSubcontractorSearch,
             'created_at' => optional($sd->created_at)->format('Y-m-d\TH:i:s'),
         ];
     }
@@ -3053,10 +3085,10 @@ if (!is_null($ownerAdminId)) {
         // Security staff list (needed for assign-shift-modal) — cached 1 hour.
         // Was 5 min; on DB-backed cache the miss cost ~860ms (role join scan), so
         // we make this a long-lived cache and invalidate explicitly when staff change.
-        $staffs = Cache::remember('security_staff_min_list', 3600, function () {
+        $staffs = Cache::remember('security_staff_min_list_v2', 3600, function () {
             return \App\Models\User::role('security_staff')
                 ->orderBy('first_name')
-                ->get(['id', 'first_name', 'last_name']);
+                ->get(['id', 'first_name', 'last_name', 'email']);
         });
 
         // Fetch first AND last GPS points in a single round-trip.
@@ -3108,7 +3140,7 @@ if (!is_null($ownerAdminId)) {
         $checkCallEmployeeIds = $checkcalls->pluck('employee_id')->filter()->unique()->values();
         $checkCallUsersById = $checkCallEmployeeIds->isNotEmpty()
             ? \App\Models\User::whereIn('id', $checkCallEmployeeIds)
-                ->get(['id', 'first_name', 'last_name'])
+                ->get(['id', 'first_name', 'last_name', 'email'])
                 ->keyBy('id')
             : collect();
 

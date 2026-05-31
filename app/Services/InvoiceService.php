@@ -19,15 +19,44 @@ class InvoiceService
     /**
      * Resolve the billing rate for a single shift date.
      *
-     * The shift_date snapshot is the only source. The snapshot is stamped at shift creation
-     * and re-stamped by RateResolver::propagateForSite for today+future when site/holiday
-     * rates are edited, so it always reflects what the shift was supposed to bill at.
-     * A NULL snapshot is treated as 0 — we do NOT fall back to the current site/client rate,
-     * because that would retroactively bill legacy shifts at today's rate.
+     * Prefer the snapshot stamped on shift_dates; if it is null/zero (e.g. legacy
+     * rows or imports that never received a snapshot), fall back to the live
+     * Site.office_rate so the invoice still reflects a real rate instead of 0.
      */
     protected function resolveClientHourlyRate($shiftDate, $client)
     {
-        return (float) ($shiftDate->site_rate ?? 0);
+        $rate = (float) ($shiftDate->site_rate ?? 0);
+        if ($rate > 0) {
+            return $rate;
+        }
+
+        $site = optional($shiftDate->shift)->site;
+        if ($site && !is_null($site->office_rate)) {
+            return (float) $site->office_rate;
+        }
+
+        return 0.0;
+    }
+
+    /**
+     * Resolve the staff/subcontractor pay rate for a single shift date.
+     *
+     * Prefer the snapshot on shift_dates; if empty, fall back to the live
+     * Site.guard_rate so invoices don't bill at zero when the snapshot is missing.
+     */
+    protected function resolveGuardHourlyRate($shiftDate)
+    {
+        $rate = (float) ($shiftDate->guard_rate ?? 0);
+        if ($rate > 0) {
+            return $rate;
+        }
+
+        $site = optional($shiftDate->shift)->site;
+        if ($site && !is_null($site->guard_rate)) {
+            return (float) $site->guard_rate;
+        }
+
+        return 0.0;
     }
 
     public function generateClientInvoice($clientId, $siteId, $dateFrom, $dateTo, $dueDate, $notes = null, $frequency = null)
@@ -387,8 +416,8 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Shift snapshot only — no fallback to the live site rate (legacy NULL → 0).
-            $hourlyRate = (float) ($shiftDate->guard_rate ?? 0);
+            // Prefer shift_date snapshot; fall back to live Site.guard_rate when empty.
+            $hourlyRate = $this->resolveGuardHourlyRate($shiftDate);
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -485,8 +514,8 @@ class InvoiceService
         $totalAmount = 0;
 
         foreach ($shiftDates as $shiftDate) {
-            // Shift snapshot only — no fallback to the live site rate (legacy NULL → 0).
-            $hourlyRate = (float) ($shiftDate->guard_rate ?? 0);
+            // Prefer shift_date snapshot; fall back to live Site.guard_rate when empty.
+            $hourlyRate = $this->resolveGuardHourlyRate($shiftDate);
 
             $item = $this->processShiftDate($shiftDate, $hourlyRate);
             $invoiceItems[] = $item;
@@ -626,7 +655,8 @@ class InvoiceService
         $endDate   = $endDate ? Carbon::parse($endDate)->endOfDay() : now()->endOfMonth();
 
         // 1️⃣ Get all relevant shifts for this staff
-        $shiftDatesQuery = ShiftDate::where('staff_id', $staff->user_id)
+        $shiftDatesQuery = ShiftDate::with('shift.site')
+            ->where('staff_id', $staff->user_id)
             ->whereDate('shift_date', '>=', $startDate->toDateString())
             ->whereDate('shift_date', '<=', $endDate->toDateString());
 
@@ -679,9 +709,8 @@ class InvoiceService
             $totalHours += $workedHours;
             $totalBreaks += $breakMinutes / 60;
 
-            // Shift snapshot only — no fallback to the live site or employee rate
-            // (legacy NULL → 0). Past shifts must reflect what was stored at the time.
-            $shiftRate = (float) ($shiftDate->guard_rate ?? 0);
+            // Prefer shift_date snapshot; fall back to live Site.guard_rate when empty.
+            $shiftRate = $this->resolveGuardHourlyRate($shiftDate);
 
             $grossAmount += $workedHours * $shiftRate;
 

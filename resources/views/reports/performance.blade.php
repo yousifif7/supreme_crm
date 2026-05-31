@@ -94,75 +94,6 @@
         </div>
 
     @if(request()->hasAny(['from_date','to_date','client_id','site_id','staff_id']))
-    <!-- Totals -->
-    <div class="row totals-row mb-3 gx-2">
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Total Shifts</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_shifts_to_client'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Total Checkcalls</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_checkcalls'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Total Patrols</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_patrols'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Missed Checkcalls</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_missed_checkcalls'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Missed Patrols</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_missed_patrols'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Completed Checkcalls</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_completed_checkcalls'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Completed Patrols</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_completed_patrols'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-            <div class="col-auto">
-                <div class="card p-2">
-                    <div class="card-body text-center">
-                        <h6 class="mb-1">Completed Shifts</h6>
-                        <div class="h4 mb-0">{{ number_format($totals['total_completed_shifts'] ?? 0) }}</div>
-                    </div>
-                </div>
-            </div>
-        </div>
-        
     <!-- Results -->
         <div class="card">
             <div class="card-body p-3">
@@ -172,11 +103,10 @@
                             <thead>
                                 <tr>
                                     <th>Staff</th>
-                                    <th>Total Shifts</th>
-                                    <th>Total Hours</th>
-                                    @foreach($statusOptions as $code => $label)
-                                        <th>{{ $label }}</th>
-                                    @endforeach
+                                    <th>Completed Checkcalls</th>
+                                    <th>Missed Checkcalls</th>
+                                    <th>Completed Patrols</th>
+                                    <th>Missed Patrols</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -189,11 +119,10 @@
                                                 {{ $row['staff_name'] }}
                                             @endif
                                         </td>
-                                        <td>{{ $row['total_shifts'] }}</td>
-                                        <td>{{ $row['total_hours'] }}</td>
-                                        @foreach($statusOptions as $code => $label)
-                                            <td>{{ $row['status_counts'][$code] ?? 0 }}</td>
-                                        @endforeach
+                                        <td>{{ $row['completed_checkcalls'] }}</td>
+                                        <td>{{ $row['missed_checkcalls'] }}</td>
+                                        <td>{{ $row['completed_patrols'] }}</td>
+                                        <td>{{ $row['missed_patrols'] }}</td>
                                     </tr>
                                 @endforeach
                             </tbody>

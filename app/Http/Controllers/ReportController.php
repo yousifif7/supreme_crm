@@ -503,157 +503,7 @@ class ReportController extends Controller
 
         $shiftDates = $query->get();
 
-        // status labels
-        $statusOptions = [
-            0 => 'Pending',
-            1 => 'Dispatched',
-            2 => 'Accepted',
-            3 => 'Started',
-            4 => 'Ended',
-            5 => 'Rejected',
-            6 => 'Cancelled',
-            7 => 'Pre-start',
-            8 => 'Await-finish',
-        ];
-
-        // per-staff stats
-        // REPLACEMENT: update the $stats construction to group by ShiftDate.staff_id
-        $minuteCalculator = (isset($computeMinutes) && is_callable($computeMinutes))
-            ? $computeMinutes
-            : function ($sd) {
-                // simple fallback: combine shift_date + start_time/end_time if present
-                try {
-                    $date = $sd->shift_date ?? $sd->date ?? null;
-                    $start = $sd->start_time ?? null;
-                    $end = $sd->end_time ?? null;
-                    if ($start && $end) {
-                        if ($date) {
-                            $s = \Carbon\Carbon::parse($date . ' ' . $start);
-                            $e = \Carbon\Carbon::parse($date . ' ' . $end);
-                        } else {
-                            $s = \Carbon\Carbon::parse($start);
-                            $e = \Carbon\Carbon::parse($end);
-                        }
-                        if ($e->lte($s)) $e->addDay();
-                        return max(0, $e->diffInMinutes($s));
-                    }
-                } catch (\Exception $e) {
-                    // ignore and fall through
-                }
-                return 0;
-            };
-
-        // REPLACEMENT SNIPPET: updated grouping, accurate minutes calculation (end - start), and move "Unassigned" to top
-        $minuteCalculator = function ($sd) {
-            // prefer explicit date on ShiftDate, then fallback to related shift
-            $date = $sd->shift_date ?? $sd->date ?? ($sd->shift->shift_date ?? null);
-
-            // common time field candidates (24-hour format)
-            $startCandidates = ['start_time', 'book_on', 'booked_on', 'start_time_local', 'start'];
-            $endCandidates   = ['end_time', 'book_off', 'booked_off', 'end_time_local', 'end'];
-
-            $start = null;
-            $end = null;
-            foreach ($startCandidates as $f) {
-                if (!empty($sd->{$f})) {
-                    $start = (string)$sd->{$f};
-                    break;
-                }
-            }
-            foreach ($endCandidates as $f) {
-                if (!empty($sd->{$f})) {
-                    $end = (string)$sd->{$f};
-                    break;
-                }
-            }
-
-            // if times missing on ShiftDate, try shift scheduled times
-            if ((!$start || !$end) && !empty($sd->shift)) {
-                foreach ($startCandidates as $f) {
-                    if (!$start && !empty($sd->shift->{$f})) {
-                        $start = (string)$sd->shift->{$f};
-                    }
-                }
-                foreach ($endCandidates as $f) {
-                    if (!$end && !empty($sd->shift->{$f})) {
-                        $end = (string)$sd->shift->{$f};
-                    }
-                }
-            }
-
-            if (!$start || !$end) {
-                return 0;
-            }
-
-            try {
-                // combine with date if available (normalize to Y-m-d)
-                if ($date) {
-                    $base = \Carbon\Carbon::parse($date)->toDateString();
-                    $startDT = \Carbon\Carbon::parse($base . ' ' . $start);
-                    $endDT   = \Carbon\Carbon::parse($base . ' ' . $end);
-                } else {
-                    // parse times only (will use today's date) — still compute delta and handle cross-midnight
-                    $startDT = \Carbon\Carbon::parse($start);
-                    $endDT   = \Carbon\Carbon::parse($end);
-                }
-
-                // If end is same or before start, assume it crosses midnight -> add one day
-                if ($endDT->lessThanOrEqualTo($startDT)) {
-                    $endDT->addDay();
-                }
-
-                // compute minutes by subtracting start from end (end - start)
-                return $startDT->diffInMinutes($endDT);
-            } catch (\Exception $e) {
-                return 0;
-            }
-        };
-
-        // Group by staff_id directly on ShiftDate (staff relation lives on ShiftDate).
-        $stats = $shiftDates
-            ->groupBy(fn($sd) => $sd->staff_id ?? 'unassigned')
-            ->map(function ($group, $staffId) use ($statusOptions, $minuteCalculator) {
-                $first = $group->first();
-
-                // Use direct staff relation on ShiftDate (not shift->staff)
-                $staffName = ($first && isset($first->staff) && $first->staff)
-                    ? trim(($first->staff->first_name ?? '') . ' ' . ($first->staff->last_name ?? ''))
-                    : 'Unassigned';
-
-                $totalShifts = $group->count();
-
-                // sum durations (minutes) for each ShiftDate: end - start
-                $totalMinutes = $group->reduce(function ($carry, $sd) use ($minuteCalculator) {
-                    return $carry + (int) $minuteCalculator($sd);
-                }, 0);
-
-                $totalHours = round($totalMinutes / 60, 2);
-
-                $statusCounts = array_fill_keys(array_keys($statusOptions), 0);
-                foreach ($group as $sd) {
-                    $code = null;
-                    if (isset($sd->is_assign)) $code = $sd->is_assign;
-                    elseif (isset($sd->status)) $code = $sd->status;
-                    elseif (isset($sd->shift) && isset($sd->shift->status)) $code = $sd->shift->status;
-                    if ($code === null) $code = 0;
-                    if (!array_key_exists($code, $statusCounts)) continue;
-                    $statusCounts[$code]++;
-                }
-
-                return [
-                    'staff_id' => $staffId,
-                    'staff_name' => $staffName,
-                    'total_shifts' => $totalShifts,
-                    'total_hours' => $totalHours,
-                    'status_counts' => $statusCounts,
-                ];
-            });
-
-        // Remove any unassigned rows from the per-staff stats (we don't show unassigned shifts)
-        $stats = $stats->reject(fn($row) => ($row['staff_id'] === 'unassigned'))->values();
-
-        // --- compute totals for shifts, checkcalls and patrols ---
-
+        // Per-staff stats: only completed/missed counts for checkcalls and patrols.
         $isMissed = function ($item) {
             if (!$item) return false;
             if (isset($item->is_missed)) return (bool)$item->is_missed;
@@ -669,134 +519,103 @@ class ReportController extends Controller
             return false;
         };
 
-        $totalShiftsToClient = $shiftDates->count();
-        $totalCompletedShifts = $shiftDates->filter(function ($sd) {
-            if (isset($sd->is_assign) && $sd->is_assign == 4) return true;
-            if (isset($sd->status) && $sd->status == 4) return true;
-            if (isset($sd->shift) && isset($sd->shift->status) && $sd->shift->status == 4) return true;
-            return false;
-        })->count();
-        $totalMissedCheckcalls = 0;
-        $totalMissedPatrols = 0;
-
-        $totalCheckcalls = 0;
-        $totalCompletedCheckcalls = 0;
-        $totalPatrols = 0;
-        $totalCompletedPatrols = 0;
-
         $checkcallRelation = method_exists(ShiftDate::class, 'checkcalls') ? 'checkcalls' : (method_exists(ShiftDate::class, 'check_call_attempts') ? 'check_call_attempts' : null);
         $patrolRelation = method_exists(ShiftDate::class, 'patrols') ? 'patrols' : (method_exists(ShiftDate::class, 'checkpoints') ? 'checkpoints' : (method_exists(ShiftDate::class, 'patrolCheckpoints') ? 'patrolCheckpoints' : null));
 
-        if ($checkcallRelation) {
-            foreach ($shiftDates as $sd) {
-                $items = $sd->{$checkcallRelation} ?? collect();
-                foreach ($items as $it) {
-                    $totalCheckcalls++;
-                    if ($isMissed($it)) $totalMissedCheckcalls++; else $totalCompletedCheckcalls++;
-                }
-            }
-        }
+        // Group by staff_id directly on ShiftDate (staff relation lives on ShiftDate).
+        $stats = $shiftDates
+            ->groupBy(fn($sd) => $sd->staff_id ?? 'unassigned')
+            ->map(function ($group, $staffId) use ($checkcallRelation, $patrolRelation, $isMissed) {
+                $first = $group->first();
 
-        if ($patrolRelation) {
-            foreach ($shiftDates as $sd) {
-                $items = $sd->{$patrolRelation} ?? collect();
-                foreach ($items as $it) {
-                    $totalPatrols++;
-                    if ($isMissed($it)) $totalMissedPatrols++; else $totalCompletedPatrols++;
+                $staffName = ($first && isset($first->staff) && $first->staff)
+                    ? trim(($first->staff->first_name ?? '') . ' ' . ($first->staff->last_name ?? ''))
+                    : 'Unassigned';
+
+                $completedCheckcalls = 0;
+                $missedCheckcalls = 0;
+                $completedPatrols = 0;
+                $missedPatrols = 0;
+
+                if ($checkcallRelation) {
+                    foreach ($group as $sd) {
+                        $items = $sd->{$checkcallRelation} ?? collect();
+                        foreach ($items as $it) {
+                            if ($isMissed($it)) $missedCheckcalls++; else $completedCheckcalls++;
+                        }
+                    }
                 }
-            }
-        }
+
+                if ($patrolRelation) {
+                    foreach ($group as $sd) {
+                        $items = $sd->{$patrolRelation} ?? collect();
+                        foreach ($items as $it) {
+                            if ($isMissed($it)) $missedPatrols++; else $completedPatrols++;
+                        }
+                    }
+                }
+
+                return [
+                    'staff_id' => $staffId,
+                    'staff_name' => $staffName,
+                    'completed_checkcalls' => $completedCheckcalls,
+                    'missed_checkcalls' => $missedCheckcalls,
+                    'completed_patrols' => $completedPatrols,
+                    'missed_patrols' => $missedPatrols,
+                ];
+            });
+
+        // Remove any unassigned rows from the per-staff stats (we don't show unassigned shifts)
+        $stats = $stats->reject(fn($row) => ($row['staff_id'] === 'unassigned'))->values();
 
         // Dropdowns
         $clients = User::role('client')->pluck('name', 'id');
         $sites = collect();
         if ($clientId) $sites = Site::where('client_id', $clientId)->pluck('site_name', 'id');
-    // Staff dropdown: security staff role
-    $staffs = User::role('security_staff')->orderBy('first_name')->get();
-
-        // Totals array passed to view / exports
-        $totals = [
-            'total_shifts_to_client' => $totalShiftsToClient,
-            'total_checkcalls' => $totalCheckcalls,
-            'total_completed_checkcalls' => $totalCompletedCheckcalls,
-            'total_missed_checkcalls' => $totalMissedCheckcalls,
-            'total_patrols' => $totalPatrols,
-            'total_completed_patrols' => $totalCompletedPatrols,
-            'total_missed_patrols' => $totalMissedPatrols,
-            'total_completed_shifts' => $totalCompletedShifts,
-        ];
+        $staffs = User::role('security_staff')->orderBy('first_name')->get();
 
         // ---------- Export handling ----------
         if ($request->filled('export')) {
             $exportType = $request->input('export');
             $fileNameBase = 'Performance_Report_' . now()->format('Y_m_d_His');
 
-            // Prepare data for exports (convert collections to arrays to avoid serialization issues)
             $statsArray = $stats->map(fn($r) => [
                 'staff_id' => $r['staff_id'],
                 'staff_name' => $r['staff_name'],
-                'total_shifts' => $r['total_shifts'],
-                'total_hours' => $r['total_hours'],
-                'status_counts' => $r['status_counts'],
+                'completed_checkcalls' => $r['completed_checkcalls'],
+                'missed_checkcalls' => $r['missed_checkcalls'],
+                'completed_patrols' => $r['completed_patrols'],
+                'missed_patrols' => $r['missed_patrols'],
             ])->toArray();
 
             if ($exportType === 'pdf') {
                 $pdf = PDF::loadView('reports.pdf.performance-pdf', [
                     'stats' => $statsArray,
-                    'statusOptions' => $statusOptions,
-                    'totals' => $totals,
                     'filters' => ['from' => $from, 'to' => $to, 'client' => $clientId, 'site' => $siteId, 'staff' => $staffId],
                 ]);
                 return $pdf->download($fileNameBase . '.pdf');
             }
 
             if ($exportType === 'excel') {
-                // Use the export class that accepts associative data
                 return Excel::download(new PerformanceReportExport([
                     'stats' => $statsArray,
-                    'statusOptions' => $statusOptions,
-                    'totals' => $totals,
                 ]), $fileNameBase . '.xlsx');
             }
 
             // CSV fallback
             $csvName = $fileNameBase . '.csv';
-            $callback = function () use ($statsArray, $statusOptions, $totals) {
+            $callback = function () use ($statsArray) {
                 $out = fopen('php://output', 'w');
-                $headers = ['Staff ID', 'Staff Name', 'Total Shifts', 'Total Hours'];
-                foreach ($statusOptions as $label) $headers[] = $label;
-                fputcsv($out, $headers);
-
+                fputcsv($out, ['Staff', 'Completed Checkcalls', 'Missed Checkcalls', 'Completed Patrols', 'Missed Patrols']);
                 foreach ($statsArray as $row) {
-                    $line = [
-                        $row['staff_id'],
+                    fputcsv($out, [
                         $row['staff_name'],
-                        $row['total_shifts'],
-                        $row['total_hours'],
-                    ];
-                    foreach ($statusOptions as $code => $label) {
-                        $line[] = $row['status_counts'][$code] ?? 0;
-                    }
-                    fputcsv($out, $line);
+                        $row['completed_checkcalls'],
+                        $row['missed_checkcalls'],
+                        $row['completed_patrols'],
+                        $row['missed_patrols'],
+                    ]);
                 }
-
-                // Optionally append totals rows
-                fputcsv($out, []); // blank row
-                $pad = array_fill(0, count($statusOptions), '');
-                $totRows = [
-                    ['Totals', '', $totals['total_shifts_to_client'] ?? ''],
-                    ['Total Checkcalls', '', $totals['total_checkcalls'] ?? ''],
-                    ['Completed Checkcalls', '', $totals['total_completed_checkcalls'] ?? ''],
-                    ['Missed Checkcalls', '', $totals['total_missed_checkcalls'] ?? ''],
-                    ['Total Patrols', '', $totals['total_patrols'] ?? ''],
-                    ['Completed Patrols', '', $totals['total_completed_patrols'] ?? ''],
-                    ['Missed Patrols', '', $totals['total_missed_patrols'] ?? ''],
-                    ['Completed Shifts', '', $totals['total_completed_shifts'] ?? ''],
-                ];
-                foreach ($totRows as $r) {
-                    fputcsv($out, array_merge($r, $pad));
-                }
-
                 fclose($out);
             };
 
@@ -817,8 +636,6 @@ class ReportController extends Controller
             'selectedStaff' => $staffId,
             'fromDate' => $from,
             'toDate' => $to,
-            'statusOptions' => $statusOptions,
-            'totals' => $totals,
         ]);
     }
 

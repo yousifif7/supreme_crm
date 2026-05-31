@@ -592,16 +592,25 @@
                         }
 
                         // Basic fields
+                        // HTML5 <input type="time"> only accepts HH:MM — strip any seconds
+                        // coming back from the API (e.g. "07:05:04" → "07:05") so the field
+                        // accepts the value and the form can be submitted.
+                        const toHHMM = function (t) {
+                            if (!t) return '';
+                            const m = String(t).match(/^(\d{2}):(\d{2})/);
+                            return m ? `${m[1]}:${m[2]}` : '';
+                        };
+
                         $modal.find('#shift_date').val(shiftObj.shift_date || shiftObj.shift_date || '');
-                        $modal.find('#start_shift').val(shiftObj.start_time || shiftObj.start_time || '');
-                        $modal.find('#end_shift').val(shiftObj.end_time || shiftObj.end_time || '');
-                        
+                        $modal.find('#start_shift').val(toHHMM(shiftObj.start_time));
+                        $modal.find('#end_shift').val(toHHMM(shiftObj.end_time));
+
                         $modal.find('#guard_rate').val(data.parent_shift.employee_rate);
 
                         $modal.find('#site_rate').val(data.parent_shift.site_rate);
 
-                        if (typeof shiftObj.absentee_start_time != 'undefined') $modal.find('#book_on').val(shiftObj.absentee_start_time);
-                        if (typeof shiftObj.absentee_end_time != 'undefined') $modal.find('#book_off').val(shiftObj.absentee_end_time);
+                        if (typeof shiftObj.absentee_start_time != 'undefined') $modal.find('#book_on').val(toHHMM(shiftObj.absentee_start_time));
+                        if (typeof shiftObj.absentee_end_time != 'undefined') $modal.find('#book_off').val(toHHMM(shiftObj.absentee_end_time));
                         $modal.find('#status_id').val(shiftObj.is_assign || shiftObj.status || '');
 
                         // Initialize select2 for selects inside modal (if not already)

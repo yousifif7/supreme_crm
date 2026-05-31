@@ -31,9 +31,6 @@ class ClientsDataTable extends DataTable
             ->editColumn('client_name', function ($client) {
                 return view('clients.client_name_column', ['client' => $client]);
             })
-            ->addColumn('company_name', function ($client) {
-                return $client->company ? $client->company->name : 'N/A';
-            })
             ->editColumn('address', function ($client) {
                 return strlen($client->address) > 3 ? substr($client->address, 0, 20) . '...' : $client->address;
             })
@@ -126,7 +123,6 @@ class ClientsDataTable extends DataTable
             Column::computed('number')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
             Column::make('client_name')->addClass('ps-0')->title('Name'),
             Column::make('address')->title('Address'),
-            Column::make('company_name')->title('Company'),
             Column::make('manager_name')->title('Manager'),
             Column::make('contact_person')->title('Contact Person'),
             Column::make('contact_number')->title('Contact Number'),

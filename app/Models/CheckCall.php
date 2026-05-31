@@ -28,6 +28,11 @@ class CheckCall extends Model
         return $this->hasMany(CheckCallMedia::class, 'check_call_id');
     }
 
+    public function firstMedia()
+    {
+        return $this->hasOne(CheckCallMedia::class, 'check_call_id')->oldestOfMany();
+    }
+
     public function logs()
     {
         return $this->morphMany(Log::class, 'loggable');

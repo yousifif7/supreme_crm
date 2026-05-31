@@ -97,17 +97,7 @@
 
                                           <div class="col-md-6">
                                               <div class="row">
-                                                  <div class="col-md-4">
-                                                      <div class="mb-3">
-                                                          <div class="form-label">Email <span
-                                                                  class="text-danger">*</span></div>
-                                                          <input type="email" name="email" class="form-control"
-                                                              placeholder="Email">
-                                                          <span class="text-danger form-error"
-                                                              id="error_email"></span>
-                                                      </div>
-                                                  </div>
-                                                  <div class="col-md-4">
+                                                  <div class="col-md-12">
                                                       <div class="mb-3">
                                                           <div class="form-label">Password <span
                                                                   class="text-danger">*</span></div>
@@ -119,9 +109,12 @@
                                                               Must be at least 8 characters, include uppercase,
                                                               lowercase, number, and special character.
                                                           </div>
+                                                          <div class="text-muted small mt-1">
+                                                              A login email will be auto-generated from the client name.
+                                                          </div>
                                                       </div>
                                                   </div>
-                                                  
+
                                               </div>
 
                                               <div class="mb-3">

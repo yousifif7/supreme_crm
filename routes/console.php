@@ -24,3 +24,10 @@ Schedule::command('sia:check')
     ->timezone('Europe/London')
     ->withoutOverlapping();
 
+
+// Auto-logout idle sessions — every 5 minutes, kill sessions idle > 30 min
+// and stamp logout_at on the corresponding login_activities row.
+Schedule::command('auth:revoke-idle-sessions --minutes=30')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->runInBackground();

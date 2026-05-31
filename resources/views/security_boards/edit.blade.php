@@ -33,7 +33,7 @@
                                                         @endphp
                                                     @foreach ($sortedStaffs as $staff)
                                                         <option value="{{ $staff->id }}">
-                                                            {{ $staff->first_name }} {{ $staff->last_name }}</option>
+                                                            {{ $staff->first_name }} {{ $staff->last_name }}@if($staff->email) ({{ $staff->email }})@endif</option>
                                                     @endforeach
                                                 </select>
                                                 <span class="text-danger form-error" id="error_client_id"></span>

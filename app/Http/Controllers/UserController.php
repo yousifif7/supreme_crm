@@ -62,20 +62,31 @@ class UserController extends Controller
         // Count staff using Employee model so dashboard matches Employees area
         $staffs = Employee::count();
 
-        // Limit columns and eager-load only necessary shiftDate fields
-        $checkCalls = CheckCall::select('id', 'shift_id', 'name', 'scheduled_time', 'status')
-            ->with(['shiftDate' => function ($q) {
-                $q->select('id', 'shift_date', 'shift_id');
-            }])
+        // Today only — CheckCalls whose scheduled_time falls inside today's window.
+        // Filter the CheckCall row itself (not the shiftDate) so we don't pull
+        // back any check call from a multi-day shift that isn't actually due today.
+        // Note: image_path is NOT a column on check_calls (evidence lives in
+        // the check_call_media table); the Blade reads $checkCall->image_path
+        // but that just resolves to null. Don't add it to the select.
+        $checkCalls = CheckCall::select('id', 'shift_id', 'name', 'scheduled_time', 'status', 'method', 'employee_id')
+            ->with([
+                'shiftDate' => function ($q) {
+                    $q->select('id', 'shift_date', 'shift_id');
+                },
+                // One evidence file per check call. Column list intentionally
+                // omitted: oldestOfMany() self-joins the media table, so any
+                // unqualified column name (e.g. "check_call_id") becomes
+                // ambiguous in the generated SQL. The table is tiny so the
+                // extra columns (timestamps) cost nothing.
+                'firstMedia',
+            ])
             ->whereIn('status', ['pending', 'missed', 'completed'])
-            ->whereHas('shiftDate', function ($q) {
-                $q->whereBetween('scheduled_time', [
-                    now()->startOfDay(),
-                    now()->addDay()->endOfDay()
-                ]);
-            })
+            ->whereBetween('scheduled_time', [
+                now()->startOfDay(),
+                now()->endOfDay(),
+            ])
             ->orderBy('scheduled_time', 'desc')
-            ->limit(20)
+            ->limit(50)
             ->get();
 
         $now = Carbon::now();
@@ -89,11 +100,13 @@ class UserController extends Controller
 
         $today = Carbon::today();
 
+        // SIA — return the full list (capped) for client-side pagination in the
+        // dashboard. Server-side pagination caused a full page reload per click.
         $siaDocuments = Employee::whereNotNull('sia_licence')
             ->whereDate('sia_expiry', '<', Carbon::today()->toDateString())
             ->select('fore_name', 'sur_name', 'sia_expiry', 'sia_licence_file')
-            ->take(50)
-            ->paginate(10);
+            ->orderBy('fore_name', 'asc')
+            ->get();
 
 
         
@@ -657,7 +670,7 @@ class UserController extends Controller
             return; // already pruned today
         }
 
-        $cutoff = now()->subDays(180)->toDateTimeString();
+        $cutoff = now()->subDays(300)->toDateTimeString();
         $batchSize = 1000; // delete in batches to avoid long locks / large transactions
         $totalDeleted = 0;
 
@@ -681,7 +694,7 @@ class UserController extends Controller
                 usleep(150000); // 150ms
             } while (count($ids) === $batchSize);
 
-            \Log::info("Pruned {$totalDeleted} log rows older than 180 days.");
+            \Log::info("Pruned {$totalDeleted} log rows older than 300 days.");
         } catch (\Exception $e) {
             // best-effort
             \Log::error('Prune old logs failed: ' . $e->getMessage());

@@ -190,23 +190,42 @@
                                         $employee = App\Models\User::role('security_staff')
                                             ->where('id', $checkCall->employee_id)
                                             ->first();
+                                        $ccShiftDateId = $checkCall->shiftDate?->id;
+                                        $ccLabel = trim(
+                                            ($checkCall->shiftDate?->shift?->client?->name ?? '')
+                                            . ' | ' . ($checkCall->shiftDate?->shift?->site?->site_name ?? 'N/A')
+                                        );
                                     @endphp
                                     <tr>
-                                        <td>{{ $checkCall->shiftDate->shift->client?->name??''}} | {{ $checkCall->shiftDate->shift->site?->site_name ?? 'N/A' }}</td>
+                                        <td>
+                                            @if ($ccShiftDateId)
+                                                <a href="{{ route('shiftDates.view', ['shiftDate' => $ccShiftDateId]) }}" target="_blank">{{ $ccLabel }}</a>
+                                            @else
+                                                {{ $ccLabel }}
+                                            @endif
+                                        </td>
                                         <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
                                         <td>{{ $checkCall->name }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('d-m-Y H:i') }}
+                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('d/m/Y H:i') }}
                                         </td>
                                         <td>{{ ucfirst($checkCall->status) }}</td>
                                         <td>{{ ucfirst($checkCall->method) }}</td>
                                         <td>
-                                            @if ($checkCall->image_path)
-                                                <a href="{{ asset('storage/' . $checkCall->image_path) }}" target="_blank">
-                                                    <img src="{{ asset('storage/' . $checkCall->image_path) }}"
-                                                        alt="Evidence" style="width:40px; height:auto;">
+                                            @php
+                                                $ccMedia = $checkCall->firstMedia;
+                                                $ccExt = $ccMedia ? strtolower(pathinfo($ccMedia->file_path, PATHINFO_EXTENSION)) : null;
+                                                $ccIsImage = $ccExt && in_array($ccExt, ['jpg','jpeg','png','gif','webp','bmp','heic']);
+                                            @endphp
+                                            @if ($ccMedia && $ccIsImage)
+                                                <a href="{{ asset($ccMedia->file_path) }}" target="_blank">
+                                                    <img src="{{ asset($ccMedia->file_path) }}"
+                                                        alt="Evidence" style="width:40px;height:auto;">
                                                 </a>
+                                            @elseif ($ccMedia)
+                                                <a href="{{ asset($ccMedia->file_path) }}" target="_blank"
+                                                    class="btn btn-sm btn-outline-primary">View</a>
                                             @else
-                                                No Image
+                                                <span class="text-muted">No file</span>
                                             @endif
                                         </td>
                                         <td>
@@ -283,18 +302,24 @@
                                             $employee = App\Models\User::role('security_staff')
                                                 ->where('id', $shift->staff_id)
                                                 ->first();
-                                            $siteName = data_get($shift, 'shift.site.site_name') 
-                                                ?? data_get($shift, 'site.site_name') 
-                                                ?? data_get($shift, 'shift.client.name') 
+                                            $siteName = data_get($shift, 'shift.site.site_name')
+                                                ?? data_get($shift, 'site.site_name')
+                                                ?? data_get($shift, 'shift.client.name')
                                                 ?? data_get($shift, 'client.name')
                                                 ?? '-';
                                         @endphp
                                         <tr>
-                                            <td class="text-center">{{ \Carbon\Carbon::parse($shift->start_time)->format('d-m-Y') }}</td>
+                                            <td class="text-center">{{ \Carbon\Carbon::parse($shift->shift_date ?? $shift->start_time)->format('d/m/Y') }}</td>
                                             <td class="text-center">{!! trim(($employee?->first_name ?? '') . ' ' . ($employee?->last_name ?? '')) ?: '<span class="text-gray">Unassigned</span>' !!}</td>
                                             <td class="text-center">{{ \Carbon\Carbon::parse($shift->start_time)->format('H:i') }}</td>
                                             <td class="text-center">{{ \Carbon\Carbon::parse($shift->end_time)->format('H:i') }}</td>
-                                            <td class="text-center">{{ $siteName }}</td>
+                                            <td class="text-center">
+                                                @if ($siteName !== '-')
+                                                    <a href="{{ route('shiftDates.view', ['shiftDate' => $shift->id]) }}" target="_blank">{{ $siteName }}</a>
+                                                @else
+                                                    {{ $siteName }}
+                                                @endif
+                                            </td>
                                         </tr>
                                     @endforeach
                                 </tbody>
@@ -311,7 +336,7 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <table class="table">
+                        <table class="table" id="siaTable">
                             <thead>
                                 <tr>
                                     <th>Staff</th>
@@ -320,11 +345,11 @@
                                     <th>License</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="siaTableBody">
                                 @forelse ($siaDocuments as $doc)
-                                    <tr>
+                                    <tr class="sia-row">
                                         <td>{{ $doc->fore_name ?? 'N/A' }} {{ $doc->sur_name ?? '' }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('d-m-Y') }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($doc->sia_expiry)->format('d/m/Y') }}</td>
                                         <td><span class="badge bg-danger">Expired</span></td>
                                         <td>
                                             @if ($doc->sia_licence_file)
@@ -344,42 +369,12 @@
                             </tbody>
                         </table>
 
-                        {{-- ✨ Minimal pagination links --}}
-                        @if ($siaDocuments->hasPages())
-                            <div class="d-flex justify-content-center mt-3">
-                                <nav>
-                                    <ul class="pagination pagination-sm mb-0">
-                                        {{-- Previous Page Link --}}
-                                        @if ($siaDocuments->onFirstPage())
-                                            <li class="page-item disabled"><span class="page-link">‹</span></li>
-                                        @else
-                                            <li class="page-item"><a class="page-link"
-                                                    href="{{ $siaDocuments->previousPageUrl() }}" rel="prev">‹</a>
-                                            </li>
-                                        @endif
-
-                                        {{-- Pagination Elements --}}
-                                        @foreach ($siaDocuments->links()->elements[0] as $page => $url)
-                                            @if ($page == $siaDocuments->currentPage())
-                                                <li class="page-item active"><span
-                                                        class="page-link">{{ $page }}</span></li>
-                                            @else
-                                                <li class="page-item"><a class="page-link"
-                                                        href="{{ $url }}">{{ $page }}</a></li>
-                                            @endif
-                                        @endforeach
-
-                                        {{-- Next Page Link --}}
-                                        @if ($siaDocuments->hasMorePages())
-                                            <li class="page-item"><a class="page-link"
-                                                    href="{{ $siaDocuments->nextPageUrl() }}" rel="next">›</a></li>
-                                        @else
-                                            <li class="page-item disabled"><span class="page-link">›</span></li>
-                                        @endif
-                                    </ul>
-                                </nav>
-                            </div>
-                        @endif
+                        {{-- Client-side pagination — no page reload --}}
+                        <div class="d-flex justify-content-center mt-3">
+                            <nav>
+                                <ul class="pagination pagination-sm mb-0" id="siaPagination"></ul>
+                            </nav>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -404,17 +399,27 @@
                             <tbody>
                                 @forelse ($bookings as $booking)
                                     @php
-                                        // $shift= App\Models\Shift::find($alarm->shift_id);
                                         $staff = App\Models\User::role('security_staff')
                                             ->where('id', $booking->user_id)
                                             ->first();
+                                        $bookShiftDateId = $booking->shift?->id;
+                                        $bookLabel = trim(
+                                            ($booking->shift?->shift?->client?->name ?? '')
+                                            . ' | ' . ($booking->shift?->shift?->site?->site_name ?? 'N/A')
+                                        );
                                     @endphp
                                     <tr>
                                         <td>{{ $staff->first_name ?? 'N/A' }}
                                             {{ $staff->last_name ?? '' }}</td>
-                                        <td>{{ $booking->shift->shift->client?->name??''}} | {{ $booking->shift->shift->site?->site_name ?? 'N/A' }}</td>
+                                        <td>
+                                            @if ($bookShiftDateId)
+                                                <a href="{{ route('shiftDates.view', ['shiftDate' => $bookShiftDateId]) }}" target="_blank">{{ $bookLabel }}</a>
+                                            @else
+                                                {{ $bookLabel }}
+                                            @endif
+                                        </td>
                                         <td>{{ ucfirst($booking->type) }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('d-m-Y H:i') }}
+                                        <td>{{ \Carbon\Carbon::parse($booking->timestamp)->format('d/m/Y H:i') }}
                                         </td>
                                     </tr>
                                 @empty
@@ -663,6 +668,78 @@
 
         // Load initially
         loadNotifications();
+
+        // --- SIA License Check: client-side pagination (no page reload) ---
+        (function () {
+            const PAGE_SIZE = 10;
+            const WINDOW = 2; // pages either side of current to keep visible
+            const tbody = document.getElementById('siaTableBody');
+            const pager = document.getElementById('siaPagination');
+            if (!tbody || !pager) return;
+
+            const rows = Array.from(tbody.querySelectorAll('tr.sia-row'));
+            const pageCount = Math.ceil(rows.length / PAGE_SIZE);
+            if (pageCount <= 1) return; // nothing to paginate
+
+            // Keep the pager tidy if there are many pages
+            pager.classList.add('flex-wrap');
+
+            let currentPage = 1;
+
+            function makeItem(label, page, opts) {
+                opts = opts || {};
+                const li = document.createElement('li');
+                li.className = 'page-item'
+                    + (opts.active ? ' active' : '')
+                    + (opts.disabled ? ' disabled' : '');
+                const isClickable = !opts.disabled && !opts.active && page;
+                const el = document.createElement(isClickable ? 'a' : 'span');
+                el.className = 'page-link';
+                el.textContent = label;
+                if (isClickable) {
+                    el.href = '#';
+                    el.addEventListener('click', (e) => {
+                        e.preventDefault();
+                        currentPage = page;
+                        render();
+                    });
+                }
+                li.appendChild(el);
+                return li;
+            }
+
+            function buildPageList() {
+                // Always show first and last; show a window around current; insert ellipsis for gaps.
+                const set = new Set([1, pageCount]);
+                for (let p = currentPage - WINDOW; p <= currentPage + WINDOW; p++) {
+                    if (p >= 1 && p <= pageCount) set.add(p);
+                }
+                return [...set].sort((a, b) => a - b);
+            }
+
+            function render() {
+                rows.forEach((row, i) => {
+                    const page = Math.floor(i / PAGE_SIZE) + 1;
+                    row.style.display = page === currentPage ? '' : 'none';
+                });
+
+                pager.innerHTML = '';
+                pager.appendChild(makeItem('‹', currentPage - 1, { disabled: currentPage === 1 }));
+
+                let prev = 0;
+                for (const p of buildPageList()) {
+                    if (prev && p - prev > 1) {
+                        pager.appendChild(makeItem('…', null, { disabled: true }));
+                    }
+                    pager.appendChild(makeItem(String(p), p, { active: p === currentPage }));
+                    prev = p;
+                }
+
+                pager.appendChild(makeItem('›', currentPage + 1, { disabled: currentPage === pageCount }));
+            }
+
+            render();
+        })();
 
         // Optionally, load whenever dropdown opens:
         document.getElementById('notification_popup').addEventListener('click', () => {

@@ -16,6 +16,7 @@ use App\Services\FileCompressor;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Str;
 
 class ClientController extends Controller
 {
@@ -41,7 +42,6 @@ class ClientController extends Controller
                 'regex:/^(\+?\d{1,3})?[-.\s]?\(?\d+\)?([-.\s]?\d+)*$/'
             ],
             'contact_person'             => 'nullable|string|max:255',
-            'email' => 'required|email:dns|max:255|unique:users,email,NULL,id,deleted_at,NULL',
             'invoice_terms'   => 'nullable|string|max:255',
             'payment_terms'   => 'nullable|string|max:255',
             'doc_1'           => 'nullable|file|mimes:pdf,doc,docx,jpg,jpeg,png,excel,csv|max:20048',
@@ -74,6 +74,9 @@ class ClientController extends Controller
         }
 
         $data = $validator->validated();
+
+        $data['email'] = $this->generateClientEmail($data['client_name']);
+
         // Handle document uploads
         foreach (['doc_1', 'doc_2', 'doc_3'] as $docField) {
             if ($request->hasFile($docField)) {
@@ -300,9 +303,28 @@ class ClientController extends Controller
         $client = Client::findOrFail($id);
         $client->manager_id = $request->manager_id;
         $client->save();
-        
+
         Logger::log(Auth::user(), 'Update', 'Client '.$client->client_name.' Assigned a manager');
 
         return back()->with(['success' => 'Manager assigned successfully.']);
+    }
+
+    /**
+     * Build a unique auto-generated email for a new client from their name.
+     * Suffixes -2, -3, ... if the slug already exists in users.email.
+     */
+    protected function generateClientEmail(string $clientName): string
+    {
+        $domain = 'clients.splconnect.co.uk';
+        $base   = Str::slug($clientName, '-') ?: 'client';
+
+        $candidate = "{$base}@{$domain}";
+        $i = 2;
+        while (User::where('email', $candidate)->exists()) {
+            $candidate = "{$base}-{$i}@{$domain}";
+            $i++;
+        }
+
+        return $candidate;
     }
 }

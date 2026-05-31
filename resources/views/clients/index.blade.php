@@ -148,8 +148,12 @@
                                     <td id="vat_detail"></td>
                                 </tr>
                                 <tr>
-                                    <th>Charge Rate (Guardings | Supervisors)</th>
-                                    <td id="rate_detail"></td>
+                                    <th>Guard Rate</th>
+                                    <td id="guard_rate_detail"></td>
+                                </tr>
+                                <tr>
+                                    <th>Office Rate</th>
+                                    <td id="client_rate_detail"></td>
                                 </tr>
                                 <tr>
                                     <th>Contract Period (Start | End)</th>
@@ -645,7 +649,8 @@
                 $('#invoice_terms_detail').text(data.invoice_terms);
                 $('#payment_terms_detail').text(data.payment_terms);
                 $('#vat_detail').text(data.vat_registered);
-                $('#rate_detail').text(`$${data.guard_rate ?? 0} | $${data.supervisor_rate ?? 0}`);
+                $('#guard_rate_detail').text(`£${data.guard_rate ?? 0}`);
+                $('#client_rate_detail').text(`£${data.supervisor_rate ?? 0}`);
                 $('#period_detail').text(data.contract_period ?? '');
                 $('#document_detail').text(data.documents ?? '');
                 $('#company_detail').text(data.company ?? '');

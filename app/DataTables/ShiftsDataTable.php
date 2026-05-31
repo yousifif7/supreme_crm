@@ -42,6 +42,18 @@ class ShiftsDataTable extends DataTable
                 }
                 return 'Unassigned';
             })
+            ->addColumn('subcontractor_name', function ($shiftDate) {
+                // Prefer shift_date subcontractor relation, fall back to parent shift's.
+                $sub = $shiftDate->subcontractor ?? optional($shiftDate->shift)->subcontractor;
+                if (!$sub) {
+                    return '';
+                }
+                $name = trim($sub->company_name ?? '') ?: trim($sub->contact_person ?? '');
+                if (!$name && $sub->user) {
+                    $name = trim(($sub->user->first_name ?? '') . ' ' . ($sub->user->last_name ?? ''));
+                }
+                return $name ?: '';
+            })
             // ->editColumn('created_at', function ($user) {
             //     return $user->created_at?->format('Y-m-d');
             // })
@@ -74,6 +86,29 @@ class ShiftsDataTable extends DataTable
                       ->orWhere('last_name', 'like', "%{$keyword}%");
                 });
             })
+            ->filterColumn('subcontractor_name', function($query, $keyword) {
+                // Match against company name / contact person on the Subcontractor model,
+                // OR the linked user's first/last name / email. Look at both the
+                // shift_date.subcontractor_id and the parent shifts.subcontractor_id.
+                $query->where(function ($q) use ($keyword) {
+                    $like = "%{$keyword}%";
+
+                    $matchSub = function ($sq) use ($like) {
+                        $sq->where('company_name', 'like', $like)
+                           ->orWhere('contact_person', 'like', $like)
+                           ->orWhereHas('user', function ($uq) use ($like) {
+                               $uq->where('first_name', 'like', $like)
+                                  ->orWhere('last_name', 'like', $like)
+                                  ->orWhere('email', 'like', $like);
+                           });
+                    };
+
+                    // shift_date-level subcontractor
+                    $q->whereHas('subcontractor', $matchSub)
+                      // OR parent shift-level subcontractor
+                      ->orWhereHas('shift.subcontractor', $matchSub);
+                });
+            })
             ->filterColumn('shift_date', function($query, $keyword) {
                 $query->where('shift_date', 'like', "%{$keyword}%");
             })
@@ -92,7 +127,14 @@ class ShiftsDataTable extends DataTable
     public function query(ShiftDate $model): QueryBuilder
     {
         $query = $model->newQuery()
-            ->with(['shift.client', 'shift.site', 'shift.staff', 'staff'])
+            ->with([
+                'shift.client',
+                'shift.site',
+                'shift.staff',
+                'shift.subcontractor.user',
+                'staff',
+                'subcontractor.user',
+            ])
             ->select('shift_dates.*');
 
         $staffId = request()->get('staff');
@@ -154,7 +196,7 @@ class ShiftsDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([5, 'DESC'])
+            ->orderBy([6, 'DESC'])
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 25,
@@ -180,6 +222,7 @@ class ShiftsDataTable extends DataTable
             Column::make('client_name')->addClass('ps-0')->orderable(false),
             Column::make('site_name')->orderable(false),
             Column::make('staff_name')->orderable(false),
+            Column::make('subcontractor_name')->title('Subcontractor')->orderable(false),
             Column::make('shift_date')->orderable(true)->searchable(false),
             Column::make('shift_time')->orderable(false)->searchable(false),
             Column::make('break_time')->title('Break Time')->orderable(false),

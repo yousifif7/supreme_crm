@@ -264,30 +264,26 @@ class DocumentController extends Controller
             $storedPath = $filePath;
         }
 
-        // Clear references on Employee model if this was a main document
+        // Clear references on Employee model ONLY if the file being deleted is the
+        // one currently referenced by the employee's main field. We never clear the
+        // expiry date — the user wants the date preserved when a document is removed.
         $mainFields = array_keys($this->documentFields);
-        if ($docType && in_array($docType, $mainFields)) {
-            $employee->{$docType} = null;
-            // clear expiry if mapped
-            $expiryMap = $this->expiryFields;
-            if (isset($expiryMap[$docType])) {
-                $expiryField = $expiryMap[$docType];
-                $employee->{$expiryField} = null;
+        $basename = basename($storedPath);
+        if ($docType && in_array($docType, $mainFields) && $docType !== 'other') {
+            $current = $employee->{$docType};
+            if ($current && (basename($current) === $basename || str_contains($current, $basename))) {
+                $employee->{$docType} = null;
+                $employee->save();
             }
-            $employee->save();
         } else {
             // It may be an employee field (passed as e.g. 'documents/filename.pdf')
-            // Try to find which main field points to this basename and clear it
-            $basename = basename($storedPath);
+            // Try to find which main field points to this basename and clear it.
             foreach ($mainFields as $f) {
+                if ($f === 'other') continue;
                 $val = $employee->{$f};
                 if (!$val) continue;
                 if ((basename($val) === $basename) || str_contains($val, $basename)) {
                     $employee->{$f} = null;
-                    $expiryMap = $this->expiryFields;
-                    if (isset($expiryMap[$f])) {
-                        $employee->{$expiryMap[$f]} = null;
-                    }
                     $employee->save();
                 }
             }

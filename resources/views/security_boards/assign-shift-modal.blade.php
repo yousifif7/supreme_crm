@@ -23,8 +23,9 @@
                             @endphp
                             @foreach ($sortedStaffs as $staff)
                                 <option value="{{ $staff->id }}" data-first="{{ strtolower($staff->first_name) }}"
-                                    data-last="{{ strtolower($staff->last_name) }}">
-                                    {{ $staff->first_name }} {{ $staff->last_name }}
+                                    data-last="{{ strtolower($staff->last_name) }}"
+                                    data-email="{{ strtolower($staff->email ?? '') }}">
+                                    {{ $staff->first_name }} {{ $staff->last_name }}@if($staff->email) ({{ $staff->email }})@endif
                                 </option>
                             @endforeach
                         </select>
@@ -56,9 +57,10 @@
         let term = params.term.toLowerCase();
         let first = $(data.element).data('first') || '';
         let last = $(data.element).data('last') || '';
+        let email = $(data.element).data('email') || '';
         let full = (first + ' ' + last).trim();
 
-        if (first.includes(term) || last.includes(term) || full.includes(term)) {
+        if (first.includes(term) || last.includes(term) || full.includes(term) || email.includes(term)) {
             return data;
         }
 

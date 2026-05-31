@@ -33,6 +33,7 @@
                                                             data-first="{{ strtolower($staff->first_name) }}"
                                                             data-last="{{ strtolower($staff->last_name) }}">
                                                             {{ $staff->first_name }} {{ $staff->last_name }}
+                                                            @if($staff->email) ({{ $staff->email }})@endif
                                                         </option>
                                                     @endforeach
                                                 </select>

@@ -1720,7 +1720,7 @@
                 $('#driving_licence_expiry_detail').text(data.driving_licence_expiry ?? 'N/A');
                 $('#address_group_detail').text(data.address_group);
                 $('#address_detail').text(data.address);
-                $('#guard_rate_detail').text(`$${data.guard_rate ?? 0}`);
+                $('#guard_rate_detail').text(`£${data.guard_rate ?? 0}`);
                 $('#bank_info_detail').text(
                     `${data.bank_name ?? 'N/A'} / ${data.sort_code ?? 'N/A'} / ${data.account_number ?? 'N/A'}`
                 );
@@ -1849,19 +1849,27 @@
                         let mainHtml = '';
                         let anyMain = false;
                         Object.entries(documentTypes).forEach(([field, label]) => {
-                            // find approved doc by document_type matching the field
-                            const approvedDoc = approved.find(d => d.document_type === field);
-                                if (approvedDoc) {
+                            // Only show an approved DB doc as "Main" if it is the one
+                            // currently referenced by the employee's field. This prevents
+                            // a past/approved-but-superseded doc from being auto-promoted
+                            // into the Main section when the current one is deleted.
+                            const currentVal = data[field];
+                            const currentBasename = currentVal ? String(currentVal).split('/').pop() : null;
+                            const approvedDoc = currentBasename ? approved.find(d => {
+                                if (d.document_type !== field) return false;
+                                const dbn = (d.file_path || '').split('/').pop();
+                                return dbn === currentBasename || (d.file_path || '') === currentVal;
+                            }) : null;
+                            if (approvedDoc) {
                                 anyMain = true;
                                 const fileName = (approvedDoc.file_path || '').split('/').pop();
                                 mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${baseUrl}/${approvedDoc.file_path}" target="_blank" class="btn btn-sm btn-outline-primary ms-1" title="View ${fileName}"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${approvedDoc.file_path}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></div>`;
-                            } else if (data[field]) {
+                            } else if (currentVal) {
                                 // fallback to employee field (unverified)
                                 anyMain = true;
-                                const filePath = data[field];
-                                const fileName = String(filePath).split('/').pop();
-                                const url = `${baseUrl}/documents/${data[field]}`;
-                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1" title="View (unverified)"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${data[field]}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></div>`;
+                                const fileName = String(currentVal).split('/').pop();
+                                const url = `${baseUrl}/documents/${currentVal}`;
+                                mainHtml += `<div class="mb-1"><strong>${label}:</strong> <a href="${url}" target="_blank" class="btn btn-sm btn-outline-secondary ms-1" title="View (unverified)"><i class="ti ti-file"></i><span class="ms-1">${fileName}</span></a> <button class="btn btn-sm btn-danger ms-1 delete-doc-btn" data-file="${currentVal}" data-employee="${id}" title="Delete"><i class="ti ti-trash"></i></button></div>`;
                             }
                         });
 
