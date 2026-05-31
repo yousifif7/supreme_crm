@@ -255,4 +255,54 @@ class ShiftDate extends Model
 
         return implode(' ', $parts);
     }
+
+    /**
+     * Invalidate the cached scheduling (Gantt) payload whenever a shift date is
+     * created, updated, soft-deleted or restored. Without this, the board could
+     * keep serving a stale (sometimes empty) copy for the cache TTL — which is
+     * why newly-created shifts appeared only "sometimes" after a refresh.
+     */
+    protected static function booted()
+    {
+        static::saved(function () {
+            self::bumpGanttCacheVersion();
+        });
+        static::deleted(function () {
+            self::bumpGanttCacheVersion();
+        });
+        static::restored(function () {
+            self::bumpGanttCacheVersion();
+        });
+    }
+
+    /**
+     * Current Gantt cache version for the active admin scope. The value is
+     * appended to the Gantt cache key; bumping it instantly makes every
+     * previously-cached payload for this scope unreachable.
+     */
+    public static function ganttCacheVersion(): int
+    {
+        return (int) \Illuminate\Support\Facades\Cache::get(self::ganttCacheVersionKey(), 1);
+    }
+
+    /**
+     * Advance the Gantt cache version for the active admin scope, invalidating
+     * every cached payload for it. Called automatically on save/delete/restore.
+     */
+    public static function bumpGanttCacheVersion(): void
+    {
+        try {
+            $key = self::ganttCacheVersionKey();
+            // Seed at 1 if missing, then advance so existing keys can't be hit.
+            \Illuminate\Support\Facades\Cache::add($key, 1, now()->addYear());
+            \Illuminate\Support\Facades\Cache::increment($key);
+        } catch (\Throwable $e) {
+            // A cache backend hiccup must never break saving a shift.
+        }
+    }
+
+    protected static function ganttCacheVersionKey(): string
+    {
+        return 'gantt_cache_ver:' . self::cacheSuffix();
+    }
 }

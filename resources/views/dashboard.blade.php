@@ -762,28 +762,6 @@
         const userLocations = @json($userLocations ?? []);
         const siteLocations = @json($siteLocations ?? []);
 
-        const iconByServiceId = {
-            1: '/guard_icons/alarm_response.png',
-            2: '/guard_icons/doghandlers.png',
-            3: '/guard_icons/event_staff.png',
-            4: '/guard_icons/key_holding.png',
-            5: '/guard_icons/mobile_patrol.png',
-            6: '/guard_icons/event_staff.png',
-            7: '/guard_icons/fire_warden.png',
-            8: '/guard_icons/close_protection.png',
-        };
-
-        const nameByServiceId = {
-            1: 'Alarm Response',
-            2: 'Doghandlers',
-            3: 'Event Staff',
-            4: 'Keyholding',
-            5: 'Mobile Patrol',
-            6: 'Static Guards',
-            7: 'Fire Warden',
-            8: 'Close Protection',
-        };
-
         let map;
         let customMarkers = [];
         let currentInfoWindow = null;
@@ -809,9 +787,10 @@
 
                 const latLng = new google.maps.LatLng(lat, lng);
                 const username = loc.name ?? 'Unknown';
-                const serviceTypeId = loc.service_type_id ?? 6;
-                const iconUrl = iconByServiceId[serviceTypeId] ?? null;
-                const serviceName = nameByServiceId[serviceTypeId] ?? 'Service';
+                // Icon and service name are resolved server-side (handles ids,
+                // names, and messy stored values). Null icon -> default dot.
+                const iconUrl = loc.icon ?? null;
+                const serviceName = loc.service_name ?? null;
 
                 addCustomMarker(latLng, iconUrl, username, serviceName, loc, false);
             });

@@ -1659,9 +1659,17 @@ public function getShifts(Request $request)
     // and allow DB to use an index for ordered scans.
     // Cache key MUST include the admin scope — otherwise a system-level user populates
     // the cache and an admin loading the same view gets the system rota until TTL expires.
-    $cacheKey = 'gantt_v2:' . ShiftDate::cacheSuffix() . ':' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
+    // Include a per-admin cache version so creating/editing/deleting a shift can
+    // invalidate every cached payload for that scope at once (ShiftDate model
+    // events bump the version). This is what fixes shifts appearing only
+    // "sometimes" after a refresh — the stale cached copy is now unreachable.
+    $cacheKey = 'gantt_v2:' . ShiftDate::cacheSuffix() . ':v' . ShiftDate::ganttCacheVersion() . ':' . md5(json_encode($request->all()) . '|from:' . $from->format('Y-m-d') . '|to:' . $to->format('Y-m-d'));
     if ($cached = Cache::get($cacheKey)) {
-        return response()->json(['data' => $cached]);
+        // Also stop the browser/proxies from serving their own stale copy.
+        return response()->json(['data' => $cached])
+            ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+            ->header('Pragma', 'no-cache')
+            ->header('Expires', '0');
     }
 
     // Ensure predictable ordering (helps DB use indexes) before streaming rows
@@ -1672,7 +1680,10 @@ public function getShifts(Request $request)
     $ganttArray = $this->formatGanttArray($query->get());
     Cache::put($cacheKey, $ganttArray, $ttl);
 
-    return response()->json(['data' => $ganttArray]);
+    return response()->json(['data' => $ganttArray])
+        ->header('Cache-Control', 'no-cache, no-store, must-revalidate')
+        ->header('Pragma', 'no-cache')
+        ->header('Expires', '0');
 }
 
 private function formatGanttData($shiftDates)

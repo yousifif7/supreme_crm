@@ -75,7 +75,7 @@
                                             <th>Email</th>
                                             <th>Login At</th>
                                             <th>Logout At</th>
-                                            <th>Duration (mins)</th>
+                                            <th>Duration</th>
                                             <th>IP</th>
                                         </tr>
                                     </thead>
@@ -90,7 +90,17 @@
                                                 <td>{{ optional($a->logout_at)->format('Y-m-d H:i:s') ?? '' }}</td>
                                                 <td>
                                                     @if ($a->login_at && $a->logout_at)
-                                                        {{ $a->login_at->diffInMinutes($a->logout_at) }}
+                                                        @php
+                                                            $totalMins = (int) round(abs($a->login_at->diffInMinutes($a->logout_at)));
+                                                            $days = intdiv($totalMins, 1440);
+                                                            $hours = intdiv($totalMins % 1440, 60);
+                                                            $mins = $totalMins % 60;
+                                                            $parts = [];
+                                                            if ($days > 0) $parts[] = $days . ' ' . ($days === 1 ? 'Day' : 'Days');
+                                                            if ($hours > 0) $parts[] = $hours . ' ' . ($hours === 1 ? 'Hour' : 'Hours');
+                                                            if ($mins > 0) $parts[] = $mins . ' ' . ($mins === 1 ? 'Min' : 'Mins');
+                                                        @endphp
+                                                        {{ $parts ? implode(' ', $parts) : '0 Mins' }}
                                                     @else
                                                         -
                                                     @endif

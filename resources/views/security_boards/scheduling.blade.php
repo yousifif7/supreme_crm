@@ -35,7 +35,9 @@
                                                     } */
 
         html {
-            font-size: 80%;
+            /* Was 80% which made the wording unreadable when the chart was zoomed.
+               90% keeps the chart compact while staying legible. */
+            font-size: 90%;
         }
 
         .gantt-container {
@@ -144,10 +146,12 @@
             min-width: 100%;
         }
 
-        /* row height reduced to make bars more compact */
+        /* row height reduced to make bars more compact; rows grow to fit their
+           shifts but stay short when a site has only one/no shift, so the chart
+           no longer leaves large empty bands after shifts. */
         .gantt-row {
             display: flex;
-            min-height: 96px;
+            min-height: 64px;
             /* border-bottom: 1px solid #dee2e6; */
             position: relative;
         }
@@ -214,13 +218,16 @@
             /* border-bottom: 2px solid #dee2e6; */
         }
 
-        /* day-cell: flex row wrap so bars size to their content */
+        /* day-cell: grid of bars; min-height kept small so empty/sparse days don't
+           create tall empty rows. Bars set their own height as content requires.
+           No per-cell box border: the day columns already have a right divider and
+           rows a bottom divider, so a cell border would draw an uneven box around
+           cells that have more shifts than their neighbours (looked confusing). */
         .day-cell {
             display: grid;
             gap: 5px;
-            min-height: 100px;
+            min-height: 60px;
             padding: 6px;
-            border: 1px solid #dee2e6;
             align-content: start;
         }
 
@@ -246,7 +253,7 @@
             display: flex;
             color: #fff;
             gap: 4px;
-            font-size: 9px;
+            font-size: 11px;
         }
 
         #ganttChart.day-view .day-cell {
@@ -286,7 +293,7 @@
             display: block;
             color: inherit;
             margin: 0;
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 500;
         }
 
@@ -294,7 +301,7 @@
             display: block;
             color: inherit;
             margin: 0;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 700;
         }
 
@@ -302,7 +309,7 @@
             display: block;
             color: inherit;
             margin: 0;
-            font-size: 9px;
+            font-size: 11px;
             font-weight: 600;
             line-height: 1.2;
             opacity: 0.96;
@@ -316,7 +323,7 @@
             justify-content: space-between;
             color: inherit;
             margin: 0;
-            font-size: 8px;
+            font-size: 10px;
             font-weight: 600;
             flex-wrap: wrap;
         }
@@ -814,7 +821,7 @@
 
         @media (max-width: 992px) {
             .gantt-row {
-                min-height: 140px;
+                min-height: 70px;
             }
 
             .gantt-sidebar-header,
@@ -829,7 +836,7 @@
             }
 
             .gantt-row {
-                min-height: 140px;
+                min-height: 70px;
             }
 
             .gantt-sidebar-header,
@@ -1208,8 +1215,10 @@
 
     <script>
         /**
-         * Layout helper: Sets column widths per day based on maximum bars across all rows for that date.
-         * All cells for the same date get identical width, regardless of their individual bar count.
+         * Layout helper: sizes every day column to an equal, responsive width that
+         * fills the available timeline area. Smaller screens show ~5 days, wider
+         * screens show the whole range — without dumping leftover space onto columns
+         * (which previously left large empty gaps after shifts).
          */
         function adjustGanttDayCellColumns() {
             if (document.querySelector('#ganttChart').classList.contains('day-view')) {
@@ -1220,112 +1229,78 @@
             if (!ganttChartEl) return;
 
             const container = document.querySelector('.gantt-container');
-            const sidebarWidth = 200; // 2 sidebar columns (Client + Site)
 
-            // Group all day columns by date
+            // Group all day columns by date (each site row contributes one column per date)
             const dateGroups = {};
             const dayCols = ganttChartEl.querySelectorAll(".day-column");
 
             dayCols.forEach(dc => {
                 const date = dc.dataset.date;
                 if (!date) return;
-
                 if (!dateGroups[date]) dateGroups[date] = [];
                 dateGroups[date].push(dc);
             });
 
-            let totalWidth = 0;
-            const columnWidths = [];
+            const dates = Object.keys(dateGroups);
+            const totalDays = dates.length;
+            if (totalDays === 0) return;
 
-            Object.keys(dateGroups).forEach(date => {
+            // Measure the actual sidebar width (Client + Site columns) so the timeline
+            // calculation stays accurate across screen sizes / zoom levels.
+            const sidebarHeaders = ganttChartEl.querySelectorAll('.gantt-sidebar-header');
+            let sidebarWidth = 0;
+            sidebarHeaders.forEach(h => { sidebarWidth += h.getBoundingClientRect().width; });
+            if (!sidebarWidth) sidebarWidth = 200;
 
-                const cols = dateGroups[date];
+            const containerWidth = container ? container.clientWidth : ganttChartEl.clientWidth;
+            const availableWidth = Math.max(containerWidth - sidebarWidth - 4, 320);
 
-                // Find maximum bars in this date column
-                let maxBars = 0;
+            // Responsive target: how many day columns we try to fit on screen at once.
+            // Smaller screens show ~5 days; larger screens show the full week (or month
+            // run) without leaving big empty gaps after the shifts.
+            const minDayWidth = 150; // a single shift bar fits comfortably at this width
+            let visibleDays = Math.floor(availableWidth / minDayWidth);
+            if (visibleDays < 1) visibleDays = 1;
+            // Cap so we never try to spread fewer days than we actually have, and on
+            // narrower screens keep it to a sensible ~5 so wording stays readable.
+            visibleDays = Math.min(visibleDays, totalDays);
 
-                cols.forEach(dc => {
+            // Equal-width columns that exactly fill the available width — no leftover
+            // space gets dumped onto individual columns, which was the source of the
+            // large gaps after shifts.
+            let dayWidth = Math.floor(availableWidth / visibleDays);
+            if (dayWidth < minDayWidth) dayWidth = minDayWidth;
+
+            // How many shift bars fit side-by-side in one day column.
+            const barMinWidth = 140;
+            const gap = 5;
+            const cellPadding = 12; // 6px left + 6px right
+            let gridColumns = Math.floor((dayWidth - cellPadding + gap) / (barMinWidth + gap));
+            if (gridColumns < 1) gridColumns = 1;
+            if (gridColumns > 4) gridColumns = 4;
+
+            const totalWidth = dayWidth * totalDays;
+
+            // Apply equal width to every day column + header, and set the inner grid.
+            dates.forEach(date => {
+                dateGroups[date].forEach(dc => {
+                    dc.style.width = dayWidth + "px";
+                    dc.style.minWidth = dayWidth + "px";
+                    dc.style.flex = "0 0 " + dayWidth + "px";
+
                     const cell = dc.querySelector(".day-cell");
-                    if (!cell) return;
-
-                    const barCount = cell.querySelectorAll(".gantt-bar").length;
-                    maxBars = Math.max(maxBars, barCount);
+                    if (cell) cell.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
                 });
 
-                // Determine grid layout
-                let gridColumns = Math.min(maxBars, 4);
-                if (gridColumns === 0) gridColumns = 1;
-
-                cols.forEach(dc => {
-                    const cell = dc.querySelector(".day-cell");
-                    if (cell) {
-                        cell.style.gridTemplateColumns = `repeat(${gridColumns}, 1fr)`;
-                    }
-                });
-
-                // Calculate column width
-                const barMinWidth = 140;
-                const gap = 5;
-
-                let columnWidth;
-
-                if (maxBars === 0) {
-                    columnWidth = 245;
-                } else {
-                    columnWidth = Math.min(
-                        Math.max(gridColumns * barMinWidth + (gridColumns - 1) * gap, 150),
-                        900
-                    );
-                }
-
-                columnWidths.push({
-                    date,
-                    width: columnWidth
-                });
-                totalWidth += columnWidth;
-
-            });
-
-            // 🔴 Stretch chart if container is larger
-            if (container) {
-
-                const containerWidth = container.clientWidth - sidebarWidth;
-
-                if (totalWidth < containerWidth) {
-
-                    const extra = containerWidth - totalWidth;
-                    const extraPerDay = Math.floor(extra / columnWidths.length);
-
-                    columnWidths.forEach(c => {
-                        c.width += extraPerDay;
-                    });
-
-                    totalWidth = containerWidth;
-                }
-            }
-
-            // Apply widths
-            columnWidths.forEach(col => {
-
-                const cols = dateGroups[col.date];
-
-                cols.forEach(dc => {
-                    dc.style.width = col.width + "px";
-                    dc.style.minWidth = col.width + "px";
-                    dc.style.flex = "0 0 " + col.width + "px";
-                });
-
-                const headerEl = ganttChartEl.querySelector(`.day-header[data-date="${col.date}"]`);
-
+                const headerEl = ganttChartEl.querySelector(`.day-header[data-date="${date}"]`);
                 if (headerEl) {
-                    headerEl.style.width = col.width + "px";
-                    headerEl.style.minWidth = col.width + "px";
-                    headerEl.style.flex = "0 0 " + col.width + "px";
+                    headerEl.style.width = dayWidth + "px";
+                    headerEl.style.minWidth = dayWidth + "px";
+                    headerEl.style.flex = "0 0 " + dayWidth + "px";
                 }
-
             });
 
-            // Update timeline
+            // Size the timeline header + row content to the total so columns line up.
             const header = ganttChartEl.querySelector(".gantt-timeline-header");
             const rows = ganttChartEl.querySelectorAll(".gantt-row-content");
 
@@ -1343,10 +1318,7 @@
                 r.style.display = "flex";
             });
 
-            // Force chart stretch
             ganttChartEl.style.width = "100%";
-
-
         }
 
         /**
@@ -2421,6 +2393,15 @@
                     url: `${baseUrl}/api/shifts`,
                     method: 'GET',
                     data: requestData,
+                    // Never serve a cached/304 response for the shift list. Browsers and
+                    // proxies were occasionally returning a stale (sometimes empty) copy,
+                    // which made shifts appear only "sometimes" after a refresh. cache:false
+                    // appends a unique _ param and the no-cache headers force a fresh fetch.
+                    cache: false,
+                    headers: {
+                        'Cache-Control': 'no-cache, no-store, must-revalidate',
+                        'Pragma': 'no-cache'
+                    },
                     success: function(response) {
                         // normalize payload: some endpoints return { data: [...] } others return array directly
                         const payload = response.data || response.shift_dates || response || [];
@@ -4149,7 +4130,9 @@
                 }
 
                 // Fallback: fetch fresh data for all shifts and re-render the affected bar
-                $.get(`${baseUrl}/api/shifts`, function(resp) {
+                $.ajax({ url: `${baseUrl}/api/shifts`, method: 'GET', cache: false,
+                    headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' }
+                }).done(function(resp) {
                     // resp expected to be { data: [...] } in some implementations
                     const payload = resp.data || resp.shift_dates || resp;
                     let found = null;

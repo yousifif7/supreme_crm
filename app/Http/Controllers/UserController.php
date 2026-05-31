@@ -12,6 +12,7 @@ use App\Helpers\Logger;
 use App\Models\Invoice;
 use App\Models\Document;
 use App\Models\Employee;
+use App\Models\EmployeeType;
 use App\Models\Location;
 use App\Models\CheckCall;
 use App\Models\ShiftDate;
@@ -111,29 +112,91 @@ class UserController extends Controller
 
         
         // --- Users (latest locations) ---
-        // Cache this expensive lookup for a short period (5m) to improve dashboard response
-        // Use a derived-table JOIN to let the database compute MAX(id) per user efficiently.
-        $cutoff24 = Carbon::now()->subMinutes(60);
+        // Cache this expensive lookup for a short period (5m) to improve dashboard response.
+        //
+        // The map must show every guard who is on an ACTIVE shift right now — even if
+        // their phone hasn't pinged GPS recently. So we no longer gate the map on a
+        // short "recent ping" window (which silently dropped working guards whose app
+        // was backgrounded or had poor signal). Instead we build the set of users to
+        // show from two sources and union them:
+        //   1. Anyone on a shift that is active at this moment (start <= now <= end today,
+        //      overnight-aware), and
+        //   2. Anyone who has pinged a location recently (keeps recently-active guards
+        //      visible even between shifts).
+        // For each such user we plot their LATEST known location, regardless of age.
+        $recentCutoff = Carbon::now()->subMinutes(60);
         $dashboardAuthUser = auth()->user();
         $dashboardAdminId = ($dashboardAuthUser && $dashboardAuthUser->hasRole('admin')) ? $dashboardAuthUser->id : null;
 
         // Cache key includes admin ID so different admins never share cached map data
-        $cacheKeyUsers = 'dashboard_user_locations_' . ($dashboardAdminId ?? 'all') . '_' . $cutoff24->toDateString();
-        $userLocations = Cache::remember($cacheKeyUsers, 300, function () use ($cutoff24, $dashboardAdminId) {
-            $latest = DB::table('locations')
-                ->selectRaw('user_id, MAX(id) as max_id')
-                ->whereNotNull('user_id')
-                ->where('created_at', '>=', $cutoff24)
-                ->groupBy('user_id');
+        $cacheKeyUsers = 'dashboard_user_locations_' . ($dashboardAdminId ?? 'all') . '_' . Carbon::today()->toDateString();
+        $userLocations = Cache::remember($cacheKeyUsers, 300, function () use ($recentCutoff, $dashboardAdminId) {
+            $now = Carbon::now();
 
-            // For admin: restrict map pins to users belonging to this admin only
+            // For admin: restrict map pins to users belonging to this admin only.
+            $adminUserIds = null;
             if ($dashboardAdminId !== null) {
                 $adminUserIds = DB::table('users')
                     ->where('admin_id', $dashboardAdminId)
                     ->pluck('id')
                     ->toArray();
-                $latest->whereIn('user_id', $adminUserIds);
             }
+
+            // (1) Shift dates with an assigned guard, with their shift+site.
+            // We include today AND yesterday so overnight shifts that started
+            // yesterday (e.g. 22:00 -> 06:00) and are still running now are caught.
+            // "Active right now" is resolved in PHP (shiftIsActiveNow anchors each
+            // row to its own shift_date and rolls the end over for overnight shifts).
+            $shiftDatesQuery = ShiftDate::whereIn('shift_date', [
+                    Carbon::yesterday()->toDateString(),
+                    Carbon::today()->toDateString(),
+                ])
+                ->whereNotNull('staff_id')
+                ->with(['shift.site']);
+            if ($adminUserIds !== null) {
+                $shiftDatesQuery->whereIn('staff_id', $adminUserIds);
+            }
+            $todayShiftDates = $shiftDatesQuery->get()->groupBy('staff_id');
+
+            // Determine which staff are on an ACTIVE shift right now, and remember the
+            // specific active shift date to show in the info window.
+            $activeShiftByStaff = [];
+            foreach ($todayShiftDates as $staffId => $group) {
+                foreach ($group as $sd) {
+                    if ($this->shiftIsActiveNow($sd, $now)) {
+                        $activeShiftByStaff[$staffId] = $sd;
+                        break;
+                    }
+                }
+            }
+
+            // (2) Users who pinged a location recently — keep them on the map too.
+            $recentPingUserIds = DB::table('locations')
+                ->whereNotNull('user_id')
+                ->where('created_at', '>=', $recentCutoff)
+                ->when($adminUserIds !== null, fn ($q) => $q->whereIn('user_id', $adminUserIds))
+                ->distinct()
+                ->pluck('user_id')
+                ->toArray();
+
+            // Union of staff to plot: on-active-shift now OR recently pinging.
+            $userIds = collect(array_keys($activeShiftByStaff))
+                ->merge($recentPingUserIds)
+                ->unique()
+                ->filter()
+                ->values()
+                ->all();
+
+            if (empty($userIds)) {
+                return collect();
+            }
+
+            // Latest location row per user (any age) for the users we want to plot.
+            $latest = DB::table('locations')
+                ->selectRaw('user_id, MAX(id) as max_id')
+                ->whereNotNull('user_id')
+                ->whereIn('user_id', $userIds)
+                ->groupBy('user_id');
 
             $locations = Location::select('locations.id', 'locations.user_id', 'locations.latitude', 'locations.longitude', 'locations.accuracy', 'locations.on_duty', 'locations.created_at')
                 ->joinSub($latest, 'latest', function ($join) {
@@ -145,45 +208,24 @@ class UserController extends Controller
                 ])
                 ->whereNotNull('latitude')
                 ->whereNotNull('longitude')
-                ->get();
+                ->get()
+                ->keyBy('user_id');
 
-            // Collect user IDs to fetch any assigned shift for today in a single query
-            $userIds = $locations->pluck('user_id')->unique()->filter()->values()->all();
+            // Map of employee_types id => name and a name => icon lookup, resolved once.
+            $serviceIcons = $this->serviceTypeIconMap();
 
-            $todayShiftDates = [];
-            if (!empty($userIds)) {
-                $todayShiftDates = ShiftDate::whereIn('staff_id', $userIds)
-                    ->whereDate('shift_date', Carbon::today()->toDateString())
-                    ->with(['shift.site'])
-                    ->get()
-                    ->groupBy('staff_id');
-            }
+            return collect($userIds)->map(function ($userId) use ($locations, $activeShiftByStaff, $todayShiftDates, $serviceIcons) {
+                $l = $locations->get($userId);
+                if (!$l) {
+                    // Guard is on an active shift but has no plottable location yet.
+                    return null;
+                }
 
-            $now = Carbon::now();
-
-            return $locations->map(function ($l) use ($todayShiftDates, $now) {
-                $assignedShift = null;
-                if (isset($todayShiftDates[$l->user_id])) {
-                    $group = $todayShiftDates[$l->user_id];
-                    if ($group->count() == 1) {
-                        $assignedShift = $group->first();
-                    } else {
-                        foreach ($group as $sd) {
-                            try {
-                                $start = $sd->start_time ? Carbon::parse($sd->start_time) : null;
-                                $end = $sd->end_time ? Carbon::parse($sd->end_time) : null;
-                                if ($start && $end && $now->between($start, $end)) {
-                                    $assignedShift = $sd;
-                                    break;
-                                }
-                            } catch (\Exception $e) {
-                                // ignore parse errors and continue
-                            }
-                        }
-                        if (!$assignedShift) {
-                            $assignedShift = $group->first();
-                        }
-                    }
+                // Prefer the shift that is active right now; otherwise fall back to any
+                // of today's shifts for this guard (so the info window still shows a site).
+                $assignedShift = $activeShiftByStaff[$userId] ?? null;
+                if (!$assignedShift && isset($todayShiftDates[$userId])) {
+                    $assignedShift = $todayShiftDates[$userId]->first();
                 }
 
                 $siteName = null;
@@ -191,15 +233,24 @@ class UserController extends Controller
                     $siteName = optional($assignedShift->shift->site)->site_name;
                 }
 
+                // Resolve the guard's service type (which may be stored as a numeric
+                // employee_types id OR as a name, sometimes with stray punctuation)
+                // to a canonical icon + clean name on the server, so the front end
+                // never has to guess.
+                $rawServiceType = optional(optional($l->user)->employee)->service_type;
+                [$serviceName, $iconUrl] = $this->resolveServiceType($rawServiceType, $serviceIcons);
+
                 return [
                     'id' => 'user-' . $l->user_id,
                     'latitude' => (float) $l->latitude,
                     'longitude' => (float) $l->longitude,
-                    'name' => optional($l->user)->first_name . ' ' . optional($l->user)->last_name,
+                    'name' => trim((optional($l->user)->first_name ?? '') . ' ' . (optional($l->user)->last_name ?? '')),
                     'type' => 'user',
-                    'service_type_id' => optional(optional($l->user)->employee)->service_type,
+                    'service_type_id' => $rawServiceType,
+                    'service_name' => $serviceName,
+                    'icon' => $iconUrl,
                     'accuracy' => $l->accuracy,
-                    'on_duty' => (bool) $l->on_duty,
+                    'on_duty' => isset($activeShiftByStaff[$userId]) ? true : (bool) $l->on_duty,
                     'timestamp' => optional($l->created_at)->toDateTimeString(),
                     'site_name' => $siteName,
                     'current_shift' => $assignedShift ? [
@@ -212,7 +263,7 @@ class UserController extends Controller
                         'site' => optional($assignedShift->shift)->site ? ['site_name' => optional($assignedShift->shift->site)->site_name] : null,
                     ] : null,
                 ];
-            });
+            })->filter()->values();
         });
 
         // --- Sites (pass postal codes only, no server-side geocoding) ---
@@ -248,6 +299,108 @@ class UserController extends Controller
         // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
         return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations'));
+    }
+
+    /**
+     * Is the given shift date active at $now? start_time/end_time are stored as
+     * time-only (HH:MM:SS) against the shift_date day, so we anchor them to the
+     * shift's date and roll the end to the next day for overnight shifts.
+     */
+    protected function shiftIsActiveNow(ShiftDate $sd, Carbon $now): bool
+    {
+        if (empty($sd->start_time) || empty($sd->end_time)) {
+            return false;
+        }
+
+        try {
+            $day = $sd->shift_date ? Carbon::parse($sd->shift_date)->toDateString() : $now->toDateString();
+            $start = Carbon::parse($day . ' ' . $sd->start_time);
+            $end = Carbon::parse($day . ' ' . $sd->end_time);
+            // Overnight shift: end time falls on the following day.
+            if ($end->lessThanOrEqualTo($start)) {
+                $end->addDay();
+            }
+            return $now->betweenIncluded($start, $end);
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
+    /**
+     * Build the canonical service-type icon lookup once. Keyed by:
+     *   - employee_types id (int)
+     *   - normalized name (lowercased, alphanumerics only)
+     * so we can resolve a guard's service type whether it's stored as an id or a
+     * (sometimes messy) name. Returns ['byId' => [...], 'byName' => [...]].
+     */
+    protected function serviceTypeIconMap(): array
+    {
+        // Maps a normalized service-type name to its icon file in /public/guard_icons.
+        // There is no dedicated "static guards" icon, so it reuses event_staff (the
+        // same fallback the previous front-end map used).
+        $nameToIcon = [
+            'alarmresponse'    => '/guard_icons/alarm_response.png',
+            'doghandlers'      => '/guard_icons/doghandlers.png',
+            'eventstaff'       => '/guard_icons/event_staff.png',
+            'keyholding'       => '/guard_icons/key_holding.png',
+            'mobilepatrol'     => '/guard_icons/mobile_patrol.png',
+            'mobilepetrol'     => '/guard_icons/mobile_patrol.png', // seeded name has this spelling
+            'staticguards'     => '/guard_icons/event_staff.png',
+            'firewarden'       => '/guard_icons/fire_warden.png',
+            'closeprotection'  => '/guard_icons/close_protection.png',
+        ];
+
+        $byId = [];
+        try {
+            foreach (EmployeeType::select('id', 'name')->get() as $type) {
+                $key = $this->normalizeServiceKey($type->name);
+                $byId[(int) $type->id] = [
+                    'name' => $type->name,
+                    'icon' => $nameToIcon[$key] ?? null,
+                ];
+            }
+        } catch (\Throwable $e) {
+            // If the table is unavailable, fall back to name-only resolution.
+        }
+
+        return ['byId' => $byId, 'byName' => $nameToIcon];
+    }
+
+    /**
+     * Resolve a raw service_type value (id-as-string, a name, or a name with stray
+     * punctuation/whitespace) to a [displayName, iconUrl] pair using the prepared map.
+     */
+    protected function resolveServiceType($rawServiceType, array $serviceIcons): array
+    {
+        if ($rawServiceType === null || $rawServiceType === '') {
+            return [null, null];
+        }
+
+        $raw = trim((string) $rawServiceType, " \t\n\r\0\x0B,"); // strip stray commas/whitespace
+
+        // Stored as a numeric employee_types id.
+        if (ctype_digit($raw) && isset($serviceIcons['byId'][(int) $raw])) {
+            $entry = $serviceIcons['byId'][(int) $raw];
+            return [$entry['name'], $entry['icon']];
+        }
+
+        // Stored as a name — resolve via the normalized name map.
+        $key = $this->normalizeServiceKey($raw);
+        if (isset($serviceIcons['byName'][$key])) {
+            return [$raw, $serviceIcons['byName'][$key]];
+        }
+
+        // Unknown service type: show the cleaned name with no icon (front end draws a dot).
+        return [$raw, null];
+    }
+
+    /**
+     * Normalize a service-type name for lookup: lowercase, alphanumerics only.
+     * "Mobile Patrol" / "mobile  patrol," / "MOBILE-PATROL" => "mobilepatrol".
+     */
+    protected function normalizeServiceKey($name): string
+    {
+        return preg_replace('/[^a-z0-9]/', '', strtolower((string) $name));
     }
 
     public function index(UsersDataTable $dataTable)
