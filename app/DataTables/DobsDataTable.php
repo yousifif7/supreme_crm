@@ -8,6 +8,7 @@ use App\Models\ShiftDate;
 use Carbon\Carbon;
 use Yajra\DataTables\Html\Column;
 use Illuminate\Support\Facades\DB;
+use App\Http\Controllers\DobController;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -20,6 +21,17 @@ class DobsDataTable extends DataTable
             ->addColumn('user', function ($row) {
                 $user = User::find($row->user_id);
                 return $user ? $user->first_name . ' ' . $user->last_name : 'Unknown';
+            })
+            // Client / Site / Officer resolved from the linked shift (shift_dates -> shifts -> sites/clients).
+            // resolveShiftContext() memoises per shift_id so the three columns share one lookup per row.
+            ->addColumn('client_name', function ($row) {
+                return DobController::resolveShiftContext($row->shift_id)['client_name'];
+            })
+            ->addColumn('site_name', function ($row) {
+                return DobController::resolveShiftContext($row->shift_id)['site_name'];
+            })
+            ->addColumn('officer', function ($row) {
+                return DobController::resolveShiftContext($row->shift_id)['officer'];
             })
             ->addIndexColumn()
             ->addColumn('actions', function ($row) {
@@ -115,7 +127,8 @@ class DobsDataTable extends DataTable
             ->setTableId('dobs-table')
             ->columns($this->getColumns())
             ->minifiedAjax()
-            ->orderBy(6, 'desc');
+            // index 9 = Timestamp column (after the added Client/Site/Officer columns)
+            ->orderBy(9, 'desc');
     }
 
     protected function getColumns(): array
@@ -130,6 +143,9 @@ class DobsDataTable extends DataTable
                 ->orderable(false)
                 ->searchable(false),
             Column::computed('DT_RowIndex')->title('#')->width(30)->addClass('px-2')->orderable(false)->searchable(false),
+            Column::computed('client_name')->title('Client')->orderable(false)->searchable(false),
+            Column::computed('site_name')->title('Site')->orderable(false)->searchable(false),
+            Column::computed('officer')->title('Officer')->orderable(false)->searchable(false),
             Column::computed('user')->title('Guard'),
             Column::make('title')->title('Title'),
             Column::make('entry_type')->title('Type'),

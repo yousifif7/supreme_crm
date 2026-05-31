@@ -7,6 +7,7 @@ use App\Models\Employee;
 use App\Models\Notification;
 use Illuminate\Http\Request;
 use App\Models\IncidentMedia;
+use App\Traits\MediaWatermark;
 use App\Models\IncidentPerson;
 use App\Models\IncidentReport;
 use App\Http\Controllers\Controller;
@@ -18,6 +19,7 @@ use App\Helpers\Logger;
 
 class IncidentReportController extends Controller
 {
+    use MediaWatermark;
     //
     public function store(Request $request)
     {
@@ -245,8 +247,11 @@ class IncidentReportController extends Controller
             'immediate_action_taken' => $data['immediate_action_taken'] ?? null,
         ]);
 
+        // Build the base watermark data once (employee, coordinates, resolved address)
+        $baseWatermarkData = $this->buildWatermarkData(Auth::user(), $data['location'] ?? []);
+
         // Helper for saving media files
-        $saveMedia = function ($files, $type) use ($report) {
+        $saveMedia = function ($files, $type) use ($report, $baseWatermarkData) {
             foreach ($files ?? [] as $file) {
                 $filePath = null;
 
@@ -278,6 +283,9 @@ class IncidentReportController extends Controller
                 } else {
                     continue;
                 }
+
+                // Burn the timestamp / location watermark onto the saved media
+                $this->stampMediaFile(public_path($filePath), $baseWatermarkData);
 
                 IncidentMedia::create([
                     'incident_report_id' => $report->id,

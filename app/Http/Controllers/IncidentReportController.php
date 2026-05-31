@@ -31,6 +31,14 @@ class IncidentReportController extends Controller
     public function show($id)
     {
         $report = IncidentReport::with(['media', 'people'])->findOrFail($id);
+
+        $location = is_string($report->location)
+            ? json_decode($report->location, true)
+            : ($report->location ?? []);
+
+        // Reuse the DOB controller's resolver so client/site/officer logic stays in one place.
+        $context = DobController::resolveShiftContext($report->shift_id);
+
         return response()->json([
             'id' => $report->id,
             'title' => $report->title,
@@ -39,7 +47,14 @@ class IncidentReportController extends Controller
             'status' => $report->status,
             'description' => $report->description,
             'police_notified' => (bool) $report->police_notified,
-            'formatted_address' => $report->formatted_address, // <--- add this
+            'formatted_address' => $report->formatted_address,
+            // New context fields requested for the admin view
+            'client_name' => $context['client_name'],
+            'site_name' => $context['site_name'],
+            'officer' => $context['officer'],
+            // Guard's captured GPS at submission time
+            'latitude' => $location['latitude'] ?? null,
+            'longitude' => $location['longitude'] ?? null,
             'media' => $report->media->map(fn($m) => ['file_url' => $m->file_url]),
         ]);
     }
@@ -50,6 +65,13 @@ class IncidentReportController extends Controller
     public function edit($id)
     {
         $incident = IncidentReport::with('media')->findOrFail($id);
+
+        $location = is_string($incident->location)
+            ? json_decode($incident->location, true)
+            : ($incident->location ?? []);
+
+        $context = DobController::resolveShiftContext($incident->shift_id);
+
         return response()->json([
             'id' => $incident->id,
             'title' => $incident->title,
@@ -58,7 +80,12 @@ class IncidentReportController extends Controller
             'status' => $incident->status,
             'description' => $incident->description,
             'police_notified' => (bool) $incident->police_notified,
-            'formatted_address' => $incident->formatted_address, // <--- add this
+            'formatted_address' => $incident->formatted_address,
+            'client_name' => $context['client_name'],
+            'site_name' => $context['site_name'],
+            'officer' => $context['officer'],
+            'latitude' => $location['latitude'] ?? null,
+            'longitude' => $location['longitude'] ?? null,
             'media' => $incident->media->map(fn($m) => ['file_url' => $m->file_url]),
         ]);
     }
@@ -215,6 +242,14 @@ class IncidentReportController extends Controller
         // Save media files
         $handleMedia($data['live_media'] ?? [], 'live_media');
         $handleMedia($data['pre_captured_media'] ?? [], 'pre_captured_media');
+
+        // Admin "Create Incident" modal uploads images via the "media_files" / "files"
+        // file inputs — persist those too (treated as pre-captured evidence).
+        foreach (['media_files', 'files'] as $field) {
+            if ($request->hasFile($field)) {
+                $handleMedia($request->file($field), 'pre_captured_media');
+            }
+        }
 
         // Save people involved
         foreach ($data['people_involved'] ?? [] as $person) {

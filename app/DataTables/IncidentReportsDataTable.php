@@ -3,6 +3,7 @@
 namespace App\DataTables;
 
 use App\Models\IncidentReport;
+use App\Http\Controllers\DobController;
 use Illuminate\Database\Eloquent\Builder as QueryBuilder;
 use Yajra\DataTables\EloquentDataTable;
 use Yajra\DataTables\Html\Builder as HtmlBuilder;
@@ -39,6 +40,16 @@ class IncidentReportsDataTable extends DataTable
             })
             ->addColumn('number', function () {
                 return '';
+            })
+            // Client / Site / Officer resolved from the linked shift (shared, memoised lookup)
+            ->addColumn('client_name', function ($report) {
+                return DobController::resolveShiftContext($report->shift_id)['client_name'];
+            })
+            ->addColumn('site_name', function ($report) {
+                return DobController::resolveShiftContext($report->shift_id)['site_name'];
+            })
+            ->addColumn('officer', function ($report) {
+                return DobController::resolveShiftContext($report->shift_id)['officer'];
             })
             ->editColumn('category', fn($report) => ucfirst(str_replace('_', ' ', $report->category)))
             ->editColumn('severity', fn($report) => ucfirst($report->severity))
@@ -126,7 +137,7 @@ class IncidentReportsDataTable extends DataTable
                   <"d-flex justify-content-between" p>
                 >'
             )
-            ->orderBy([9, 'DESC']) // created_at column index
+            ->orderBy([12, 'DESC']) // created_at column index (shifted by the added Client/Site/Officer columns)
             ->parameters([
                 "scrollX" => true,
                 "pageLength" => 25,
@@ -163,6 +174,9 @@ class IncidentReportsDataTable extends DataTable
                 ->orderable(false)
                 ->searchable(false),
 
+            Column::computed('client_name')->title('Client')->orderable(false)->searchable(false),
+            Column::computed('site_name')->title('Site')->orderable(false)->searchable(false),
+            Column::computed('officer')->title('Officer')->orderable(false)->searchable(false),
             Column::make('title')->title('Title'),
             Column::make('category')->title('Category'),
             Column::make('severity')->title('Severity'),

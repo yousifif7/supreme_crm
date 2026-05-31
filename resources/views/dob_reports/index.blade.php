@@ -248,18 +248,38 @@
                 url: '/dobs/' + id,
                 type: 'GET',
                 success: function(res) {
+                    const coords = (res.latitude && res.longitude)
+                        ? `${res.latitude}, ${res.longitude}`
+                        : 'N/A';
+
+                    const filesHtml = (res.media && res.media.length)
+                        ? res.media.map(file => {
+                            const url = file.file_url;
+                            const name = url.split('/').pop();
+                            const isImage = /\.(jpe?g|png|gif|webp|bmp)$/i.test(url);
+                            if (isImage) {
+                                return `<div class="mb-2">
+                                            <a href="${url}" target="_blank">
+                                                <img src="${url}" alt="${name}" class="img-fluid rounded border" style="max-height:220px;">
+                                            </a>
+                                        </div>`;
+                            }
+                            return `<div class="mb-2"><a href="${url}" target="_blank">${name}</a></div>`;
+                        }).join('')
+                        : '<p class="text-muted mb-0">No files attached.</p>';
+
                     let html = `
+                <p><strong>Client:</strong> ${res.client_name ?? 'N/A'}</p>
+                <p><strong>Site:</strong> ${res.site_name ?? 'N/A'}</p>
+                <p><strong>Officer / Handler:</strong> ${res.officer ?? 'N/A'}</p>
                 <p><strong>Title:</strong> ${res.title}</p>
                 <p><strong>Type:</strong> ${res.entry_type}</p>
                 <p><strong>Description:</strong> ${res.description}</p>
-                <p><strong>User:</strong> ${res.user}</p>
+                <p><strong>Submitted By:</strong> ${res.user}</p>
                 <p><strong>Address:</strong> ${res.address ?? 'N/A'}</p>
+                <p><strong>Coordinates (Lat, Lng):</strong> ${coords}</p>
                 <p><strong>Files:</strong></p>
-                <ul>
-                    ${res.media.map(file => `
-                            <li><a href="${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>
-                        `).join('')}
-                </ul>
+                ${filesHtml}
             `;
                     $('#dobModalBody').html(html);
                     $('#dobModal').modal('show');
@@ -277,7 +297,9 @@
                 $('#title').val(data.title);
                 $('#entry_type').val(data.entry_type);
                 $('#description').val(data.description);
-                $('#location_preview').val(data.location);
+                const lat = data.location ? data.location.latitude : null;
+                const lng = data.location ? data.location.longitude : null;
+                $('#location_preview').val((lat && lng) ? `${lat}, ${lng}` : (data.address ?? ''));
 
                 // Populate existing files
                 let filesList = $('#files_preview').empty();
@@ -317,12 +339,17 @@
         $('#dobEditForm').on('submit', function(e) {
             e.preventDefault();
             let id = $('#dob_id').val();
-            let formData = $(this).serialize();
+            // Use FormData (not serialize) so attached files are actually sent.
+            // Spoof PUT over POST because browsers can't upload files on a real PUT.
+            let formData = new FormData(this);
+            formData.append('_method', 'PUT');
 
             $.ajax({
                 url: '/dobs/' + id,
-                type: 'PUT',
+                type: 'POST',
                 data: formData,
+                processData: false,
+                contentType: false,
                 headers: {
                     'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
                 },

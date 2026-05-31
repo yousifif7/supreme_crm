@@ -198,9 +198,29 @@
                                 value="1">
                             <label class="form-check-label" for="police_notified">Police Notified</label>
                         </div>
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Client</label>
+                                <div id="edit_client_preview" class="border p-2">N/A</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Site</label>
+                                <div id="edit_site_preview" class="border p-2">N/A</div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">Officer / Handler</label>
+                                <div id="edit_officer_preview" class="border p-2">N/A</div>
+                            </div>
+                        </div>
+
                         <div class="mb-3">
                             <label class="form-label">Location</label>
                             <div id="location_preview" class="border p-2">N/A</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Coordinates (Lat, Lng)</label>
+                            <div id="edit_coords_preview" class="border p-2">N/A</div>
                         </div>
 
                         <div class="mb-3">
@@ -304,6 +324,13 @@
                             <textarea class="form-control" id="immediate_action_taken" name="immediate_action_taken" rows="2"></textarea>
                         </div>
 
+                        <div class="mb-3">
+                            <label for="incident_media" class="form-label">Pictures / Evidence</label>
+                            <input type="file" class="form-control" id="incident_media" name="media_files[]"
+                                accept="image/*,video/*,application/pdf" multiple>
+                            <small class="text-muted">You can attach one or more images, videos or PDFs.</small>
+                        </div>
+
                     </div><!-- modal-body -->
 
                     <div class="modal-footer">
@@ -386,12 +413,19 @@
                 url: '/incidents/' + id,
                 type: 'GET',
                 success: function(res) {
+                    const coords = (res.latitude && res.longitude)
+                        ? `${res.latitude}, ${res.longitude}`
+                        : 'N/A';
                     let html = `
+        <p><strong>Client:</strong> ${res.client_name ?? 'N/A'}</p>
+        <p><strong>Site:</strong> ${res.site_name ?? 'N/A'}</p>
+        <p><strong>Officer / Handler:</strong> ${res.officer ?? 'N/A'}</p>
         <p><strong>Title:</strong> ${res.title}</p>
         <p><strong>Category:</strong> ${res.category}</p>
         <p><strong>Severity:</strong> ${res.severity}</p>
         <p><strong>Description:</strong> ${res.description}</p>
         <p><strong>Location:</strong> ${res.formatted_address ?? 'N/A'}</p>
+        <p><strong>Coordinates (Lat, Lng):</strong> ${coords}</p>
         <p><strong>Police Notified:</strong> ${res.police_notified ? 'Yes' : 'No'}</p>
         <p><strong>Status:</strong> ${renderStatusBadge(res.status)}</p>
         <p><strong>Files:</strong></p>
@@ -422,6 +456,12 @@
                     $('#status').val(res.status); // populate status select
 
                     $('#location_preview').text(res.formatted_address ?? 'N/A');
+                    $('#edit_client_preview').text(res.client_name ?? 'N/A');
+                    $('#edit_site_preview').text(res.site_name ?? 'N/A');
+                    $('#edit_officer_preview').text(res.officer ?? 'N/A');
+                    $('#edit_coords_preview').text(
+                        (res.latitude && res.longitude) ? `${res.latitude}, ${res.longitude}` : 'N/A'
+                    );
                     let filesHtml = res.media.map(file =>
                         `<li><a href="/${file.file_url}" target="_blank">${file.file_url.split('/').pop()}</a></li>`
                     ).join('');
