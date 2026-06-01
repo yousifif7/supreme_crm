@@ -25,4 +25,15 @@ class CheckpointScan extends Model
     {
         return $this->belongsTo(\App\Models\PatrolCheckPoint::class, 'patrol_checkpoint_id');
     }
+
+    /**
+     * Remove the scan's media rows when the scan itself is deleted (e.g. via the
+     * patrol cascade when a shift is deleted), so they aren't left orphaned.
+     */
+    protected static function booted()
+    {
+        static::deleting(function (CheckpointScan $scan) {
+            $scan->media()->delete();
+        });
+    }
 }

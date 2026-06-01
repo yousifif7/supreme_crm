@@ -1521,12 +1521,13 @@ private function parseUKTimestamp($timestamp)
         $checkcall->approval_status = 'approved';
         $checkcall->save();
 
-        // Send notification to the employee
+        // Send notification to the employee. The shift reference is the check call's
+        // shift_id (the FK to shift_dates); there is no shift_date_id column.
         send_push_notification(
             $checkcall->employee_id,
             'Check Call Approved',
             'Your check call "' . $checkcall->name . '" has been approved by admin.',
-            ['type' => 'shift', 'shiftId' => $checkcall->shift_date_id],
+            ['type' => 'shift', 'shiftId' => $checkcall->shift_id],
         );
 
         return response()->json([
@@ -1557,12 +1558,13 @@ private function parseUKTimestamp($timestamp)
         $checkcall->status = 'pending';
         $checkcall->save();
 
-        // Send notification to the employee
+        // Send notification to the employee. The shift reference is the check call's
+        // shift_id (the FK to shift_dates); there is no shift_date_id column.
         send_push_notification(
             $checkcall->employee_id,
             'Check Call Rejected',
             'Your check call "' . $checkcall->name . '" has been rejected by admin.',
-            ['type' => 'shift', 'shiftId' => $checkcall->shift_date_id],
+            ['type' => 'shift', 'shiftId' => $checkcall->shift_id],
         );
 
         return response()->json([

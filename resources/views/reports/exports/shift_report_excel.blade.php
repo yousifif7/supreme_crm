@@ -8,10 +8,11 @@
             <th>Shift Date</th>
             <th>Start</th>
             <th>End</th>
-            <th>Planned Duration</th>
+            <th>Total Hours</th>
             <th>Book On</th>
             <th>Book Off</th>
-            <th>Actual Duration</th>
+            <th>Worked Hours</th>
+            <th>Delay to Book On (mins)</th>
             <th>Status</th>
         </tr>
     </thead>
@@ -25,21 +26,12 @@
             <td>{{ $shiftDate->shift_date ? format_date($shiftDate->shift_date) : 'N/A' }}</td>
             <td>{{ $shiftDate->start_time ?? 'N/A' }}</td>
             <td>{{ $shiftDate->end_time ?? 'N/A' }}</td>
-            <td>{{ $shiftDate->planned_duration_display ?? '-' }}</td>
-            <td>
-                {{ $shiftDate->absentee_start_time ?? '-' }}
-                @if($shiftDate->book_on_late_minutes > 0)
-                    <br><span style="color:rgb(0, 204, 17);">{{ $shiftDate->book_on_late_minutes }} mins late</span>
-                @endif
-            </td>
-            <td>
-                {{ $shiftDate->absentee_end_time ?? '-' }}
-                @if($shiftDate->book_off_early_minutes > 0)
-                    <br><span style="color:#c00;">{{ $shiftDate->book_off_early_minutes }} mins early</span>
-                @endif
-            </td>
-            <td>{{ $shiftDate->actual_duration_display ?? '-' }}</td>
-            <td>{!! \App\Models\ShiftDate::getStatusBadge($shiftDate->is_assign) !!}</td>
+            <td>{{ $shiftDate->planned_duration_hours !== null ? number_format($shiftDate->planned_duration_hours, 2) : '' }}</td>
+            <td>{{ $shiftDate->absentee_start_time ?? '-' }}</td>
+            <td>{{ $shiftDate->absentee_end_time ?? '-' }}</td>
+            <td>{{ $shiftDate->actual_duration_hours !== null ? number_format($shiftDate->actual_duration_hours, 2) : '' }}</td>
+            <td>{{ ($shiftDate->book_on_late_minutes ?? 0) > 0 ? $shiftDate->book_on_late_minutes : '' }}</td>
+            <td>{{ \App\Models\ShiftDate::getStatusLabels()[$shiftDate->is_assign] ?? '' }}</td>
         </tr>
         @endforeach
     </tbody>

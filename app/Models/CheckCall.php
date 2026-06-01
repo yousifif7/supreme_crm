@@ -37,4 +37,16 @@ class CheckCall extends Model
     {
         return $this->morphMany(Log::class, 'loggable');
     }
+
+    /**
+     * Clean up dependent rows whenever a check call is deleted — from anywhere
+     * (shift delete/bulk-delete, the API destroy endpoint, etc.). Without this
+     * the media rows were left orphaned in check_call_media.
+     */
+    protected static function booted()
+    {
+        static::deleting(function (CheckCall $checkCall) {
+            $checkCall->media()->delete();
+        });
+    }
 }

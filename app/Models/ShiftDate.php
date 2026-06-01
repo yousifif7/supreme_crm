@@ -233,6 +233,24 @@ class ShiftDate extends Model
     }
 
     /**
+     * Planned duration as decimal hours (e.g. 11.83) for numeric exports. Null when unknown.
+     */
+    public function getPlannedDurationHoursAttribute(): ?float
+    {
+        $mins = $this->planned_duration_minutes;
+        return $mins === null ? null : round($mins / 60, 2);
+    }
+
+    /**
+     * Actual worked duration as decimal hours (e.g. 11.83) for numeric exports. Null when unknown.
+     */
+    public function getActualDurationHoursAttribute(): ?float
+    {
+        $mins = $this->actual_duration_minutes;
+        return $mins === null ? null : round($mins / 60, 2);
+    }
+
+    /**
      * Format a minute count as "X hour(s) Y min(s)" with correct singular/plural.
      * Returns null for null/zero so callers can skip rendering altogether.
      */

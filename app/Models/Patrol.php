@@ -35,4 +35,22 @@ class Patrol extends Model
     {
         return $this->morphMany(Log::class, 'loggable');
     }
+
+    /**
+     * Clean up dependent rows whenever a patrol is deleted — from anywhere
+     * (shift delete/bulk-delete, etc.). Without this the patrol media and
+     * checkpoint scans (plus their own media) were left orphaned.
+     */
+    protected static function booted()
+    {
+        static::deleting(function (Patrol $patrol) {
+            $patrol->media()->delete();
+
+            foreach ($patrol->scans as $scan) {
+                // Deleting via the model (not a mass delete) so CheckpointScan's
+                // own cascade fires and removes its media too.
+                $scan->delete();
+            }
+        });
+    }
 }

@@ -69,7 +69,7 @@ class UserController extends Controller
         // Note: image_path is NOT a column on check_calls (evidence lives in
         // the check_call_media table); the Blade reads $checkCall->image_path
         // but that just resolves to null. Don't add it to the select.
-        $checkCalls = CheckCall::select('id', 'shift_id', 'name', 'scheduled_time', 'status', 'method', 'employee_id')
+        $checkCalls = CheckCall::select('id', 'shift_id', 'name', 'scheduled_time', 'status', 'approval_status', 'method', 'employee_id')
             ->with([
                 'shiftDate' => function ($q) {
                     $q->select('id', 'shift_date', 'shift_id');
@@ -81,14 +81,89 @@ class UserController extends Controller
                 // extra columns (timestamps) cost nothing.
                 'firstMedia',
             ])
-            ->whereIn('status', ['pending', 'missed', 'completed'])
+            // Only show check calls whose parent shift date still exists. A shift can
+            // be deleted while its check calls linger (legacy data, or deletions that
+            // bypass the cascade), and those orphans would otherwise crash the Blade
+            // when it reads $checkCall->shiftDate->... — so filter them out at source.
+            ->whereHas('shiftDate')
+            ->whereIn('status', ['pending','completed'])
+            ->where('approval_status', 'pending')
+            // Only the check calls still ahead of us today: from right now until the
+            // end of the day. Ordered earliest-first so the NEXT upcoming check call
+            // sits on top, then the ones after it in time order, through to the last
+            // of today's shifts. Already-passed check calls are dropped from the list.
             ->whereBetween('scheduled_time', [
-                now()->startOfDay(),
+                now(),
                 now()->endOfDay(),
             ])
-            ->orderBy('scheduled_time', 'desc')
+            ->orderBy('scheduled_time', 'asc')
             ->limit(50)
             ->get();
+
+        // Patrols due from now until end of today, awaiting an approval decision —
+        // the patrol counterpart of the check calls above. start_time is the patrol's
+        // scheduled time (same role as a check call's scheduled_time). Patrol is
+        // admin-scoped via BelongsToAdmin; we still require a surviving shift date so
+        // orphaned patrols can't crash the view that reads $patrol->shift->...
+        $patrols = \App\Models\Patrol::select('id', 'shift_id', 'name', 'start_time', 'status', 'approval_status')
+            ->with([
+                'shift' => function ($q) {
+                    $q->select('id', 'shift_date', 'shift_id', 'staff_id');
+                },
+                'media',
+            ])
+            ->whereHas('shift')
+            ->whereIn('status', ['pending', 'completed'])
+            ->where('approval_status', 'pending')
+            ->whereBetween('start_time', [
+                now(),
+                now()->endOfDay(),
+            ])
+            ->orderBy('start_time', 'asc')
+            ->limit(50)
+            ->get();
+
+        // Merge check calls and patrols into one chronological "monitoring" feed so the
+        // dashboard shows both kinds interleaved by time, each tagged with its type.
+        // Each entry is normalised to a common shape the Blade can render uniformly.
+        $monitorItems = $checkCalls->map(function ($cc) {
+            return (object) [
+                'type'            => 'checkcall',
+                'id'              => $cc->id,
+                'name'            => $cc->name,
+                'scheduled_time'  => $cc->scheduled_time,
+                'status'          => $cc->status,
+                'approval_status' => $cc->approval_status ?? 'pending',
+                'method'          => $cc->method,
+                'employee_id'     => $cc->employee_id,           // guard is on the check call itself
+                'shift_date_id'   => $cc->shiftDate?->id,
+                'shift_label'     => trim(
+                    ($cc->shiftDate?->shift?->client?->name ?? '')
+                    . ' | ' . ($cc->shiftDate?->shift?->site?->site_name ?? 'N/A')
+                ),
+                'media'           => $cc->firstMedia,            // single CheckCallMedia or null
+            ];
+        })->concat($patrols->map(function ($p) {
+            return (object) [
+                'type'            => 'patrol',
+                'id'              => $p->id,
+                'name'            => $p->name,
+                'scheduled_time'  => $p->start_time,
+                'status'          => $p->status,
+                'approval_status' => $p->approval_status ?? 'pending',
+                'method'          => null,                       // patrols have no "method"
+                'employee_id'     => $p->shift?->staff_id,       // guard comes from the shift
+                'shift_date_id'   => $p->shift?->id,
+                'shift_label'     => trim(
+                    ($p->shift?->shift?->client?->name ?? '')
+                    . ' | ' . ($p->shift?->shift?->site?->site_name ?? 'N/A')
+                ),
+                'media'           => $p->media?->first(),        // first PatrolMedia or null
+            ];
+        }))
+        // Interleave both kinds strictly by their scheduled time (earliest/next first).
+        ->sortBy(fn ($item) => $item->scheduled_time)
+        ->values();
 
         $now = Carbon::now();
 
@@ -298,7 +373,7 @@ class UserController extends Controller
 
         // --- Merge users and sites for frontend ---
         $apiKey = env('GOOGLE_MAPS_API_KEY');
-        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations'));
+        return view('dashboard', compact('apiKey', 'siaDocuments', 'bookings', 'checkCalls', 'monitorItems', 'clients', 'staffs', 'shifts', 'invoices', 'review', 'userLocations'));
     }
 
     /**

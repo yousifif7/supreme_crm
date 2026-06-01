@@ -42,6 +42,7 @@
             <!-- /Breadcrumb -->
 
             <div class="row row row-cols-1 row-cols-md-2 row-cols-xl-5 g-3">
+                <!--
                 <div class="col">
                     <div class="card position-relative">
                         <div class="card-body">
@@ -120,7 +121,7 @@
                         </div>
                     </div>
                 </div>
-                
+            -->
                 @can('Read HR Managment')
  
                 <div class="col">
@@ -167,84 +168,103 @@
             <div class="col-xxl-12 col-12 col-xl-12 d-flex">
                 <div class="card w-100">
                     <div class="card-header">
-                        <h5 class="fs-18"><b>Check Calls Monitoring for Today</b></h5>
-                        <small>Filter by status: Pending | Missed | Completed</small>
+                        <h5 class="fs-18"><b>Check Calls &amp; Patrols Monitoring for Today</b></h5>
+                        <small>Approve or Deny completed check calls and patrols.</small>
                     </div>
                     <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                         <table class="table table-bordered table-hover mb-0">
                             <thead>
                                 <tr>
+                                    <th>Type</th>
                                     <th>Shift</th>
                                     <th>Staff</th>
-                                    <th>CheckCall name</th>
+                                    <th>Name</th>
                                     <th>Scheduled Time</th>
                                     <th>Status</th>
+                                    <th>Approval Status</th>
                                     <th>Method</th>
                                     <th>Evidence</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                @forelse ($checkCalls as $checkCall)
+                                @forelse ($monitorItems as $item)
                                     @php
-                                        $employee = App\Models\User::role('security_staff')
-                                            ->where('id', $checkCall->employee_id)
-                                            ->first();
-                                        $ccShiftDateId = $checkCall->shiftDate?->id;
-                                        $ccLabel = trim(
-                                            ($checkCall->shiftDate?->shift?->client?->name ?? '')
-                                            . ' | ' . ($checkCall->shiftDate?->shift?->site?->site_name ?? 'N/A')
-                                        );
+                                        $employee = $item->employee_id
+                                            ? App\Models\User::role('security_staff')->where('id', $item->employee_id)->first()
+                                            : null;
+                                        $itemShiftDateId = $item->shift_date_id;
+                                        $isPatrol = $item->type === 'patrol';
+                                        $approval = $item->approval_status ?? 'pending';
+                                        $media = $item->media;
+                                        $mediaExt = $media ? strtolower(pathinfo($media->file_path, PATHINFO_EXTENSION)) : null;
+                                        $mediaIsImage = $mediaExt && in_array($mediaExt, ['jpg','jpeg','png','gif','webp','bmp','heic']);
                                     @endphp
                                     <tr>
                                         <td>
-                                            @if ($ccShiftDateId)
-                                                <a href="{{ route('shiftDates.view', ['shiftDate' => $ccShiftDateId]) }}" target="_blank">{{ $ccLabel }}</a>
+                                            @if ($isPatrol)
+                                                <span class="badge bg-info"><i class="fas fa-route"></i> Patrol</span>
                                             @else
-                                                {{ $ccLabel }}
+                                                <span class="badge bg-primary"><i class="fas fa-phone"></i> Check Call</span>
+                                            @endif
+                                        </td>
+                                        <td>
+                                            @if ($itemShiftDateId)
+                                                <a href="{{ route('shiftDates.view', ['shiftDate' => $itemShiftDateId]) }}" target="_blank">{{ $item->shift_label }}</a>
+                                            @else
+                                                {{ $item->shift_label }}
                                             @endif
                                         </td>
                                         <td>{{ $employee?->first_name }} {{ $employee?->last_name }}</td>
-                                        <td>{{ $checkCall->name }}</td>
-                                        <td>{{ \Carbon\Carbon::parse($checkCall->scheduled_time)->format('d/m/Y H:i') }}
-                                        </td>
-                                        <td>{{ ucfirst($checkCall->status) }}</td>
-                                        <td>{{ ucfirst($checkCall->method) }}</td>
+                                        <td>{{ $item->name }}</td>
+                                        <td>{{ \Carbon\Carbon::parse($item->scheduled_time)->format('d/m/Y H:i') }}</td>
+                                        <td>{{ ucfirst($item->status) }}</td>
                                         <td>
-                                            @php
-                                                $ccMedia = $checkCall->firstMedia;
-                                                $ccExt = $ccMedia ? strtolower(pathinfo($ccMedia->file_path, PATHINFO_EXTENSION)) : null;
-                                                $ccIsImage = $ccExt && in_array($ccExt, ['jpg','jpeg','png','gif','webp','bmp','heic']);
-                                            @endphp
-                                            @if ($ccMedia && $ccIsImage)
-                                                <a href="{{ asset($ccMedia->file_path) }}" target="_blank">
-                                                    <img src="{{ asset($ccMedia->file_path) }}"
+                                            @if ($approval === 'approved')
+                                                <span class="badge bg-success">Approved</span>
+                                            @elseif ($approval === 'rejected')
+                                                <span class="badge bg-danger">Rejected</span>
+                                            @else
+                                                <span class="badge bg-warning">Pending</span>
+                                            @endif
+                                        </td>
+                                        <td>{{ $item->method ? ucfirst($item->method) : '—' }}</td>
+                                        <td>
+                                            @if ($media && $mediaIsImage)
+                                                <a href="{{ asset($media->file_path) }}" target="_blank">
+                                                    <img src="{{ asset($media->file_path) }}"
                                                         alt="Evidence" style="width:40px;height:auto;">
                                                 </a>
-                                            @elseif ($ccMedia)
-                                                <a href="{{ asset($ccMedia->file_path) }}" target="_blank"
+                                            @elseif ($media)
+                                                <a href="{{ asset($media->file_path) }}" target="_blank"
                                                     class="btn btn-sm btn-outline-primary">View</a>
                                             @else
                                                 <span class="text-muted">No file</span>
                                             @endif
                                         </td>
                                         <td>
-                                            @if ($checkCall->status == 'pending')
+                                            {{-- Approve/Reject act on approval_status (the admin's decision), not on
+                                                 the item's own status — that is completed by the guard. Only a
+                                                 completed-but-not-yet-decided item can be approved or rejected.
+                                                 Patrols and check calls hit their own respective endpoints. --}}
+                                            @if ($item->status == 'completed' && $approval == 'pending')
                                                 <button class="btn btn-success btn-sm"
-                                                    title="Mark as completed" aria-label="Mark as completed"
-                                                    onclick="updateStatus({{ $checkCall->id }}, 'completed')"><i class="fas fa-check"></i></button>
+                                                    title="Approve" aria-label="Approve"
+                                                    onclick="setApproval('{{ $item->type }}', {{ $item->id }}, 'approve', this)"><i class="fas fa-check"></i></button>
                                                 <button class="btn btn-danger btn-sm"
-                                                    title="Mark as missed" aria-label="Mark as missed"
-                                                    onclick="updateStatus({{ $checkCall->id }}, 'missed')"><i class="fas fa-times"></i></button>
+                                                    title="Reject" aria-label="Reject"
+                                                    onclick="setApproval('{{ $item->type }}', {{ $item->id }}, 'reject', this)"><i class="fas fa-times"></i></button>
                                             @endif
-                                            <button class="btn btn-secondary btn-sm"
-                                                title="Comment" aria-label="Comment"
-                                                onclick="openCommentModal({{ $checkCall->id }})"><i class="fas fa-comment"></i></button>
+                                            @unless ($isPatrol)
+                                                <button class="btn btn-secondary btn-sm"
+                                                    title="Comment" aria-label="Comment"
+                                                    onclick="openCommentModal({{ $item->id }})"><i class="fas fa-comment"></i></button>
+                                            @endunless
                                         </td>
                                     </tr>
                                 @empty
                                     <tr>
-                                        <td colspan="7" class="text-center">No check calls found.</td>
+                                        <td colspan="10" class="text-center">No check calls or patrols found.</td>
                                     </tr>
                                 @endforelse
                             </tbody>
@@ -276,13 +296,13 @@
                 </div>
             </div>
 
+            <!--
             <div class="col-xxl-12 col-12 col-xl-12 d-flex">
                 <div class="card flex-fill">
                     <div class="card-header pb-2 d-flex align-items-center justify-content-between flex-wrap">
                         <h5 class="mb-2"><b>Today Shifts (Live)</b></h5>
                     </div>
 
-                    <!-- ✅ Scroll on card-body instead of table-responsive -->
                     <div class="card-body p-0">
                         <div class="card-body p-0" style="max-height: 300px; overflow-y: auto;">
                             <table class="table table-nowrap mb-0">
@@ -328,6 +348,7 @@
                     </div>
                 </div>
             </div>
+        -->
             <div class="col-xl-6 col-lg-6 col-xxl-6 col-12 d-flex flex-column">
                 <div class="card mt-4 flex-fill">
                     <div class="card-header">
@@ -543,48 +564,51 @@
             return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
         }
 
-        // Check calls script
-        function updateStatus(id, status) {
-            fetch(`/check-calls/${id}/status`, {
+        // Check calls / patrols monitoring script
+        //
+        // Admins approve or reject a completed item — this updates its approval_status.
+        // It does NOT change the item's own status (pending/completed/...), which is
+        // driven by the guard/employee in the field. Check calls and patrols have their
+        // own endpoints, selected here by `type` ('checkcall' | 'patrol').
+        function setApproval(type, id, action, btn) {
+            // action is 'approve' or 'reject'
+            const row = btn?.closest('tr');
+            const base = type === 'patrol' ? 'patrols' : 'checkcalls';
+
+            fetch(`/${base}/${id}/${action}`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': '{{ csrf_token() }}',
                         'Content-Type': 'application/json',
                         'Accept': 'application/json',
                     },
-                    body: JSON.stringify({
-                        status
-                    })
                 })
                 .then(response => {
-                    if (!response.ok) {
-                        return response.json().then(err => Promise.reject(err));
-                    }
-                    return response.json();
+                    return response.json().then(data => ({ ok: response.ok, data }));
                 })
-                .then(data => {
-                    if (data.success) {
-                        // ✅ Find the row for this check call
-                        const row = document.querySelector(`button[onclick="updateStatus(${id}, 'completed')"]`)
-                            ?.closest('tr');
-                        if (row) {
-                            // Update the Status column (4th column, index 3)
-                            row.cells[3].textContent = status.charAt(0).toUpperCase() + status.slice(1);
-
-                            // Remove Completed/Missed buttons if needed
-                            const actionBtns = row.querySelectorAll('button.btn-success, button.btn-danger');
-                            actionBtns.forEach(btn => btn.remove());
-                        }
-
-                        // Optional: show a notification
-                        alert('Status successfully updated!');
-                    } else {
-                        alert('Failed to update status.');
+                .then(({ ok, data }) => {
+                    if (!ok) {
+                        alert(data.message || 'Failed to update approval.');
+                        return;
                     }
+
+                    if (row) {
+                        // Approval Status is the 7th column (index 6) — a Type column
+                        // was added before it.
+                        const approved = action === 'approve';
+                        row.cells[6].innerHTML = approved
+                            ? '<span class="badge bg-success">Approved</span>'
+                            : '<span class="badge bg-danger">Rejected</span>';
+
+                        // A decision is final — drop the Approve/Reject buttons, keep Comment.
+                        row.querySelectorAll('button.btn-success, button.btn-danger').forEach(b => b.remove());
+                    }
+
+                    alert(data.message || 'Approval updated successfully!');
                 })
                 .catch(error => {
-                    console.error('Error updating status:', error);
-                    alert('An error occurred while updating status.');
+                    console.error('Error updating approval:', error);
+                    alert('An error occurred while updating the approval.');
                 });
         }
 
