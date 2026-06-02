@@ -21,14 +21,20 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            ApplicationForm::class,
-            ApplicationFormUndertaking::class,
-            DigitalForm::class,
-            DigitalFormSubmit::class,
-            Incident::class,
-            DynamicInput::class,
-            PageSeeder::class,
-          
+            // ApplicationForm::class,
+            // ApplicationFormUndertaking::class,
+            // DigitalForm::class,
+            // DigitalFormSubmit::class,
+            // Incident::class,
+            // DynamicInput::class,
+            // PageSeeder::class,
+            RoleSeeder::class,
+            UserSeeder::class,
+            employeeTypeSeeder::class,
+            licenseSeeder::class,
+            permissionSeeder::class,
+            RestrictionSeeder::class,
+            visaTypeSeeder::class,
 
         ]);
     }
