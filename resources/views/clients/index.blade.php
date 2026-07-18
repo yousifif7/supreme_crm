@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Client')
+@section('title', brand_title('Client'))
 @section('contents')
     <!-- Page Wrapper -->
     <div class="page-wrapper">

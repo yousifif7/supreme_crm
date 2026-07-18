@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Scheduling')
+@section('title', brand_title('Scheduling'))
 @section('styles')
     <link href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css" rel="stylesheet">
 

@@ -3,7 +3,7 @@
 
 <head>
     <meta charset="UTF-8" />
-    <title>Supreme Protection - Online Application</title>
+    <title>{{ brand_company() }} - Online Application</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap"
@@ -362,7 +362,7 @@
                         <td style="width:33%; text-align:right;">Issue No: 1</td>
                     </tr>
                     <tr>
-                        <td colspan="2">Address: 150 Chingford Rd., London, England, E17 4PL.</td>
+                        <td colspan="2">Address: {{ brand_address() }}</td>
                         <td style="text-align:right;">Issue Date: 02/01/2015</td>
                     </tr>
                 </table>
@@ -409,7 +409,7 @@
 
                 <div class="section-title">Equal Opportunities:</div>
                 <p style="font-weight: 600;line-height: 18px;"><em>This section is voluntary and will NOT be used in
-                        assessing your application. Supreme Protection Ltd is an equal opportunities employer. If you
+                        assessing your application. {{ brand_company() }} is an equal opportunities employer. If you
                         decide to complete this section, it will help us to monitor the effectiveness of our Equal
                         Opportunities Policy. Please tick the appropriate box below.</em></p>
 
@@ -464,7 +464,7 @@
                         <td style="width:33%; text-align:right;">Issue No: 1</td>
                     </tr>
                     <tr>
-                        <td colspan="2">Address: 150 Chingford Rd., London, England, E17 4PL.</td>
+                        <td colspan="2">Address: {{ brand_address() }}</td>
                         <td style="text-align:right;">Issue Date: 02/01/2015</td>
                     </tr>
                 </table>
@@ -549,7 +549,7 @@
                         <td style="width:33%; text-align:right;">Issue No: 1</td>
                     </tr>
                     <tr>
-                        <td colspan="2">Address: 150 Chingford Rd., London, England, E17 4PL.</td>
+                        <td colspan="2">Address: {{ brand_address() }}</td>
                         <td style="text-align:right;">Issue Date: 02/01/2025</td>
                     </tr>
                 </table>
@@ -561,7 +561,7 @@
 
                     <p>I certify that to the best of my knowledge, the information that I have given in my application
                         for employment is true and complete and understand that any false statement or omission to
-                        Supreme Protection Ltd or its representatives may render lead to termination of employment
+                        {{ brand_company() }} or its representatives may render lead to termination of employment
                         without notice.</p>
 
                     <p>I confirm that the information I have provided on my application is true and complete to the best
@@ -573,18 +573,18 @@
                         the provisions of the Statutory Declarations Act 1835 in confirmation of previous unemployment
                         or unemployment.</p>
 
-                    <p>I authorise Supreme Protection Ltd or its nominated agents to carry out financial history check
+                    <p>I authorise {{ brand_company() }} or its nominated agents to carry out financial history check
                         /credit check and approach Government agencies, former employers, educational establishments,
                         for information relating to or verification of my employment/unemployment record. I authorise
-                        Supreme Protection Ltd to make a consumer information search and ID checks with a credit
+                        {{ brand_company() }} to make a consumer information search and ID checks with a credit
                         reference agency, which will keep a record of that search and may share that information with
                         other credit reference agencies.</p>
 
-                    <p>I consent to Supreme Protection Ltd reasonable processing of any personal information obtained
+                    <p>I consent to {{ brand_company() }} reasonable processing of any personal information obtained
                         for the purposes of establishing my medical condition and future fitness to perform my duties. I
                         accept that I may be required to undergo a medical examination where requested by Supreme
                         Protection Ltd Subject to the Access to Medical Reports Act 1988, I consent to the results of
-                        such examinations to be given to Supreme Protection Ltd.</p>
+                        such examinations to be given to {{ brand_company() }}.</p>
 
                     <p>I further declare that any documents that I provide as proof of my identity, proof of address,
                         proof of right to work and any other documents that I provide are genuine and give my consent
@@ -594,11 +594,11 @@
                         omission of a material fact or deception will be cause for immediate withdrawal of any offer of
                         employment made.</p>
 
-                    <p><strong>General Data Protection Regulations (GDPR)</strong> - Supreme Protection Ltd will use the
+                    <p><strong>General Data Protection Regulations (GDPR)</strong> - {{ brand_company() }} will use the
                         information you have given on your application form (together with any information which we
                         obtain with your consent from third parties) for assessing your suitability for employment. It
                         may be necessary to disclose your information to our agents and other service providers. By
-                        returning this form to Supreme Protection Ltd you consent to our processing personal data about
+                        returning this form to {{ brand_company() }} you consent to our processing personal data about
                         you where this is necessary, for example information about your credit status, ethnic origin or
                         criminal offences. You also consent to the transfer of your information to your current and
                         future potential employers where this is necessary (this may be to companies operating abroad if
@@ -609,12 +609,12 @@
                         to have any inaccuracies corrected.</p>
 
                     <p><strong>Disclosure</strong> - You are applying for a position of trust and in the event of being
-                        offered employment by Supreme Protection Ltd we may apply for a Disclosure. However, having a
+                        offered employment by {{ brand_company() }} we may apply for a Disclosure. However, having a
                         criminal record does not necessarily bar you from employment. For more information, ask a member
                         of staff for a copy of the CRB Code of Practice/Disclosure Scotland and/or Company our policy
                         statement regarding ex-offenders. Disclosure information is treated in a sensitive way and is
                         restricted to those who need to see it to make a recruitment decision. By signing this document,
-                        you allow Supreme Protection Ltd to see a copy of the Disclosure. The Disclosure information is
+                        you allow {{ brand_company() }} to see a copy of the Disclosure. The Disclosure information is
                         not retained i.e. it is disposed of within the timescales recommended in the CRB Code of
                         Practice. By signing below, you agree to this process.</p>
 
@@ -664,7 +664,7 @@
                                 <td style="text-align: right;">Issue Date: 02/01/2025</td>
                             </tr>
                             <tr>
-                                <td colspan="2">Address: 150 Chingford Rd, , London, England, E17 4PL</td>
+                                <td colspan="2">Address: {{ brand_address() }}</td>
                             </tr>
                         </table>
                     </div>
@@ -699,7 +699,7 @@
                     <ul style="margin-top: -10px;">
                         <li>My participation is voluntary, and I am not entitled to any compensation or royalties for
                             the use of these images.</li>
-                        <li>Supreme Protection Ltd has the right to edit, modify, and distribute the images as needed
+                        <li>{{ brand_company() }} has the right to edit, modify, and distribute the images as needed
                             for marketing and promotional activities.</li>
                         <li>The images will not be used for any unlawful, misleading, or defamatory purposes.</li>
                         <li>This consent remains in effect until I provide written notice requesting its withdrawal.
@@ -833,18 +833,20 @@
                         </p>
 
                         <div style="margin-left: 30px;margin-top: 14px;">
-                            <p style="margin: 0;margin-bottom: 10px;"><strong>Supreme Protection LTD</strong></p>
-                            <p style="margin: 0;margin-bottom: 10px;"><strong>150 Chingford Road</strong></p>
+                            <p style="margin: 0;margin-bottom: 10px;"><strong>{{ brand_company() }} LTD</strong></p>
+                            <p style="margin: 0;margin-bottom: 10px;"><strong>{{ brand_address() }}</strong></p>
                             <p style="margin: 0;margin-bottom: 10px;"><strong>London</strong></p>
                             <p style="margin: 0;margin-bottom: 10px;"><strong>E17 4PL</strong></p>
-                            <p style="margin: 10px 0 0 0;margin-bottom: 10px;">Business reg. no. 08422367</p>
-                            <p style="margin: 0;">(Hereinafter referred to as “<strong>Supreme Protection
+                            @if(config('brand.registration_no'))
+                            <p style="margin: 10px 0 0 0;margin-bottom: 10px;">Business reg. no. {{ config('brand.registration_no') }}</p>
+                            @endif
+                            <p style="margin: 0;">(Hereinafter referred to as “<strong>{{ brand_company() }}
                                     LTD</strong>”)</p>
                         </div>
 
                         <p style="margin-top: 20px; font-size: 13px;line-height: 22px;">
                             in connection with the <strong>provision of manned guarding (BS 7499) and/or door supervisor
-                                services (BS 7960)</strong>, during which process Supreme Protection LTD will share with
+                                services (BS 7960)</strong>, during which process {{ brand_company() }} LTD will share with
                             You strictly confidential information as necessary (hereinafter referred to as the
                             “<strong>Purpose</strong>”).
                         </p>
@@ -856,8 +858,8 @@
                         <p style="margin: 0 0 10px 0;line-height: 19px;">
                             When using the term “<strong>Confidential Information</strong>” in this Undertaking, it
                             shall mean i) any proprietary, confidential or otherwise sensitive commercial or technical
-                            information or ii) any personal data on Supreme Protection LTD’ or Supreme Protection LTD’
-                            clients’ employees, disclosed by Supreme Protection LTD or by other members of the Supreme
+                            information or ii) any personal data on {{ brand_company() }} LTD’ or {{ brand_company() }} LTD’
+                            clients’ employees, disclosed by {{ brand_company() }} LTD or by other members of the Supreme
                             Protection LTD Group in relation to the Purpose.
                         </p>
                         <p style="margin: 0;line-height: 19px;">
@@ -873,7 +875,7 @@
                     <!-- Footer -->
                     <div
                         style="margin-top: 100px; font-size: 10px; display: flex; justify-content: space-between; z-index: 2;">
-                        <div>Supreme Protection LTD – Internal Confidentiality Undertaking<br>Confidential</div>
+                        <div>{{ brand_company() }} LTD – Internal Confidentiality Undertaking<br>Confidential</div>
                         <div>06 January 2023<br>Page 1 of 3</div>
                     </div>
 
@@ -893,15 +895,15 @@
                         <p style="display: flex; align-items: flex-start; margin: 10px 0;">
                             <span style="min-width: 25px;">a)</span>
                             <span style="display: inline-block;">Direct contact made for the purpose of direct
-                                employment to the clients or partners of Supreme Protection LTD is strictly prohibited.
-                                You are not entitled to communicate with the clients or partners of Supreme Protection
+                                employment to the clients or partners of {{ brand_company() }} LTD is strictly prohibited.
+                                You are not entitled to communicate with the clients or partners of {{ brand_company() }}
                                 LTD for the purposes of any of the following (not limited to): job references, work
                                 experience, full time/part time or temporary based employment, any internships or
                                 scholarships or any such work-based placements either paid or unpaid. A breach of this
                                 condition will result in immediate termination of employment and further legal or
                                 financial action being taken against you. Should you come across any opportunities
-                                within any partners or clients of Supreme Protection LTD which may be of interest, you
-                                are to discuss with the management team of Supreme Protection LTD who will advise you of
+                                within any partners or clients of {{ brand_company() }} LTD which may be of interest, you
+                                are to discuss with the management team of {{ brand_company() }} LTD who will advise you of
                                 how best to approach the situation.</span>
                         </p>
 
@@ -932,7 +934,7 @@
                             <li style="margin-bottom: 10px;">
                                 by generally protecting the Confidential Information with at least the <strong>same
                                     degree of care and discretion</strong> that You would use for any other strictly
-                                confidential Supreme Protection LTD information – and always at least with a reasonable
+                                confidential {{ brand_company() }} LTD information – and always at least with a reasonable
                                 degree of care.
                             </li>
                             <li style="margin-bottom: 10px;">
@@ -958,7 +960,7 @@
                         <p style="display: flex; align-items: flex-start; margin: 10px 0;">
                             <span style="min-width: 25px;">f)</span>
                             <span style="display: inline-block;">You will immediately <strong>delete and/or
-                                    return</strong> all Confidential Information to Supreme Protection LTD, if You are
+                                    return</strong> all Confidential Information to {{ brand_company() }} LTD, if You are
                                 requested to do so or when the Confidential Information is no longer necessary for the
                                 Purpose.</span>
                         </p>
@@ -966,13 +968,13 @@
                         <p style="display: flex; align-items: flex-start; margin: 10px 0;">
                             <span style="min-width: 25px;">g)</span>
                             <span style="display: inline-block;">When working under an assignment booked by Supreme
-                                Protection LTD, you are required to state you are working for Supreme Protection LTD. No
+                                Protection LTD, you are required to state you are working for {{ brand_company() }} LTD. No
                                 other Companies are to be mentioned or working history.</span>
                         </p>
                     </div>
                     <div
                         style="margin-top: 100px; font-size: 10px; display: flex; justify-content: space-between; z-index: 2;">
-                        <div>Supreme Protection LTD – Internal Confidentiality Undertaking<br>Confidential</div>
+                        <div>{{ brand_company() }} LTD – Internal Confidentiality Undertaking<br>Confidential</div>
                         <div>06 January 2023<br>Page 2 of 3</div>
                     </div>
 
@@ -996,7 +998,7 @@
                         <p style="display: flex; align-items: flex-start; margin: 10px 0;">
                             <span style="min-width: 25px;">i)</span>
                             <span>No photos or videos to be taken of any sites/ events / activities / customers /
-                                clients whilst undertaking an assignment from Supreme Protection LTD.</span>
+                                clients whilst undertaking an assignment from {{ brand_company() }} LTD.</span>
                         </p>
 
                         <p style="display: flex; align-items: flex-start; margin: 10px 0;">
@@ -1011,13 +1013,13 @@
                     <p style="line-height: 19px;">The obligations under this Undertaking are binding for You from its
                         signing, however, always at least five (5) years from the latest disclosure or for a longer
                         period if required by law. For the avoidance of doubt, the obligations herein shall continue to
-                        apply even after your assignment with Supreme Protection LTD has ended.</p>
+                        apply even after your assignment with {{ brand_company() }} LTD has ended.</p>
 
                     <h3 style="margin-top: 25px; margin-bottom: 10px;">4. Breach of confidentiality</h3>
                     <p style="line-height: 19px;">By signing below, You acknowledge that any unauthorised disclosure in
-                        breach of this Undertaking may have significant adverse consequences for Supreme Protection LTD
-                        and may cause Supreme Protection LTD to incur liability or fines towards clients, potential
-                        clients, public authorities or force Supreme Protection LTD to make a public announcement to the
+                        breach of this Undertaking may have significant adverse consequences for {{ brand_company() }} LTD
+                        and may cause {{ brand_company() }} LTD to incur liability or fines towards clients, potential
+                        clients, public authorities or force {{ brand_company() }} LTD to make a public announcement to the
                         stock market in general.</p>
 
                     <p style="line-height: 19px;"><strong>You have been advised that the Confidential Information may
@@ -1030,7 +1032,7 @@
                         with the laws of England without reference to its choice of law rules. Any dispute arising in
                         connection with this Undertaking or a breach hereof, shall be finally and exclusively settled by
                         the English courts.</p>
-                    <p style="line-height: 19px;">Notwithstanding the above, Supreme Protection LTD shall be entitled
+                    <p style="line-height: 19px;">Notwithstanding the above, {{ brand_company() }} LTD shall be entitled
                         to seek injunctive relief, or to taking any other immediate action, that may only be sought from
                         another competent court.</p>
 
@@ -1049,7 +1051,7 @@
                     </p>
                     <div
                         style="margin-top: 100px; font-size: 10px; display: flex; justify-content: space-between; z-index: 2;">
-                        <div>Supreme Protection LTD – Internal Confidentiality Undertaking<br>Confidential</div>
+                        <div>{{ brand_company() }} LTD – Internal Confidentiality Undertaking<br>Confidential</div>
                         <div>06 January 2023<br>Page 3 of 3</div>
                     </div>
 

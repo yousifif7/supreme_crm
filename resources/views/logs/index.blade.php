@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - LOGs')
+@section('title', brand_title('LOGs'))
 @section('contents')
 <div id="employment-report" class="page-wrapper">
     <div class="content">

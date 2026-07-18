@@ -5,27 +5,27 @@ namespace App\Console;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Console\Kernel as ConsoleKernel;
 
+/**
+ * Legacy Kernel kept for command auto-loading.
+ * All schedule definitions live in routes/console.php (Laravel 11/12).
+ */
 class Kernel extends ConsoleKernel
 {
-
     protected $commands = [
         \App\Console\Commands\CheckSiaLicences::class,
+        \App\Console\Commands\ProcessShiftNotifications::class,
+        \App\Console\Commands\NotifyAdminBeforeDocumentExpiry::class,
+        \App\Console\Commands\RevokeIdleLoginSessions::class,
     ];
 
     protected function schedule(Schedule $schedule): void
     {
-        // Run SIA licence check once daily at 16:00 UK time (handles GMT/BST)
-        $schedule->command('sia:check')
-            ->dailyAt('16:00')
-            ->timezone('Europe/London')
-            ->withoutOverlapping()
-            ->runInBackground();
+        // Intentionally empty — schedules are registered in routes/console.php
+        // to avoid duplicate SIA / notification runs on Hostinger.
     }
 
     protected function commands(): void
     {
-        $this->load(__DIR__.'/Commands');
-
-        require base_path('routes/console.php');
+        $this->load(__DIR__ . '/Commands');
     }
 }

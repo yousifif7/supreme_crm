@@ -318,25 +318,42 @@ class LocationAPIController extends Controller
         $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
                 $q->where('site_id', $siteId);
             })
-            ->whereNotNull('start_time') // guard against missing data
+            ->whereNotNull('start_time')
             ->whereNotNull('end_time')
-            ->whereColumn('start_time', '<=', 'end_time') // sanity
-            ->where(function ($q) use ($now) {
-                $q->where(function ($q2) use ($now) {
-                    // active
-                    $q2->where('start_time', '<=', $now)->where('end_time', '>=', $now);
-                });
-            })
+            ->whereDate('shift_date', $now->toDateString())
+            ->whereTime('start_time', '<=', $now->format('H:i:s'))
+            ->whereTime('end_time', '>=', $now->format('H:i:s'))
             ->orderByDesc('start_time')
             ->first();
 
+        // Overnight active shift that started yesterday (e.g. 22:00 → 06:00)
         if (! $shiftDate) {
-            // most recent past
+            $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
+                    $q->where('site_id', $siteId);
+                })
+                ->whereNotNull('start_time')
+                ->whereNotNull('end_time')
+                ->whereDate('shift_date', $now->copy()->subDay()->toDateString())
+                ->whereColumn('end_time', '<', 'start_time')
+                ->whereTime('end_time', '>=', $now->format('H:i:s'))
+                ->orderByDesc('start_time')
+                ->first();
+        }
+
+        if (! $shiftDate) {
+            // most recent past (same calendar day preference, then by date)
             $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
                     $q->where('site_id', $siteId);
                 })
                 ->whereNotNull('end_time')
-                ->where('end_time', '<', $now)
+                ->where(function ($q) use ($now) {
+                    $q->whereDate('shift_date', '<', $now->toDateString())
+                        ->orWhere(function ($q2) use ($now) {
+                            $q2->whereDate('shift_date', $now->toDateString())
+                                ->whereTime('end_time', '<', $now->format('H:i:s'));
+                        });
+                })
+                ->orderByDesc('shift_date')
                 ->orderByDesc('end_time')
                 ->first();
         }
@@ -346,7 +363,14 @@ class LocationAPIController extends Controller
             $shiftDate = ShiftDate::whereHas('shift', function ($q) use ($siteId) {
                     $q->where('site_id', $siteId);
                 })
-                ->where('start_time', '>', $now)
+                ->where(function ($q) use ($now) {
+                    $q->whereDate('shift_date', '>', $now->toDateString())
+                        ->orWhere(function ($q2) use ($now) {
+                            $q2->whereDate('shift_date', $now->toDateString())
+                                ->whereTime('start_time', '>', $now->format('H:i:s'));
+                        });
+                })
+                ->orderBy('shift_date')
                 ->orderBy('start_time')
                 ->first();
         }
@@ -365,11 +389,20 @@ class LocationAPIController extends Controller
             $windowStart = null;
             $windowEnd = null;
         } else {
-            // Determine the staff IDs for the same shift occurrence.
-            // This assumes shift_dates for the same shift occurrence share the same shift_id and start_time date/time.
-            // Adjust logic if your model represents occurrences differently.
-            $sdStart = Carbon::parse($shiftDate->start_time);
-            $sdEnd = Carbon::parse($shiftDate->end_time);
+            // Build window from shift_date (date) + start/end time (TIME columns in DB).
+            $dateStr = $shiftDate->shift_date
+                ? Carbon::parse($shiftDate->shift_date)->toDateString()
+                : Carbon::today()->toDateString();
+
+            $startRaw = (string) $shiftDate->start_time;
+            $endRaw = (string) $shiftDate->end_time;
+            // Accept "H:i:s" or full datetime values already stored.
+            $sdStart = strlen($startRaw) > 10
+                ? Carbon::parse($startRaw)
+                : Carbon::parse($dateStr . ' ' . $startRaw);
+            $sdEnd = strlen($endRaw) > 10
+                ? Carbon::parse($endRaw)
+                : Carbon::parse($dateStr . ' ' . $endRaw);
 
             // Normalize end time for overnight shifts (end <= start -> add one day to end)
             $sdEndNormalized = $sdEnd->copy();
@@ -409,15 +442,19 @@ class LocationAPIController extends Controller
             $windowStart = $sdStart->copy()->subSeconds($bufferSeconds);
             $windowEnd = $sdEndNormalized->copy()->addSeconds($bufferSeconds);
 
-            // Get all staff assigned to the same shift occurrence
+            // Staff on this occurrence (prefer shift_date column — start_time is often TIME-only)
             $staffIds = ShiftDate::where('shift_id', $shiftDate->shift_id)
-                ->whereDate('start_time', $sdStart->toDateString())
+                ->when($shiftDate->shift_date, fn ($q) => $q->whereDate('shift_date', $dateStr))
                 ->whereNotNull('staff_id')
                 ->pluck('staff_id')
                 ->unique()
                 ->filter()
                 ->values()
                 ->toArray();
+
+            if (empty($staffIds) && $shiftDate->staff_id) {
+                $staffIds = [(int) $shiftDate->staff_id];
+            }
         }
 
         $results = [];

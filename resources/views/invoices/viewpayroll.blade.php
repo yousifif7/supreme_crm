@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Payroll')
+@section('title', brand_title('Payroll'))
 
 @section('styles')
     <style>
@@ -101,14 +101,14 @@
 
                     <div class="row justify-content-between align-items-center border-bottom mb-3">
                         <div class="col-md-4">
-                            <h4 class="mb-1">Supreme Protection</h4>
-                                                        <p class="mb-1">150 Chingford Road, Walthamstow London, E17 4PL</p>
-                            <p>Email: <span class="text-dark">admin@splconnect.co.uk</span></p>
+                            <h4 class="mb-1">{{ brand_company() }}</h4>
+                            <p class="mb-1">{{ brand_address() }}</p>
+                            <p>Email: <span class="text-dark">{{ brand_email() }}</span></p>
 <!--                            <p>Phone: <span class="text-dark">+1 234567890</span></p>
 -->                        </div>
                         <div class="col-md-4 text-center">
                             <div class="mb-2" style="width:80px; margin: 0 auto;">
-                                <img src="{{ asset('assets/sp_logo.png') }}" class="img-fluid" alt="logo">
+                                <img src="{{ brand_logo_url('dashboard_logo') }}" class="img-fluid" alt="logo">
                             </div>
                             <p class="mb-1"><b>Payroll #{{ $invoice->invoice_number }}</b></p>
                         </div>

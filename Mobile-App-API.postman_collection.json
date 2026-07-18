@@ -1,0 +1,2707 @@
+{
+  "info": {
+    "_postman_id": "supreme-mobile-api-v1",
+    "name": "Supreme Mobile App API",
+    "description": "Mobile guard app API for the whitelabel security workforce platform.\n\n**Base URL:** `{{base_url}}/api`\n**Auth:** Sanctum bearer — run **01 - Authentication → Login** first (tokens auto-saved).\n\n### Collection variables (edit these)\n| Variable | Used for |\n|---|---|\n| `base_url` | Host |\n| `email` / `password` | Login |\n| `device_id` / `device_name` / `device_os` / `app_version` | Device binding on login/logout |\n| `latitude` / `longitude` / `address` / `accuracy` | GPS payloads |\n| `access_token` / `refresh_token` | Auto-filled by Login / Refresh |\n| `reset_code` / `reset_token` | Password reset flow |\n| `shift_date_id`, `patrol_id`, `check_call_id`, … | Path IDs |\n\n### Special procedures the app must handle\n1. **Device change (security_staff):** Login with a new `device_id` → **403** `{ requires_approval: true }`. No token. Wait for admin approval, then login again.\n2. **Pending device change:** Same device already requested → **403** `{ requires_approval: true, already_requested: true }`.\n3. **Password reset:** Forgot → Verify code (`reset_token`) → Reset password.\n4. **Email change:** PUT profile with new email → pending admin approval (no immediate email update).\n5. **Book on/off:** May require face verify + booking media when shift has no patrols/check-calls.\n\n### Excluded (frontend-only, unguarded)\n`/shifts`, `/shifts-with-staff`, `/shifts-by-site`, `/shifts-today`, `/client/{id}`, `/staff/{id}`, `/shift/{id}/locations`, `/dashboard-alerts`, `/emergency-alerts/{id}/acknowledge`, `/admin/profile-change-requests/*`, `/debug-request`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8000",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "guard@example.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "password",
+      "type": "string"
+    },
+    {
+      "key": "new_password",
+      "value": "newSecurePassword123",
+      "type": "string"
+    },
+    {
+      "key": "reset_code",
+      "value": "123456",
+      "type": "string"
+    },
+    {
+      "key": "reset_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "device_id",
+      "value": "unique-device-uuid",
+      "type": "string"
+    },
+    {
+      "key": "device_name",
+      "value": "iPhone 15 Pro",
+      "type": "string"
+    },
+    {
+      "key": "device_os",
+      "value": "iOS 18",
+      "type": "string"
+    },
+    {
+      "key": "app_version",
+      "value": "1.0.0",
+      "type": "string"
+    },
+    {
+      "key": "latitude",
+      "value": "51.5074",
+      "type": "string"
+    },
+    {
+      "key": "longitude",
+      "value": "-0.1278",
+      "type": "string"
+    },
+    {
+      "key": "address",
+      "value": "10 Downing Street, London",
+      "type": "string"
+    },
+    {
+      "key": "accuracy",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "user_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "user_role",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "shift_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "shift_date_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "patrol_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "check_call_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "conversation_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "message_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "notification_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "invoice_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "training_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "dob_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "incident_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "alarm_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "emergency_alert_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "leave_request_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "participant_user_id",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "push_token",
+      "value": "fcm-or-apns-device-token",
+      "type": "string"
+    },
+    {
+      "key": "platform",
+      "value": "android",
+      "type": "string"
+    },
+    {
+      "key": "face_image_base64",
+      "value": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
+      "type": "string"
+    },
+    {
+      "key": "scan_data",
+      "value": "QR-CHECKPOINT-001",
+      "type": "string"
+    },
+    {
+      "key": "date_from",
+      "value": "2026-07-01",
+      "type": "string"
+    },
+    {
+      "key": "date_to",
+      "value": "2026-07-31",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Authentication",
+      "description": "Public auth endpoints + face verification (requires token).",
+      "item": [
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let json = {};",
+                  "try { json = pm.response.json(); } catch (e) {}",
+                  "if (pm.response.code === 200 && json.access_token) {",
+                  "  pm.collectionVariables.set('access_token', json.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', json.refresh_token || '');",
+                  "  if (json.user) {",
+                  "    pm.collectionVariables.set('user_id', String(json.user.id || ''));",
+                  "    pm.collectionVariables.set('user_role', json.user.role || '');",
+                  "  }",
+                  "  console.log('Login OK — tokens saved');",
+                  "} else if (pm.response.code === 403 && json.requires_approval) {",
+                  "  console.warn('DEVICE CHANGE PENDING:', json.message);",
+                  "  console.warn('already_requested=', !!json.already_requested);",
+                  "} else if (pm.response.code === 401) {",
+                  "  console.error('Invalid credentials');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"device_info\": {\n    \"device_id\": \"{{device_id}}\",\n    \"device_name\": \"{{device_name}}\",\n    \"os\": \"{{device_os}}\",\n    \"app_version\": \"{{app_version}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/login",
+            "description": "Authenticate guard. Tokens saved to collection vars on success.\n\n### Request variables\n| Field | Type | Required | Variable |\n|---|---|---|---|\n| `email` | string | yes | `{{email}}` |\n| `password` | string | yes | `{{password}}` |\n| `device_info.device_id` | string | **yes** | `{{device_id}}` |\n| `device_info.device_name` | string | no | `{{device_name}}` |\n| `device_info.os` | string | no | `{{device_os}}` |\n| `device_info.app_version` | string | no | `{{app_version}}` |\n| `location.latitude` | number | no | `{{latitude}}` |\n| `location.longitude` | number | no | `{{longitude}}` |\n\n### Response variables (200)\n| Field | Saved to |\n|---|---|\n| `access_token` | `{{access_token}}` |\n| `refresh_token` | `{{refresh_token}}` |\n| `user.id` | `{{user_id}}` |\n| `user.role` | `{{user_role}}` |\n| `user.email`, `user.name`, `user.profile` | response only |\n\n### Procedure: Device change (security_staff only)\n1. First login / empty device_id → device logged, login proceeds.\n2. Same `device_id` as last log → login OK.\n3. **New** `device_id` → creates DeviceChangeRequest + admin notification → **403**\n   ```json\n   { \"message\": \"Device change detected. Admin approval required...\", \"requires_approval\": true }\n   ```\n   App must show “waiting for admin approval” — **no token issued**.\n4. Same new device already pending → **403**\n   ```json\n   { \"message\": \"...still pending...\", \"requires_approval\": true, \"already_requested\": true }\n   ```\n5. After admin approves → login again with same new `device_id` → 200 + tokens.\n\n### Other statuses\n- **401** `{ \"message\": \"Invalid credentials\" }`"
+          },
+          "response": [
+            {
+              "name": "200 — Success",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"access_token\": \"1|xxxxxxxx\",\n  \"refresh_token\": \"random60chars...\",\n  \"user\": {\n    \"id\": 12,\n    \"email\": \"guard@example.com\",\n    \"name\": \"John Smith\",\n    \"role\": \"security_staff\",\n    \"profile\": {\n      \"first_name\": \"John\",\n      \"last_name\": \"Smith\",\n      \"phone\": \"+4477...\"\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "401 — Invalid credentials",
+              "status": "401",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Invalid credentials\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "403 — Device change (new request)",
+              "status": "403",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Device change detected. Admin approval required. You can close the app and check back later.\",\n  \"requires_approval\": true\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "403 — Device change already pending",
+              "status": "403",
+              "code": 403,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Your previous device change request is still pending admin approval. Please check back later.\",\n  \"requires_approval\": true,\n  \"already_requested\": true\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"device_info\": {\n    \"device_id\": \"{{device_id}}\"\n  },\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/logout",
+            "description": "Revoke current Sanctum token; clear refresh token + device log.\n\n### Request variables\n| Field | Required | Variable |\n|---|---|---|\n| `device_info.device_id` | no | `{{device_id}}` — removes device log; rejects pending device-change for that device |\n| `refresh_token` | no | `{{refresh_token}}` — removes cached refresh |\n\n### Response (200)\n`{ \"message\": \"Logged out successfully\" }`\n\nRequires `Authorization: Bearer {{access_token}}`."
+          },
+          "response": [
+            {
+              "name": "200 — Logged out",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Logged out successfully\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "  pm.collectionVariables.set('access_token', json.access_token);",
+                  "  pm.collectionVariables.set('refresh_token', json.refresh_token);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/refresh-token",
+            "description": "Exchange refresh token for new access + refresh (old refresh invalidated). TTL 30 days.\n\n### Request\n| Field | Required | Variable |\n|---|---|---|\n| `refresh_token` | yes | `{{refresh_token}}` |\n\n### Response (200) — auto-saves tokens\n| Field | Variable |\n|---|---|\n| `access_token` | `{{access_token}}` |\n| `refresh_token` | `{{refresh_token}}` |\n\n- **401** `{ \"message\": \"Invalid refresh token\" }`\n- **404** `{ \"message\": \"User not found\" }`"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"access_token\": \"2|yyyy\",\n  \"refresh_token\": \"new60chars\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "401",
+              "status": "401",
+              "code": 401,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Invalid refresh token\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/forgot-password",
+            "description": "### Procedure: Password reset (3 steps)\n1. **Forgot Password** → email 6-digit code\n2. **Verify Reset Code** → get `reset_token` (saved to `{{reset_token}}`)\n3. **Reset Password** → set `new_password`\n\n### Request\n| Field | Required | Variable |\n|---|---|---|\n| `email` | yes | `{{email}}` |\n\n### Response (200) — always 200 (even unknown email)\n`{ \"message\": \"Reset code sent to your email.\" }` or `\"This email is not existed in our records.\"`"
+          },
+          "response": [
+            {
+              "name": "200 — Code sent",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Reset code sent to your email.\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "200 — Unknown email",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"This email is not existed in our records.\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Verify Reset Code",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"code\": \"{{reset_code}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/verify-reset-code",
+            "description": "### Request\n| Field | Required | Variable |\n|---|---|---|\n| `email` | yes | `{{email}}` |\n| `code` | yes | `{{reset_code}}` — 6-digit from email |\n\n### Response (200)\n| Field | Variable |\n|---|---|\n| `reset_token` | `{{reset_token}}` (auto-saved, 30 min TTL) |\n| `message` | `\"Code verified\"` |\n\n- **422** `{ \"message\": \"Invalid or expired code.\" }`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json.reset_token) pm.collectionVariables.set('reset_token', json.reset_token);"
+                ]
+              }
+            }
+          ],
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Code verified\",\n  \"reset_token\": \"random64chars...\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "422",
+              "status": "422",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Invalid or expired code.\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Reset Password",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"reset_token\": \"{{reset_token}}\",\n  \"new_password\": \"{{new_password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/reset-password",
+            "description": "### Request\n| Field | Required | Variable |\n|---|---|---|\n| `email` | yes | `{{email}}` |\n| `reset_token` | yes | `{{reset_token}}` from verify step |\n| `new_password` | yes | `{{new_password}}` — min 6 chars |\n\n### Response (200)\n`{ \"message\": \"Password reset successfully\" }`\n- **422** invalid/expired reset token\n- **404** user not found"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Password reset successfully\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "422",
+              "status": "422",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Invalid or expired reset token\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Face Verify",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"image\": \"{{face_image_base64}}\",\n  \"action\": \"book_on\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\",\n    \"address\": \"{{address}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/auth/face-verify",
+            "description": "Face check before book-on / book-off. Requires auth.\n\n### Request\n| Field | Required | Notes / Variable |\n|---|---|---|\n| `image` | yes | base64 / data-URL — `{{face_image_base64}}` |\n| `action` | yes | `book_on` \\| `book_off` |\n| `location.latitude` | no | `{{latitude}}` |\n| `location.longitude` | no | `{{longitude}}` |\n| `location.address` | no | `{{address}}` |\n\n### Response (200)\n| Field | Type |\n|---|---|\n| `verified` | boolean |\n| `confidence_score` | number |\n| `message` | string |"
+          },
+          "response": [
+            {
+              "name": "200 — Verified",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"verified\": true,\n  \"confidence_score\": 94.2,\n  \"message\": \"Face verified successfully\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "02 - Profile",
+      "item": [
+        {
+          "name": "Get Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/profile",
+            "description": "### Response fields\n`id`, `email`, `first_name`, `last_name`, `phone`, `address`, `emergency_contact`, `bank_details`, `face_data`, `created_at`, `updated_at`"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"id\": 12,\n  \"email\": \"guard@example.com\",\n  \"first_name\": \"John\",\n  \"last_name\": \"Smith\",\n  \"phone\": \"+447700900000\",\n  \"address\": \"123 High Street\",\n  \"emergency_contact\": {\n    \"name\": \"Jane\",\n    \"phone\": \"+4477\",\n    \"relationship\": \"Spouse\"\n  },\n  \"bank_details\": {\n    \"account_name\": \"John Smith\",\n    \"account_number\": \"12345678\",\n    \"sort_code\": \"12-34-56\",\n    \"bank_name\": \"Barclays\"\n  },\n  \"face_data\": \"[\\\"faces/xxx.jpg\\\"]\",\n  \"created_at\": \"2026-01-01T00:00:00.000000Z\",\n  \"updated_at\": \"2026-07-01T00:00:00.000000Z\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Update Profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"first_name\": \"John\",\n  \"last_name\": \"Smith\",\n  \"phone\": \"+447700900000\",\n  \"address\": \"{{address}}\",\n  \"emergency_contact\": {\n    \"name\": \"Jane Smith\",\n    \"phone\": \"+447700900001\",\n    \"relationship\": \"Spouse\"\n  },\n  \"bank_details\": {\n    \"account_name\": \"John Smith\",\n    \"account_number\": \"12345678\",\n    \"sort_code\": \"12-34-56\",\n    \"bank_name\": \"Barclays\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/profile",
+            "description": "### Request (all optional)\n`email`, `first_name`, `last_name`, `phone`, `address`,\n`emergency_contact.{name,phone,relationship}`,\n`bank_details.{account_name,account_number,sort_code,bank_name}`\n\n### Procedure: Email change\nIf `email` differs from current → creates ProfileChangeRequest + admin notify.\nResponse: `{ \"message\": \"Email change request submitted for admin approval\" }` — email NOT updated yet.\nIf email already taken → **422** `{ \"message\": \"Email already in use\" }`\n\n### Response (normal update)\n`{ \"message\": \"Profile updated successfully\", \"approval_id\": \"approval_xxxx\" }`"
+          },
+          "response": [
+            {
+              "name": "200 — Profile updated",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Profile updated successfully\",\n  \"approval_id\": \"approval_abc123\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "200 — Email change pending",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Email change request submitted for admin approval\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "422 — Email in use",
+              "status": "422",
+              "code": 422,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Email already in use\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Upload Face Data",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"images\": [\n    \"{{face_image_base64}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/profile/face-data",
+            "description": "### Request\n| Field | Required |\n|---|---|\n| `images` | yes — array of base64 strings (min 1) |\n\n### Response\n`{ \"message\": \"Face data uploaded successfully.\" }`"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Face data uploaded successfully.\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "03 - Documents",
+      "item": [
+        {
+          "name": "List Documents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/documents",
+            "description": "### Response\n`{ documents: [{ id, type, filename, status, description, expiry_date, uploaded_at, admin_comments }] }`\n`status`: pending | approved | rejected (typical)"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"documents\": [\n    {\n      \"id\": 1,\n      \"type\": \"sia_licence_file\",\n      \"filename\": \"/documents/sia.pdf\",\n      \"status\": \"pending\",\n      \"description\": \"SIA renewal\",\n      \"expiry_date\": \"2027-12-31\",\n      \"uploaded_at\": \"2026-07-01T00:00:00.000000Z\",\n      \"admin_comments\": null\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Upload Document",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "document_type",
+                  "value": "sia_licence_file",
+                  "type": "text",
+                  "description": "sia_licence_file|passport_file|proof_of_address_file|proof_of_address_file_2|ni_letter_file|first_aid_certificate_file|act_certificate_file|driving_licence_file|other"
+                },
+                {
+                  "key": "file[]",
+                  "type": "file",
+                  "src": []
+                },
+                {
+                  "key": "expiry_date",
+                  "value": "2027-12-31",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "SIA licence renewal",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{base_url}}/api/documents",
+            "description": "### Request (multipart/form-data)\n| Field | Required | Values |\n|---|---|---|\n| `document_type` | yes | `sia_licence_file`, `passport_file`, `proof_of_address_file`, `proof_of_address_file_2`, `ni_letter_file`, `first_aid_certificate_file`, `act_certificate_file`, `driving_licence_file`, `other` |\n| `file[]` | yes | PDF/JPG/PNG max 10MB each |\n| `expiry_date` | no | YYYY-MM-DD |\n| `description` | no | string |\n\n### Response\n`{ documents: [...], uploaded_at }` — each doc starts as `status: pending`"
+          }
+        },
+        {
+          "name": "Get Compliance Alerts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/alerts",
+            "description": "Pollable alerts for the guard app badge / inbox.\n\n### Response\n`{ alerts: [...] }` — alert `type` examples:\n- `document_expiry` — `{ document_id, title, message, expiry_date, days_remaining }`\n- `patrol_warning` / `patrol_missed` / `patrol_missed_pending` — `{ patrol_id, ... }`\n- `checkcall_warning` / `checkcall_missed` / `checkcall_missed_pending` — `{ checkcall_id, ... }`"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"alerts\": [\n    {\n      \"type\": \"document_expiry\",\n      \"document_id\": 5,\n      \"title\": \"Document Expiry Alert\",\n      \"message\": \"Your sia_licence_file is about to expire in 10 day(s)...\",\n      \"expiry_date\": \"2026-07-28\",\n      \"days_remaining\": 10\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Get Alerts Count",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/alerts/count",
+            "description": "### Response\n`{ \"count\": number }`"
+          },
+          "response": [
+            {
+              "name": "200",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"count\": 3\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "04 - Shifts",
+      "item": [
+        {
+          "name": "List Shifts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shifts/all?limit=50&category=upcoming&order=desc",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "all"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50",
+                  "description": "Pagination page size (default 50)"
+                },
+                {
+                  "key": "category",
+                  "value": "upcoming",
+                  "description": "past | current | upcoming"
+                },
+                {
+                  "key": "order",
+                  "value": "desc",
+                  "description": "asc | desc"
+                }
+              ]
+            },
+            "description": "### Query\n| Param | Variable / Values |\n|---|---|\n| `limit` | page size (default 50) |\n| `category` | `past` \\| `current` \\| `upcoming` |\n| `order` | `asc` \\| `desc` |\n\n### Response `shift_dates[]` key fields\n`id` (= shift_date_id → save as `{{shift_date_id}}`), `shift_id`, `site_id`, `site_name`, `site_address`,\n`start_time`, `end_time`, `shift_date`, `duties`, `supervisor_name`, `supervisor_contact`, `status`,\n`category`, `trainings[]`, `note`, `requires_booking_media_for_book_on`, `requires_booking_media_for_book_off`,\n`briefing_pdf`, `risk_assessment_pdf`\n\n### Procedure: Booking media flags\nIf `requires_booking_media_for_book_on/off` is true → call **Upload Booking Media** before/after book on/off."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  const first = (j.shift_dates || [])[0];",
+                  "  if (first && first.id) {",
+                  "    pm.collectionVariables.set('shift_date_id', String(first.id));",
+                  "    if (first.shift_id) pm.collectionVariables.set('shift_id', String(first.shift_id));",
+                  "    console.log('Saved shift_date_id=', first.id);",
+                  "  }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Count Shifts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shifts/count?category=upcoming",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "count"
+              ],
+              "query": [
+                {
+                  "key": "category",
+                  "value": "upcoming",
+                  "description": "past | current | upcoming"
+                }
+              ]
+            },
+            "description": "### Query: `category` = past|current|upcoming\n### Response: `{ count: number }` (or similar count payload)"
+          }
+        },
+        {
+          "name": "Shift Calendar",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/shifts/calendar",
+            "description": "Unpaginated all shifts for calendar UI. Same item shape as List Shifts."
+          }
+        },
+        {
+          "name": "Shift Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}",
+            "description": "### Path\n`{{shift_date_id}}` — **shift_dates.id**, not shifts.id\n\nSame object shape as list item + in-progress patrol if any."
+          }
+        },
+        {
+          "name": "Respond to Shift",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"response\": \"accept\",\n  \"reason\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}/respond",
+            "description": "### Path: `{{shift_date_id}}`\n\n### Request\n| Field | Required | Values |\n|---|---|---|\n| `response` | yes | `accept` \\| `decline` |\n| `reason` | if decline | string |\n\n### Errors\n409 already accepted / booked on / ended"
+          },
+          "response": [
+            {
+              "name": "200 — Accepted",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Shift accepted successfully\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "409 — Already accepted",
+              "status": "409",
+              "code": 409,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"message\": \"Shift already accepted.\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Acknowledge Shift Documents",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"risk_assessment_read\": true,\n  \"assignment_instructions_read\": true,\n  \"acknowledgment_timestamp\": \"2026-07-18T10:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}/acknowledge-documents",
+            "description": "### Path: `{{shift_date_id}}`\n| Field | Required |\n|---|---|\n| `risk_assessment_read` | yes boolean |\n| `assignment_instructions_read` | yes boolean |\n| `acknowledgment_timestamp` | no date |\n\n### Response: `{ \"message\": \"Documents acknowledged\" }`"
+          }
+        },
+        {
+          "name": "Book On",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}/book-on",
+            "description": "### Path: `{{shift_date_id}}`\n\n### Request\n| Field | Required | Variable |\n|---|---|---|\n| `location.latitude` | yes | `{{latitude}}` |\n| `location.longitude` | yes | `{{longitude}}` |\n\n### Procedure\n1. Optionally run Face Verify (`action=book_on`).\n2. If list says `requires_booking_media_for_book_on` → POST `/booking-media` first.\n3. Book On.\n4. Poll `/shift-status` for `on-duty`.\n\n### Common errors\nAlready on another shift / not assigned / geofence / face / timing windows"
+          }
+        },
+        {
+          "name": "Book Off",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}/book-off",
+            "description": "### Path: `{{shift_date_id}}`\n| Field | Required |\n|---|---|\n| `location.latitude` | yes |\n| `location.longitude` | yes |\n\nMust be booked on this shift first. May need booking media for book_off."
+          }
+        },
+        {
+          "name": "Check Duty Status",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/shift-status",
+            "description": "### Response\n| Field | Values |\n|---|---|\n| `status` | `on-duty` \\| `off-duty` |\n| `shift_date` | full shift object or null |\n| `patrol_id` | in-progress patrol id or null |\n| `message` | string |"
+          },
+          "response": [
+            {
+              "name": "200 — Off duty",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"off-duty\",\n  \"shift_date\": null,\n  \"patrol_id\": null,\n  \"message\": \"No booked-on shifts found.\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Work Hours (This Week)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/work-hours",
+            "description": "Current Mon–Sun worked hours for ended shifts (`is_assign=4`)."
+          }
+        },
+        {
+          "name": "Monthly Hours",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/shifts/monthly-hours?year=2026",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "shifts",
+                "monthly-hours"
+              ],
+              "query": [
+                {
+                  "key": "year",
+                  "value": "2026",
+                  "description": "YYYY — or use start_month + end_month (YYYY-MM)"
+                },
+                {
+                  "key": "start_month",
+                  "value": "2026-01",
+                  "disabled": true
+                },
+                {
+                  "key": "end_month",
+                  "value": "2026-12",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### Query (pick one mode)\n| Params | Format |\n|---|---|\n| `year` | `YYYY` |\n| `start_month` + `end_month` | `YYYY-MM` |\n\nMax range: last 5 years."
+          }
+        },
+        {
+          "name": "Submit Leave Request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"start_date\": \"2026-08-01T00:00:00Z\",\n  \"end_date\": \"2026-08-05T23:59:59Z\",\n  \"reason\": \"Family holiday\",\n  \"type\": \"annual_leave\",\n  \"hours\": 40,\n  \"shift_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/leave-requests",
+            "description": "### Request\n| Field | Required | Values |\n|---|---|---|\n| `start_date` | yes | datetime, after_or_equal now |\n| `end_date` | yes | >= start_date |\n| `reason` | yes | string |\n| `type` | yes | `annual_leave` \\| `sick_leave` \\| `unpaid_leave` \\| `other_leave` |\n| `hours` | no | number >= 0 |\n| `shift_id` | no | optional link |"
+          }
+        },
+        {
+          "name": "List Leave Requests",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/leave-requests",
+            "description": "All leave requests for authenticated employee."
+          }
+        },
+        {
+          "name": "Get Leave Request",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/leave-requests/{{leave_request_id}}",
+            "description": "### Path: leave request id (use `{{leave_request_id}}`)\n404 if not found / not yours."
+          }
+        },
+        {
+          "name": "Holiday Balance",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/holiday-Balance",
+            "description": "### Response\n`user_id`, `total_hours`, `used_hours`, `available_hours`, `unpaid_hours` (and related fields)"
+          }
+        },
+        {
+          "name": "Get Booking Alarms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/alarms/booking",
+            "description": "### Response\n`{ upcoming_alarms: [{ shift_id, type, scheduled_time, alarm_time, acknowledged }] }`"
+          }
+        },
+        {
+          "name": "Acknowledge Booking Alarm",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/alarms/{{alarm_id}}/acknowledge",
+            "description": "### Path: `{{alarm_id}}`\n### Response: `{ \"message\": \"Alarm acknowledged\" }`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Check Calls",
+      "item": [
+        {
+          "name": "Get Check Calls for Shift",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}/check-calls",
+            "description": "### Path: `{{shift_date_id}}`\n### Response: `{ check_calls: [...] }`"
+          }
+        },
+        {
+          "name": "Complete Check Call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"notes\": \"All clear\",\n  \"timestamp\": \"2026-07-18T12:00:00Z\",\n  \"media\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/check-calls/{{check_call_id}}/complete",
+            "description": "### Path: `{{check_call_id}}`\n\n### Request\n| Field | Required |\n|---|---|\n| `location.latitude` / `longitude` | yes |\n| `notes` | no |\n| `timestamp` | no |\n| `media[]` | required if check call `require_media=1` — `{ timestamp, media_file }` |\n\nWindow: typically 5 min before → 15 min after scheduled time.\nAlready completed → 404; missed without admin override → 422."
+          }
+        },
+        {
+          "name": "Get Check Call Alarms",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/alarms/check-calls",
+            "description": "Pending overdue check-call alarms for current guard."
+          }
+        },
+        {
+          "name": "Phone Complete Check Call",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guard_id\": \"{{user_id}}\",\n  \"phone_number\": \"+447700900000\",\n  \"timestamp\": \"2026-07-18T12:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/check-calls/phone-complete",
+            "description": "### Request\n| Field | Required |\n|---|---|\n| `guard_id` | yes — users.id |\n| `phone_number` | yes |\n| `timestamp` | no |"
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Patrols",
+      "item": [
+        {
+          "name": "Get Patrol Routes",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/shifts/{{shift_date_id}}/patrols",
+            "description": "### Path: `{{shift_date_id}}`\nList patrols + checkpoints for the shift."
+          }
+        },
+        {
+          "name": "Patrol Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/patrol/{{patrol_id}}",
+            "description": "### Path: `{{patrol_id}}`"
+          }
+        },
+        {
+          "name": "Start Patrol",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/patrols/{{patrol_id}}/start",
+            "description": "### Path: `{{patrol_id}}`\nCannot start before scheduled `start_time`.\nRequires lat/lng."
+          }
+        },
+        {
+          "name": "Scan Checkpoint",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"scan_data\": \"{{scan_data}}\",\n  \"scan_method\": \"qr\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"notes\": \"Checkpoint clear\",\n  \"issues_found\": null,\n  \"media_files\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/patrols/{{patrol_id}}/scan",
+            "description": "### Path: `{{patrol_id}}`\n| Field | Required | Values |\n|---|---|---|\n| `scan_data` | yes | QR/NFC payload — `{{scan_data}}` |\n| `scan_method` | yes | `qr` \\| `nfc` |\n| `location.latitude/longitude` | yes |\n| `media_files` | no | array |\n| `notes` / `issues_found` | no |"
+          }
+        },
+        {
+          "name": "Complete Patrol",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"summary\": \"All checkpoints completed\",\n  \"total_checkpoints\": 5,\n  \"completed_checkpoints\": 5,\n  \"issues_reported\": 0,\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\",\n    \"address\": \"{{address}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/patrols/{{patrol_id}}/complete",
+            "description": "### Path: `{{patrol_id}}`\n| Field | Required |\n|---|---|\n| `summary` | yes |\n| `total_checkpoints` | yes int |\n| `completed_checkpoints` | yes int |\n| `issues_reported` | yes int |\n| `location.latitude/longitude` | yes |\n| `location.address` | no |"
+          }
+        },
+        {
+          "name": "Upload Patrol Media",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"notes\": \"Evidence photo\",\n  \"media\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/patrols/{{patrol_id}}/media",
+            "description": "### Path: `{{patrol_id}}`\n`media[]`: `{ media_file, timestamp }` — file or base64.\n`location.latitude/longitude` required."
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - DOB (Daily Occurrence Book)",
+      "item": [
+        {
+          "name": "List DOB Entries",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/dob",
+            "description": "List DOB entries for authenticated guard."
+          }
+        },
+        {
+          "name": "Create DOB Entry",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"{{shift_date_id}}\",\n  \"entry_type\": \"observation\",\n  \"title\": \"Visitor log\",\n  \"description\": \"Contractor arrived for maintenance\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"timestamp\": \"2026-07-18T10:30:00Z\",\n  \"media_files\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/dob",
+            "description": "### Request (single)\n| Field | Required | Values |\n|---|---|---|\n| `shift_id` | no | shift_dates.id — `{{shift_date_id}}` |\n| `entry_type` | yes | `incident`\\|`observation`\\|`maintenance`\\|`visitor`\\|`other` |\n| `title` / `description` | yes |\n| `location.latitude/longitude` | yes |\n| `timestamp` | no |\n| `media_files` | no | files or base64 |\n\n### Bulk alternative\n`{ \"dobs\": [ { ...same fields... }, ... ] }` → `{ message, created }`\n\n### Response (single): `{ entry_id, message }` **201**"
+          },
+          "response": [
+            {
+              "name": "201",
+              "status": "201",
+              "code": 201,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"entry_id\": 44,\n  \"message\": \"DOB entry created successfully\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j.entry_id) pm.collectionVariables.set('dob_id', String(j.entry_id));",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get DOB Entry",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/dob/{{dob_id}}",
+            "description": "### Path: `{{dob_id}}`"
+          }
+        },
+        {
+          "name": "Update DOB Entry",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"{{shift_date_id}}\",\n  \"entry_type\": \"observation\",\n  \"title\": \"Updated title\",\n  \"description\": \"Updated description\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"timestamp\": \"2026-07-18T10:30:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/dob/{{dob_id}}",
+            "description": "Same fields as create; owner-only. Path: `{{dob_id}}`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 - Incident Reports",
+      "item": [
+        {
+          "name": "List Incidents",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/incidents",
+            "description": "Incidents for authenticated user."
+          }
+        },
+        {
+          "name": "Create Incident",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"{{shift_date_id}}\",\n  \"category\": \"suspicious_activity\",\n  \"severity\": \"medium\",\n  \"title\": \"Suspicious vehicle\",\n  \"description\": \"Unmarked van near rear entrance\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\",\n    \"address\": \"{{address}}\"\n  },\n  \"people_involved\": [\n    {\n      \"name\": \"Unknown male\",\n      \"role\": \"suspect\",\n      \"contact\": null,\n      \"description\": \"White van\"\n    }\n  ],\n  \"pre_captured_media\": [],\n  \"live_media\": []\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/incidents",
+            "description": "### Request\n| Field | Required | Values |\n|---|---|---|\n| `category` | yes | theft\\|assault\\|fire\\|medical\\|property_damage\\|suspicious_activity\\|other |\n| `severity` | yes | low\\|medium\\|high\\|critical |\n| `title` / `description` | yes |\n| `location.latitude/longitude/address` | yes |\n| `shift_id` | no |\n| `people_involved[].role` | if present | witness\\|victim\\|suspect\\|staff\\|visitor |\n| `pre_captured_media` / `live_media` | no |\n\n⚠️ Route typo in backend: registered as `/incidents ` (trailing space). Collection uses `/incidents`."
+          }
+        },
+        {
+          "name": "Get Incident",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/incidents/{{incident_id}}",
+            "description": "### Path: `{{incident_id}}`"
+          }
+        },
+        {
+          "name": "Update Incident",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_id\": \"{{shift_id}}\",\n  \"category\": \"suspicious_activity\",\n  \"severity\": \"high\",\n  \"title\": \"Updated\",\n  \"description\": \"Updated details\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\",\n    \"address\": \"{{address}}\"\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/incidents/{{incident_id}}",
+            "description": "Update existing incident. Path: `{{incident_id}}`. `shift_id` required on update (exists:shifts,id)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 - Messaging",
+      "item": [
+        {
+          "name": "List Conversations",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/messages/conversations",
+            "description": "### Response `conversations[]`\n`id` → save as `{{conversation_id}}`, `type`, `name`, `participants[]`, `last_message`, `unread_count`"
+          }
+        },
+        {
+          "name": "Get Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/messages/conversations/{{conversation_id}}?limit=50",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "messages",
+                "conversations",
+                "{{conversation_id}}"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "50"
+                }
+              ]
+            },
+            "description": "### Path: `{{conversation_id}}`\n### Query: `limit` (default 50)\n### Response: `{ messages: [{ id, sender_id, sender_name, message, message_type, attachment, timestamp, read_by, deleted }] }`"
+          }
+        },
+        {
+          "name": "Send Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"conversation_id\": \"{{conversation_id}}\",\n  \"message\": \"Hello, reporting from site.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/messages",
+            "description": "| Field | Required |\n|---|---|\n| `conversation_id` | yes — `{{conversation_id}}` |\n| `message` | required_without attachment |\n| `attachment` | no — base64 data URL or file |\n\n### Response: `{ message_id, attachment }` — save `message_id` → `{{message_id}}`"
+          }
+        },
+        {
+          "name": "Mark Messages Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message_ids\": [\n    1,\n    2,\n    3\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/messages/mark-read",
+            "description": "`message_ids`: int[] of messages.id\nResponse: `{ \"message\": \"marked as read\" }`"
+          }
+        },
+        {
+          "name": "Create Conversation",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"participants\": [\n    \"{{participant_user_id}}\"\n  ],\n  \"name\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/create-conversation",
+            "description": "| Field | Required |\n|---|---|\n| `participants` | yes — user ids array |\n| `name` | no — for groups |\n\n1 participant → direct (returns existing if already exists: `existing: true`).\n2+ → group.\n\n### Response: `{ conversation_id, type, name, participants }` → save `{{conversation_id}}`"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  if (j.conversation_id) pm.collectionVariables.set('conversation_id', String(j.conversation_id));",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Search Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/users/search?name=john&role=admin",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "name",
+                  "value": "john"
+                },
+                {
+                  "key": "role",
+                  "value": "admin"
+                }
+              ]
+            },
+            "description": "### Query: `name`, `role` (optional fuzzy)\nExcludes users you already have a direct chat with. Paginated."
+          }
+        },
+        {
+          "name": "List Roles",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/users/roles",
+            "description": "### Response: `[{ id, role }]`"
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 - GPS & Location",
+      "item": [
+        {
+          "name": "Update Location",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": \"{{latitude}}\",\n  \"longitude\": \"{{longitude}}\",\n  \"accuracy\": \"{{accuracy}}\",\n  \"timestamp\": \"2026-07-18T12:00:00Z\",\n  \"on_duty\": true,\n  \"shiftdate_id\": \"{{shift_date_id}}\",\n  \"patrol_id\": null\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/location/update",
+            "description": "Background GPS ping while on duty.\n\n| Field | Required | Variable |\n|---|---|---|\n| `latitude` / `longitude` / `accuracy` | yes | `{{latitude}}` `{{longitude}}` `{{accuracy}}` |\n| `on_duty` | yes boolean |\n| `timestamp` | no |\n| `shiftdate_id` | no | `{{shift_date_id}}` — enables geofence |\n| `patrol_id` | no | `{{patrol_id}}` |\n\n### Response\n`{ status, location_id, outside_site, outside_message }`\nIf outside site radius (when restrict enabled) → `outside_site: true` + control notified."
+          },
+          "response": [
+            {
+              "name": "200 — Inside",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"location_id\": 99,\n  \"outside_site\": false,\n  \"outside_message\": null\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "name": "200 — Outside site",
+              "status": "200",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"location_id\": 100,\n  \"outside_site\": true,\n  \"outside_message\": \"Outside shift site radius. Guard and control notified.\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Location History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/location/history?date_from={{date_from}}&date_to={{date_to}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "location",
+                "history"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "{{date_from}}"
+                },
+                {
+                  "key": "date_to",
+                  "value": "{{date_to}}"
+                },
+                {
+                  "key": "shift_id",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "### Query\n| Param | Required | Variable |\n|---|---|---|\n| `date_from` | yes | `{{date_from}}` |\n| `date_to` | yes | `{{date_to}}` |\n| `shift_id` | no |\n\nOnly points with accuracy ≤ 200."
+          }
+        },
+        {
+          "name": "Location Disabled Notification",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/location/disabled",
+            "description": "Notify control when GPS disabled. Throttled (~30 min).\nResponse: `{ status, message }`"
+          }
+        },
+        {
+          "name": "Activity Check (Idle)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/activity-check",
+            "description": "### Response\n`idle_minutes`, `alerts_sent` (`guard_notified` at 15m, `control_notified` at 30m)\nor `{ message, idle_status: \"unknown\" }` if no location yet."
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 - Booking Media",
+      "item": [
+        {
+          "name": "Upload Booking Media",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_date_id\": \"{{shift_date_id}}\",\n  \"type\": \"book_on\",\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\"\n  },\n  \"media_files\": [\n    \"{{face_image_base64}}\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/booking-media",
+            "description": "| Field | Required | Values |\n|---|---|---|\n| `shift_date_id` | yes | `{{shift_date_id}}` |\n| `type` | yes | `book_on` \\| `book_off` |\n| `location.latitude/longitude` | yes |\n| `media_files` | no | base64 data URLs or multipart files |\n\nUsed when shift has no patrols/check-calls and list flag requires media."
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 - Emergency / Panic",
+      "item": [
+        {
+          "name": "Trigger Emergency Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"location\": {\n    \"latitude\": \"{{latitude}}\",\n    \"longitude\": \"{{longitude}}\",\n    \"address\": \"{{address}}\"\n  },\n  \"enable_device_alarm\": true,\n  \"message\": \"Need immediate assistance\",\n  \"timestamp\": \"2026-07-18T12:00:00Z\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/emergency/alert",
+            "description": "| Field | Required |\n|---|---|\n| `location.latitude/longitude/address` | yes |\n| `enable_device_alarm` | yes boolean |\n| `message` | no |\n| `timestamp` | no |\n\nSave returned alert id → `{{emergency_alert_id}}` for cancel."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "try {",
+                  "  const j = pm.response.json();",
+                  "  const id = j.id || j.alert_id || (j.alert && j.alert.id);",
+                  "  if (id) { pm.collectionVariables.set('emergency_alert_id', String(id)); }",
+                  "} catch (e) {}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Cancel Emergency Alert",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"False alarm - accidental press\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/emergency/{{emergency_alert_id}}/cancel",
+            "description": "### Path: `{{emergency_alert_id}}`\n### Request: `{ reason }` required\nMust be alert owner. Already cancelled → 400."
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 - Invoices / Payrolls",
+      "item": [
+        {
+          "name": "Shift History for Invoice",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/invoices/shift-history?date_from={{date_from}}&date_to={{date_to}}&invoiced=false",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "invoices",
+                "shift-history"
+              ],
+              "query": [
+                {
+                  "key": "date_from",
+                  "value": "{{date_from}}"
+                },
+                {
+                  "key": "date_to",
+                  "value": "{{date_to}}"
+                },
+                {
+                  "key": "invoiced",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "### Query\n`date_from`, `date_to` (required), `invoiced` optional boolean\nUse `{{date_from}}` / `{{date_to}}`."
+          }
+        },
+        {
+          "name": "Submit Invoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shift_ids\": [\n    1,\n    2,\n    3\n  ],\n  \"invoice_period\": {\n    \"date_from\": \"{{date_from}}\",\n    \"date_to\": \"{{date_to}}\"\n  },\n  \"total_amount\": 1250,\n  \"notes\": \"July payroll submission\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/invoices",
+            "description": "| Field | Required |\n|---|---|\n| `shift_ids` | yes array |\n| `invoice_period.date_from/date_to` | yes |\n| `total_amount` | yes number |\n| `notes` | no |"
+          }
+        },
+        {
+          "name": "List Invoices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/invoices?status=submitted&page=1&limit=10",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "invoices"
+              ],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "submitted",
+                  "description": "submitted|under_review|approved|paid"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            },
+            "description": "### Query: `status` (submitted|under_review|approved|paid), `page`, `limit`\nSave invoice id → `{{invoice_id}}`"
+          }
+        },
+        {
+          "name": "Confirm Invoice Revision",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"accepted\": true,\n  \"notes\": \"Approved revised amount\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/invoices/{{invoice_id}}/confirm-revision",
+            "description": "### Path: `{{invoice_id}}`\n`accepted` boolean required, `notes` optional.\n400 if no revision pending."
+          }
+        },
+        {
+          "name": "Export Invoice PDF",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/pdf"
+              }
+            ],
+            "url": "{{base_url}}/api/invoices/{{invoice_id}}/pdf",
+            "description": "### Path: `{{invoice_id}}`\nReturns PDF binary (`Accept: application/pdf`)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "14 - Training",
+      "item": [
+        {
+          "name": "List Training Materials",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/training",
+            "description": "### Response `{ materials: [{ id, title, type, content_url, pdf_url, required, acknowledged, implementation_date, complete_by_date, acknowledge_by_date, created_at }] }`\nSave `id` → `{{training_id}}`"
+          }
+        },
+        {
+          "name": "Get Training Material",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/training/{{training_id}}",
+            "description": "### Path: `{{training_id}}`"
+          }
+        },
+        {
+          "name": "Acknowledge Training",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"acknowledged_at\": \"2026-07-18T10:00:00Z\",\n  \"completion_time_seconds\": 420\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/training/{{training_id}}/acknowledge",
+            "description": "### Path: `{{training_id}}`\n| Field | Required |\n|---|---|\n| `acknowledged_at` | no date |\n| `completion_time_seconds` | no int >= 1 |\n\nAlready acknowledged → **400**"
+          }
+        }
+      ]
+    },
+    {
+      "name": "15 - Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/notifications?type=alert&read=false&page=1&limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "type",
+                  "value": "alert",
+                  "description": "alarm|message|alert|approval"
+                },
+                {
+                  "key": "read",
+                  "value": "false"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "### Query\n| Param | Values |\n|---|---|\n| `type` | alarm\\|message\\|alert\\|approval |\n| `read` | true/false string |\n| `page` / `limit` | pagination |\n\n### Response\n`{ notifications, pagination: { current_page, last_page, per_page, total } }`\nSave notification `id` → `{{notification_id}}`"
+          }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/notifications/{{notification_id}}/read",
+            "description": "### Path: `{{notification_id}}`\n### Response: `{ \"message\": \"Notification marked as read\" }`"
+          }
+        },
+        {
+          "name": "Register Push Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"push_token\": \"{{push_token}}\",\n  \"platform\": \"{{platform}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/notifications/register-device",
+            "description": "| Field | Required | Variable |\n|---|---|---|\n| `push_token` | yes | `{{push_token}}` |\n| `platform` | yes | `ios` \\| `android` — `{{platform}}` |\n\nToken moved to this user if previously owned by another."
+          }
+        }
+      ]
+    },
+    {
+      "name": "16 - Availability",
+      "item": [
+        {
+          "name": "Get Availability",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{base_url}}/api/availability",
+            "description": "### Response\n`{ availability: [{ day_of_week, period, start, end }] }`\n`period`: Day (07:00–19:00) | Night (19:00–07:00) | Custom\n`day_of_week`: 0=Sunday … 6=Saturday"
+          }
+        },
+        {
+          "name": "Update Availability",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"availability\": [\n    {\n      \"dayOfWeek\": 1,\n      \"period\": \"Day\"\n    },\n    {\n      \"dayOfWeek\": 2,\n      \"period\": \"Night\"\n    },\n    {\n      \"dayOfWeek\": 3,\n      \"period\": \"Day\"\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/availability",
+            "description": "| Field | Required |\n|---|---|\n| `availability` | yes array 1–7 |\n| `availability[].dayOfWeek` | yes 0–6 |\n| `availability[].period` | no | `Day` \\| `Night` — omit = unavailable |\n\nDays not in payload are cleared (unavailable). Notifies admin."
+          }
+        }
+      ]
+    },
+    {
+      "name": "17 - Admin (Mobile Admin Role)",
+      "description": "Endpoints requiring auth:sanctum — typically used by admin users on mobile or supervisor apps.",
+      "item": [
+        {
+          "name": "Send Alert to Guard",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"guard_id\": \"1\",\n  \"message\": \"Please call control immediately\",\n  \"priority\": \"high\",\n  \"trigger_alarm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/alerts/send-to-guard",
+            "description": "| Field | Required | Values |\n|---|---|---|\n| `guard_id` | yes | string id |\n| `message` | yes |\n| `priority` | yes | low\\|medium\\|high\\|urgent |\n| `trigger_alarm` | yes boolean |"
+          }
+        },
+        {
+          "name": "Delete Message (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Inappropriate content\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/admin/messages/1",
+            "description": "### Path: message id\n### Body: `{ reason }` required"
+          }
+        },
+        {
+          "name": "Edit DOB Entry (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Corrected entry title\",\n  \"description\": \"Corrected description\",\n  \"edit_reason\": \"Typo correction\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/admin/dob/1/edit",
+            "description": "### Path: DOB entry id\n`title`, `description`, `edit_reason` all required."
+          }
+        },
+        {
+          "name": "Override Missed Alarm (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Guard had valid reason - phone network issue\",\n  \"resolved\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{base_url}}/api/admin/alarms/{{alarm_id}}/override",
+            "description": "### Path: `{{alarm_id}}`\n`reason` string + `resolved` boolean required."
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,11 +1,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
-    <meta name="description" content="Supreme Protection">
-    <meta name="keywords" content="Admin Supreme Protection">
-    <meta name="author" content="Supreme Protection">
+    <meta name="description" content="{{ brand_company() }}">
+    <meta name="keywords" content="Admin {{ brand_company() }}">
+    <meta name="author" content="{{ brand_company() }}">
     <meta name="robots" content="noindex, nofollow">
-    <title>Pro Doc - @yield('title')</title>
+    <title>{{ brand_name() }} — @yield('title')</title>
+    <link rel="stylesheet" href="{{ asset('assets/css/fieldline-theme.css') }}">
 
     <link rel="shortcut icon" href="{{ asset('backend/websitedata/' . get_setting('favicon_logo')) }}">
 

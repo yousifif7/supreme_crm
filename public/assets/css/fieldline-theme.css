@@ -1,0 +1,358 @@
+/* FieldLine white-label theme overlay — navy + teal ops look */
+:root {
+  --fl-primary: #0B1F3A;
+  --fl-primary-soft: #132a4a;
+  --fl-accent: #1FA7A0;
+  --fl-accent-hover: #178f89;
+  --fl-surface: #F4F6F8;
+  --fl-surface-card: #ffffff;
+  --fl-border: #e2e8f0;
+  --fl-text: #1e293b;
+  --fl-muted: #64748b;
+  --fl-radius: 12px;
+  --fl-shadow: 0 1px 2px rgba(11, 31, 58, 0.06), 0 8px 24px rgba(11, 31, 58, 0.06);
+}
+
+html, body {
+  font-family: 'Poppins', system-ui, sans-serif !important;
+  background-color: var(--fl-surface) !important;
+  color: var(--fl-text);
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--fl-primary) !important;
+  border-right: none !important;
+  box-shadow: 4px 0 24px rgba(11, 31, 58, 0.18);
+}
+
+.sidebar .sidebar-logo {
+  background: var(--fl-primary) !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+  padding: 1rem 1.1rem !important;
+}
+
+.sidebar .sidebar-logo img {
+  max-height: 40px;
+  width: auto;
+}
+
+.sidebar .sidebar-menu > ul > li > a,
+.sidebar .sidebar-menu ul li a {
+  color: rgba(232, 238, 244, 0.82) !important;
+  border-radius: 8px;
+  margin: 2px 10px;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sidebar .sidebar-menu ul li a:hover,
+.sidebar .sidebar-menu ul li a.active,
+.sidebar .sidebar-menu ul li.active > a,
+.sidebar .sidebar-menu ul li.submenu-open > a {
+  background: rgba(31, 167, 160, 0.18) !important;
+  color: #fff !important;
+}
+
+.sidebar .sidebar-menu ul li a.active,
+.sidebar .sidebar-menu ul li.active > a {
+  border-left: 3px solid var(--fl-accent);
+}
+
+.sidebar .sidebar-menu ul li a i,
+.sidebar .sidebar-menu ul li a .menu-arrow {
+  color: rgba(232, 238, 244, 0.7) !important;
+}
+
+.sidebar .fl-brand-label {
+  display: block;
+  margin-top: 0.35rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: rgba(232, 238, 244, 0.55);
+  font-weight: 500;
+}
+
+/* Header / topbar */
+.header {
+  background: var(--fl-surface-card) !important;
+  border-bottom: 1px solid var(--fl-border) !important;
+  box-shadow: none !important;
+}
+
+.header .header-left .logo img,
+.header .header-left .dark-logo img {
+  max-height: 36px;
+}
+
+/* Page shell */
+.page-wrapper {
+  background: var(--fl-surface) !important;
+}
+
+.content,
+.page-wrapper .content {
+  padding-top: 1.25rem;
+}
+
+.page-header h3,
+.page-header .page-title,
+.page-header h4 {
+  color: var(--fl-primary) !important;
+  font-weight: 600 !important;
+  letter-spacing: -0.01em;
+}
+
+/* Cards */
+.card {
+  border: 1px solid var(--fl-border) !important;
+  border-radius: var(--fl-radius) !important;
+  box-shadow: var(--fl-shadow) !important;
+  background: var(--fl-surface-card) !important;
+}
+
+.card-header {
+  background: transparent !important;
+  border-bottom: 1px solid var(--fl-border) !important;
+  font-weight: 600;
+  color: var(--fl-primary);
+}
+
+/* Buttons */
+.btn-primary,
+.btn-primary:focus {
+  background-color: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+  color: #fff !important;
+  box-shadow: none !important;
+  border-radius: 8px !important;
+  font-weight: 500;
+}
+
+.btn-primary:hover,
+.btn-primary:active,
+.btn-primary.active {
+  background-color: var(--fl-accent-hover) !important;
+  border-color: var(--fl-accent-hover) !important;
+}
+
+.btn-outline-primary {
+  color: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+  border-radius: 8px !important;
+}
+
+.btn-outline-primary:hover {
+  background-color: var(--fl-accent) !important;
+  color: #fff !important;
+}
+
+.btn-secondary,
+.btn-light {
+  border-radius: 8px !important;
+}
+
+/* Tables */
+.table thead th,
+.table-responsive .table thead th,
+.dataTables_wrapper .table thead th {
+  background: #eef2f6 !important;
+  color: var(--fl-primary) !important;
+  font-weight: 600 !important;
+  font-size: 0.78rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  border-bottom: 1px solid var(--fl-border) !important;
+}
+
+.table td {
+  border-color: var(--fl-border) !important;
+  color: var(--fl-text);
+  vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+  background-color: rgba(31, 167, 160, 0.05) !important;
+}
+
+/* Forms */
+.form-control,
+.form-select,
+.select2-container--default .select2-selection--single {
+  border-color: var(--fl-border) !important;
+  border-radius: 8px !important;
+  color: var(--fl-text);
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: var(--fl-accent) !important;
+  box-shadow: 0 0 0 3px rgba(31, 167, 160, 0.18) !important;
+}
+
+/* Badges / links */
+.badge.bg-primary,
+.badge-primary {
+  background-color: var(--fl-accent) !important;
+}
+
+a.text-primary,
+.text-primary {
+  color: var(--fl-accent) !important;
+}
+
+a:hover.text-primary {
+  color: var(--fl-accent-hover) !important;
+}
+
+/* Notifications unread accent */
+.notif-item.unread {
+  background-color: rgba(31, 167, 160, 0.08) !important;
+  border-left: 4px solid var(--fl-accent) !important;
+}
+
+/* Pagination */
+.pagination .page-item.active .page-link {
+  background-color: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+}
+
+.pagination .page-link {
+  color: var(--fl-primary);
+  border-radius: 6px !important;
+}
+
+/* Modals */
+.modal-content {
+  border-radius: var(--fl-radius) !important;
+  border: 1px solid var(--fl-border);
+  box-shadow: var(--fl-shadow);
+}
+
+.modal-header {
+  border-bottom-color: var(--fl-border);
+  color: var(--fl-primary);
+}
+
+/* Login / guest */
+body.fl-guest {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(31, 167, 160, 0.22), transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, rgba(11, 31, 58, 0.45), transparent 50%),
+    linear-gradient(160deg, #0B1F3A 0%, #132a4a 45%, #0a1628 100%) !important;
+  font-family: 'Poppins', system-ui, sans-serif !important;
+}
+
+.fl-guest-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.fl-guest-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(255, 255, 255, 0.97);
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.28);
+  padding: 2rem 1.75rem 1.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+}
+
+.fl-guest-card .fl-guest-brand {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.fl-guest-card .fl-guest-brand img {
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin: 0 auto 0.75rem;
+  display: block;
+  border-radius: 16px;
+}
+
+.fl-guest-card .fl-guest-brand h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--fl-primary);
+  letter-spacing: -0.02em;
+}
+
+.fl-guest-card .fl-guest-brand p {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--fl-muted);
+}
+
+.fl-guest-card label {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--fl-primary);
+}
+
+.fl-guest-card input[type="email"],
+.fl-guest-card input[type="password"],
+.fl-guest-card input[type="text"] {
+  width: 100%;
+  border: 1px solid var(--fl-border);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  margin-top: 0.35rem;
+  background: #fff;
+}
+
+.fl-guest-card input:focus {
+  outline: none;
+  border-color: var(--fl-accent);
+  box-shadow: 0 0 0 3px rgba(31, 167, 160, 0.18);
+}
+
+.fl-guest-card .fl-login-btn {
+  width: 100%;
+  margin-top: 1.25rem;
+  background: var(--fl-accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.fl-guest-card .fl-login-btn:hover {
+  background: var(--fl-accent-hover);
+}
+
+.fl-guest-card a {
+  color: var(--fl-accent);
+  text-decoration: none;
+  font-size: 0.85rem;
+}
+
+.fl-guest-card a:hover {
+  color: var(--fl-accent-hover);
+  text-decoration: underline;
+}
+
+/* Soften heavy template chrome */
+.breadcrumb {
+  background: transparent !important;
+}
+
+.nav-tabs .nav-link.active {
+  color: var(--fl-accent) !important;
+  border-color: var(--fl-border) var(--fl-border) #fff !important;
+  font-weight: 600;
+}
+
+.nav-tabs .nav-link {
+  color: var(--fl-muted);
+}

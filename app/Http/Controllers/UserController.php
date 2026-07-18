@@ -505,32 +505,34 @@ class UserController extends Controller
         $validator = Validator::make($request->all(), [
             'first_name' => 'required|string|max:255',
             'last_name' => 'nullable|string|max:255',
-            // 'username' => 'required|string|unique:users,username',
-            'email' => ['required', 'email:dns', $emailRule],
+            'email' => ['required', 'email', $emailRule],
             'password' => 'required|confirmed',
             'phone_number' => 'nullable|string|max:20',
             'status' => 'nullable|string',
             'roles' => 'nullable|array',
-            // Company name is required only when the admin role is being assigned.
-            'company_name' => [Rule::requiredIf(in_array('admin', (array) $request->input('roles', []), true)), 'nullable', 'string', 'max:255'],
+            'roles.*' => 'nullable|string',
+            'company_name' => [Rule::requiredIf(in_array('admin', array_filter((array) $request->input('roles', [])), true)), 'nullable', 'string', 'max:255'],
             'profile_picture' => 'nullable|image|max:4096'
         ]);
 
         if ($validator->fails()) {
-            if ($request->ajax()) {
+            if ($request->ajax() || $request->wantsJson()) {
                 return response()->json(['errors' => $validator->errors()], 422);
-            } else {
-                return redirect()->back()->withErrors($validator)->withInput();
             }
+
+            return redirect()->back()->withErrors($validator)->withInput();
         }
 
         $validated = $validator->validated();
+        $requestedRoles = array_values(array_filter(
+            (array) ($validated['roles'] ?? []),
+            fn ($role) => is_string($role) && $role !== ''
+        ));
+        unset($validated['roles']);
 
         $plain_password = $validated['password'];
         $validated['password'] = Hash::make($validated['password']);
         $validated['username'] = $validated['email'];
-
-        
 
         // Handle profile picture upload
         if ($request->hasFile('profile_picture')) {
@@ -553,19 +555,15 @@ class UserController extends Controller
 
         $user = User::create($validated);
         $user->plaintext_password = $plain_password;
-        // Persist plaintext password field (if present on model/table)
         try {
             $user->save();
         } catch (\Exception $e) {
             Log::error('Failed to save plaintext password for new user: ' . $e->getMessage());
         }
 
-        $requestedRoles = [];
-        if (!empty($validated['roles'])) {
-            $requestedRoles = is_array($validated['roles']) ? $validated['roles'] : [$validated['roles']];
-
+        if (!empty($requestedRoles)) {
             if ($authUser && $authUser->hasRole('admin') && in_array('superadmin', $requestedRoles, true)) {
-                return response()->json(['message' => 'Admins cannot assign superadmin role.'], 403);
+                return $this->userStoreResponse($request, 'Admins cannot assign superadmin role.', 403);
             }
 
             $assignableRoles = $this->filterAssignableRolesForCurrentUser($requestedRoles);
@@ -579,9 +577,29 @@ class UserController extends Controller
             $user->admin_id = $user->id;
             $user->save();
         }
-        Logger::log(Auth::user(), 'Create', 'New user ' . $user->first_name . ' ' . $user->last_name);
 
-        return response()->json(['message' => 'User created successfully']);
+        Logger::log($user, 'Create', 'New user ' . $user->first_name . ' ' . $user->last_name);
+
+        return $this->userStoreResponse($request, 'User created successfully');
+    }
+
+    /**
+     * Prefer JSON for AJAX modal creates; redirect for normal form posts.
+     */
+    private function userStoreResponse(Request $request, string $message, int $status = 200)
+    {
+        if ($request->ajax() || $request->wantsJson()) {
+            return response()->json([
+                'success' => $status >= 200 && $status < 300,
+                'message' => $message,
+            ], $status);
+        }
+
+        if ($status >= 400) {
+            return redirect()->back()->withErrors(['email' => $message])->withInput();
+        }
+
+        return redirect()->route('users.index')->with('success', $message);
     }
     public function edit($id)
     {
@@ -842,7 +860,7 @@ class UserController extends Controller
 
     private function availableRolesForCurrentUser(): array
     {
-        $query = Role::query();
+        $query = Role::query()->orderBy('name');
         /** @var \App\Models\User|null $authUser */
         $authUser = Auth::user();
 
@@ -850,7 +868,8 @@ class UserController extends Controller
             $query->where('name', '!=', 'superadmin');
         }
 
-        return $query->pluck('name', 'name')->all();
+        // Flat list of role names (avoids associative pluck quirks in Blade selects)
+        return $query->pluck('name')->values()->all();
     }
 
     private function filterAssignableRolesForCurrentUser(array $roles): array

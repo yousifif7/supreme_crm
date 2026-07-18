@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Notifications')
+@section('title', brand_title('Notifications'))
 
 @section('contents')
 <div class="page-wrapper" style="min-height: 306px;">

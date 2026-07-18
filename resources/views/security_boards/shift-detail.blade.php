@@ -1,7 +1,5 @@
 @extends('layouts.app')
-@section('title')
-    SPL Connect | Shift detail
-@endsection
+@section('title', brand_title('Shift detail'))
 
 @section('styles')
     <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />

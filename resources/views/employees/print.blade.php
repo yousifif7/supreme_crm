@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Employee')
+@section('title', brand_title('Employee'))
 
 @section('styles')
     <style>

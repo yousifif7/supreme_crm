@@ -4,7 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
-class CheckpointScan extends Model
+class CheckPointScan extends Model
 {
     protected $fillable = [
         'patrol_id', 'user_id', 'patrol_checkpoint_id', 'scan_data', 'scan_method',

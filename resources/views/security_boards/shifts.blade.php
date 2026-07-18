@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Shifts')
+@section('title', brand_title('Shifts'))
 @section('contents')
     <!-- Page Wrapper -->
     <div id="scheduling" class="page-wrapper security_board">

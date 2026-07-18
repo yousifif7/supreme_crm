@@ -70,7 +70,7 @@ class PermissionSeeder extends Seeder
             'Read Chat', 'Write Chat', 'Create Chat', 'Delete Chat', 'Import Chat', 'Export Chat',
 
             // =========================
-            // Docs.php Permissions
+            // Docs / Forms permissions
             // =========================
             'General Settings',
 
@@ -99,14 +99,15 @@ class PermissionSeeder extends Seeder
             'client detail edit',
             'client complete detail',
             'client detail destroy',
+            'client detail show only',
 
-            // Application Form (general read/write)
-            'application form view',
-            'application form edit',
-            'application form create',
-            'application form delete',
+            // Application Form
+            'applicationform view',
+            'applicationform edit',
+            'applicationform create',
+            'applicationform delete',
 
-            'incident form edit',
+            'incidentform edit',
         ];
 
         // Create permissions if they don't exist

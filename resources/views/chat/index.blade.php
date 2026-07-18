@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title')SPL Connect | Chat @endsection
+@section('title', brand_title('Chat'))
 @section('contents')
 <meta name="user-id" content="{{ Auth::id() }}">
 

@@ -49,6 +49,18 @@ class LoginRequest extends FormRequest
             ]);
         }
 
+        /** @var \App\Models\User $user */
+        $user = Auth::user();
+
+        // Guards use the mobile app only — never the web CRM.
+        if ($user && $user->hasRole('security_staff')) {
+            Auth::logout();
+
+            throw ValidationException::withMessages([
+                'email' => 'Web CRM access is not allowed for security staff. Please use the mobile app.',
+            ]);
+        }
+
         RateLimiter::clear($this->throttleKey());
     }
 

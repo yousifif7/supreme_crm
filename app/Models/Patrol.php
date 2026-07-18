@@ -28,7 +28,7 @@ class Patrol extends Model
 
     public function scans()
     {
-        return $this->hasMany(CheckpointScan::class, 'patrol_id')->orderBy('timestamp', 'desc');
+        return $this->hasMany(CheckPointScan::class, 'patrol_id')->orderBy('timestamp', 'desc');
     }
 
     public function logs()

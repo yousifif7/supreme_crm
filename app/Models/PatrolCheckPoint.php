@@ -8,7 +8,8 @@ use Illuminate\Database\Eloquent\Model;
 class PatrolCheckPoint extends Model
 {
     protected $table = 'patrol_check_points';
-    //
+    public $timestamps = false;
+
     protected $fillable = [
         'site_id', 'name', 'qr_code', 'nfc_tag',
         'latitude', 'longitude', 'required'

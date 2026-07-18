@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - SIA Report Detail')
+@section('title', brand_title('SIA Report Detail'))
 @section('styles')
     <style>
         .filter-card {

@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Payrolls')
+@section('title', brand_title('Payrolls'))
 @section('styles')
     <style>
         /* Payroll tabs styling */

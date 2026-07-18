@@ -58,15 +58,18 @@ Route::get('/dashboard', function () {
 Route::get('/optimize-server', function () {
     Artisan::call('optimize:clear');
     return '<pre>' . e(Artisan::output()) . '</pre>';
-})->middleware('auth');
+})->middleware(['auth', 'role:superadmin']);
 
 
-Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath']);
+Route::get('/generate-heatmap', [ShiftController::class, 'generateContinuousPath'])
+    ->middleware('auth');
 
-// Site tracking view (public)
-Route::get('/track/site/{siteId}', [ShiftController::class, 'siteTracking'])->name('track.site');
-// Data endpoint used by the tracking view (returns latest acceptable locations for site) — public
-Route::get('/track/site/{siteId}/data', [\App\Http\Controllers\API\LocationAPIController::class, 'latestForSite']);
+// Site tracking view (CRM — requires auth + Security Board permission)
+Route::get('/track/site/{siteId}', [ShiftController::class, 'siteTracking'])
+    ->middleware('auth')
+    ->name('track.site');
+Route::get('/track/site/{siteId}/data', [\App\Http\Controllers\API\LocationAPIController::class, 'latestForSite'])
+    ->middleware('auth');
 
 Route::group(['middleware' => ['auth']], function () {
     // Employee ban management
@@ -93,7 +96,7 @@ Route::group(['middleware' => ['auth']], function () {
 });
 
 
-Route::prefix('notifications')->group(function () {
+Route::prefix('notifications')->middleware('auth')->group(function () {
     Route::get('/', [NotificationsController::class, 'index'])->name('notifications.index');
 
     // JSON endpoint for web (session-authenticated) poller
@@ -514,6 +517,8 @@ Route::post('/shifts/{id}/unassign', [ShiftController::class, 'unassign'])->name
         ->name('vehicle.data');
 });
 
+Route::middleware('auth')->group(function () {
+
 Route::get('/materials/export/excel', [TrainingController::class, 'exportMaterialsExcel'])->name('materials.export.excel');
 Route::get('/materials/export/pdf', [TrainingController::class, 'exportMaterialsPdf'])->name('materials.export.pdf');
 
@@ -575,6 +580,9 @@ Route::post('/reminders/import', [ExportController::class, 'importReminderExcel'
 Route::get('/shifts/export/excel', [ExportController::class, 'exportShiftExcel'])->name('shifts.export.excel');
 Route::get('/shifts/export/pdf', [ExportController::class, 'exportShiftPdf'])->name('shifts.export.pdf');
 Route::post('/shifts/import', [ExportController::class, 'importShiftExcel'])->name('shifts.import');
+
+}); // end auth — exports / HR / materials / leaves pending
+
 Route::group(['middleware' => ['role:superadmin|user']], function () {});
 
 // notifications
@@ -584,6 +592,8 @@ Route::middleware('auth')->group(function () {
 });
 
 
+
+Route::middleware('auth')->group(function () {
 
 Route::prefix('incidents')->group(function () {
     Route::get('/', [IncidentReportController::class, 'index'])->name('incidents.index'); // datatable page
@@ -621,19 +631,18 @@ Route::get('/reports/employment/{employee}/pdf', [EmployeeController::class, 'ex
 
 
 Route::post('/assign-shift-override', [ShiftController::class, 'assignWithOverride'])
-    ->middleware(['auth', 'can:assign-shift-override'])
+    ->middleware(['can:assign-shift-override'])
     ->name('assign.shift.override');
 
 Route::post('/updateshift/{id}/override', [ShiftController::class, 'updateWithOverride'])
-    ->middleware(['auth', 'can:assign-shift-override'])
+    ->middleware(['can:assign-shift-override'])
     ->name('shifts.update.override');
 
 Route::post('/shifts/multi-assign-override', [ShiftController::class, 'multiAssignWithOverride'])
-    ->middleware(['auth', 'can:assign-shift-override'])
-    ->name('assign.shift.override');
+    ->middleware(['can:assign-shift-override'])
+    ->name('assign.shift.override.multi');
 
 Route::post('/shifts/store-override', [ShiftController::class, 'storeOverride'])
-    ->middleware('auth')
     ->name('shifts.store.override');
 
 // Notes thread: show/store are keyed by shift_date id; update/delete act on a single note id.
@@ -662,6 +671,8 @@ Route::get('/reports/checkcalls-patrols', [ReportController::class, 'checkCallsP
 
 Route::get('/reports/clients/export/pdf', [ReportController::class, 'exportClientReportPDF'])->name('client.report.export.pdf');
 Route::get('/reports/clients/export/excel', [ReportController::class, 'exportClientReportExcel'])->name('client.report.export.excel');
+
+}); // end auth — incidents / dobs / reports / notes
 
 require __DIR__ . '/auth.php';
 

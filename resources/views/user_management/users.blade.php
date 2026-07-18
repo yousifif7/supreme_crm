@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Users')
+@section('title', brand_title('Users'))
 @section('styles')
     <style>
         /* Single bold toggle button that flips between the All Users / SaaS views.
@@ -748,12 +748,13 @@
             // Initial paint (All Users is the default view).
             applyUsersView();
 
-            $('#add_user_form').on('submit', function(e) {
+            $(document).on('submit', '#add_user_form', function(e) {
                 e.preventDefault();
+                e.stopPropagation();
 
                 let form = $(this)[0];
                 let formData = new FormData(form);
-                let submitButton = $(this).find('button[type="submit"]');
+                let submitButton = $('#add_user').find('button[type="submit"]');
 
                 submitButton.prop('disabled', true).html('Saving...');
 
@@ -763,34 +764,40 @@
                     data: formData,
                     processData: false,
                     contentType: false,
+                    dataType: 'json',
                     headers: {
-                        'X-CSRF-TOKEN': $('input[name="_token"]').val()
+                        'X-CSRF-TOKEN': $('input[name="_token"]').val(),
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest'
                     },
                     success: function(response) {
-                        $('#add_user_form')[0].reset();
+                        form.reset();
                         closeBsModal('#add_user');
-                        toast_success('User Added Successfully');
-                        // Reload both tables
-                        if (allUsersTable) allUsersTable.ajax.reload();
-                        if (saasUsersTable) saasUsersTable.ajax.reload();
+                        toast_success((response && response.message) ? response.message : 'User Added Successfully');
+                        if (allUsersTable) allUsersTable.ajax.reload(null, false);
+                        if (saasUsersTable) saasUsersTable.ajax.reload(null, false);
                     },
-                error: function (xhr) {
-                    if (xhr.status === 422) {
-                        const errors = xhr.responseJSON.errors;
-    
-                        Object.values(errors).forEach(messages => {
-                            messages.forEach(message => {
-                                toast_danger(message);
+                    error: function (xhr) {
+                        if (xhr.status === 422 && xhr.responseJSON && xhr.responseJSON.errors) {
+                            const errors = xhr.responseJSON.errors;
+                            Object.values(errors).forEach(messages => {
+                                (Array.isArray(messages) ? messages : [messages]).forEach(message => {
+                                    toast_danger(message);
+                                });
                             });
-                        });
-                    } else {
-                        toast_danger('Something went wrong.');
-                    }
-                },
+                        } else {
+                            const msg = xhr.responseJSON && xhr.responseJSON.message
+                                ? xhr.responseJSON.message
+                                : 'Something went wrong.';
+                            toast_danger(msg);
+                        }
+                    },
                     complete: function() {
                         submitButton.prop('disabled', false).html('Save');
                     }
                 });
+
+                return false;
             });
             $('#edit_user_form').on('submit', function(e) {
                 e.preventDefault();

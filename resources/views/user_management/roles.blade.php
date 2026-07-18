@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Roles')
+@section('title', brand_title('Roles'))
 @section('contents')
     <!-- Page Wrapper -->
     <div id="roles-wrapper" class="page-wrapper">
@@ -102,6 +102,33 @@
                                         'Chat',
                                     ];
                                     $actions = ['Read', 'Write', 'Create', 'Delete', 'Import', 'Export'];
+                                    $docsPermissions = [
+                                        'General Settings',
+                                        'digitalform list',
+                                        'digitalform create',
+                                        'digitalform edit',
+                                        'digitalform delete',
+                                        'digitalform Settings',
+                                        'dynamicinput',
+                                        'dynamicinput create',
+                                        'dynamicinput edit',
+                                        'dynamicinput delete',
+                                        'page list',
+                                        'page create',
+                                        'page edit',
+                                        'page delete',
+                                        'form list',
+                                        'client detail list',
+                                        'client detail edit',
+                                        'client complete detail',
+                                        'client detail destroy',
+                                        'client detail show only',
+                                        'applicationform view',
+                                        'applicationform edit',
+                                        'applicationform create',
+                                        'applicationform delete',
+                                        'incidentform edit',
+                                    ];
                                 @endphp
 
                                 <div class="table-responsive permission-table border rounded">
@@ -146,6 +173,28 @@
                                             @endforeach
                                         </tbody>
                                     </table>
+                                </div>
+
+                                <div class="mt-3 border rounded p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Forms &amp; Docs</h6>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="docs_select_all_add">
+                                            <label class="form-check-label" for="docs_select_all_add">Select all</label>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        @foreach ($docsPermissions as $perm)
+                                            <div class="col-md-4 col-lg-3 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input permission-checkbox docs-permission-checkbox"
+                                                        type="checkbox" name="permissions[]" value="{{ $perm }}"
+                                                        id="add_docs_{{ Str::slug($perm) }}">
+                                                    <label class="form-check-label" for="add_docs_{{ Str::slug($perm) }}">{{ $perm }}</label>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 </div>
                             </div>
 
@@ -195,6 +244,33 @@
                                         'Chat',
                                     ];
                                     $actions = ['Read', 'Write', 'Create', 'Delete', 'Import', 'Export'];
+                                    $docsPermissions = [
+                                        'General Settings',
+                                        'digitalform list',
+                                        'digitalform create',
+                                        'digitalform edit',
+                                        'digitalform delete',
+                                        'digitalform Settings',
+                                        'dynamicinput',
+                                        'dynamicinput create',
+                                        'dynamicinput edit',
+                                        'dynamicinput delete',
+                                        'page list',
+                                        'page create',
+                                        'page edit',
+                                        'page delete',
+                                        'form list',
+                                        'client detail list',
+                                        'client detail edit',
+                                        'client complete detail',
+                                        'client detail destroy',
+                                        'client detail show only',
+                                        'applicationform view',
+                                        'applicationform edit',
+                                        'applicationform create',
+                                        'applicationform delete',
+                                        'incidentform edit',
+                                    ];
                                 @endphp
 
                                 <div class="table-responsive permission-table border rounded">
@@ -241,6 +317,28 @@
                                             @endforeach
                                         </tbody>
                                     </table>
+                                </div>
+
+                                <div class="mt-3 border rounded p-3">
+                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0">Forms &amp; Docs</h6>
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="docs_select_all_edit">
+                                            <label class="form-check-label" for="docs_select_all_edit">Select all</label>
+                                        </div>
+                                    </div>
+                                    <div class="row" id="edit_docs_permissions_container">
+                                        @foreach ($docsPermissions as $perm)
+                                            <div class="col-md-4 col-lg-3 mb-2">
+                                                <div class="form-check">
+                                                    <input class="form-check-input edit-permission-checkbox edit-docs-permission-checkbox"
+                                                        type="checkbox" name="permissions[]" value="{{ $perm }}"
+                                                        id="edit_docs_{{ Str::slug($perm) }}">
+                                                    <label class="form-check-label" for="edit_docs_{{ Str::slug($perm) }}">{{ $perm }}</label>
+                                                </div>
+                                            </div>
+                                        @endforeach
+                                    </div>
                                 </div>
                             </div>
 
@@ -343,6 +441,14 @@
         $('.action-select-all').on('change', function() {
             const action = $(this).data('action');
             $('.permission-checkbox[data-action="' + action + '"]').prop('checked', $(this).prop('checked'));
+        });
+
+        $('#docs_select_all_add').on('change', function() {
+            $('.docs-permission-checkbox').prop('checked', $(this).prop('checked'));
+        });
+
+        $('#docs_select_all_edit').on('change', function() {
+            $('.edit-docs-permission-checkbox').prop('checked', $(this).prop('checked'));
         });
     </script>
 

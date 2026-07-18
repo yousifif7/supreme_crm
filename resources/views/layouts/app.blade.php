@@ -4,12 +4,12 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=0">
-    <meta name="description" content="Smarthr - Bootstrap Admin Template">
-    <meta name="keywords" content="admin, estimates, bootstrap, business, html5, responsive, Projects">
-    <meta name="author" content="Dreams technologies - Bootstrap Admin Template">
+    <meta name="description" content="{{ brand_name() }} — {{ brand_tagline() }}">
+    <meta name="keywords" content="security, workforce, scheduling, patrols, site operations">
+    <meta name="author" content="{{ brand_company() }}">
     <meta name="robots" content="noindex, nofollow">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>@yield('title')</title>
+    <title>@hasSection('title')@yield('title')@else{{ brand_name() }}@endif</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"
         integrity="sha512-894YE6QWD5I59HgZOGReFYm4dnWc1Qt5NtvYSaNcOP+u1T9qYdvdihz0PPSiiqn/+/3e7Jo4EaG7TubfWGUrMQ=="
         crossorigin="anonymous" referrerpolicy="no-referrer"></script>
@@ -17,10 +17,10 @@
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/main.min.css" rel="stylesheet">
 
     <!-- Favicon -->
-    <link rel="shortcut icon" type="image/x-icon" href="{{ asset('assets/sp_logo.png') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ brand_favicon_url() }}">
 
     <!-- Apple Touch Icon -->
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('assets/sp_logo.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ brand_favicon_url() }}">
 
     <!-- Preload Critical CSS -->
     {{-- <link rel="preload" href="{{ asset('assets/css/bootstrap.min.css') }}" as="style"> --}}
@@ -29,6 +29,7 @@
     <!-- Core CSS -->
     {{-- <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}"> --}}
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/fieldline-theme.css') }}">
     <!-- Feather CSS -->
 
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/feather/feather.css') }}">
@@ -125,11 +126,11 @@
             <div class="main-header">
 
                 <div class="header-left">
-                    <a href="#" class="logo">
-                        <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+                    <a href="{{ url('dashboard') }}" class="logo">
+                        <img src="{{ brand_logo_url('dashboard_logo') }}" alt="{{ brand_name() }}">
                     </a>
-                    <a href="#" class="dark-logo">
-                        <img src="{{ asset('assets/sp_logo.png') }}" alt="Logo">
+                    <a href="{{ url('dashboard') }}" class="dark-logo">
+                        <img src="{{ brand_logo_url('dashboard_logo') }}" alt="{{ brand_name() }}">
                     </a>
                 </div>
 

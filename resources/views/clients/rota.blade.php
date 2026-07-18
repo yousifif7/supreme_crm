@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Site Calendar')
+@section('title', brand_title('Site Calendar'))
 @section('styles')
     <style>
         /* Sidebar prev/next buttons */

@@ -17,6 +17,14 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission' => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission' => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
+            'deny.security_staff' => \App\Http\Middleware\DenySecurityStaffFromWeb::class,
+            'web.permission' => \App\Http\Middleware\EnforceWebPermission::class,
+        ]);
+
+        // CRM web stack: block guards + enforce Spatie permissions on mapped routes
+        $middleware->web(append: [
+            \App\Http\Middleware\DenySecurityStaffFromWeb::class,
+            \App\Http\Middleware\EnforceWebPermission::class,
         ]);
         
         // Add DB connection cleanup middleware globally

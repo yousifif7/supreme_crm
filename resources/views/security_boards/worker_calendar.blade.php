@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'SPL Connect - Worker Calendar')
+@section('title', brand_title('Worker Calendar'))
 
 @section('styles')
     <style>
