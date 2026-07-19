@@ -29,7 +29,7 @@
     <!-- Core CSS -->
     {{-- <link rel="stylesheet" href="{{ asset('assets/css/bootstrap.min.css') }}"> --}}
     <link rel="stylesheet" href="{{ asset('assets/css/style.css') }}">
-    <link rel="stylesheet" href="{{ asset('assets/css/fieldline-theme.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/fieldline-theme.css') }}?v={{ @filemtime(public_path('assets/css/fieldline-theme.css')) ?: time() }}">
     <!-- Feather CSS -->
 
     <link rel="stylesheet" href="{{ asset('assets/plugins/icons/feather/feather.css') }}">

@@ -6,7 +6,7 @@
     <meta name="author" content="{{ brand_company() }}">
     <meta name="robots" content="noindex, nofollow">
     <title>{{ brand_name() }} — @yield('title')</title>
-    <link rel="stylesheet" href="{{ asset('assets/css/fieldline-theme.css') }}">
+    <link rel="stylesheet" href="{{ asset('assets/css/fieldline-theme.css') }}?v={{ @filemtime(public_path('assets/css/fieldline-theme.css')) ?: time() }}">
 
     <link rel="shortcut icon" href="{{ asset('backend/websitedata/' . get_setting('favicon_logo')) }}">
 

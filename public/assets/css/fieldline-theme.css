@@ -1,33 +1,46 @@
-/* FieldLine white-label theme overlay — navy + teal ops look */
+/* FieldLine theme — navy ops UI with high-contrast accents */
 :root {
   --fl-primary: #0B1F3A;
   --fl-primary-soft: #132a4a;
-  --fl-accent: #1FA7A0;
-  --fl-accent-hover: #178f89;
-  --fl-surface: #F4F6F8;
+  --fl-accent: #0F8A84;
+  --fl-accent-hover: #0C736E;
+  --fl-accent-soft: rgba(15, 138, 132, 0.12);
+  --fl-on-accent: #ffffff;
+  --fl-surface: #F1F5F9;
   --fl-surface-card: #ffffff;
-  --fl-border: #e2e8f0;
-  --fl-text: #1e293b;
-  --fl-muted: #64748b;
+  --fl-border: #E2E8F0;
+  --fl-text: #0F172A;
+  --fl-muted: #64748B;
+  --fl-danger: #DC2626;
+  --fl-danger-hover: #B91C1C;
+  --fl-success: #059669;
+  --fl-warning: #D97706;
   --fl-radius: 12px;
-  --fl-shadow: 0 1px 2px rgba(11, 31, 58, 0.06), 0 8px 24px rgba(11, 31, 58, 0.06);
+  --fl-radius-sm: 8px;
+  --fl-shadow: 0 1px 2px rgba(11, 31, 58, 0.05), 0 8px 24px rgba(11, 31, 58, 0.06);
+
+  /* Bridge template vars so old rules pick up the new palette */
+  --primary-bg: var(--fl-accent);
+  --sidebar-bg: var(--fl-primary);
 }
 
 html, body {
-  font-family: 'Poppins', system-ui, sans-serif !important;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif !important;
   background-color: var(--fl-surface) !important;
   color: var(--fl-text);
 }
 
-/* Sidebar */
+/* -------------------------------------------------------------------------- */
+/* Sidebar                                                                    */
+/* -------------------------------------------------------------------------- */
 .sidebar {
-  background: var(--fl-primary) !important;
+  background: linear-gradient(180deg, var(--fl-primary) 0%, #081628 100%) !important;
   border-right: none !important;
-  box-shadow: 4px 0 24px rgba(11, 31, 58, 0.18);
+  box-shadow: 4px 0 24px rgba(11, 31, 58, 0.2);
 }
 
 .sidebar .sidebar-logo {
-  background: var(--fl-primary) !important;
+  background: transparent !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
   padding: 1rem 1.1rem !important;
 }
@@ -40,7 +53,7 @@ html, body {
 .sidebar .sidebar-menu > ul > li > a,
 .sidebar .sidebar-menu ul li a {
   color: rgba(232, 238, 244, 0.82) !important;
-  border-radius: 8px;
+  border-radius: var(--fl-radius-sm);
   margin: 2px 10px;
   transition: background 0.15s ease, color 0.15s ease;
 }
@@ -49,13 +62,14 @@ html, body {
 .sidebar .sidebar-menu ul li a.active,
 .sidebar .sidebar-menu ul li.active > a,
 .sidebar .sidebar-menu ul li.submenu-open > a {
-  background: rgba(31, 167, 160, 0.18) !important;
+  background: var(--fl-accent-soft) !important;
   color: #fff !important;
 }
 
 .sidebar .sidebar-menu ul li a.active,
 .sidebar .sidebar-menu ul li.active > a {
   border-left: 3px solid var(--fl-accent);
+  padding-left: calc(1rem - 3px);
 }
 
 .sidebar .sidebar-menu ul li a i,
@@ -67,17 +81,19 @@ html, body {
   display: block;
   margin-top: 0.35rem;
   font-size: 0.7rem;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: rgba(232, 238, 244, 0.55);
-  font-weight: 500;
+  font-weight: 600;
 }
 
-/* Header / topbar */
+/* -------------------------------------------------------------------------- */
+/* Header                                                                     */
+/* -------------------------------------------------------------------------- */
 .header {
   background: var(--fl-surface-card) !important;
   border-bottom: 1px solid var(--fl-border) !important;
-  box-shadow: none !important;
+  box-shadow: 0 1px 0 rgba(11, 31, 58, 0.03) !important;
 }
 
 .header .header-left .logo img,
@@ -85,7 +101,6 @@ html, body {
   max-height: 36px;
 }
 
-/* Page shell */
 .page-wrapper {
   background: var(--fl-surface) !important;
 }
@@ -100,10 +115,12 @@ html, body {
 .page-header h4 {
   color: var(--fl-primary) !important;
   font-weight: 600 !important;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.015em;
 }
 
-/* Cards */
+/* -------------------------------------------------------------------------- */
+/* Cards                                                                      */
+/* -------------------------------------------------------------------------- */
 .card {
   border: 1px solid var(--fl-border) !important;
   border-radius: var(--fl-radius) !important;
@@ -118,50 +135,189 @@ html, body {
   color: var(--fl-primary);
 }
 
-/* Buttons */
+#eventModal .upper-stats-box,
+#eventModal .bottom-stats-box,
+#eventModal .book-on_box,
+#eventModal .book-off_box {
+  border: 1px solid var(--fl-border) !important;
+  border-radius: var(--fl-radius) !important;
+  box-shadow: var(--fl-shadow) !important;
+  background: var(--fl-surface-card);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Buttons                                                                    */
+/* -------------------------------------------------------------------------- */
 .btn-primary,
-.btn-primary:focus {
+.btn-primary:focus,
+.btn.btn-primary {
   background-color: var(--fl-accent) !important;
   border-color: var(--fl-accent) !important;
-  color: #fff !important;
+  color: var(--fl-on-accent) !important;
   box-shadow: none !important;
-  border-radius: 8px !important;
+  border-radius: var(--fl-radius-sm) !important;
   font-weight: 500;
 }
 
 .btn-primary:hover,
 .btn-primary:active,
-.btn-primary.active {
+.btn-primary.active,
+.btn.btn-primary:hover,
+.btn.btn-primary:focus,
+.btn.btn-primary:active {
   background-color: var(--fl-accent-hover) !important;
   border-color: var(--fl-accent-hover) !important;
+  color: var(--fl-on-accent) !important;
 }
 
 .btn-outline-primary {
   color: var(--fl-accent) !important;
   border-color: var(--fl-accent) !important;
-  border-radius: 8px !important;
+  border-radius: var(--fl-radius-sm) !important;
+  background: transparent !important;
 }
 
 .btn-outline-primary:hover {
   background-color: var(--fl-accent) !important;
-  color: #fff !important;
+  color: var(--fl-on-accent) !important;
+}
+
+.btn-danger,
+.btn.btn-danger {
+  background-color: var(--fl-danger) !important;
+  border-color: var(--fl-danger) !important;
+  border-radius: var(--fl-radius-sm) !important;
+}
+
+.btn-danger:hover,
+.btn.btn-danger:hover {
+  background-color: var(--fl-danger-hover) !important;
+  border-color: var(--fl-danger-hover) !important;
 }
 
 .btn-secondary,
-.btn-light {
-  border-radius: 8px !important;
+.btn-light,
+.btn-success {
+  border-radius: var(--fl-radius-sm) !important;
 }
 
-/* Tables */
+.btn-success,
+.btn.btn-success {
+  background-color: var(--fl-success) !important;
+  border-color: var(--fl-success) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tabs — high contrast active state (fixes invisible teal-on-teal text)      */
+/* -------------------------------------------------------------------------- */
+.nav-tabs {
+  border-bottom: 1px solid var(--fl-border) !important;
+  gap: 0.35rem;
+}
+
+.nav-tabs .nav-link {
+  color: var(--fl-muted) !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--fl-radius-sm) var(--fl-radius-sm) 0 0 !important;
+  font-weight: 500;
+  padding: 0.55rem 1rem !important;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-tabs .nav-link:hover {
+  color: var(--fl-primary) !important;
+  background: rgba(11, 31, 58, 0.04) !important;
+  border-color: transparent !important;
+}
+
+.nav-tabs .nav-link.active,
+.nav-tabs .nav-item.show .nav-link {
+  color: var(--fl-on-accent) !important;
+  background: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 12px rgba(15, 138, 132, 0.25);
+}
+
+.nav-pills .nav-link {
+  color: var(--fl-muted) !important;
+  border-radius: 999px !important;
+  font-weight: 500;
+}
+
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+  color: var(--fl-on-accent) !important;
+  background-color: var(--fl-accent) !important;
+}
+
+/* Shift detail / scheduling modal tab strip */
+#eventModal .tabs-parent_main {
+  gap: 1rem;
+  flex-wrap: wrap;
+  padding: 1rem 1.25rem !important;
+  background: var(--fl-surface-card);
+  border: 1px solid var(--fl-border);
+  border-radius: var(--fl-radius);
+  margin-bottom: 1rem;
+  box-shadow: var(--fl-shadow);
+}
+
+#eventModal .tabs-parent_main .tabs-parent {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  border: none;
+}
+
+#eventModal .tabs-parent_main .tabs-parent button,
+#eventModal .tabs-parent_main .tabs-parent .nav-link {
+  padding: 0.5rem 1rem !important;
+  border: 1px solid var(--fl-border) !important;
+  border-radius: 999px !important;
+  background: #fff !important;
+  color: var(--fl-text) !important;
+  cursor: pointer;
+  font-size: 0.875rem !important;
+  font-weight: 500 !important;
+  line-height: 1.3;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+#eventModal .tabs-parent_main .tabs-parent button:hover,
+#eventModal .tabs-parent_main .tabs-parent .nav-link:hover {
+  border-color: var(--fl-accent) !important;
+  color: var(--fl-accent) !important;
+  background: var(--fl-accent-soft) !important;
+}
+
+#eventModal .tabs-parent_main .tabs-parent button.active,
+#eventModal .tabs-parent_main .tabs-parent .nav-link.active {
+  background: var(--fl-accent) !important;
+  color: var(--fl-on-accent) !important;
+  border-color: var(--fl-accent) !important;
+  font-weight: 600 !important;
+  box-shadow: 0 4px 14px rgba(15, 138, 132, 0.28);
+}
+
+#eventModal .expiry_date .form-check-label {
+  color: var(--fl-muted);
+  font-size: 0.85rem;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Tables                                                                     */
+/* -------------------------------------------------------------------------- */
 .table thead th,
 .table-responsive .table thead th,
 .dataTables_wrapper .table thead th {
-  background: #eef2f6 !important;
+  background: #EEF2F6 !important;
   color: var(--fl-primary) !important;
   font-weight: 600 !important;
-  font-size: 0.78rem !important;
+  font-size: 0.75rem !important;
   text-transform: uppercase;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.04em;
   border-bottom: 1px solid var(--fl-border) !important;
 }
 
@@ -172,28 +328,44 @@ html, body {
 }
 
 .table-hover tbody tr:hover {
-  background-color: rgba(31, 167, 160, 0.05) !important;
+  background-color: var(--fl-accent-soft) !important;
 }
 
-/* Forms */
+/* -------------------------------------------------------------------------- */
+/* Forms                                                                      */
+/* -------------------------------------------------------------------------- */
 .form-control,
 .form-select,
 .select2-container--default .select2-selection--single {
   border-color: var(--fl-border) !important;
-  border-radius: 8px !important;
+  border-radius: var(--fl-radius-sm) !important;
   color: var(--fl-text);
 }
 
 .form-control:focus,
 .form-select:focus {
   border-color: var(--fl-accent) !important;
-  box-shadow: 0 0 0 3px rgba(31, 167, 160, 0.18) !important;
+  box-shadow: 0 0 0 3px var(--fl-accent-soft) !important;
 }
 
-/* Badges / links */
+.form-check-input:checked {
+  background-color: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Badges / links / status chips                                              */
+/* -------------------------------------------------------------------------- */
 .badge.bg-primary,
 .badge-primary {
   background-color: var(--fl-accent) !important;
+  color: var(--fl-on-accent) !important;
+}
+
+.badge.bg-success,
+.bg-success {
+  background-color: var(--fl-success) !important;
+  color: #fff !important;
 }
 
 a.text-primary,
@@ -205,16 +377,18 @@ a:hover.text-primary {
   color: var(--fl-accent-hover) !important;
 }
 
-/* Notifications unread accent */
 .notif-item.unread {
-  background-color: rgba(31, 167, 160, 0.08) !important;
+  background-color: var(--fl-accent-soft) !important;
   border-left: 4px solid var(--fl-accent) !important;
 }
 
-/* Pagination */
+/* -------------------------------------------------------------------------- */
+/* Pagination / modals / misc                                                 */
+/* -------------------------------------------------------------------------- */
 .pagination .page-item.active .page-link {
   background-color: var(--fl-accent) !important;
   border-color: var(--fl-accent) !important;
+  color: var(--fl-on-accent) !important;
 }
 
 .pagination .page-link {
@@ -222,7 +396,6 @@ a:hover.text-primary {
   border-radius: 6px !important;
 }
 
-/* Modals */
 .modal-content {
   border-radius: var(--fl-radius) !important;
   border: 1px solid var(--fl-border);
@@ -234,12 +407,58 @@ a:hover.text-primary {
   color: var(--fl-primary);
 }
 
-/* Login / guest */
+.breadcrumb {
+  background: transparent !important;
+}
+
+.dropdown-item.active,
+.dropdown-item:active {
+  background-color: var(--fl-accent) !important;
+  color: var(--fl-on-accent) !important;
+}
+
+/* FullCalendar accents */
+.fc .fc-button-primary {
+  background-color: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+}
+
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background-color: var(--fl-accent-hover) !important;
+  border-color: var(--fl-accent-hover) !important;
+}
+
+.fc .fc-daygrid-event {
+  border-radius: 4px;
+}
+
+/* DataTables length / filter */
+.dataTables_wrapper .dataTables_filter input,
+.dataTables_wrapper .dataTables_length select {
+  border-radius: var(--fl-radius-sm) !important;
+  border-color: var(--fl-border) !important;
+}
+
+/* Soften template chrome that fights the theme */
+.btn-check:checked + .btn,
+.btn.active,
+.btn.show,
+.btn:first-child:active,
+:not(.btn-check) + .btn:active {
+  background-color: var(--fl-accent) !important;
+  border-color: var(--fl-accent) !important;
+  color: var(--fl-on-accent) !important;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Login / guest                                                              */
+/* -------------------------------------------------------------------------- */
 body.fl-guest {
   min-height: 100vh;
   margin: 0;
   background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(31, 167, 160, 0.22), transparent 55%),
+    radial-gradient(1200px 600px at 10% -10%, rgba(15, 138, 132, 0.22), transparent 55%),
     radial-gradient(900px 500px at 100% 0%, rgba(11, 31, 58, 0.45), transparent 50%),
     linear-gradient(160deg, #0B1F3A 0%, #132a4a 45%, #0a1628 100%) !important;
   font-family: 'Poppins', system-ui, sans-serif !important;
@@ -302,7 +521,7 @@ body.fl-guest {
 .fl-guest-card input[type="text"] {
   width: 100%;
   border: 1px solid var(--fl-border);
-  border-radius: 8px;
+  border-radius: var(--fl-radius-sm);
   padding: 0.65rem 0.85rem;
   margin-top: 0.35rem;
   background: #fff;
@@ -311,16 +530,16 @@ body.fl-guest {
 .fl-guest-card input:focus {
   outline: none;
   border-color: var(--fl-accent);
-  box-shadow: 0 0 0 3px rgba(31, 167, 160, 0.18);
+  box-shadow: 0 0 0 3px var(--fl-accent-soft);
 }
 
 .fl-guest-card .fl-login-btn {
   width: 100%;
   margin-top: 1.25rem;
   background: var(--fl-accent);
-  color: #fff;
+  color: var(--fl-on-accent);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--fl-radius-sm);
   padding: 0.7rem 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -340,19 +559,4 @@ body.fl-guest {
 .fl-guest-card a:hover {
   color: var(--fl-accent-hover);
   text-decoration: underline;
-}
-
-/* Soften heavy template chrome */
-.breadcrumb {
-  background: transparent !important;
-}
-
-.nav-tabs .nav-link.active {
-  color: var(--fl-accent) !important;
-  border-color: var(--fl-border) var(--fl-border) #fff !important;
-  font-weight: 600;
-}
-
-.nav-tabs .nav-link {
-  color: var(--fl-muted);
 }

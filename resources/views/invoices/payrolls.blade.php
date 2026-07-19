@@ -4,29 +4,31 @@
     <style>
         /* Payroll tabs styling */
         .nav-tabs .nav-link {
-            background: #f6f9fb;
-            color: #374151;
-            border: 1px solid #e6eef6;
+            background: #f8fafc;
+            color: #64748b;
+            border: 1px solid #e2e8f0;
             margin-right: 6px;
-            border-radius: 8px;
-            padding: .45rem .9rem;
+            border-radius: 999px;
+            padding: .45rem .95rem;
             transition: all .12s ease;
+            font-weight: 500;
         }
         .nav-tabs .nav-link:hover {
-            background: #eef4ff;
-            color: #0f172a;
+            background: rgba(15, 138, 132, 0.1);
+            color: #0F8A84;
+            border-color: #0F8A84;
         }
         .nav-tabs .nav-link.active {
-            background: linear-gradient(90deg,#4e73df,#6c8cff);
+            background: #0F8A84 !important;
             color: #fff !important;
-            border-color: #4e73df;
-            box-shadow: 0 6px 18px rgba(78,115,223,0.12);
+            border-color: #0F8A84 !important;
+            box-shadow: 0 4px 14px rgba(15, 138, 132, 0.28);
         }
-        /* Subcontractor tab uses a green accent when active */
+        /* Subcontractor tab — slightly deeper teal when active */
         .nav-tabs .nav-link[data-bs-target="#subcontractor-tab-pane"].active {
-            background: linear-gradient(90deg,#20c997,#38e39a);
-            border-color: #20c997;
-            box-shadow: 0 6px 18px rgba(32,201,151,0.12);
+            background: #0C736E !important;
+            border-color: #0C736E !important;
+            box-shadow: 0 4px 14px rgba(12, 115, 110, 0.28);
         }
         /* Tab pane background and padding */
         .tab-content .tab-pane {
