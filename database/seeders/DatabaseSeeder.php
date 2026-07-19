@@ -35,7 +35,7 @@ class DatabaseSeeder extends Seeder
             permissionSeeder::class,
             RestrictionSeeder::class,
             visaTypeSeeder::class,
-
+            DemoTrackingSeeder::class,
         ]);
     }
 }

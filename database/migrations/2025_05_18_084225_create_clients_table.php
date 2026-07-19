@@ -17,6 +17,10 @@ return new class extends Migration
             $table->unsignedBigInteger('company_id')->nullable();
             $table->unsignedBigInteger('manager_id')->nullable();
             $table->unsignedBigInteger('user_id');
+            $table->foreign('user_id')
+                ->references('id')
+                ->on('users')
+                ->cascadeOnDelete();
             $table->foreign('company_id')
                 ->references('id')
                 ->on('company')

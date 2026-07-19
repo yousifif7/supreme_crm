@@ -18,7 +18,7 @@ class Patrol extends Model
 
     public function shift()
     {
-        return $this->belongsTo(ShiftDate::class);
+        return $this->belongsTo(ShiftDate::class, 'shift_id');
     }
 
     public function media()

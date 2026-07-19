@@ -20,6 +20,7 @@ class Conversation extends Model
             'conversation_id',   // Foreign key on pivot table for this model (Conversation)
             'user_id'            // Foreign key on pivot table for related model (User)
         )
+            ->withPivot(['unread_count', 'role'])
             ->withTimestamps();      // Manage created_at/updated_at on pivot
     }
     public function messages()

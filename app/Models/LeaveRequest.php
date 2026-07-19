@@ -40,7 +40,7 @@ class LeaveRequest extends Model
 
     public function shift()
     {
-        $this->belongsTo(ShiftDate::class, 'shift_id');
+        return $this->belongsTo(ShiftDate::class, 'shift_id');
     }
 
     public function logs()

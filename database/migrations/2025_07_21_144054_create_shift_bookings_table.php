@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('shift_bookings', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
-            $table->foreignId('shift_id')->constrained()->onDelete('cascade');
+            $table->foreignId('shift_id')->constrained('shift_dates')->onDelete('cascade');
             $table->enum('type', ['book_on', 'book_off']);
             $table->string('face_verification_result');
             $table->decimal('latitude', 10, 7)->nullable();

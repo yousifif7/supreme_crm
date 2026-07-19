@@ -10,6 +10,7 @@ class CheckPointScan extends Model
         'patrol_id', 'user_id', 'patrol_checkpoint_id', 'scan_data', 'scan_method',
         'latitude', 'longitude', 'notes', 'issues_found', 'timestamp'
     ];
+    protected $table = "checkpoint_scans";
 
     public function patrol()
     {
@@ -32,7 +33,7 @@ class CheckPointScan extends Model
      */
     protected static function booted()
     {
-        static::deleting(function (CheckpointScan $scan) {
+        static::deleting(function (CheckPointScan $scan) {
             $scan->media()->delete();
         });
     }

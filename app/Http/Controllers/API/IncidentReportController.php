@@ -210,7 +210,7 @@ class IncidentReportController extends Controller
             ->firstOrFail();
 
         $data = $request->validate([
-            'shift_id' => 'required|exists:shifts,id',
+            'shift_id' => 'required|exists:shift_dates,id',
             'category' => 'required|in:theft,assault,fire,medical,property_damage,suspicious_activity,other',
             'severity' => 'required|in:low,medium,high,critical',
             'title' => 'required|string',

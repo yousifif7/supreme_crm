@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('dob_entries', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('shift_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('shift_id')->constrained('shift_dates')->cascadeOnDelete();
             $table->enum('entry_type', ['incident', 'observation', 'maintenance', 'visitor', 'other']);
             $table->string('title');
             $table->text('description');

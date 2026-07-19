@@ -18,7 +18,9 @@ return new class extends Migration
             $table->foreignId('security_staff_id')->nullable()->constrained('users');
             $table->foreignId('site_id')->nullable()->constrained();
             $table->date('issue_date');
-            $table->date('due_date');
+            $table->date('due_date')->nullable();
+            $table->decimal('total_hours', 10, 2);
+            $table->decimal('total_sick_hours', 10, 2);
             $table->decimal('total_amount', 10, 2);
             $table->decimal('tax_amount', 10, 2)->default(0);
             $table->string('status')->default('draft'); // draft, sent, paid, overdue

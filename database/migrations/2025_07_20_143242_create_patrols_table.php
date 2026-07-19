@@ -21,7 +21,7 @@ return new class extends Migration
             $table->integer('issues_reported')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamp('start_time')->nullable(); // scheduled patrol start time
-            $table->enum('status', ['pending','in_progress','completed'])->default('pending');
+            $table->enum('status', ['pending','in_progress','completed','missed'])->default('pending');
             $table->timestamp('started_at')->nullable();
             $table->timestamps();
         });

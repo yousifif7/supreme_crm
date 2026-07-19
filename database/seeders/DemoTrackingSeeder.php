@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\CheckCall;
+use App\Models\Client;
 use App\Models\Employee;
 use App\Models\Location;
 use App\Models\Patrol;
@@ -88,6 +89,7 @@ class DemoTrackingSeeder extends Seeder
     {
         $user = User::withoutGlobalScopes()->firstOrNew(['email' => self::CLIENT_EMAIL]);
         $user->fill([
+            'name' => 'Demo Client',
             'first_name' => 'Demo',
             'last_name' => 'Client',
             'username' => 'democlient',
@@ -96,6 +98,21 @@ class DemoTrackingSeeder extends Seeder
         ]);
         $user->save();
         $user->syncRoles([$role]);
+
+        // App expects both a users row (login) and a clients row (CRM profile).
+        // sites.client_id stores the user's id (not clients.id).
+        Client::withoutGlobalScopes()->updateOrCreate(
+            ['user_id' => $user->id],
+            [
+                'admin_id' => null,
+                'client_name' => 'Demo Client Ltd',
+                'email' => self::CLIENT_EMAIL,
+                'contact_person' => 'Demo Client',
+                'contact_number' => '020 0000 0000',
+                'address' => '1 Canada Square, Canary Wharf, London',
+                'is_active' => 1,
+            ]
+        );
 
         return $user;
     }
@@ -274,6 +291,7 @@ class DemoTrackingSeeder extends Seeder
 
     private function seedPatrol(ShiftDate $shiftDate): Patrol
     {
+        // Map-demo patrol (already started) — kept for live tracking UI.
         $patrol = Patrol::withoutGlobalScopes()
             ->where('shift_id', $shiftDate->id)
             ->where('name', 'Demo Perimeter Patrol')
@@ -295,10 +313,31 @@ class DemoTrackingSeeder extends Seeder
 
         if ($patrol) {
             $patrol->update($payload);
-            return $patrol;
+        } else {
+            $patrol = Patrol::withoutGlobalScopes()->create($payload);
         }
 
-        return Patrol::withoutGlobalScopes()->create($payload);
+        // Overdue pending patrol so shifts:process-notifications can mark it missed.
+        Patrol::withoutGlobalScopes()->updateOrCreate(
+            [
+                'shift_id' => $shiftDate->id,
+                'name' => 'Demo Overdue Patrol',
+            ],
+            [
+                'admin_id' => null,
+                'summary' => 'Seeded pending patrol with start_time in the past (cron → missed).',
+                'total_checkpoints' => 4,
+                'completed_checkpoints' => 0,
+                'issues_reported' => 0,
+                'start_time' => now()->subMinutes(45),
+                'started_at' => null,
+                'completed_at' => null,
+                'status' => 'pending',
+                'approval_status' => 'pending',
+            ]
+        );
+
+        return $patrol;
     }
 
     private function seedCheckCalls(ShiftDate $shiftDate, User $guard): void
@@ -328,26 +367,18 @@ class DemoTrackingSeeder extends Seeder
     /** @param array<int, ShiftDate> $shiftDates @param array<int, User> $guards */
     private function seedBookings(array $shiftDates, array $guards): void
     {
-        // Some environments FK shift_bookings.shift_id → shifts.id while the app
-        // stores shift_dates.id. Disable checks briefly so the demo matches app usage.
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-
-        try {
-            foreach ($shiftDates as $i => $sd) {
-                ShiftBooking::where('shift_id', $sd->id)->delete();
-                ShiftBooking::create([
-                    'user_id' => $guards[$i]->id,
-                    'shift_id' => $sd->id,
-                    'type' => 'book_on',
-                    'latitude' => $this->siteLat + (($i - 0.5) * 0.00015),
-                    'longitude' => $this->siteLng + (($i - 0.5) * 0.00012),
-                    'address' => '1 Canada Square, Canary Wharf, London E14 5AB',
-                    'timestamp' => now()->subHours(4)->subMinutes($i * 7),
-                    'face_verification_result' => 'passed',
-                ]);
-            }
-        } finally {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+        foreach ($shiftDates as $i => $sd) {
+            ShiftBooking::where('shift_id', $sd->id)->delete();
+            ShiftBooking::create([
+                'user_id' => $guards[$i]->id,
+                'shift_id' => $sd->id,
+                'type' => 'book_on',
+                'latitude' => $this->siteLat + (($i - 0.5) * 0.00015),
+                'longitude' => $this->siteLng + (($i - 0.5) * 0.00012),
+                'address' => '1 Canada Square, Canary Wharf, London E14 5AB',
+                'timestamp' => now()->subHours(4)->subMinutes($i * 7),
+                'face_verification_result' => 'passed',
+            ]);
         }
     }
 

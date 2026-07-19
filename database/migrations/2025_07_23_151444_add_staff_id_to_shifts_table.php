@@ -6,25 +6,34 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        Schema::table('shifts', function (Blueprint $table) {
-            $table->unsignedBigInteger('staff_id')->nullable()->after('id'); // or after any existing column
-            $table->foreign('staff_id')->references('id')->on('users')->onDelete('set null');
-        });
+        if (!Schema::hasColumn('shifts', 'staff_id')) {
+            Schema::table('shifts', function (Blueprint $table) {
+                $table->unsignedBigInteger('staff_id')->nullable()->after('id');
+            });
+        }
+
+        try {
+            Schema::table('shifts', function (Blueprint $table) {
+                $table->foreign('staff_id')->references('id')->on('users')->nullOnDelete();
+            });
+        } catch (\Throwable $e) {
+            // FK may already exist
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
+        if (!Schema::hasColumn('shifts', 'staff_id')) {
+            return;
+        }
+
         Schema::table('shifts', function (Blueprint $table) {
-            //
-            $table->dropForeign(['staff_id']);
+            try {
+                $table->dropForeign(['staff_id']);
+            } catch (\Throwable $e) {
+            }
             $table->dropColumn('staff_id');
         });
     }

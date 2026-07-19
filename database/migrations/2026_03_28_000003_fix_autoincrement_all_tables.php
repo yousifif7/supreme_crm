@@ -27,7 +27,7 @@ return new class extends Migration
         'clients',
         'company',
         'company_settings',
-        'conversation_users',
+        'conversation_user',
         'conversations',
         'countries',
         'departments',

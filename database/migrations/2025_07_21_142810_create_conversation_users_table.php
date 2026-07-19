@@ -11,12 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('conversation_users', function (Blueprint $table) {
+        // Pivot name must match Conversation / User belongsToMany('conversation_user')
+        Schema::create('conversation_user', function (Blueprint $table) {
             $table->id();
             $table->foreignId('conversation_id')->constrained()->onDelete('cascade');
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->integer('unread_count')->default(0);
             $table->timestamps();
+            $table->unique(['conversation_id', 'user_id'], 'conversation_user_unique');
         });
     }
 
@@ -25,6 +27,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('conversation_users');
+        Schema::dropIfExists('conversation_user');
     }
 };

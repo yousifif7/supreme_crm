@@ -11,9 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('conversation_users', function (Blueprint $table) {
-            if (!Schema::hasColumn('conversation_users', 'role')) {
-                $table->string('role')->nullable()->after('unread_count');
+        $table = $this->pivotTable();
+        if ($table === null) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) use ($table) {
+            if (!Schema::hasColumn($table, 'role')) {
+                $blueprint->string('role')->nullable()->after('unread_count');
             }
         });
     }
@@ -23,10 +28,28 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('conversation_users', function (Blueprint $table) {
-            if (Schema::hasColumn('conversation_users', 'role')) {
-                $table->dropColumn('role');
+        $table = $this->pivotTable();
+        if ($table === null) {
+            return;
+        }
+
+        Schema::table($table, function (Blueprint $blueprint) use ($table) {
+            if (Schema::hasColumn($table, 'role')) {
+                $blueprint->dropColumn('role');
             }
         });
+    }
+
+    private function pivotTable(): ?string
+    {
+        if (Schema::hasTable('conversation_user')) {
+            return 'conversation_user';
+        }
+
+        if (Schema::hasTable('conversation_users')) {
+            return 'conversation_users';
+        }
+
+        return null;
     }
 };

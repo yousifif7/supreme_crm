@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('booking_alarms', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained()->onDelete('cascade');
-            $table->foreignId('shift_id')->nullable()->constrained()->onDelete('cascade');
+            $table->foreignId('shift_id')->nullable()->constrained('shift_dates')->onDelete('cascade');
             $table->enum('type', ['book_on', 'book_off']);
             $table->timestamp('scheduled_time')->nullable();
             $table->timestamp('alarm_time')->nullable();

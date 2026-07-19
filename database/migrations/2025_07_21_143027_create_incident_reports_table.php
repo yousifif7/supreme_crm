@@ -14,7 +14,7 @@ return new class extends Migration
         Schema::create('incident_reports', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('shift_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('shift_id')->constrained('shift_dates')->cascadeOnDelete();
             $table->enum('category', ['theft', 'assault', 'fire', 'medical', 'property_damage', 'suspicious_activity', 'other']);
             $table->enum('severity', ['low', 'medium', 'high', 'critical']);
             $table->string('title');
